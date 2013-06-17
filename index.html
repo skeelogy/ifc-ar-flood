@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Iowa Flood Center - Augmented Reality Flood Simulation</title>
+	<meta charset="UTF-8"/>
+	
+	<link rel="stylesheet" href="css/style.css">
+	
+	<!--official WebRTC's adapter script for handling cross-browser differences-->
+	<script type="text/javascript" src="js/lib/webrtc_adapter.js"></script>
+	
+	<script>
+	function main()
+	{
+		console.log('Document is ready.');
+		
+		//get camera DOM element
+		var camera = document.getElementById('camera');
+		if (!camera)
+		{
+			errorMsg = 'Unable to find camera <video> element';
+			console.log(errorMsg);
+			alert(errorMsg);
+			return;
+		}
+		console.log('Found camera <video> element');
+		
+		//use getUserMedia() to stream the webcam video
+		if (getUserMedia)
+		{
+			console.log("Calling getUserMedia()...");
+			getUserMedia(
+				{'audio':false, 'video':true},
+				function(localMediaStream)
+				{
+					console.log("User has granted access to local media.");
+					
+					var localMediaStreamUrl = URL.createObjectURL(localMediaStream);
+					console.log('Local media stream URL: ' + localMediaStreamUrl);
+
+					//call wrapper to attach the media stream to the video element
+					console.log('Attaching local media stream...');
+					attachMediaStream(camera, localMediaStream);
+					console.log('Done.');
+				},
+				function(error)
+				{
+					errorMsg = 'ERROR: getUserMedia(): ' + JSON.stringify(error);
+					console.log(errorMsg);
+					alert(errorMsg);
+				}
+			);
+		} else {
+			errorMsg = 'ERROR: Your browser does not support getUserMedia()';
+			console.log(errorMsg);
+			alert(errorMsg);
+		}
+	}
+	</script>
+</head>
+<body onload="main()">
+	<div id="video-container">
+		<video id="camera" width="500" autoplay="autoplay" muted="true"></video>
+	</div>
+</body>
+</html>
