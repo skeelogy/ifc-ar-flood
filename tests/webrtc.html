@@ -4,14 +4,16 @@
 	<title>Iowa Flood Center - Augmented Reality Flood Simulation</title>
 	<meta charset="UTF-8"/>
 	
-	<link rel="stylesheet" href="css/style.css">
+	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" href="../css/style.css">
 	
 	<!--load helper libraries-->
-	<script type="text/javascript" src="js/lib/jquery-2.0.1.min.js"></script>
+	<script type="text/javascript" src="../js/lib/jquery-2.0.1.min.js"></script>
 	
 	<!--official WebRTC's polyfill for handling cross-browser differences-->
-	<script type="text/javascript" src="js/lib/webrtc_adapter.js"></script>
+	<script type="text/javascript" src="../js/lib/webrtc_adapter.js"></script>
 	
+	<!--load AR and 3D libraries-->
 	<script type="text/javascript" src="../js/streamvideo.js"></script>
 	
 	<script>
@@ -37,6 +39,8 @@
 	</script>
 </head>
 <body>
+	<h1>Test 1</h1>
+	<h2>Stream webcam video using WebRTC's getUserMedia()</h2>
 	<div class="container" id="video-container">
 		<video id="camera" width="640" autoplay="autoplay" muted="true"></video>
 	</div>

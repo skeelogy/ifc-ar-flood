@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Iowa Flood Center - Augmented Reality Flood Simulation</title>
+	<meta charset="UTF-8"/>
+	
+	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" href="../css/style.css">
+	
+	<!--load helper libraries-->
+	<script type="text/javascript" src="../js/lib/jquery-2.0.1.min.js"></script>
+	
+	<!--load 3D libraries-->
+	<script type="text/javascript" src="../js/lib/requestanimationframe.js"></script>
+	<script type="text/javascript" src="../js/lib/Three.js"></script>
+	
+	<script>
+	$(document).ready(function()
+	{
+		console.log('Document is ready.');
+		
+		//get camera DOM element
+		var $camera = $('#camera');
+		if (!$camera)
+		{
+			errorMsg = 'Unable to find camera <video> element';
+			console.log(errorMsg);
+			alert(errorMsg);
+			return;
+		}
+		console.log('Found camera <video> element');
+		$camera = $camera[0];
+		
+		//stream to video element
+		videoId = 0;
+		if (videoId == 0)
+		{
+			//credits: JSARToolkit
+			//(https://github.com/kig/JSARToolKit/tree/master/demos/tests/output_4.ogg)
+			$camera.src = '../resources/videos/output_4.ogg';
+		}
+		else if (videoId == 1)
+		{
+			//credits: tquery.jsartoolkit
+			//https://github.com/jeromeetienne/tquery.jsartoolkit/tree/master/videos/swap_loop.ogg
+			$camera.src = '../resources/videos/swap_loop.ogg';
+		}
+		
+		//===================================================
+		//THREE.JS
+		//===================================================
+		
+		// setup three.js renderer
+		var renderer	= new THREE.WebGLRenderer({
+			antialias	: true
+		});
+		renderer.setSize(640, 480);
+		var $container = $('#threejs-container');
+		$container.append(renderer.domElement);
+
+		// create the scene
+		var scene	= new THREE.Scene();
+
+		// Create a camera and a marker root object for your Three.js scene.
+		var camera = new THREE.PerspectiveCamera(35, renderer.domElement.width/renderer.domElement.height, 1, 10000 );
+		camera.position.set(0, 0, 5);
+		scene.add(camera);
+
+		// setup lights
+		scene.add(new THREE.AmbientLight(0xffffff));
+
+		var light	= new THREE.DirectionalLight(0xffffff);
+		light.position.set(3, -3, 1).normalize();
+		scene.add(light);
+
+		var light	= new THREE.DirectionalLight(0xffffff);
+		light.position.set(-0, 2, -1).normalize();
+		scene.add(light);
+
+		var material	= new THREE.MeshNormalMaterial();
+		var geometry	= new THREE.TorusGeometry( 10, 3 );
+		var mesh	= new THREE.Mesh(geometry, material);
+		mesh.position.z = -50;
+		scene.add(mesh);
+
+		// Create scene and quad for the video.
+		var videoTex 	= new THREE.Texture($camera);
+		var geometry	= new THREE.PlaneGeometry(2, 2, 0);
+		//TODO: use constant material that is not affected by lighting
+		var material	= new THREE.MeshBasicMaterial({
+			color		: 0x4444AA,
+			color		: 0x6666FF,
+			map		: videoTex,
+			depthTest	: false,
+			depthWrite	: false
+		});
+		var plane	= new THREE.Mesh(geometry, material );
+		var videoScene	= new THREE.Scene();
+		var videoCam	= new THREE.Camera();
+		videoScene.add(plane);
+		videoScene.add(videoCam);
+		
+		function animate(){	
+			requestAnimationFrame(animate);
+			render();
+		};
+
+		function render(){
+
+			if ( $camera instanceof HTMLVideoElement && $camera.readyState === $camera.HAVE_ENOUGH_DATA ){
+				videoTex.needsUpdate	= true;
+			}
+			
+			// trigger the rendering
+			renderer.autoClear = false;
+			renderer.clear();
+			renderer.render(videoScene, videoCam);
+			renderer.render(scene, camera);
+		};
+		
+		//animate
+		animate();
+	});
+	</script>
+</head>
+<body>
+	<h1>Test 2</h1>
+	<h2>Three.js 3D overlay with a background video</h2>
+	<div class="invisible" id="video-container">
+		<video id="camera" width="640" autoplay="autoplay" muted="true"></video>
+	</div>
+	<div class="container" id="threejs-container"></div>
+	<div class="caption">NOTE: object will not follow the video, but should always be on top of it</div>
+</body>
+</html>
