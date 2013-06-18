@@ -6,16 +6,19 @@
 	
 	<link rel="stylesheet" href="css/style.css">
 	
-	<!--official WebRTC's adapter script for handling cross-browser differences-->
+	<!--load helper libraries-->
+	<script type="text/javascript" src="js/lib/jquery-2.0.1.min.js"></script>
+	
+	<!--official WebRTC's polyfill for handling cross-browser differences-->
 	<script type="text/javascript" src="js/lib/webrtc_adapter.js"></script>
 	
 	<script>
-	function main()
+	$(document).ready(function()
 	{
 		console.log('Document is ready.');
 		
 		//get camera DOM element
-		var camera = document.getElementById('camera');
+		var camera = $('#camera');
 		if (!camera)
 		{
 			errorMsg = 'Unable to find camera <video> element';
@@ -24,6 +27,7 @@
 			return;
 		}
 		console.log('Found camera <video> element');
+		camera = camera[0];
 		
 		//use getUserMedia() to stream the webcam video
 		if (getUserMedia)
@@ -55,10 +59,10 @@
 			console.log(errorMsg);
 			alert(errorMsg);
 		}
-	}
+	});
 	</script>
 </head>
-<body onload="main()">
+<body>
 	<div id="video-container">
 		<video id="camera" width="500" autoplay="autoplay" muted="true"></video>
 	</div>
