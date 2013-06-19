@@ -13,7 +13,6 @@
 	<!--official WebRTC's polyfill for handling cross-browser differences-->
 	<script type="text/javascript" src="../js/lib/webrtc_adapter.js"></script>
 	
-	<!--load AR and 3D libraries-->
 	<script type="text/javascript" src="../js/streamvideo.js"></script>
 	
 	<script>
@@ -22,19 +21,19 @@
 		console.log('Document is ready.');
 		
 		//get camera DOM element
-		var $camera = $('#camera');
-		if (!$camera)
+		var $video = $('#myvideo');
+		if (!$video)
 		{
-			errorMsg = 'Unable to find camera <video> element';
+			errorMsg = 'Unable to find <video> element';
 			console.log(errorMsg);
 			alert(errorMsg);
 			return;
 		}
 		console.log('Found camera <video> element');
-		$camera = $camera[0];
+		$video = $video[0];
 		
 		//stream to video element
-		streamVideo($camera);
+		streamVideo($video);
 	});
 	</script>
 </head>
@@ -42,7 +41,8 @@
 	<h1>Test 1</h1>
 	<h2>Stream webcam video using WebRTC's getUserMedia()</h2>
 	<div class="container" id="video-container">
-		<video id="camera" width="640" autoplay="autoplay" muted="true"></video>
+		<div class="caption">&lt;video&gt;</div>
+		<video id="myvideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
 	</div>
 </body>
 </html>

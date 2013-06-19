@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Iowa Flood Center - Augmented Reality Flood Simulation</title>
+	<meta charset="UTF-8"/>
+	
+	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" href="../css/style.css">
+	
+	<!--load helper libraries-->
+	<script type="text/javascript" src="../js/lib/jquery-2.0.1.min.js"></script>
+	
+	<!--load AR and 3D libraries-->
+	<script type="text/javascript" src="../js/lib/requestanimationframe.js"></script>
+	<script type="text/javascript" src="../js/lib/JSARToolKit.js"></script>
+	
+	<script>
+	$(document).ready(function()
+	{
+		console.log('Document is ready.');
+		
+		
+		
+		var $canvas = $('#mycanvas')[0];
+		var threshold = 128;
+		
+		// Create a RGB raster object for the 2D canvas.
+		// JSARToolKit uses raster objects to read image data.
+		// Note that you need to set canvas.changed = true on every frame.
+		var raster = new NyARRgbRaster_Canvas2D($canvas);
+
+		// FLARParam is the thing used by FLARToolKit to set camera parameters.
+		// Here we create a FLARParam for images with 320x240 pixel dimensions.
+		var param = new FLARParam(640, 480);
+
+		// The FLARMultiIdMarkerDetector is the actual detection engine for marker detection.
+		// It detects multiple ID markers. ID markers are special markers that encode a number.
+		var detector = new FLARMultiIdMarkerDetector(param, 120);
+
+		// For tracking video set continue mode to true. In continue mode, the detector
+		// tracks markers across multiple frames.
+		detector.setContinueMode(true);
+
+		// Copy the camera perspective matrix from the FLARParam to the WebGL library camera matrix.
+		// The second and third parameters determine the zNear and zFar planes for the perspective matrix.
+		var tmpGlMatCam	= new Float32Array(16);
+		param.copyCameraMatrix(tmpGlMatCam, 10, 10000);
+		
+		
+		
+		
+		//get camera DOM element
+		var $video = $('#myvideo');
+		if (!$video)
+		{
+			errorMsg = 'Unable to find <video> element';
+			console.log(errorMsg);
+			alert(errorMsg);
+			return;
+		}
+		console.log('Found <video> element');
+		$video = $video[0];
+		
+		//stream to video element
+		videoId = 0;
+		if (videoId == 0)
+		{
+			//credits: JSARToolkit
+			//(https://github.com/kig/JSARToolKit/tree/master/demos/tests/output_4.ogg)
+			$video.src = '../resources/videos/output_4.ogg';
+		}
+		else if (videoId == 1)
+		{
+			//credits: tquery.jsartoolkit
+			//https://github.com/jeromeetienne/tquery.jsartoolkit/tree/master/videos/swap_loop.ogg
+			$video.src = '../resources/videos/swap_loop.ogg';
+		}
+		
+		
+		function loop()
+		{
+			if ($video.readyState === $video.HAVE_ENOUGH_DATA)
+			{
+				// Draw the video frame to the raster canvas, scaled to 320x240.
+				ctx = $canvas.getContext('2d');
+				ctx.drawImage($video, 0, 0, 640, 480);
+
+				// Tell the raster object that the underlying canvas has changed.
+				$canvas.changed = true;
+
+				// Do marker detection by using the detector object on the raster object.
+				// The threshold parameter determines the threshold value
+				// for turning the video frame into a 1-bit black-and-white image.
+				//
+				//NOTE: THE CANVAS MUST BE THE SAME SIZE AS THE RASTER
+				//OTHERWISE WILL GET AN "Uncaught #<Object>" ERROR
+				var markerCount = detector.detectMarkerLite(raster, threshold);
+				
+				
+				
+				// Create a NyARTransMatResult object for getting the marker translation matrices.
+				var resultMat = new NyARTransMatResult();
+
+				var markers = {};
+
+				// Go through the detected markers and get their IDs and transformation matrices.
+				for (var idx = 0; idx < markerCount; idx++) {
+				  // Get the ID marker data for the current marker.
+				  // ID markers are special kind of markers that encode a number.
+				  // The bytes for the number are in the ID marker data.
+				  var id = detector.getIdMarkerData(idx);
+				  
+
+				  // Read bytes from the id packet.
+				  var currId = -1;
+				  // This code handles only 32-bit numbers or shorter.
+				  if (id.packetLength <= 4) {
+					currId = 0;
+					for (var i = 0; i < id.packetLength; i++) {
+					  currId = (currId << 8) | id.getPacketData(i);
+					}
+				  }
+				  console.log(currId);
+				  
+				  // If this is a new id, let's start tracking it.
+				  if (markers[currId] == null) {
+					markers[currId] = {};
+				  }
+				  // Get the transformation matrix for the detected marker.
+				  detector.getTransformMatrix(idx, resultMat);
+
+				  // Copy the result matrix into our marker tracker object.
+				  markers[currId].transform = Object.asCopy(resultMat);
+				  
+				  //TODO: draw square
+				  //TODO: show id on marker
+				}
+				
+			}
+		
+			requestAnimationFrame(loop);
+		}
+		loop();
+	});
+	</script>
+</head>
+<body>
+	<h1>Test 3</h1>
+	<h2>JSARToolKit tracking background video</h2>
+	<div class="invisible" id="video-container">
+		<div class="caption">&lt;video&gt;</div>
+		<video id="myvideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
+	</div>
+	<div class="container" id="canvas-container">
+		<div class="caption">&lt;canvas&gt;</div>
+		<canvas id="mycanvas" width="640" height="480"></canvas>
+	</div>
+	<div class="caption">Instructions: Please see console for tracked marker ID</div>
+</body>
+</html>

@@ -4,6 +4,7 @@
 	<title>Iowa Flood Center - Augmented Reality Flood Simulation</title>
 	<meta charset="UTF-8"/>
 	
+	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
 	<link rel="stylesheet" href="css/style.css">
 	
 	<!--load helper libraries-->
@@ -20,25 +21,26 @@
 		console.log('Document is ready.');
 		
 		//get camera DOM element
-		var $camera = $('#camera');
-		if (!$camera)
+		var $video = $('#myvideo');
+		if (!$video)
 		{
-			errorMsg = 'Unable to find camera <video> element';
+			errorMsg = 'Unable to find <video> element';
 			console.log(errorMsg);
 			alert(errorMsg);
 			return;
 		}
-		console.log('Found camera <video> element');
-		$camera = $camera[0];
+		console.log('Found <video> element');
+		$video = $video[0];
 		
 		//stream to video element
-		streamVideo($camera);
+		streamVideo($video);
 	});
 	</script>
 </head>
 <body>
 	<div class="container" id="video-container">
-		<video id="camera" width="640" autoplay="autoplay" muted="true"></video>
+		<div class="caption">&lt;video&gt;</div>
+		<video id="myvideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
 	</div>
 </body>
 </html>

@@ -15,7 +15,7 @@ function streamVideo(videoElement)
 
 				//call wrapper to attach the media stream to the video element
 				console.log('Attaching local media stream...');
-				attachMediaStream(camera, localMediaStream);
+				attachMediaStream(videoElement, localMediaStream);
 				console.log('Done.');
 			},
 			function(error)

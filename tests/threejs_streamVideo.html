@@ -11,8 +11,7 @@
 	<script type="text/javascript" src="../js/lib/jquery-2.0.1.min.js"></script>
 	
 	<!--load 3D libraries-->
-	<script type="text/javascript" src="../js/lib/requestanimationframe.js"></script>
-	<script type="text/javascript" src="../js/lib/Three.js"></script>
+	<script type="text/javascript" src="../js/lib/three.min.js"></script>
 	
 	<script>
 	$(document).ready(function()
@@ -20,16 +19,16 @@
 		console.log('Document is ready.');
 		
 		//get camera DOM element
-		var $camera = $('#camera');
-		if (!$camera)
+		var $video = $('#myvideo');
+		if (!$video)
 		{
-			errorMsg = 'Unable to find camera <video> element';
+			errorMsg = 'Unable to find <video> element';
 			console.log(errorMsg);
 			alert(errorMsg);
 			return;
 		}
-		console.log('Found camera <video> element');
-		$camera = $camera[0];
+		console.log('Found <video> element');
+		$video = $video[0];
 		
 		//stream to video element
 		videoId = 0;
@@ -37,13 +36,13 @@
 		{
 			//credits: JSARToolkit
 			//(https://github.com/kig/JSARToolKit/tree/master/demos/tests/output_4.ogg)
-			$camera.src = '../resources/videos/output_4.ogg';
+			$video.src = '../resources/videos/output_4.ogg';
 		}
 		else if (videoId == 1)
 		{
 			//credits: tquery.jsartoolkit
 			//https://github.com/jeromeetienne/tquery.jsartoolkit/tree/master/videos/swap_loop.ogg
-			$camera.src = '../resources/videos/swap_loop.ogg';
+			$video.src = '../resources/videos/swap_loop.ogg';
 		}
 		
 		//===================================================
@@ -84,12 +83,10 @@
 		scene.add(mesh);
 
 		// Create scene and quad for the video.
-		var videoTex 	= new THREE.Texture($camera);
+		var videoTex 	= new THREE.Texture($video);
 		var geometry	= new THREE.PlaneGeometry(2, 2, 0);
 		//TODO: use constant material that is not affected by lighting
 		var material	= new THREE.MeshBasicMaterial({
-			color		: 0x4444AA,
-			color		: 0x6666FF,
 			map		: videoTex,
 			depthTest	: false,
 			depthWrite	: false
@@ -107,9 +104,11 @@
 
 		function render(){
 
-			if ( $camera instanceof HTMLVideoElement && $camera.readyState === $camera.HAVE_ENOUGH_DATA ){
+			if ( $video instanceof HTMLVideoElement && $video.readyState === $video.HAVE_ENOUGH_DATA ){
 				videoTex.needsUpdate	= true;
 			}
+			
+			mesh.rotation.y += 0.01;
 			
 			// trigger the rendering
 			renderer.autoClear = false;
@@ -127,9 +126,12 @@
 	<h1>Test 2</h1>
 	<h2>Three.js 3D overlay with a background video</h2>
 	<div class="invisible" id="video-container">
-		<video id="camera" width="640" autoplay="autoplay" muted="true"></video>
+		<div class="caption">&lt;video&gt;</div>
+		<video id="myvideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
 	</div>
-	<div class="container" id="threejs-container"></div>
+	<div class="container" id="threejs-container">
+		<div class="caption">threejs</div>
+	</div>
 	<div class="caption">NOTE: object will not follow the video, but should always be on top of it</div>
 </body>
 </html>
