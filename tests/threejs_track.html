@@ -15,6 +15,11 @@
 	<script type="text/javascript" src="../js/lib/JSARToolKit.js"></script>
 	
 	<script>
+	
+	//declare some global variables
+	var DEBUG = true;  //turn on JSARToolKit built-in debugging info
+	var threshold = 128;
+	
 	$(document).ready(function()
 	{
 		console.log('Document is ready.');
@@ -22,7 +27,6 @@
 		
 		
 		var $canvas = $('#myCanvas')[0];
-		var threshold = 128;
 		
 		// Create a RGB raster object for the 2D canvas.
 		// JSARToolKit uses raster objects to read image data.
@@ -43,8 +47,8 @@
 
 		// Copy the camera perspective matrix from the FLARParam to the WebGL library camera matrix.
 		// The second and third parameters determine the zNear and zFar planes for the perspective matrix.
-		var tmpGlMatCam	= new Float32Array(16);
-		param.copyCameraMatrix(tmpGlMatCam, 10, 10000);
+		//var tmpGlMatCam	= new Float32Array(16);
+		//param.copyCameraMatrix(tmpGlMatCam, 10, 10000);
 		
 		
 		
@@ -74,8 +78,7 @@
 			if ($video.readyState === $video.HAVE_ENOUGH_DATA)
 			{
 				// Draw the video frame to the raster canvas, scaled to 320x240.
-				ctx = $canvas.getContext('2d');
-				ctx.drawImage($video, 0, 0, 640, 480);
+				$canvas.getContext('2d').drawImage($video, 0, 0, $canvas.width, $canvas.height);
 
 				// Tell the raster object that the underlying canvas has changed.
 				$canvas.changed = true;
@@ -109,7 +112,7 @@
 					  currId = (currId << 8) | id.getPacketData(i);
 					}
 				  }
-				  console.log(currId);
+
 				  
 				  // If this is a new id, let's start tracking it.
 				  if (markers[currId] == null) {
@@ -120,9 +123,6 @@
 
 				  // Copy the result matrix into our marker tracker object.
 				  markers[currId].transform = Object.asCopy(resultMat);
-				  
-				  //TODO: draw square
-				  //TODO: show id on marker
 				}
 				
 			}
@@ -194,7 +194,7 @@
 		// Add the marker models and suchlike into your marker root object.
 		var cube = new THREE.Mesh(
 		  new THREE.CubeGeometry(100,100,100),
-		  new THREE.MeshBasicMaterial({color: 0xff00ff})
+		  new THREE.MeshNormalMaterial({color: 0xff00ff, wireframe:true})
 		);
 		cube.position.z = -50;
 		markerRoot.add(cube);
@@ -213,24 +213,17 @@
 		param.copyCameraMatrix(tmp, 10, 10000);
 		camera.projectionMatrix.setFromArray(tmp);
 
-
-		// To display the video, first create a texture from it.
-		var videoTex = new THREE.Texture($canvas);
-
-		// Then create a plane textured with the video.
-		var plane = new THREE.Mesh(
-		  new THREE.PlaneGeometry(2, 2, 0),
-		  new THREE.MeshBasicMaterial({map: videoTex})
-		);
-
-		// The video plane shouldn't care about the z-buffer.
-		plane.material.depthTest = false;
-		plane.material.depthWrite = false;
-
-		// Create a camera and a scene for the video plane and
-		// add the camera and the video plane to the scene.
-		var videoCam = new THREE.Camera();
-		var videoScene = new THREE.Scene();
+		// Create scene and quad for the video.
+		var videoTex 	= new THREE.Texture($canvas);
+		var geometry	= new THREE.PlaneGeometry(2, 2, 0);
+		var material	= new THREE.MeshBasicMaterial({
+			map		: videoTex,
+			depthTest	: false,
+			depthWrite	: false
+		});
+		var plane	= new THREE.Mesh(geometry, material );
+		var videoScene	= new THREE.Scene();
+		var videoCam	= new THREE.Camera();
 		videoScene.add(plane);
 		videoScene.add(videoCam);
 
@@ -259,6 +252,7 @@
 
 			// Copy the marker matrix over to your marker root object.
 			markerRoot.matrix.setFromArray(tmp);
+			markerRoot.matrixWorldNeedsUpdate = true;
 		  }
 
 		  // Render the scene.
@@ -271,110 +265,30 @@
 		}
 		tick();
 		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		// setup three.js renderer
-		/*var renderer	= new THREE.WebGLRenderer({
-			antialias	: true
-		});
-		renderer.setSize(640, 480);
-		var $container = $('#threejs-container');
-		$container.append(renderer.domElement);
-
-		// create the scene
-		var scene	= new THREE.Scene();
-
-		// Create a camera and a marker root object for your Three.js scene.
-		var camera = new THREE.PerspectiveCamera(35, renderer.domElement.width/renderer.domElement.height, 1, 10000 );
-		camera.position.set(0, 0, 5);
-		scene.add(camera);
-
-		// setup lights
-		scene.add(new THREE.AmbientLight(0xffffff));
-
-		var light	= new THREE.DirectionalLight(0xffffff);
-		light.position.set(3, -3, 1).normalize();
-		scene.add(light);
-
-		var light	= new THREE.DirectionalLight(0xffffff);
-		light.position.set(-0, 2, -1).normalize();
-		scene.add(light);
-
-		var material	= new THREE.MeshNormalMaterial();
-		var geometry	= new THREE.TorusGeometry( 10, 3 );
-		var mesh	= new THREE.Mesh(geometry, material);
-		mesh.position.z = -50;
-		scene.add(mesh);
-
-		// Create scene and quad for the video.
-		var videoTex 	= new THREE.Texture($camera);
-		var geometry	= new THREE.PlaneGeometry(2, 2, 0);
-		//TODO: use constant material that is not affected by lighting
-		var material	= new THREE.MeshBasicMaterial({
-			color		: 0x4444AA,
-			color		: 0x6666FF,
-			map		: videoTex,
-			depthTest	: false,
-			depthWrite	: false
-		});
-		var plane	= new THREE.Mesh(geometry, material );
-		var videoScene	= new THREE.Scene();
-		var videoCam	= new THREE.Camera();
-		videoScene.add(plane);
-		videoScene.add(videoCam);
-		
-		function animate(){	
-			requestAnimationFrame(animate);
-			render();
-		};
-
-		function render(){
-
-			if ( $camera instanceof HTMLVideoElement && $camera.readyState === $camera.HAVE_ENOUGH_DATA ){
-				videoTex.needsUpdate	= true;
-			}
-			
-			// trigger the rendering
-			renderer.autoClear = false;
-			renderer.clear();
-			renderer.render(videoScene, videoCam);
-			renderer.render(scene, camera);
-		};
-		
-		//animate
-		animate();*/
 	});
 	</script>
 </head>
 <body>
 	<h1>Test 4</h1>
 	<h2>Three.js and JSARToolKit tracking background video</h2>
-	<div class="invisible" id="video-container">
+	<div class="container" id="video-container">
 		<div class="caption">&lt;video&gt;</div>
 		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
 	</div>
-	<div class="invisible" id="canvas-container">
+	<div class="container" id="canvas-container">
 		<div class="caption">&lt;canvas&gt;</div>
 		<canvas id="myCanvas" width="640" height="480"></canvas>
+	</div>
+	<div class="caption" style="margin: 2em auto;">
+		Threshold (0-255):
+		<input id="thresholdInput" type="range" min="0" max="255" onchange="threshold=this.value; console.log('threshold = ' + threshold);" style="vertical-align:middle;"></input>
+	</div>
+	<div class="container" id="debugCanvas-container">
+		<div class="caption">debug &lt;canvas&gt;</div>
+		<canvas id="debugCanvas" width="640" height="480"></canvas>
 	</div>
 	<div class="container" id="threejs-container">
 		<div class="caption">threejs</div>
 	</div>
-	<div class="caption">Instructions: Please see console for tracked marker ID</div>
 </body>
 </html>

@@ -67,6 +67,10 @@
 			$video.src = '../resources/videos/swap_loop.ogg';
 		}
 		
+		// Create a NyARTransMatResult object for getting the marker translation matrices.
+		var resultMat = new NyARTransMatResult();
+
+		var markers = {};
 		
 		function loop()
 		{
@@ -74,7 +78,7 @@
 			{
 				// Draw the video frame to the raster canvas, scaled to 320x240.
 				ctx = $canvas.getContext('2d');
-				ctx.drawImage($video, 0, 0, 640, 480);
+				ctx.drawImage($video, 0, 0, $canvas.width, $canvas.height);
 
 				// Tell the raster object that the underlying canvas has changed.
 				$canvas.changed = true;
@@ -88,10 +92,8 @@
 				var markerCount = detector.detectMarkerLite(raster, threshold);
 				
 				
-				// Create a NyARTransMatResult object for getting the marker translation matrices.
-				var resultMat = new NyARTransMatResult();
-
-				var markers = {};
+				
+				
 
 				// Go through the detected markers and get their IDs and transformation matrices.
 				for (var idx = 0; idx < markerCount; idx++) {
@@ -121,7 +123,9 @@
 				  // Copy the result matrix into our marker tracker object.
 				  markers[currId].transform = Object.asCopy(resultMat);
 				}
+				
 			}
+		
 			requestAnimationFrame(loop);
 		}
 		loop();
@@ -131,7 +135,7 @@
 <body>
 	<h1>Test 3</h1>
 	<h2>JSARToolKit tracking background video</h2>
-	<div class="invisible floatable" id="video-container">
+	<div class="container" id="video-container">
 		<div class="caption">&lt;video&gt;</div>
 		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
 	</div>

@@ -74,7 +74,6 @@
 		// Create scene and quad for the video.
 		var videoTex 	= new THREE.Texture($video);
 		var geometry	= new THREE.PlaneGeometry(2, 2, 0);
-		//TODO: use constant material that is not affected by lighting
 		var material	= new THREE.MeshBasicMaterial({
 			map		: videoTex,
 			depthTest	: false,
@@ -114,7 +113,7 @@
 <body>
 	<h1>Test 2</h1>
 	<h2>Three.js 3D overlay with a background video</h2>
-	<div class="invisible" id="video-container">
+	<div class="container" id="video-container">
 		<div class="caption">&lt;video&gt;</div>
 		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
 	</div>
