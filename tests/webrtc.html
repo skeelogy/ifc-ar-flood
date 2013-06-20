@@ -20,19 +20,8 @@
 	{
 		console.log('Document is ready.');
 		
-		//get camera DOM element
-		var $video = $('#myvideo');
-		if (!$video)
-		{
-			errorMsg = 'Unable to find <video> element';
-			console.log(errorMsg);
-			alert(errorMsg);
-			return;
-		}
-		console.log('Found camera <video> element');
-		$video = $video[0];
-		
 		//stream to video element
+		var $video = $('#myvideo')[0];
 		streamVideo($video);
 	});
 	</script>
