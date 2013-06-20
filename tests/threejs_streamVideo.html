@@ -19,7 +19,7 @@
 		console.log('Document is ready.');
 		
 		//stream to video element
-		var $video = $('#myvideo')[0];
+		var $video = $('#mainVideo')[0];
 		videoId = 0;
 		if (videoId == 0)
 		{
@@ -116,7 +116,7 @@
 	<h2>Three.js 3D overlay with a background video</h2>
 	<div class="invisible" id="video-container">
 		<div class="caption">&lt;video&gt;</div>
-		<video id="myvideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
+		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
 	</div>
 	<div class="container" id="threejs-container">
 		<div class="caption">threejs</div>

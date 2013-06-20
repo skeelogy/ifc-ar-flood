@@ -21,7 +21,7 @@
 		
 		
 		
-		var $canvas = $('#mycanvas')[0];
+		var $canvas = $('#myCanvas')[0];
 		var threshold = 128;
 		
 		// Create a RGB raster object for the 2D canvas.
@@ -49,7 +49,7 @@
 		
 		
 		//stream to video element
-		var $video = $('#myvideo')[0];
+		var $video = $('#mainVideo')[0];
 		videoId = 0;
 		if (videoId == 0)
 		{
@@ -366,11 +366,11 @@
 	<h2>Three.js and JSARToolKit tracking background video</h2>
 	<div class="invisible" id="video-container">
 		<div class="caption">&lt;video&gt;</div>
-		<video id="myvideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
+		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
 	</div>
 	<div class="invisible" id="canvas-container">
 		<div class="caption">&lt;canvas&gt;</div>
-		<canvas id="mycanvas" width="640" height="480"></canvas>
+		<canvas id="myCanvas" width="640" height="480"></canvas>
 	</div>
 	<div class="container" id="threejs-container">
 		<div class="caption">threejs</div>

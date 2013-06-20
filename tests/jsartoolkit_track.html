@@ -15,14 +15,17 @@
 	<script type="text/javascript" src="../js/lib/JSARToolKit.js"></script>
 	
 	<script>
+	
+	//declare some global variables
+	var DEBUG = true;  //turn on JSARToolKit built-in debugging info
+	var threshold = 128;
+	
 	$(document).ready(function()
 	{
 		console.log('Document is ready.');
 		
+		var $canvas = $('#mainCanvas')[0];
 		
-		
-		var $canvas = $('#mycanvas')[0];
-		var threshold = 128;
 		
 		// Create a RGB raster object for the 2D canvas.
 		// JSARToolKit uses raster objects to read image data.
@@ -49,9 +52,9 @@
 		
 		
 		//stream to video element
-		var $video = $('#myvideo')[0];
-		videoId = 0;
-		if (videoId == 0)
+		var $video = $('#mainVideo')[0];
+		videoId = 1;
+		if (videoId == 1)
 		{
 			//credits: JSARToolkit
 			//(https://github.com/kig/JSARToolKit/tree/master/demos/tests/output_4.ogg)
@@ -85,7 +88,6 @@
 				var markerCount = detector.detectMarkerLite(raster, threshold);
 				
 				
-				
 				// Create a NyARTransMatResult object for getting the marker translation matrices.
 				var resultMat = new NyARTransMatResult();
 
@@ -108,7 +110,6 @@
 					  currId = (currId << 8) | id.getPacketData(i);
 					}
 				  }
-				  console.log(currId);
 				  
 				  // If this is a new id, let's start tracking it.
 				  if (markers[currId] == null) {
@@ -119,13 +120,8 @@
 
 				  // Copy the result matrix into our marker tracker object.
 				  markers[currId].transform = Object.asCopy(resultMat);
-				  
-				  //TODO: draw square
-				  //TODO: show id on marker
 				}
-				
 			}
-		
 			requestAnimationFrame(loop);
 		}
 		loop();
@@ -135,18 +131,21 @@
 <body>
 	<h1>Test 3</h1>
 	<h2>JSARToolKit tracking background video</h2>
-	<div class="container" id="video-container">
+	<div class="invisible floatable" id="video-container">
 		<div class="caption">&lt;video&gt;</div>
-		<video id="myvideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
+		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
 	</div>
 	<div class="container" id="canvas-container">
 		<div class="caption">&lt;canvas&gt;</div>
-		<canvas id="mycanvas" width="640" height="480"></canvas>
+		<canvas id="mainCanvas" width="640" height="480"></canvas>
+	</div>
+	<div class="caption" style="margin: 2em auto;">
+		Threshold (0-255):
+		<input id="thresholdInput" type="range" min="0" max="255" onchange="threshold=this.value; console.log('threshold = ' + threshold);" style="vertical-align:middle;"></input>
 	</div>
 	<div class="container" id="debugCanvas-container">
 		<div class="caption">debug &lt;canvas&gt;</div>
 		<canvas id="debugCanvas" width="640" height="480"></canvas>
 	</div>
-	<div class="caption">Instructions: Please see console for tracked marker ID</div>
 </body>
 </html>
