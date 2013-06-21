@@ -193,20 +193,20 @@
 
 		// Add the marker models and suchlike into your marker root object.
 		var cube = new THREE.Mesh(
-		  new THREE.CubeGeometry(100,100,100),
+		  new THREE.CubeGeometry(120,120,120),
 		  new THREE.MeshNormalMaterial({color: 0xff00ff, wireframe:true})
 		);
-		cube.position.z = -50;
+		cube.position.z = -60;
 		markerRoot.add(cube);
 
 		// Add the marker root to your scene.
 		scene.add(markerRoot);
 		
-		var material	= new THREE.MeshNormalMaterial();
+		/*var material	= new THREE.MeshNormalMaterial();
 		var geometry	= new THREE.TorusGeometry( 10, 3 );
 		var mesh	= new THREE.Mesh(geometry, material);
 		mesh.position.z = -50;
-		scene.add(mesh);
+		scene.add(mesh);*/
 		
 
 		// Next we need to make the Three.js camera use the FLARParam matrix.
