@@ -88,7 +88,7 @@
 		
 		function loop()
 		{
-			if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && $video.readyState === $video.HAVE_ENOUGH_DATA))
+			if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
 			{
 				// Draw the video frame to the raster canvas, scaled to 320x240.
 				ctx = $canvas.getContext('2d');
