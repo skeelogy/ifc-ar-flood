@@ -111,10 +111,7 @@
 
 		function render(){
 
-			if( source instanceof HTMLImageElement ){
-				videoTex.needsUpdate	= true;
-				threexAR.update();
-			}else if ( source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA ){
+			if( source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA) ){
 				videoTex.needsUpdate	= true;
 				threexAR.update();
 			}

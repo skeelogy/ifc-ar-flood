@@ -53,20 +53,33 @@
 		
 		
 		//stream to video element
+		//TODO: create a list and allow user to select
 		var $video = $('#mainVideo')[0];
+		var $img = $('#mainImage')[0];
+		var source;
 		videoId = 0;
 		if (videoId == 0)
 		{
 			//credits: JSARToolkit
-			//(https://github.com/kig/JSARToolKit/tree/master/demos/tests/output_4.ogg)
+			//https://github.com/kig/JSARToolKit/tree/master/demos/tests/output_4.ogg
 			$video.src = '../resources/markers/videos/output_4.ogg';
+			source = $video;
 		}
 		else if (videoId == 1)
 		{
 			//credits: tquery.jsartoolkit
 			//https://github.com/jeromeetienne/tquery.jsartoolkit/tree/master/videos/swap_loop.ogg
 			$video.src = '../resources/markers/videos/swap_loop.ogg';
+			source = $video;
 		}
+		else if (videoId == 2)
+		{
+			//credits: JSARToolkit
+			//https://github.com/kig/JSARToolKit/tree/master/demos/images/chalk_multi.jpg
+			$img.src = '../resources/markers/images/chalk_multi.jpg';
+			source = $img;
+		}
+		
 		
 		// Create a NyARTransMatResult object for getting the marker translation matrices.
 		var resultMat = new NyARTransMatResult();
@@ -75,10 +88,10 @@
 		
 		function loop()
 		{
-			if ($video.readyState === $video.HAVE_ENOUGH_DATA)
+			if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
 			{
 				// Draw the video frame to the raster canvas, scaled to 320x240.
-				$canvas.getContext('2d').drawImage($video, 0, 0, $canvas.width, $canvas.height);
+				$canvas.getContext('2d').drawImage(source, 0, 0, $canvas.width, $canvas.height);
 
 				// Tell the raster object that the underlying canvas has changed.
 				$canvas.changed = true;
@@ -214,7 +227,7 @@
 		camera.projectionMatrix.setFromArray(tmp);
 
 		// Create scene and quad for the video.
-		var videoTex 	= new THREE.Texture($canvas);
+		var videoTex 	= new THREE.Texture(source);
 		var geometry	= new THREE.PlaneGeometry(2, 2, 0);
 		var material	= new THREE.MeshBasicMaterial({
 			map		: videoTex,
@@ -274,6 +287,10 @@
 	<div class="container" id="video-container">
 		<div class="caption">&lt;video&gt;</div>
 		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
+	</div>
+	<div class="container" id="image-container">
+		<div class="caption">&lt;image&gt;</div>
+		<img id="mainImage" width="640" height="480"></img>
 	</div>
 	<div class="container" id="canvas-container">
 		<div class="caption">&lt;canvas&gt;</div>
