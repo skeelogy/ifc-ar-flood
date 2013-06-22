@@ -1,0 +1,11 @@
+output_4.ogg
+credits: JSARToolkit
+https://github.com/kig/JSARToolKit/tree/master/demos/tests/output_4.ogg
+
+swap_loop.ogg
+credits: JSARToolkit
+https://github.com/kig/JSARToolKit/tree/master/demos/AR_slideshow/swap_loop.ogg
+
+chalk_multi.jpg
+credits: JSARToolkit
+https://github.com/kig/JSARToolKit/tree/master/demos/images/chalk_multi.jpg
