@@ -85,19 +85,7 @@
 		mesh.position.z = -50;
 		scene.add(mesh);*/
 
-		// Create scene and quad for the video.
-		var videoTex 	= new THREE.Texture(source);
-		var geometry	= new THREE.PlaneGeometry(2, 2, 0);
-		var material	= new THREE.MeshBasicMaterial({
-			map		: videoTex,
-			depthTest	: false,
-			depthWrite	: false
-		});
-		var plane	= new THREE.Mesh(geometry, material );
-		var videoScene	= new THREE.Scene();
-		var videoCam	= new THREE.Camera();
-		videoScene.add(plane);
-		videoScene.add(videoCam);
+		
 		
 		function animate(){	
 			requestAnimationFrame(animate);
@@ -212,6 +200,23 @@
 		threexAR.canvasRaster().id	= 'canvasRaster';
 		var $threexar_container = $('#threexar-container');
 		$threexar_container.append(threexAR.canvasRaster());
+		
+		
+		// Create scene and quad for the video.
+		//NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
+		var videoTex 	= new THREE.Texture(threexAR.canvasRaster());
+		var geometry	= new THREE.PlaneGeometry(2, 2, 0);
+		var material	= new THREE.MeshBasicMaterial({
+			map		: videoTex,
+			depthTest	: false,
+			depthWrite	: false
+		});
+		var plane	= new THREE.Mesh(geometry, material );
+		var videoScene	= new THREE.Scene();
+		var videoCam	= new THREE.Camera();
+		videoScene.add(plane);
+		videoScene.add(videoCam);
+		
 		
 		//animate
 		animate();
