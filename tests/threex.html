@@ -125,7 +125,7 @@
 			scene.add(marker.object3d);		
 
 			if( true ){
-				var material	= new THREE.MeshNormalMaterial({color: 0|(0xffffff*Math.random()), wireframe:true});
+				var material	= new THREE.MeshNormalMaterial({color: 0|(0xffffff*Math.random()), side: THREE.BackSide, wireframe: false});
 				var geometry	= new THREE.CubeGeometry(100,100,100);
 				var mesh	= new THREE.Mesh(geometry, material);
 				mesh.position.z	= -50;
@@ -235,7 +235,7 @@
 		<img id="mainImage" width="640" height="480"></img>
 	</div>
 	<div class="container" id="threexar-container">
-		<div class="caption">threex</div>
+		<div class="caption">threex &lt;canvas&gt;</div>
 	</div>
 	<div class="caption" style="margin: 2em auto;">
 		Threshold (0-255):
@@ -246,7 +246,7 @@
 		<canvas id="debugCanvas" width="640" height="480"></canvas>
 	</div>
 	<div class="container" id="threejs-container">
-		<div class="caption">threejs</div>
+		<div class="caption">three.js &lt;canvas&gt;</div>
 	</div>
 </body>
 </html>

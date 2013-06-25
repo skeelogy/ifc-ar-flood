@@ -207,7 +207,7 @@
 						// Add the marker models and suchlike into your marker root object.
 						var cube = new THREE.Mesh(
 						  new THREE.CubeGeometry(120,120,120),
-						  new THREE.MeshNormalMaterial({color: 0xff00ff, wireframe:true})
+						  new THREE.MeshNormalMaterial({color: 0xff00ff, side: THREE.BackSide, wireframe: false})
 						);
 						cube.position.z = -60;
 						markerRoot.add(cube);
@@ -260,7 +260,7 @@
 		<canvas id="debugCanvas" width="640" height="480"></canvas>
 	</div>
 	<div class="container" id="threejs-container">
-		<div class="caption">threejs</div>
+		<div class="caption">three.js &lt;canvas&gt;</div>
 	</div>
 </body>
 </html>

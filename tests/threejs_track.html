@@ -127,14 +127,6 @@
 		// Create a camera and a marker root object for your Three.js scene.
 		var camera = new THREE.Camera();
 		scene.add(camera);
-
-		var markerRoots = {};
-		
-		/*var material	= new THREE.MeshNormalMaterial();
-		var geometry	= new THREE.TorusGeometry( 10, 3 );
-		var mesh	= new THREE.Mesh(geometry, material);
-		mesh.position.z = -50;
-		scene.add(mesh);*/
 		
 		// glMatrix matrices are flat arrays.
 		var tmp = new Float32Array(16);
@@ -160,7 +152,7 @@
 
 		
 		
-		
+		var markerRoots = {};
 		
 		// Create a NyARTransMatResult object for getting the marker translation matrices.
 		var resultMat = new NyARTransMatResult();
@@ -233,7 +225,7 @@
 						// Add the marker models and suchlike into your marker root object.
 						var cube = new THREE.Mesh(
 						  new THREE.CubeGeometry(120,120,120),
-						  new THREE.MeshNormalMaterial({color: 0xff00ff, wireframe:true})
+						  new THREE.MeshNormalMaterial({color: 0xff00ff, side: THREE.BackSide, wireframe: false})
 						);
 						cube.position.z = -60;
 						markerRoot.add(cube);
@@ -291,7 +283,7 @@
 		<canvas id="debugCanvas" width="640" height="480"></canvas>
 	</div>
 	<div class="container" id="threejs-container">
-		<div class="caption">threejs</div>
+		<div class="caption">three.js &lt;canvas&gt;</div>
 	</div>
 </body>
 </html>
