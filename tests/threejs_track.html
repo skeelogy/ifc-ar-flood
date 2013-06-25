@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Iowa Flood Center - Augmented Reality Flood Simulation</title>
+	<meta charset="UTF-8"/>
+	
+	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" href="../css/style.css">
+	
+	<!--load helper libraries-->
+	<script type="text/javascript" src="../js/lib/jquery-2.0.2.min.js"></script>
+	
+	<!--load AR and 3D libraries-->
+	<script type="text/javascript" src="../js/lib/three.min.js"></script>
+	<script type="text/javascript" src="../js/lib/JSARToolKit.js"></script>
+	
+	<script type="text/javascript" src="../js/skarf.js"></script>
+	
+	<script>
+	$(document).ready(function()
+	{
+		console.log('Document is ready.');
+		
+		var $canvas = $('#mainCanvas')[0];
+		
+		//stream to video element
+		//TODO: create a list and allow user to select
+		var $video = $('#mainVideo')[0];
+		var $img = $('#mainImage')[0];
+		var source;
+		videoId = 0;
+		if (videoId == 0)
+		{
+			$video.src = '../resources/markers/output_4.ogg';
+			source = $video;
+		}
+		else if (videoId == 1)
+		{
+			$video.src = '../resources/markers/swap_loop.ogg';
+			source = $video;
+		}
+		else if (videoId == 2)
+		{
+			$img.src = '../resources/markers/chalk_multi.jpg';
+			source = $img;
+		}
+		
+		//create an AR library
+		var jsArToolKitArLib = new JsArToolKitArLib({
+			canvas: $canvas,
+			canvasWidth: $canvas.width,
+			canvasHeight: $canvas.height,
+			markerWidth: 120,
+			threshold: 128,
+			debug: true
+		});
+		
+		//get the camera projection matrix from jsArToolKitArLib
+		var camProjMatrixArray = new Float32Array(16);
+		jsArToolKitArLib.flarParam.copyCameraMatrix(camProjMatrixArray, 10, 10000);
+		
+		//create a renderer
+		var $threejsContainerElem = $('#threejs-container');
+		var threeJsRenderer = new ThreeJsRenderer({
+			canvasElem: $canvas,
+			containerElem: $threejsContainerElem,
+			width: $canvas.width,
+			height: $canvas.height,
+			camProjMatrixArray: camProjMatrixArray
+		});
+		
+		//create a framework
+		skarf = new SkArF({
+			canvasElem: $canvas,
+			videoElem: $video,
+			arLib: jsArToolKitArLib,
+			renderer: threeJsRenderer
+		});
+		
+		//main loop
+		function loop()
+		{
+			skarf.update();  //this will update the AR lib and renderer too
+			requestAnimationFrame(loop);
+		}
+		loop();
+		
+	});
+	</script>
+</head>
+<body>
+	<h1>Test 4</h1>
+	<h2>Three.js and JSARToolKit tracking background video</h2>
+	<div class="container" id="video-container">
+		<div class="caption">&lt;video&gt;</div>
+		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
+	</div>
+	<div class="container" id="image-container">
+		<div class="caption">&lt;image&gt;</div>
+		<img id="mainImage" width="640" height="480"></img>
+	</div>
+	<div class="container" id="canvas-container">
+		<div class="caption">&lt;canvas&gt;</div>
+		<canvas id="mainCanvas" width="640" height="480"></canvas>
+	</div>
+	<div class="caption" style="margin: 2em auto;">
+		Threshold (0-255):
+		<input id="thresholdInput" type="range" min="0" max="255" onchange="threshold=this.value; console.log('threshold = ' + threshold);" style="vertical-align:middle;"></input>
+	</div>
+	<div class="container" id="debugCanvas-container">
+		<div class="caption">debug &lt;canvas&gt;</div>
+		<canvas id="debugCanvas" width="640" height="480"></canvas>
+	</div>
+	<div class="container" id="threejs-container">
+		<div class="caption">three.js &lt;canvas&gt;</div>
+	</div>
+</body>
+</html>
