@@ -89,12 +89,6 @@ function ArLib(options)
 {
 	if (!options.canvasElem) throw new Error('canvasElem not specified');
 	this.canvasElem = options.canvasElem;
-	
-	if (!options.canvasWidth) throw new Error('canvasWidth not specified');
-	this.canvasWidth = options.canvasWidth;
-	
-	if (!options.canvasHeight) throw new Error('canvasHeight not specified');
-	this.canvasHeight = options.canvasHeight;
 }
 ArLib.prototype.init = function()
 {
@@ -143,7 +137,7 @@ JsArToolKitArLib.prototype.init = function()
 	this.raster = new NyARRgbRaster_Canvas2D(this.canvasElem);
 
 	// FLARParam is the thing used by FLARToolKit to set camera parameters.
-	this.flarParam = new FLARParam(this.canvasWidth, this.canvasHeight);
+	this.flarParam = new FLARParam(this.canvasElem.width, this.canvasElem.height);
 
 	// The FLARMultiIdMarkerDetector is the actual detection engine for marker detection.
 	// It detects multiple ID markers. ID markers are special markers that encode a number.
