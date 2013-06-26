@@ -39,9 +39,16 @@ You can do similar things to create your own renderer.
 
 function SkArF(options)
 {
+	if (!options.canvasElem) throw new Error('canvasElem not specified');
 	this.canvasElem = options.canvasElem;
+	
+	if (!options.videoElem) throw new Error('videoElem not specified');
 	this.videoElem = options.videoElem;
+	
+	if (!options.arLib) throw new Error('arLib not specified');
 	this.arLib = options.arLib;
+	
+	if (!options.renderer) throw new Error('renderer not specified');
 	this.renderer = options.renderer;
 	
 	this.init();
@@ -78,9 +85,16 @@ SkArF.prototype.update = function()
 // AR Libraries
 //===================================
 
-function ArLib()
+function ArLib(options)
 {
-	this.init();
+	if (!options.canvasElem) throw new Error('canvasElem not specified');
+	this.canvasElem = options.canvasElem;
+	
+	if (!options.canvasWidth) throw new Error('canvasWidth not specified');
+	this.canvasWidth = options.canvasWidth;
+	
+	if (!options.canvasHeight) throw new Error('canvasHeight not specified');
+	this.canvasHeight = options.canvasHeight;
 }
 ArLib.prototype.init = function()
 {
@@ -98,23 +112,18 @@ ArLib.prototype.postUpdate = function(){}
 //create a class to handle JSARToolKit
 function JsArToolKitArLib(options)
 {
-	//TODO: handle compulsory options
-	//TOOD: some of these belongs to the parent class
-	this.canvas = options.canvas;
-	this.canvasWidth = options.canvasWidth;
-	this.canvasHeight = options.canvasHeight;
-	this.markerWidth = options.markerWidth;
+	ArLib.call(this, options);
+	
+	this.markerWidth = options.markerWidth || 120;
 	this.threshold = options.threshold || 128;
-	this.debug = options.debug;
+	this.debug = (typeof(options.debug)==='undefined') ? false : options.debug;
 	
-	DEBUG = this.debug;  //required by JSARToolKit to show the debug canvas
-	
-	// Create a NyARTransMatResult object for getting the marker translation matrices.
-	this.resultMat = new NyARTransMatResult();
 	this.markers = {};
+
+	//store some temp variables
+	this.resultMat = new NyARTransMatResult();
 	this.tmp = {};
 	
-	//TODO: call parent init()
 	this.init();
 }
 
@@ -125,10 +134,13 @@ JsArToolKitArLib.prototype.constructor = JsArToolKitArLib;
 //override methods
 JsArToolKitArLib.prototype.init = function()
 {
+	//required by JSARToolKit to show the debug canvas
+	DEBUG = this.debug;
+
 	// Create a RGB raster object for the 2D canvas.
 	// JSARToolKit uses raster objects to read image data.
 	// Note that you need to set canvas.changed = true on every frame.
-	this.raster = new NyARRgbRaster_Canvas2D(this.canvas);
+	this.raster = new NyARRgbRaster_Canvas2D(this.canvasElem);
 
 	// FLARParam is the thing used by FLARToolKit to set camera parameters.
 	this.flarParam = new FLARParam(this.canvasWidth, this.canvasHeight);
@@ -197,9 +209,19 @@ JsArToolKitArLib.prototype.update = function()
 // Renderers
 //===================================
 
-function Renderer()
+function Renderer(options)
 {
-	this.init();
+	if (!options.rendererContainerElem) throw new Error('rendererContainerElem not specified');
+	this.rendererContainerElem = options.rendererContainerElem;
+	
+	if (!options.rendererCanvasWidth) throw new Error('rendererCanvasWidth not specified');
+	this.rendererCanvasWidth = options.rendererCanvasWidth;
+	
+	if (!options.rendererCanvasHeight) throw new Error('rendererCanvasHeight not specified');
+	this.rendererCanvasHeight = options.rendererCanvasHeight;
+	
+	if (!options.streamCanvasElem) throw new Error('streamCanvasElem not specified');
+	this.streamCanvasElem = options.streamCanvasElem;
 }
 Renderer.prototype.init = function()
 {
@@ -225,18 +247,14 @@ Renderer.prototype.setMarkerTransform = function(markerId, transformMatrix)
 
 function ThreeJsRenderer(options)
 {
-	//TODO: handle compulsory options
-	//TODO: some of these belongs to the parent class
-	this.canvasElem = options.canvasElem;
+	Renderer.call(this, options);
+
+	if (!options.camProjMatrixArray) throw new Error('camProjMatrixArray not specified');
 	this.camProjMatrixArray = options.camProjMatrixArray;
-	this.width = options.width;
-	this.height = options.height;
-	this.containerElem = options.containerElem;
 	
 	this.markerTransforms = {};
 	this.emptyFloatArray = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 	
-	//TODO: call parent init()
 	this.init();
 }
 
@@ -247,7 +265,6 @@ ThreeJsRenderer.prototype.constructor = ThreeJsRenderer;
 //override methods
 ThreeJsRenderer.prototype.init = function()
 {
-	//TODO: these can go into parent
 	this.setupCamera();
 	this.setupScene();
 	this.setupRenderer();
@@ -310,8 +327,8 @@ ThreeJsRenderer.prototype.setupScene = function()
 ThreeJsRenderer.prototype.setupRenderer = function()
 {
 	this.renderer = this.createRenderer();
-	this.renderer.setSize(this.width, this.height);
-	this.containerElem.append(this.renderer.domElement);
+	this.renderer.setSize(this.rendererCanvasWidth, this.rendererCanvasHeight);
+	this.rendererContainerElem.append(this.renderer.domElement);
 }
 ThreeJsRenderer.prototype.createRenderer = function()  //meant for overriding
 {
@@ -322,7 +339,7 @@ ThreeJsRenderer.prototype.createRenderer = function()  //meant for overriding
 ThreeJsRenderer.prototype.setupBackgroundVideo = function()
 {
 	//NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
-	this.videoTex = new THREE.Texture(this.canvasElem);
+	this.videoTex = new THREE.Texture(this.streamCanvasElem);
 	this.videoPlane = new THREE.PlaneGeometry(2, 2, 0);
 	this.videoMaterial = new THREE.MeshBasicMaterial({
 		map: this.videoTex,

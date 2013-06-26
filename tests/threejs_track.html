@@ -47,12 +47,12 @@
 		
 		//create an AR library
 		var jsArToolKitArLib = new JsArToolKitArLib({
-			canvas: $canvas,
+			canvasElem: $canvas,
 			canvasWidth: $canvas.width,
 			canvasHeight: $canvas.height,
 			markerWidth: 120,
 			threshold: 128,
-			debug: true
+			debug: false
 		});
 		
 		//get the camera projection matrix from jsArToolKitArLib
@@ -62,10 +62,14 @@
 		//create a renderer
 		var $threejsContainerElem = $('#threejs-container');
 		var threeJsRenderer = new ThreeJsRenderer({
-			canvasElem: $canvas,
-			containerElem: $threejsContainerElem,
-			width: $canvas.width,
-			height: $canvas.height,
+			//container to attach the Three.js-created renderer canvas
+			rendererContainerElem: $threejsContainerElem,
+			//width of the Three.js-created renderer canvas
+			rendererCanvasWidth: $canvas.width,
+			//height of the Three.js-created renderer canvas
+			rendererCanvasHeight: $canvas.height,
+			//the streaming canvas for background plane
+			streamCanvasElem: $canvas,
 			camProjMatrixArray: camProjMatrixArray
 		});
 		
