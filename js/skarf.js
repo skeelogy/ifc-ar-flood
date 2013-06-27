@@ -283,12 +283,10 @@ ThreeJsRenderer.prototype.update = function()
 ThreeJsRenderer.prototype.preUpdate = function()
 {
 	//move all marker roots to origin so that they will disappear when not tracked
-	//FIXME: not sure why I need the temp variables below
-	var t = this.markerTransforms;
-	var e = this.emptyFloatArray;
+	var that = this;
 	Object.keys(this.markerTransforms).forEach(function (key){
-		t[key].matrix.setFromArray(e);
-		t[key].matrixWorldNeedsUpdate = true;
+		that.markerTransforms[key].matrix.setFromArray(that.emptyFloatArray);
+		that.markerTransforms[key].matrixWorldNeedsUpdate = true;
 	});
 }
 ThreeJsRenderer.prototype.createTransformForMarker = function(markerId)
