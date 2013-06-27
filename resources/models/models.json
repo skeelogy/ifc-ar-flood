@@ -1,0 +1,20 @@
+{
+	"models": {
+		"22": {
+			"name": "teapot1",
+			"file": "/resources/models/teapot.js",
+			"translate": [0, 0, 0],
+			"rotate": [-90, 0, 0],
+			"rotationOrder": "XYZ",
+			"scale": [40, 40, 40]
+		},
+		"64": {
+			"name": "teapot2",
+			"file": "/resources/models/teapot.js",
+			"translate": [0, 0, 0],
+			"rotate": [90, 0, 0],
+			"rotationOrder": "XYZ",
+			"scale": [40, 40, 40]
+		}
+	}
+}

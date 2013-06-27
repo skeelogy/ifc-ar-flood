@@ -185,7 +185,10 @@ JsArToolKitArLib.prototype.update = function()
 			this.markers[currId] = {};
 			
 			//create a transform for this marker
-			this.renderer.createTransformForMarker(currId);
+			var transform = this.renderer.createTransformForMarker(currId);
+			
+			//delay-load the model
+			this.renderer.loadModelForMarker(currId, transform);
 		}
 	
 		// Get the transformation matrix for the detected marker.
@@ -216,6 +219,11 @@ function Renderer(options)
 	
 	if (!options.streamCanvasElem) throw new Error('streamCanvasElem not specified');
 	this.streamCanvasElem = options.streamCanvasElem;
+	
+	if (!options.modelsJsonFile) throw new Error('modelsJsonFile not specified');
+	this.modelsJsonFile = options.modelsJsonFile;
+		
+	this.modelManager = new ModelManager(this.modelsJsonFile);
 }
 Renderer.prototype.init = function()
 {
@@ -290,17 +298,14 @@ ThreeJsRenderer.prototype.createTransformForMarker = function(markerId)
 	markerTransform.matrixAutoUpdate = false;
 	this.markerTransforms[markerId] = markerTransform;
 
-	//TODO: expose this part here as another method to be overriden
-	// Add the marker models and suchlike into your marker root object.
-	var cube = new THREE.Mesh(
-	  new THREE.CubeGeometry(120,120,120),
-	  new THREE.MeshNormalMaterial({color: 0xff00ff, side: THREE.BackSide, wireframe: false})
-	);
-	cube.position.z = -60;
-	markerTransform.add(cube);
-	
 	// Add the marker root to your scene.
 	this.scene.add(markerTransform);
+	
+	return markerTransform;
+}
+ThreeJsRenderer.prototype.loadModelForMarker = function(markerId, markerTransform)
+{
+	this.modelManager.loadForMarker(markerId, markerTransform);
 }
 ThreeJsRenderer.prototype.setMarkerTransform = function(markerId, transformMatrix)
 {
@@ -345,6 +350,74 @@ ThreeJsRenderer.prototype.setupBackgroundVideo = function()
 	this.videoCam = new THREE.Camera();
 	this.videoScene.add(plane);
 	this.videoScene.add(this.videoCam);
+}
+
+//===================================
+// Model Manager
+//===================================
+
+function ModelManager(modelsJsonFile)
+{
+	this.modelsJsonFile = modelsJsonFile;
+	
+	this.modelData = null;
+	this.jsonLoader = new THREE.JSONLoader();
+	
+	this.load();
+}
+ModelManager.prototype.load = function()
+{
+	var that = this;
+	console.log('Loading models json file: ' + that.modelsJsonFile);
+	
+	//load the JSON file
+	$.getJSON(this.modelsJsonFile)
+	.done(function(data){
+		that.modelData = data;
+		console.log('loaded ' + that.modelsJsonFile);
+	})
+	.fail(function(jqxhr, textStatus, error){
+		console.error('Unable to load JSON file ' + that.modelsJsonFile + ' - ' + error + ' - ' + textStatus);
+	});
+}
+ModelManager.prototype.loadForMarker = function(markerId, markerTransform)
+{
+	var model = this.modelData.models[markerId];
+	if (model)
+	{
+		this.jsonLoader.load(model.file, function(geometry){
+		
+			//create mesh
+			var mesh = new THREE.Mesh(
+				geometry,
+				new THREE.MeshNormalMaterial({color: 0xff00ff, side: THREE.BackSide, wireframe: false})
+			);
+			
+			//bake transformations into vertices
+			var m = new THREE.Matrix4();
+			if (model.translate)
+			{
+				m.setPosition(new THREE.Vector3(model.translate[0], model.translate[1], model.translate[2]));
+			}
+			if (model.rotate)
+			{
+				var rotationMat = new THREE.Matrix4();
+				var rotationVector = new THREE.Vector3(THREE.Math.degToRad(model.rotate[0]), THREE.Math.degToRad(model.rotate[1]), THREE.Math.degToRad(model.rotate[2]));
+				var rotationOrder = model.rotationOrder || 'XYZ';
+				rotationMat.makeRotationFromEuler(rotationVector, model.rotationOrder);
+				m.multiply(rotationMat);
+			}
+			if (model.scale)
+			{
+				m.scale(new THREE.Vector3(model.scale[0], model.scale[1], model.scale[2]));
+			}
+			mesh.applyMatrix(m);
+			console.log('Loaded mesh ' + model.file + ' for marker id ' + markerId);
+			
+			//add mesh to transform
+			markerTransform.add(mesh);
+		});
+	}
 }
 
 //===================================
