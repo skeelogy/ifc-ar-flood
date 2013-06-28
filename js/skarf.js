@@ -269,6 +269,7 @@ ThreeJsRenderer.prototype.init = function()
 {
 	this.setupCamera();
 	this.setupScene();
+	this.setupLights();
 	this.setupRenderer();
 	this.setupBackgroundVideo();
 }
@@ -320,6 +321,18 @@ ThreeJsRenderer.prototype.setupCamera = function()
 ThreeJsRenderer.prototype.setupScene = function()
 {
 	this.scene = new THREE.Scene();
+}
+ThreeJsRenderer.prototype.setupLights = function()
+{
+	this.scene.add(new THREE.AmbientLight(0x444444));
+
+	var light = new THREE.DirectionalLight(0xffffff);
+	light.position.set(3, -3, 1).normalize();
+	this.scene.add(light);
+
+	light = new THREE.DirectionalLight(0xffffff);
+	light.position.set(-0, 2, -1).normalize();
+	this.scene.add(light);
 }
 ThreeJsRenderer.prototype.setupRenderer = function()
 {
@@ -383,13 +396,12 @@ ModelManager.prototype.loadForMarker = function(markerId, markerTransform)
 	var model = this.modelData.models[markerId];
 	if (model)
 	{
-		this.jsonLoader.load(model.file, function(geometry){
-		
+		this.jsonLoader.load(model.file, function(geometry, materials){
+			
 			//create mesh
-			var mesh = new THREE.Mesh(
-				geometry,
-				new THREE.MeshNormalMaterial({color: 0xff00ff, side: THREE.BackSide, wireframe: false})
-			);
+			var material = materials[0];
+			material.side = THREE.DoubleSide;
+			var mesh = new THREE.Mesh(geometry, material);
 			
 			//bake transformations into vertices
 			var m = new THREE.Matrix4();
