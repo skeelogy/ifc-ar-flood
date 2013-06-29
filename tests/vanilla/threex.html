@@ -14,6 +14,7 @@
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
 	<script type="text/javascript" src="/js/lib/JSARToolKit.js"></script>
 	<script type="text/javascript" src="/js/lib/threex.jsartoolkit.js"></script>
+	<script type="text/javascript" src="/js/lib/Detector.js"></script>
 	
 	<script>
 	
@@ -24,8 +25,15 @@
 	
 	$(document).ready(function()
 	{
+		//check for WebGL
+		if (!Detector.webgl)
+		{
+			$('div').remove();
+			Detector.addGetWebGLMessage();
+			return;
+		}
+	
 		console.log('Document is ready.');
-
 		
 		//stream to video element
 		//TODO: create a list and allow user to select

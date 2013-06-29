@@ -12,10 +12,19 @@
 	
 	<!--load 3D libraries-->
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
+	<script type="text/javascript" src="/js/lib/Detector.js"></script>
 	
 	<script>
 	$(document).ready(function()
 	{
+		//check for WebGL
+		if (!Detector.webgl)
+		{
+			$('div').remove();
+			Detector.addGetWebGLMessage();
+			return;
+		}
+	
 		console.log('Document is ready.');
 		
 		//stream to video element
