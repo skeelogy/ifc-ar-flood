@@ -14,6 +14,7 @@
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
 	<script type="text/javascript" src="/js/lib/JSARToolKit.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
+	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
 	
 	<script>
 	
@@ -158,6 +159,11 @@
 		videoScene.add(videoCam);
 
 		
+		//create a stats monitor
+		stats = new Stats();
+		var $threejsContainerElem = $('#threejs-container');
+		$threejsContainerElem.append(stats.domElement);
+		
 		
 		var markerRoots = {};
 		
@@ -257,6 +263,8 @@
 				renderer.clear();
 				renderer.render(videoScene, videoCam);
 				renderer.render(scene, camera);
+				
+				stats.update();
 			}
 		  
 		  requestAnimationFrame(loop);

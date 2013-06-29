@@ -14,6 +14,7 @@
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
 	<script type="text/javascript" src="/js/lib/JSARToolKit.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
+	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
 	
 	<script type="text/javascript" src="/js/skarf.js"></script>
 	
@@ -88,11 +89,16 @@
 			arLib: jsArToolKitArLib,
 			renderer: threeJsRenderer
 		});
+
+		//create a stats monitor
+		stats = new Stats();
+		$threejsContainerElem.append(stats.domElement);
 		
 		//main loop
 		function loop()
 		{
 			skarf.update();  //this will update the AR lib and renderer too
+			stats.update();
 			requestAnimationFrame(loop);
 		}
 		loop();

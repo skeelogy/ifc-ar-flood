@@ -13,6 +13,7 @@
 	<!--load 3D libraries-->
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
+	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
 	
 	<script>
 	$(document).ready(function()
@@ -100,9 +101,15 @@
 		videoScene.add(plane);
 		videoScene.add(videoCam);
 		
+		//create a stats monitor
+		stats = new Stats();
+		var $threejsContainerElem = $('#threejs-container');
+		$threejsContainerElem.append(stats.domElement);
+		
 		function animate(){	
 			requestAnimationFrame(animate);
 			render();
+			stats.update();
 		};
 
 		function render(){

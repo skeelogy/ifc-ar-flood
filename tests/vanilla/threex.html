@@ -15,6 +15,7 @@
 	<script type="text/javascript" src="/js/lib/JSARToolKit.js"></script>
 	<script type="text/javascript" src="/js/lib/threex.jsartoolkit.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
+	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
 	
 	<script>
 	
@@ -94,10 +95,16 @@
 		scene.add(mesh);*/
 
 		
+		//create a stats monitor
+		stats = new Stats();
+		var $threejsContainerElem = $('#threejs-container');
+		$threejsContainerElem.append(stats.domElement);
+		
 		
 		function animate(){	
 			requestAnimationFrame(animate);
 			render();
+			stats.update();
 		};
 
 		function render(){
