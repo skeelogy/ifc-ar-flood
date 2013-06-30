@@ -1,0 +1,12 @@
+{
+	"models": {
+		"22": {
+			"name": "dice",
+			"file": "/resources/models/dice_flippedYZ.js",
+			"translate": [0, 0, 0],
+			"rotate": [0, 0, 0],
+			"rotationOrder": "XYZ",
+			"scale": [0.1, 0.1, 0.1]
+		}
+	}
+}

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Iowa Flood Center - Augmented Reality Flood Simulation</title>
+	<meta charset="UTF-8"/>
+	
+	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" href="/css/style.css">
+	
+	<!--load helper libraries-->
+	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+	
+	<!--load 3D libraries-->
+	<script type="text/javascript" src="/js/lib/three.min.js"></script>
+	<script type="text/javascript" src="/js/lib/Detector.js"></script>
+	<script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
+	<script type="text/javascript" src="/js/skarf.js"></script>
+	
+	<script>
+	$(document).ready(function()
+	{
+		//check for WebGL
+		if (!Detector.webgl)
+		{
+			$('div').remove();
+			Detector.addGetWebGLMessage();
+			return;
+		}
+	
+		console.log('Document is ready.');
+		
+		//===================================================
+		//THREE.JS
+		//===================================================
+		
+		// setup three.js renderer
+		var renderer = new THREE.WebGLRenderer({
+			antialias : true
+		});
+		renderer.setSize(640, 480);
+		renderer.setClearColor('#000000', 1);
+		var $container = $('#threejs-heading');
+		$container.after(renderer.domElement);
+
+		// create the scene
+		var scene	= new THREE.Scene();
+
+		// Create a camera and a marker root object for your Three.js scene.
+		var camera = new THREE.PerspectiveCamera(35, renderer.domElement.width/renderer.domElement.height, 0.1, 1000 );
+		camera.position.set(1, 1, 1);
+		camera.lookAt(new THREE.Vector3(0,0,0));
+		controls = new THREE.OrbitControls(camera);
+		scene.add(camera);
+
+		// setup lights
+		scene.add(new THREE.AmbientLight(0xffffff));
+
+		var light	= new THREE.DirectionalLight(0xffffff);
+		light.position.set(3, -3, 1).normalize();
+		scene.add(light);
+
+		var light	= new THREE.DirectionalLight(0xffffff);
+		light.position.set(-0, 2, -1).normalize();
+		scene.add(light);
+		
+		//load a model
+		var modelsJsonFile = '/resources/models/testModels.json';
+		var modelManager = new ModelManager(modelsJsonFile);
+		var transform = new THREE.Object3D();
+		setTimeout(function(){
+			modelManager.loadForMarker('22', transform);
+			scene.add(transform);
+		}, 500);  //FIXME: should not have to do setTimeout
+		
+		//add an axis to tell the direction
+		var localAxis = new THREE.AxisHelper(10);
+		scene.add(localAxis);
+		
+		function animate(){	
+			requestAnimationFrame(animate);
+			render();
+		};
+
+		function render(){
+		
+			controls.update();
+			
+			// trigger the rendering
+			renderer.autoClear = false;
+			renderer.clear();
+			renderer.render(scene, camera);
+		};
+		
+		//animate
+		animate();
+	});
+	</script>
+</head>
+<body>
+	<h2>Three.js axis check</h2>
+	<div class="caption">This is a test for checking the axes in Blender and in Three.js. Blender uses a Z-up coordinate system while Three.js uses a Y-up coordinate system.</div>
+	<div class="caption">This test loads in a dice model exported from Blender with the "Flip YZ" option turned on. The model appears with face 4 pointing up in +Y and face 5 pointing forward in +Z. This indicates that the "forward" direction in Blender is -Y.</div>
+	<div class="caption">As you can see below, both coordinate systems are right-handed, so no flipping of coordinate system has occured during the export.</div>
+	<div class="container" id="threejs-container">
+		<div class="caption" id="threejs-heading">three.js &lt;canvas&gt;</div>
+		<div class="caption">LMB: rotate, MMB: dolly in/out, RMB: pan</div>
+	</div>
+	<div class="container" id="blender-container">
+		<div class="caption">Blender screenshot</div>
+		<img src="/resources/images/dice_blender.png"></img>
+	</div>
+</body>
+</html>
