@@ -2,9 +2,9 @@
 	"models": {
 		"22": {
 			"name": "dice",
-			"file": "/resources/models/dice.js",
+			"file": "/resources/models/dice_flippedYZ.js",
 			"translate": [0, 0, 0],
-			"rotate": [180, 0, 0],
+			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
 			"scale": [60, 60, 60]
 		},
@@ -12,7 +12,7 @@
 			"name": "teapot",
 			"file": "/resources/models/teapot.js",
 			"translate": [0, 0, 0],
-			"rotate": [-90, 0, 0],
+			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
 			"scale": [40, 40, 40]
 		}

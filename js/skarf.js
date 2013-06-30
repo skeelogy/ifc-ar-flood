@@ -320,6 +320,15 @@ ThreeJsRenderer.prototype.loadModelForMarker = function(markerId, markerTransfor
 ThreeJsRenderer.prototype.setMarkerTransform = function(markerId, transformMatrix)
 {
 	this.markerTransforms[markerId].matrix.setFromArray(transformMatrix);
+	
+	//TODO: bake these transforms into the AR conversion matrix
+	//FIXME: this assumes that we are using JSARToolKit...
+	var m = new THREE.Matrix4();
+	m.makeScale(1,1,-1);  //scale in -z to swap from LH-coord to RH-coord
+	this.markerTransforms[markerId].matrix.multiply(m);
+	m.makeRotationX(THREE.Math.degToRad(90));  //rotate 90deg in X to get Y-up
+	this.markerTransforms[markerId].matrix.multiply(m);
+	
 	this.markerTransforms[markerId].matrixWorldNeedsUpdate = true;
 }
 
