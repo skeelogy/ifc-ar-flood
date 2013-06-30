@@ -16,8 +16,9 @@ I recommend installing node.js and its http-server module to get a quick http se
 * Install the http-server module for node.js by typing this in the node.js command prompt:
  * npm install http-server -g
 * Run the http-server module for any directory of your choice (again, in the node.js command prompt):
- * http-server C:\path\to\files
-* View the web page via the http server by using this URL in the browser: http://localhost:8080/thePageYouWantToView.html
+ * http-server C:\path\to\directory
+* View the web page via the http server by using this URL in the browser:
+ * http://localhost:8080/thePageYouWantToView.html
 
 ### Browser support
 
