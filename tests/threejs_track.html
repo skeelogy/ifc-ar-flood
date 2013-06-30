@@ -15,10 +15,69 @@
 	<script type="text/javascript" src="/js/lib/JSARToolKit.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
 	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
+	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
 	
 	<script type="text/javascript" src="/js/skarf.js"></script>
 	
 	<script>
+	
+	var skarf;
+	
+	function setupGui() {
+
+		var options = {
+			showWireframe: false,
+			showLocalAxis: false,
+		};
+
+		var gui = new dat.GUI();
+
+		//Display folder
+		var folder = gui.addFolder("Display");
+		
+		var control = folder.add(options, 'showWireframe').name('Wireframe');
+		control.name('Wireframe');
+		function toggleWireframe(value)
+		{
+			//handle show/hide of wireframe
+			for (markerId in skarf.renderer.markerTransforms)
+			{
+				var markerTransform = skarf.renderer.markerTransforms[markerId];
+				for (childId in markerTransform.children)
+				{
+					if (markerTransform.children[childId] instanceof THREE.Mesh)
+					{
+						markerTransform.children[childId].material.wireframe = value;
+					}
+				}
+			}
+		}
+		control.onChange(toggleWireframe);
+		//TODO: this needs to be called once during init
+		//toggleWireframe(options.showWireframe);
+		
+		control = folder.add(options, 'showLocalAxis');
+		control.name('Local Axis');
+		function toggleLocalAxis(value)
+		{
+			//handle show/hide of local axis
+			for (markerId in skarf.renderer.markerTransforms)
+			{
+				var markerTransform = skarf.renderer.markerTransforms[markerId];
+				for (childId in markerTransform.children)
+				{
+					if (markerTransform.children[childId] instanceof THREE.AxisHelper)
+					{
+						markerTransform.children[childId].visible = value;
+					}
+				}
+			}
+		}
+		control.onChange(toggleLocalAxis);
+		//TODO: this needs to be called once during init
+		//toggleLocalAxis(options.showLocalAxis);
+	}
+	
 	$(document).ready(function()
 	{
 		//check for WebGL
@@ -89,10 +148,13 @@
 			arLib: jsArToolKitArLib,
 			renderer: threeJsRenderer
 		});
-
+		
 		//create a stats monitor
 		stats = new Stats();
 		$threejsContainerElem.append(stats.domElement);
+		
+		//setup GUI
+		setupGui();
 		
 		//main loop
 		function loop()

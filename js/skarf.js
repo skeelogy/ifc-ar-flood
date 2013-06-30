@@ -66,6 +66,8 @@ SkArF.prototype.update = function()
 	{
 		this.canvasElem.getContext('2d').drawImage(this.videoElem, 0, 0, this.canvasElem.width, this.canvasElem.height);
 		this.canvasElem.changed = true;
+
+		this.preUpdate();
 		
 		//call pre-updates
 		this.arLib.preUpdate();
@@ -78,8 +80,12 @@ SkArF.prototype.update = function()
 		//call post-updates
 		this.arLib.postUpdate();
 		this.renderer.postUpdate();
+		
+		this.postUpdate();
 	}
 }
+SkArF.prototype.preUpdate = function(){}
+SkArF.prototype.postUpdate = function(){}
 
 //===================================
 // AR Libraries
@@ -299,6 +305,11 @@ ThreeJsRenderer.prototype.createTransformForMarker = function(markerId)
 
 	// Add the marker root to your scene.
 	this.scene.add(markerTransform);
+	
+	//add a axis helper to see the local axis
+	var localAxis = new THREE.AxisHelper(100);
+	localAxis.visible = false;
+	markerTransform.add(localAxis);
 	
 	return markerTransform;
 }
