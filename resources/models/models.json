@@ -17,6 +17,33 @@
 			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
 			"scale": [150, 150, 150]
+		},
+		"49": {
+			"name": "us_police_car2",
+			"file": "/resources/models/us_police_car/us_police_car_bin.js",
+			"type": "json_bin",
+			"translate": [0, 0, 0],
+			"rotate": [0, 0, 0],
+			"rotationOrder": "XYZ",
+			"scale": [40, 40, 40]
+		},
+		"81": {
+			"name": "park_bench2",
+			"file": "/resources/models/park_bench/park_bench.js",
+			"type": "json",
+			"translate": [0, 0, 0],
+			"rotate": [0, 0, 0],
+			"rotationOrder": "XYZ",
+			"scale": [80, 80, 80]
+		},
+		"63": {
+			"name": "house_15",
+			"file": "/resources/models/house_15/house_15.js",
+			"type": "json",
+			"translate": [0, 0, 0],
+			"rotate": [0, 0, 0],
+			"rotationOrder": "XYZ",
+			"scale": [10, 10, 10]
 		}
 	}
 }
