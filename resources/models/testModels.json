@@ -2,7 +2,8 @@
 	"models": {
 		"22": {
 			"name": "dice",
-			"file": "/resources/models/dice_flippedYZ.js",
+			"file": "/resources/models/dice_bin.js",
+			"type": "json_bin",
 			"translate": [0, 0, 0],
 			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",

@@ -387,21 +387,23 @@ ThreeJsRenderer.prototype.setupBackgroundVideo = function()
 // Model Manager
 //===================================
 
+//TODO: this is Three.js specific, have to separate out into its own subclass
+
 function ModelManager(modelsJsonFile)
 {
 	this.modelsJsonFile = modelsJsonFile;
 	
 	this.modelData = null;
-	this.jsonLoader = new THREE.JSONLoader();
+	this.loaders = {};
 	
 	this.load();
 }
 ModelManager.prototype.load = function()
 {
-	var that = this;
-	console.log('Loading models json file: ' + that.modelsJsonFile);
+	console.log('Loading models json file: ' + this.modelsJsonFile);
 	
 	//load the JSON file
+	var that = this;
 	$.getJSON(this.modelsJsonFile)
 	.done(function(data){
 		that.modelData = data;
@@ -416,39 +418,165 @@ ModelManager.prototype.loadForMarker = function(markerId, markerTransform)
 	var model = this.modelData.models[markerId];
 	if (model)
 	{
-		this.jsonLoader.load(model.file, function(geometry, materials){
-			
-			//create mesh
-			var material = materials[0];
-			material.side = THREE.DoubleSide;
-			var mesh = new THREE.Mesh(geometry, material);
-			
-			//bake transformations into vertices
-			var m = new THREE.Matrix4();
-			if (model.translate)
-			{
-				m.setPosition(new THREE.Vector3(model.translate[0], model.translate[1], model.translate[2]));
-			}
-			if (model.rotate)
-			{
-				var rotationMat = new THREE.Matrix4();
-				var rotationVector = new THREE.Vector3(THREE.Math.degToRad(model.rotate[0]), THREE.Math.degToRad(model.rotate[1]), THREE.Math.degToRad(model.rotate[2]));
-				var rotationOrder = model.rotationOrder || 'XYZ';
-				rotationMat.makeRotationFromEuler(rotationVector, model.rotationOrder);
-				m.multiply(rotationMat);
-			}
-			if (model.scale)
-			{
-				m.scale(new THREE.Vector3(model.scale[0], model.scale[1], model.scale[2]));
-			}
-			mesh.applyMatrix(m);
-			console.log('Loaded mesh ' + model.file + ' for marker id ' + markerId);
-			
-			//add mesh to transform
-			markerTransform.add(mesh);
-		});
+		type = model.type;
+		if (!(type in this.loaders))
+		{
+			//create a loader using ModelLoaderFactory
+			this.loaders[type] = ModelLoaderFactory.create(type);
+		}
+
+		this.loaders[type].loadForMarker(model, markerId, markerTransform);
 	}
 }
+
+
+//===================================
+// Model Loaders
+//===================================
+
+var ModelLoaderFactory = {
+
+	mappings: {},
+
+	create: function(type)
+	{
+		if (!(type in this.mappings))
+		{
+			throw new Error('ModelLoader of this type has not been registered with ModelLoaderFactory: ' + type);
+		}
+		loader = new this.mappings[type]();
+		return loader;
+	},
+
+	register: function(mappingName, mappingClass)
+	{
+		//check that mappingName is not in mappings already
+		if (this.mappings.hasOwnProperty(mappingName))
+		{
+			throw new Error('Mapping name already exists: ' + mappingName);
+		}
+		this.mappings[mappingName] = mappingClass;
+	}
+}
+
+function ModelLoader()
+{
+	this.loader = null;
+}
+ModelLoader.prototype.loadForMarker = function(markerId, markerTransform)
+{
+	throw new Error('Abstract method not implemented');
+}
+ModelLoader.prototype.transformAndParent = function(model, object, markerTransform)
+{
+	//bake transformations
+	var m = new THREE.Matrix4();
+	if (model.translate)
+	{
+		m.setPosition(new THREE.Vector3(model.translate[0], model.translate[1], model.translate[2]));
+	}
+	if (model.rotate)
+	{
+		var rotationMat = new THREE.Matrix4();
+		var rotationVector = new THREE.Vector3(THREE.Math.degToRad(model.rotate[0]), THREE.Math.degToRad(model.rotate[1]), THREE.Math.degToRad(model.rotate[2]));
+		var rotationOrder = model.rotationOrder || 'XYZ';
+		rotationMat.makeRotationFromEuler(rotationVector, model.rotationOrder);
+		m.multiply(rotationMat);
+	}
+	if (model.scale)
+	{
+		m.scale(new THREE.Vector3(model.scale[0], model.scale[1], model.scale[2]));
+	}
+	object.applyMatrix(m);
+
+	//add object to transform
+	markerTransform.add(object);
+}
+
+
+function JsonModelLoader()
+{
+	ModelLoader.call(this);
+	this.loader = new THREE.JSONLoader();
+	console.log('Created a JsonModelLoader');
+}
+
+//inherit from ModelLoader
+JsonModelLoader.prototype = Object.create(ModelLoader.prototype);
+JsonModelLoader.prototype.constructor = JsonModelLoader;
+
+//register with factory
+ModelLoaderFactory.register('json', JsonModelLoader);
+
+//override methods
+JsonModelLoader.prototype.loadForMarker = function(model, markerId, markerTransform)
+{
+	//TODO: time how long it takes to load
+	
+	var that = this;
+	this.loader.load(model.file, function(geometry, materials){
+
+		//create mesh
+		var material = materials[0];
+		material.side = THREE.DoubleSide;
+		var mesh = new THREE.Mesh(geometry, material);
+		
+		//bake transformations into vertices
+		that.transformAndParent(model, mesh, markerTransform);
+
+		console.log('Loaded mesh ' + model.file + ' for marker id ' + markerId);
+	});
+}
+
+
+function JsonBinaryModelLoader()
+{
+	ModelLoader.call(this);
+	this.loader = new THREE.BinaryLoader();
+	console.log('Created a JsonBinaryModelLoader');
+}
+
+//inherit from JsonModelLoader
+JsonBinaryModelLoader.prototype = Object.create(JsonModelLoader.prototype);
+JsonBinaryModelLoader.prototype.constructor = JsonBinaryModelLoader;
+
+//register with factory
+ModelLoaderFactory.register('json_bin', JsonBinaryModelLoader);
+
+
+function ObjModelLoader()
+{
+	ModelLoader.call(this);
+	this.loader = new THREE.OBJMTLLoader();
+	console.log('Created a ObjModelLoader');
+}
+
+//inherit from ModelLoader
+ObjModelLoader.prototype = Object.create(ModelLoader.prototype);
+ObjModelLoader.prototype.constructor = ObjModelLoader;
+
+//register with factory
+ModelLoaderFactory.register('obj', ObjModelLoader);
+
+//override methods
+ObjModelLoader.prototype.loadForMarker = function(model, markerId, markerTransform)
+{
+	var that = this;
+	this.loader.addEventListener('load', function(event){
+
+		var object = event.content;  //this ia a THREE.Object3D
+
+		//transform and parent
+		that.transformAndParent(model, object, markerTransform);
+
+		console.log('Loaded mesh ' + model.file + ' for marker id ' + markerId);
+	});
+	
+	var mtlFile = model.file.replace(/.obj/g, '.mtl');  //assume mtl file has same base name as .obj
+	this.loader.load(model.file, mtlFile);
+}
+
+
 
 //===================================
 // Helpers

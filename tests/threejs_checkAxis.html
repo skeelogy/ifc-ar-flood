@@ -14,6 +14,9 @@
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
 	<script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
+	<script type="text/javascript" src="/js/lib/OBJMTLLoader.js"></script>
+	<script type="text/javascript" src="/js/lib/MTLLoader.js"></script>
+	<script type="text/javascript" src="/js/lib/BinaryLoader.js"></script>
 	<script type="text/javascript" src="/js/lib/skarf.js"></script>
 	
 	<script>
@@ -73,7 +76,7 @@
 		}, 500);  //FIXME: should not have to do setTimeout
 		
 		//add an axis to tell the direction
-		var localAxis = new THREE.AxisHelper(10);
+		var localAxis = new THREE.AxisHelper(0.5);
 		scene.add(localAxis);
 		
 		function animate(){	
