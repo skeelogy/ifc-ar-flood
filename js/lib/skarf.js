@@ -230,6 +230,10 @@ function Renderer(options)
 	this.modelsJsonFile = options.modelsJsonFile;
 		
 	this.modelManager = new ModelManager(this.modelsJsonFile);
+
+	this.preInit();
+	this.init();
+	this.postInit();
 }
 Renderer.prototype.init = function()
 {
@@ -255,15 +259,13 @@ Renderer.prototype.setMarkerTransform = function(markerId, transformMatrix)
 
 function ThreeJsRenderer(options)
 {
-	Renderer.call(this, options);
-
 	if (!options.camProjMatrixArray) throw new Error('camProjMatrixArray not specified');
 	this.camProjMatrixArray = options.camProjMatrixArray;
 	
 	this.markerTransforms = {};
 	this.emptyFloatArray = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 	
-	this.init();
+	Renderer.call(this, options);
 }
 
 //inherit from Renderer
@@ -298,6 +300,8 @@ ThreeJsRenderer.prototype.preUpdate = function()
 }
 ThreeJsRenderer.prototype.createTransformForMarker = function(markerId)
 {
+	//FIXME: no need to create a transform if this markerId is not in the models JSON file
+
 	//create a new Three.js object as marker root
 	var markerTransform = new THREE.Object3D();
 	markerTransform.matrixAutoUpdate = false;
@@ -440,6 +444,10 @@ var ModelLoaderFactory = {
 
 	create: function(type)
 	{
+		if (!type)
+		{
+			throw new Error('Model type not specified');
+		}
 		if (!(type in this.mappings))
 		{
 			throw new Error('ModelLoader of this type has not been registered with ModelLoaderFactory: ' + type);
@@ -531,6 +539,10 @@ JsonModelLoader.prototype.loadForMarker = function(model, markerId, markerTransf
 function JsonBinaryModelLoader()
 {
 	ModelLoader.call(this);
+	if (!THREE.BinaryLoader)
+	{
+		throw new Error('THREE.BinaryLoader does not exist. Have you included BinaryLoader.js?');
+	}
 	this.loader = new THREE.BinaryLoader();
 	console.log('Created a JsonBinaryModelLoader');
 }
@@ -546,6 +558,10 @@ ModelLoaderFactory.register('json_bin', JsonBinaryModelLoader);
 function ObjModelLoader()
 {
 	ModelLoader.call(this);
+	if (!THREE.OBJMTLLoader)
+	{
+		throw new Error('THREE.OBJMTLLoader does not exist. Have you included OBJMTLLoader.js and MTLLoader.js?');
+	}
 	this.loader = new THREE.OBJMTLLoader();
 	console.log('Created a ObjModelLoader');
 }
