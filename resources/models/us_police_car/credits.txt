@@ -1,0 +1,8 @@
+========================
+US Police Car
+========================
+by Antics 3D
+
+COLLADA (.dae) version downloaded from http://sketchup.google.com/3dwarehouse/details?mid=ce77b7e28b298ce21ab9df4be75138d0
+
+Converted to .obj, .js, and .js(bin) using Blender 2.67b

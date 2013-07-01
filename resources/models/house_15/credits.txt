@@ -1,0 +1,8 @@
+========================
+House 15
+========================
+by Matt Honeyfield (Doormatt)
+
+COLLADA (.dae) version downloaded from http://sketchup.google.com/3dwarehouse/details?mid=21f61a03dd9088458627bce8a46cfe19
+
+Converted to .obj, .js, and .js(bin) using Blender 2.67b

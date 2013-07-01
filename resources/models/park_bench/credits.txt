@@ -1,0 +1,8 @@
+========================
+Park Bench
+========================
+by dandis
+
+SketchUp (.skp) version downloaded from http://sketchup.google.com/3dwarehouse/details?mid=e1f4cc3629da89a47544300d42a4e5e3
+
+Converted to .obj, .js, and .js(bin) using Blender 2.67b

@@ -517,9 +517,8 @@ JsonModelLoader.prototype.loadForMarker = function(model, markerId, markerTransf
 	this.loader.load(model.file, function(geometry, materials){
 
 		//create mesh
-		var material = materials[0];
-		material.side = THREE.DoubleSide;
-		var mesh = new THREE.Mesh(geometry, material);
+		//material.side = THREE.DoubleSide;
+		var mesh = new THREE.Mesh(geometry, new THREE.MeshFaceMaterial(materials));
 		
 		//bake transformations into vertices
 		that.transformAndParent(model, mesh, markerTransform);
