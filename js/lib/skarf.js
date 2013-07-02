@@ -522,7 +522,7 @@ JsonModelLoader.prototype.loadForMarker = function(model, markerId, markerTransf
 	//TODO: time how long it takes to load
 	
 	var that = this;
-	this.loader.load(model.file, function(geometry, materials){
+	this.loader.load(model.url, function(geometry, materials){
 
 		//create mesh
 		//material.side = THREE.DoubleSide;
@@ -531,7 +531,7 @@ JsonModelLoader.prototype.loadForMarker = function(model, markerId, markerTransf
 		//bake transformations into vertices
 		that.transformAndParent(model, mesh, markerTransform);
 
-		console.log('Loaded mesh ' + model.file + ' for marker id ' + markerId);
+		console.log('Loaded mesh ' + model.url + ' for marker id ' + markerId);
 	});
 }
 
@@ -584,11 +584,11 @@ ObjModelLoader.prototype.loadForMarker = function(model, markerId, markerTransfo
 		//transform and parent
 		that.transformAndParent(model, object, markerTransform);
 
-		console.log('Loaded mesh ' + model.file + ' for marker id ' + markerId);
+		console.log('Loaded mesh ' + model.url + ' for marker id ' + markerId);
 	});
 	
-	var mtlFile = model.file.replace(/.obj/g, '.mtl');  //assume mtl file has same base name as .obj
-	this.loader.load(model.file, mtlFile);
+	var mtlFile = model.url.replace(/.obj/g, '.mtl');  //assume mtl file has same base name as .obj
+	this.loader.load(model.url, mtlFile);
 }
 
 
