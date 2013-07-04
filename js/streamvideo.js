@@ -21,13 +21,13 @@ function streamVideo(videoElement)
 			function(error)
 			{
 				errorMsg = 'ERROR: getUserMedia(): ' + JSON.stringify(error);
-				console.log(errorMsg);
+				console.error(errorMsg);
 				alert(errorMsg);
 			}
 		);
 	} else {
 		errorMsg = 'ERROR: Your browser does not support getUserMedia()';
-		console.log(errorMsg);
+		console.error(errorMsg);
 		alert(errorMsg);
 	}
 }
