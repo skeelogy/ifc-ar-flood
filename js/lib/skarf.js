@@ -19,8 +19,8 @@ var jsArToolKitArLib = new JsArToolKitArLib...
 //create a renderer
 var threeJsRenderer = new ThreeJsRenderer...
 
-//create an AR framework
-skarf = new SkArF({
+//create an AR framework (SkArF)
+var skarf = new SkArF({
 	canvasElem: canvas,
 	videoElem: video,
 	arLib: jsArToolKitArLib,
@@ -28,7 +28,7 @@ skarf = new SkArF({
 });
 
 //finally, within the main loop, call:
-skar.update();
+skarf.update();
 
 If you wish to use your own AR library:
 1) Subclass ArLib
