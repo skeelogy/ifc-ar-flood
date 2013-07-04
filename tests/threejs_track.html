@@ -23,22 +23,34 @@
 	
 	<script>
 	
-	var skarf;
+	var g_skarf;
+	var g_trackingThreshold = 128;
+	var g_debug = true;
+
 	
 	function setupGui() {
 
 		var options = {
-			showWireframe: false,
-			showLocalAxis: false,
+			trackingThreshold: g_trackingThreshold,
+			displayWireframe: false,
+			displayLocalAxis: false,
 		};
 
 		var gui = new dat.GUI();
 
+		//Tracking folder
+		var folder = gui.addFolder('Tracking');
+		var control = folder.add(options, 'trackingThreshold', 0, 255).name('Threshold');
+		function trackingThreshold_onChange(value)
+		{
+			skarf.arLib.threshold = value;
+		}
+		control.onChange(trackingThreshold_onChange);
+
 		//Display folder
-		var folder = gui.addFolder("Display");
+		folder = gui.addFolder('Display');
 		
-		var control = folder.add(options, 'showWireframe').name('Wireframe');
-		control.name('Wireframe');
+		var control = folder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
 		{
 			//handle show/hide of wireframe
@@ -56,10 +68,9 @@
 		}
 		control.onChange(toggleWireframe);
 		//TODO: this needs to be called once during init
-		//toggleWireframe(options.showWireframe);
+		//toggleWireframe(options.displayWireframe);
 		
-		control = folder.add(options, 'showLocalAxis');
-		control.name('Local Axis');
+		control = folder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
 			//handle show/hide of local axis
@@ -77,7 +88,7 @@
 		}
 		control.onChange(toggleLocalAxis);
 		//TODO: this needs to be called once during init
-		//toggleLocalAxis(options.showLocalAxis);
+		//toggleLocalAxis(options.displayLocalAxis);
 	}
 	
 	$(document).ready(function()
@@ -120,8 +131,8 @@
 		var jsArToolKitArLib = new JsArToolKitArLib({
 			canvasElem: $canvas,
 			markerWidth: 120,
-			threshold: 128,
-			debug: true
+			threshold: g_trackingThreshold,
+			debug: g_debug
 		});
 		
 		//get the camera projection matrix from jsArToolKitArLib
@@ -184,10 +195,6 @@
 	<div class="container" id="canvas-container">
 		<div class="caption">&lt;canvas&gt;</div>
 		<canvas id="mainCanvas" width="640" height="480"></canvas>
-	</div>
-	<div class="caption" style="margin: 2em auto;">
-		Threshold (0-255):
-		<input id="thresholdInput" type="range" min="0" max="255" onchange="threshold=this.value; console.log('threshold = ' + threshold);" style="vertical-align:middle;"></input>
 	</div>
 	<div class="container" id="debugCanvas-container">
 		<div class="caption">debug &lt;canvas&gt;</div>

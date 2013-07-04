@@ -95,6 +95,7 @@ function ArLib(options)
 {
 	if (!options.canvasElem) throw new Error('canvasElem not specified');
 	this.canvasElem = options.canvasElem;
+	this.threshold = options.threshold || 128;
 }
 ArLib.prototype.init = function()
 {
@@ -115,7 +116,6 @@ function JsArToolKitArLib(options)
 	ArLib.call(this, options);
 	
 	this.markerWidth = options.markerWidth || 120;
-	this.threshold = options.threshold || 128;
 	this.debug = (typeof(options.debug)==='undefined') ? false : options.debug;
 	
 	this.markers = {};
