@@ -23,12 +23,11 @@
 	
 	<script>
 	
-	var g_skarf;
 	var g_trackingThreshold = 128;
 	var g_debug = true;
 
 	
-	function setupGui() {
+	function setupGui(skarf) {
 
 		var options = {
 			trackingThreshold: g_trackingThreshold,
@@ -53,42 +52,18 @@
 		var control = folder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
 		{
-			//handle show/hide of wireframe
-			for (markerId in skarf.renderer.markerTransforms)
-			{
-				var markerTransform = skarf.renderer.markerTransforms[markerId];
-				for (childId in markerTransform.children)
-				{
-					if (markerTransform.children[childId] instanceof THREE.Mesh)
-					{
-						markerTransform.children[childId].material.wireframe = value;
-					}
-				}
-			}
+			skarf.renderer.setWireframeVisible(value);
 		}
 		control.onChange(toggleWireframe);
-		//TODO: this needs to be called once during init
-		//toggleWireframe(options.displayWireframe);
+		toggleWireframe(options.displayWireframe);
 		
 		control = folder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
-			//handle show/hide of local axis
-			for (markerId in skarf.renderer.markerTransforms)
-			{
-				var markerTransform = skarf.renderer.markerTransforms[markerId];
-				for (childId in markerTransform.children)
-				{
-					if (markerTransform.children[childId] instanceof THREE.AxisHelper)
-					{
-						markerTransform.children[childId].visible = value;
-					}
-				}
-			}
+			skarf.renderer.setLocalAxisVisible(value);
 		}
 		control.onChange(toggleLocalAxis);
-		//TODO: this needs to be called once during init
-		//toggleLocalAxis(options.displayLocalAxis);
+		toggleLocalAxis(options.displayLocalAxis);
 	}
 	
 	$(document).ready(function()
@@ -155,7 +130,7 @@
 		});
 		
 		//create a framework
-		skarf = new SkArF({
+		var skarf = new SkArF({
 			canvasElem: $canvas,
 			videoElem: $video,
 			arLib: jsArToolKitArLib,
@@ -167,7 +142,7 @@
 		$threejsContainerElem.append(stats.domElement);
 		
 		//setup GUI
-		setupGui();
+		setupGui(skarf);
 		
 		//main loop
 		function loop()

@@ -228,7 +228,10 @@ function Renderer(options)
 	
 	if (!options.modelsJsonFile) throw new Error('modelsJsonFile not specified');
 	this.modelsJsonFile = options.modelsJsonFile;
-		
+	
+	this.isWireframeVisible = (typeof(options.displayWireframe)==='undefined') ? false : options.displayWireframe;
+	this.isLocalAxisVisible = (typeof(options.displayLocalAxis)==='undefined') ? false : options.displayLocalAxis;
+
 	this.modelManager = new ModelManager(this.modelsJsonFile);
 
 	this.preInit();
@@ -254,6 +257,40 @@ Renderer.prototype.createTransformForMarker = function(markerId)
 Renderer.prototype.setMarkerTransform = function(markerId, transformMatrix)
 {
 	throw new Error('Abstract method not implemented');
+}
+Renderer.prototype.getAllMaterials = function(transform)
+{
+	throw new Error('Abstract method not implemented');
+}
+Renderer.prototype.getAllLocalAxes = function(transform)
+{
+	throw new Error('Abstract method not implemented');
+}
+Renderer.prototype.setWireframeVisible = function(isVisible)
+{
+	this.isWireframeVisible = isVisible;
+	for (markerId in this.markerTransforms)
+	{
+		var markerTransform = this.markerTransforms[markerId];
+		var materials = this.getAllMaterialsForTransform(markerTransform);
+		for (materialId in materials)
+		{
+			materials[materialId].wireframe = isVisible;
+		}
+	}
+}
+Renderer.prototype.setLocalAxisVisible = function(isVisible)
+{
+	this.isLocalAxisVisible = isVisible;
+	for (markerId in this.markerTransforms)
+	{
+		var markerTransform = this.markerTransforms[markerId];
+		var localAxes = this.getAllLocalAxesForTransform(markerTransform);
+		for (localAxisId in localAxes)
+		{
+			localAxes[localAxisId].visible = isVisible;
+		}
+	}
 }
 
 
@@ -312,14 +349,14 @@ ThreeJsRenderer.prototype.createTransformForMarker = function(markerId)
 	
 	//add a axis helper to see the local axis
 	var localAxis = new THREE.AxisHelper(100);
-	localAxis.visible = false;
+	localAxis.visible = this.isLocalAxisVisible;
 	markerTransform.add(localAxis);
 	
 	return markerTransform;
 }
 ThreeJsRenderer.prototype.loadModelForMarker = function(markerId, markerTransform)
 {
-	this.modelManager.loadForMarker(markerId, markerTransform);
+	this.modelManager.loadForMarker(markerId, markerTransform, this.isWireframeVisible);
 }
 ThreeJsRenderer.prototype.setMarkerTransform = function(markerId, transformMatrix)
 {
@@ -334,6 +371,45 @@ ThreeJsRenderer.prototype.setMarkerTransform = function(markerId, transformMatri
 	this.markerTransforms[markerId].matrix.multiply(m);
 	
 	this.markerTransforms[markerId].matrixWorldNeedsUpdate = true;
+}
+ThreeJsRenderer.prototype.getAllMaterialsForTransform = function(transform)
+{
+	//FIXME: does not work with obj models. Need to recurse down tree to find materials.
+
+	var materials = [];
+	for (childId in transform.children)
+	{
+		if (transform.children[childId] instanceof THREE.Mesh)
+		{
+			var material = transform.children[childId].material;
+			if (material instanceof THREE.MeshFaceMaterial)
+			{
+				//loop through all materials
+				for (materialId in material.materials)
+				{
+					materials.push(material.materials[materialId]);
+				}
+			}
+			else
+			{
+				materials.push(material);
+			}
+			
+		}
+	}
+	return materials;
+}
+ThreeJsRenderer.prototype.getAllLocalAxesForTransform = function(transform)
+{
+	var localAxes = [];
+	for (childId in transform.children)
+	{
+		if (transform.children[childId] instanceof THREE.AxisHelper)
+		{
+			localAxes.push(transform.children[childId]);
+		}
+	}
+	return localAxes;
 }
 
 //methods
@@ -417,7 +493,7 @@ ModelManager.prototype.load = function()
 		console.error('Unable to load JSON file ' + that.modelsJsonFile + ' - ' + error + ' - ' + textStatus);
 	});
 }
-ModelManager.prototype.loadForMarker = function(markerId, markerTransform)
+ModelManager.prototype.loadForMarker = function(markerId, markerTransform, isWireframeVisible)
 {
 	var model = this.modelData.models[markerId];
 	if (model)
@@ -429,7 +505,7 @@ ModelManager.prototype.loadForMarker = function(markerId, markerTransform)
 			this.loaders[type] = ModelLoaderFactory.create(type);
 		}
 
-		this.loaders[type].loadForMarker(model, markerId, markerTransform);
+		this.loaders[type].loadForMarker(model, markerId, markerTransform, isWireframeVisible);
 	}
 }
 
@@ -471,7 +547,7 @@ function ModelLoader()
 {
 	this.loader = null;
 }
-ModelLoader.prototype.loadForMarker = function(markerId, markerTransform)
+ModelLoader.prototype.loadForMarker = function(markerId, markerTransform, isWireframeVisible)
 {
 	throw new Error('Abstract method not implemented');
 }
@@ -517,15 +593,20 @@ JsonModelLoader.prototype.constructor = JsonModelLoader;
 ModelLoaderFactory.register('json', JsonModelLoader);
 
 //override methods
-JsonModelLoader.prototype.loadForMarker = function(model, markerId, markerTransform)
+JsonModelLoader.prototype.loadForMarker = function(model, markerId, markerTransform, isWireframeVisible)
 {
 	//TODO: time how long it takes to load
 	
 	var that = this;
 	this.loader.load(model.url, function(geometry, materials){
 
+		//set wireframe visibility
+		for (materialId in materials)
+		{
+			materials[materialId].wireframe = isWireframeVisible;
+		}
+
 		//create mesh
-		//material.side = THREE.DoubleSide;
 		var mesh = new THREE.Mesh(geometry, new THREE.MeshFaceMaterial(materials));
 		
 		//bake transformations into vertices
@@ -574,12 +655,26 @@ ObjModelLoader.prototype.constructor = ObjModelLoader;
 ModelLoaderFactory.register('obj', ObjModelLoader);
 
 //override methods
-ObjModelLoader.prototype.loadForMarker = function(model, markerId, markerTransform)
+ObjModelLoader.prototype.loadForMarker = function(model, markerId, markerTransform, isWireframeVisible)
 {
 	var that = this;
 	this.loader.addEventListener('load', function(event){
 
 		var object = event.content;  //this ia a THREE.Object3D
+
+		//set wireframe visibility
+		for (childId in object.children)
+		{
+			var child = object.children[childId];
+			for (grandChildId in child.children)
+			{
+				var grandChild = child.children[grandChildId];
+				if (grandChild instanceof THREE.Mesh)
+				{
+					grandChild.material.wireframe = isWireframeVisible;
+				}
+			}
+		}
 
 		//transform and parent
 		that.transformAndParent(model, object, markerTransform);
