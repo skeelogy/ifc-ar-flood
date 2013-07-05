@@ -30,9 +30,11 @@
 	var localAxis;
 	var terrainGeom;
 	var materials = [];
+	var torusKnotMesh, boxMesh, sphereMesh;
 	var terrainHeight = 1.0;
 	var clock = new THREE.Clock();
 	var simplex = new SimplexNoise();
+	var shadowMapRes = 1024;
 	var terrainRes = 256;
 
 	function checkWebGl()
@@ -80,6 +82,9 @@
 		});
 		renderer.setSize(window.innerWidth, window.innerHeight-5);
 		renderer.setClearColor('#081419', 1);
+		renderer.shadowMapEnabled = true;
+		renderer.shadowMapType = THREE.PCFShadowMap;
+		renderer.shadowMapSoft = true;
 		var $container = $('#threejs-container');
 		$container.append(renderer.domElement);
 
@@ -100,10 +105,43 @@
 		var terrainMaterial = new THREE.MeshPhongMaterial();
 		materials.push(terrainMaterial);
 		var terrainMesh = new THREE.Mesh(terrainGeom, terrainMaterial);
+		terrainMesh.castShadow = true;
+		terrainMesh.receiveShadow = true;
 		scene.add(terrainMesh);
 
 		//change height using noise
 		//generateNoiseHeight(terrainGeom);  //called by ui during init
+
+		var torusKnotGeom = new THREE.TorusKnotGeometry(0.35, 0.1, 50, 8);
+		var torusKnotMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
+		torusKnotMaterial.shininess = 50;
+		materials.push(torusKnotMaterial);
+		torusKnotMesh = new THREE.Mesh(torusKnotGeom, torusKnotMaterial);
+		torusKnotMesh.position.x = -2;
+		torusKnotMesh.position.y = 1;
+		torusKnotMesh.castShadow = true;
+		torusKnotMesh.receiveShadow = false;
+		scene.add(torusKnotMesh);
+
+		var boxGeom = new THREE.CubeGeometry(1, 1, 1);
+		var boxMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
+		materials.push(boxMaterial);
+		boxMesh = new THREE.Mesh(boxGeom, boxMaterial);
+		boxMesh.position.y = 1;
+		boxMesh.castShadow = true;
+		boxMesh.receiveShadow = false;
+		scene.add(boxMesh);
+
+		var sphereGeom = new THREE.SphereGeometry(0.65, 10, 10);
+		var sphereMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
+		sphereMaterial.shininess = 50;
+		materials.push(sphereMaterial);
+		sphereMesh = new THREE.Mesh(sphereGeom, sphereMaterial);
+		sphereMesh.position.x = 2;
+		sphereMesh.position.y = 1;
+		sphereMesh.castShadow = true;
+		sphereMesh.receiveShadow = false;
+		scene.add(sphereMesh);
 
 		//create axis
 		localAxis = new THREE.AxisHelper();
@@ -115,6 +153,15 @@
 		var light = new THREE.SpotLight(0xffff00, 0.3);
 		light.position.set(5, 15, -15);
 		light.target.position.set(0, 0, 0);
+		light.castShadow = true;
+		light.shadowCameraNear = 15;
+		light.shadowCameraFar = 30;
+		light.shadowCameraFov = 30;
+		//light.shadowCameraVisible = true;
+		light.shadowBias = 0.0001;
+		light.shadowDarkness = 0.5;
+		light.shadowMapWidth = shadowMapRes;
+		light.shadowMapHeight = shadowMapRes;
 		scene.add(light);
 
 		light = new THREE.SpotLight(0x00ff00, 0.2);
@@ -213,6 +260,12 @@
 		//main loop
 		function loop()
 		{
+			var time = clock.getElapsedTime();
+
+			torusKnotMesh.position.y = 1.5 + 0.25 * Math.sin(time*3-0.5);
+			boxMesh.position.y = 1.5 + 0.25 * Math.sin(time*3);
+			sphereMesh.position.y = 1.5 + 0.25 * Math.sin(time*3+0.5);
+
 			renderer.autoClear = false;
 			renderer.clear();
 			renderer.render(scene, camera);
