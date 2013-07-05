@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>IFC - Terrain</title>
+	<meta charset="UTF-8"/>
+	
+	<link rel="stylesheet" href="/css/style.css">
+	<style type="text/css">
+		#stats { position: absolute; top:0; left: 0 }
+		#stats #fps { background: transparent !important }
+		#stats #fps #fpsText { color: #aaa !important }
+		#stats #fps #fpsGraph { display: block }
+	</style>
+	
+	<!--load helper libraries-->
+	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+	
+	<!--load AR and 3D libraries-->
+	<script type="text/javascript" src="/js/lib/three.min.js"></script>
+	<script type="text/javascript" src="/js/lib/Detector.js"></script>
+	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
+	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
+	<script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
+
+	<script type="text/javascript" src="/js/lib/SimplexNoise.js"></script>	
+	
+	<script>
+	
+	var renderer, scene, camera;
+	var localAxis;
+	var terrainGeom;
+	var materials = [];
+	var terrainHeight = 1.0;
+	var clock = new THREE.Clock();
+	var simplex = new SimplexNoise();
+	var terrainRes = 256;
+
+	function checkWebGl()
+	{
+		//check for WebGL
+		if (!Detector.webgl)
+		{
+			$('div').remove();
+			Detector.addGetWebGLMessage();
+			throw new Error('Your browser does not seem to support WebGL');
+		}
+	}
+
+	function generateNoiseHeight(geometry)
+	{
+		clock.start();
+
+		//TODO: use FBm instead
+		for (var i=0, l=geometry.vertices.length; i<l; i++)
+		{
+			var vertex = geometry.vertices[i];
+			vertex.y = simplex.noise(vertex.x, vertex.z) * terrainHeight;
+		}
+
+		//geometry.dynamic = true;
+		geometry.computeFaceNormals();  //must call this first before computeVertexNormals()
+		geometry.computeVertexNormals();
+		//geometry.computeCentroids();
+		//geometry.computeBoundingBox();
+		//geometry.computeBoundingSphere();
+
+		geometry.verticesNeedUpdate = true;
+		geometry.normalsNeedUpdate = true;
+
+		var t = clock.getDelta();
+		console.log('Generate noise: ' + t.toFixed(3) + ' seconds');
+		clock.stop();
+	}
+
+	function setupThreejsScene()
+	{
+		//create renderer
+		renderer = new THREE.WebGLRenderer({
+			antialias : true
+		});
+		renderer.setSize(window.innerWidth, window.innerHeight-5);
+		renderer.setClearColor('#081419', 1);
+		var $container = $('#threejs-container');
+		$container.append(renderer.domElement);
+
+		//create scene
+		scene = new THREE.Scene();
+
+		//create camera
+		camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000 );
+		camera.position.set(8, 8, 15);
+		camera.lookAt(new THREE.Vector3(0,0,0));
+
+		//create controls for camera
+		controls = new THREE.OrbitControls(camera);
+
+		//create plane
+		terrainGeom = new THREE.PlaneGeometry(10, 10, terrainRes, terrainRes);
+		terrainGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		var terrainMaterial = new THREE.MeshPhongMaterial();
+		materials.push(terrainMaterial);
+		var terrainMesh = new THREE.Mesh(terrainGeom, terrainMaterial);
+		scene.add(terrainMesh);
+
+		//change height using noise
+		//generateNoiseHeight(terrainGeom);  //called by ui during init
+
+		//create axis
+		localAxis = new THREE.AxisHelper();
+		scene.add(localAxis);
+
+		//setup lights
+		scene.add(new THREE.AmbientLight(0x000015));
+
+		var light = new THREE.SpotLight(0xffff00, 0.3);
+		light.position.set(5, 15, -15);
+		light.target.position.set(0, 0, 0);
+		scene.add(light);
+
+		light = new THREE.SpotLight(0x00ff00, 0.2);
+		light.position.set(5, 2, 15);
+		light.target.position.set(0, 0, 0);
+		scene.add(light);
+	}
+
+	function setupGui() {
+
+		var options = {
+			terrainHeight: 0.2,
+			displayWireframe: false,
+			displayLocalAxis: false,
+		};
+
+		var gui = new dat.GUI();
+		gui.close();  //close GUI by default
+
+		//Terrain folder
+		folder = gui.addFolder('Terrain');
+
+		var control = folder.add(options, 'terrainHeight', 0, 1).name('Height');
+		function changeTerrainHeight(value)
+		{
+			terrainHeight = value;
+			generateNoiseHeight(terrainGeom);
+		}
+		control.onChange(changeTerrainHeight);
+		changeTerrainHeight(options.terrainHeight);
+
+		//Display folder
+		folder = gui.addFolder('Display');
+		
+		var control = folder.add(options, 'displayWireframe').name('Wireframe');
+		function toggleWireframe(value)
+		{
+			for (materialId in materials)
+			{
+				materials[materialId].wireframe = value;
+			}
+		}
+		control.onChange(toggleWireframe);
+		toggleWireframe(options.displayWireframe);
+		
+		control = folder.add(options, 'displayLocalAxis').name('Local Axis');
+		function toggleLocalAxis(value)
+		{
+			localAxis.visible = value;
+		}
+		control.onChange(toggleLocalAxis);
+		toggleLocalAxis(options.displayLocalAxis);
+	}
+
+	function setupEvents()
+	{
+		window.addEventListener('resize', window_onResize, false);
+	}
+
+	function setupStats()
+	{
+		//create a stats monitor
+		stats = new Stats();
+		$('body').append(stats.domElement);
+	}
+
+	function window_onResize(event)
+	{
+		//update camera projection
+		camera.aspect = window.innerWidth / (window.innerHeight-5);
+		camera.updateProjectionMatrix();
+
+		//update renderer size
+		renderer.setSize(window.innerWidth, window.innerHeight-5);
+	}
+
+	$(document).ready(function()
+	{
+		//check for WebGL
+		checkWebGl();
+
+		console.log('Document is ready.');
+
+		//setup scene
+		setupThreejsScene();
+
+		//setup events
+		setupEvents();
+
+		//setup stats monitor
+		setupStats();
+		
+		//setup GUI
+		setupGui();
+		
+		//main loop
+		function loop()
+		{
+			renderer.autoClear = false;
+			renderer.clear();
+			renderer.render(scene, camera);
+
+			controls.update();
+
+			stats.update();
+
+			requestAnimationFrame(loop);
+		}
+		loop();
+		
+	});
+	</script>
+</head>
+<body>
+	<div id="threejs-container"></div>
+</body>
+</html>
