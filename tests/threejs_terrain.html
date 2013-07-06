@@ -27,6 +27,7 @@
 	<script>
 	
 	var renderer, scene, camera;
+	var keyLight, fillLight;
 	var localAxis;
 	var terrainGeom;
 	var materials = [];
@@ -150,7 +151,7 @@
 		controls.userPanSpeed = 0.2;
 
 		//create plane
-		var groundPlaneGeom = new THREE.PlaneGeometry(10, 10, terrainRes, terrainRes);
+		var groundPlaneGeom = new THREE.PlaneGeometry(10, 10, 1, 1);
 		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		var groundPlaneMaterial = new THREE.MeshPhongMaterial();
 		materials.push(groundPlaneMaterial);
@@ -210,30 +211,31 @@
 		//setup lights
 		scene.add(new THREE.AmbientLight(0x000015));
 
-		var light = new THREE.SpotLight(0xffff00, 0.3);
-		light.position.set(5, 15, -15);
-		light.target.position.set(0, 0, 0);
-		light.castShadow = true;
-		light.shadowCameraNear = 15;
-		light.shadowCameraFar = 30;
-		light.shadowCameraFov = 30;
-		//light.shadowCameraVisible = true;
-		light.shadowBias = 0.0001;
-		light.shadowDarkness = 0.5;
-		light.shadowMapWidth = shadowMapRes;
-		light.shadowMapHeight = shadowMapRes;
-		scene.add(light);
+		keyLight = new THREE.SpotLight(0xffff00, 0.3);
+		keyLight.position.set(5, 15, -15);
+		keyLight.target.position.set(0, 0, 0);
+		keyLight.castShadow = true;
+		keyLight.shadowCameraNear = 15;
+		keyLight.shadowCameraFar = 30;
+		keyLight.shadowCameraFov = 30;
+		//keyLight.shadowCameraVisible = true;
+		keyLight.shadowBias = 0.0001;
+		keyLight.shadowDarkness = 0.5;
+		keyLight.shadowMapWidth = shadowMapRes;
+		keyLight.shadowMapHeight = shadowMapRes;
+		scene.add(keyLight);
 
-		light = new THREE.SpotLight(0x00ff00, 0.2);
-		light.position.set(5, 2, 15);
-		light.target.position.set(0, 0, 0);
-		scene.add(light);
+		fillLight = new THREE.SpotLight(0x00ff00, 0.2);
+		fillLight.position.set(5, 2, 15);
+		fillLight.target.position.set(0, 0, 0);
+		scene.add(fillLight);
 	}
 
 	function setupGui() {
 
 		var options = {
 			terrainHeight: 2.0,
+			renderingShadows: true,
 			displayWireframe: false,
 			displayLocalAxis: false,
 		};
@@ -252,6 +254,21 @@
 		}
 		control.onChange(changeTerrainHeight);
 		changeTerrainHeight(options.terrainHeight);
+
+		//Rendering folder
+		folder = gui.addFolder('Rendering');
+
+		var control = folder.add(options, 'renderingShadows', 0, 10).name('Shadows');
+		function changeRenderingShadows(value)
+		{
+			renderer.shadowMapAutoUpdate = value;
+			if (!value)
+			{
+				renderer.clearTarget(keyLight.shadowMap);
+			}
+		}
+		control.onChange(changeRenderingShadows);
+		changeRenderingShadows(options.renderingShadows);
 
 		//Display folder
 		folder = gui.addFolder('Display');
