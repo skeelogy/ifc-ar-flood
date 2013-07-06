@@ -98,6 +98,7 @@
 
 		//create controls for camera
 		controls = new THREE.OrbitControls(camera);
+		controls.userPanSpeed = 0.2;
 
 		//create plane
 		terrainGeom = new THREE.PlaneGeometry(10, 10, terrainRes, terrainRes);
