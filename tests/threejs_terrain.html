@@ -36,7 +36,7 @@
 	var clock = new THREE.Clock();
 	var simplex = new SimplexNoise();
 	var shadowMapRes = 1024;
-	var terrainRes = 255;  //this has to be resolution minus 1
+	var terrainRes = 256;
 
 	var terrainImage = '/resources/images/clouds_256.png';
 	var useTerrainImage = true;
@@ -61,8 +61,8 @@
 
 			//create canvas that is same size as terrain res so that one vertex maps to one resized pixel
 			var imageCanvasElem = document.createElement('canvas');
-			imageCanvasElem.width = terrainRes+1;
-			imageCanvasElem.height = terrainRes+1;
+			imageCanvasElem.width = terrainRes;
+			imageCanvasElem.height = terrainRes;
 			$('body').append(imageCanvasElem);
 	        var imageCanvasElemContext = imageCanvasElem.getContext('2d');
 
@@ -82,6 +82,7 @@
 	{
 		clock.start();
 
+		var minY = 99999;
 		if (useTerrainImage)
 		{
 			//read the image data and use that as height
@@ -94,6 +95,10 @@
 				{
 					var vertex = geometry.vertices[i];
 					vertex.y = terrainImageData[i*4] / 255.0 * terrainHeight;
+					if (vertex.y < minY)
+					{
+						minY = vertex.y;
+					}
 				}
 			}
 		}
@@ -105,7 +110,20 @@
 			{
 				var vertex = geometry.vertices[i];
 				vertex.y = (simplex.noise(vertex.x, vertex.z) / 2.0 + 0.5) * terrainHeight;
+				if (vertex.y < minY)
+				{
+					minY = vertex.y;
+				}
 			}
+
+
+		}
+
+		//shift all vertices down so that min point touches y=0
+		for (var i=0; i<geometry.vertices.length; i++)
+		{
+			var vertex = geometry.vertices[i];
+			vertex.y -= minY;
 		}
 		
 
@@ -161,7 +179,7 @@
 		scene.add(groundPlaneMesh);
 
 		//create terrain
-		terrainGeom = new THREE.PlaneGeometry(10, 10, terrainRes, terrainRes);
+		terrainGeom = new THREE.PlaneGeometry(10, 10, terrainRes-1, terrainRes-1);
 		terrainGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		var terrainMaterial = new THREE.MeshPhongMaterial();
 		materials.push(terrainMaterial);
