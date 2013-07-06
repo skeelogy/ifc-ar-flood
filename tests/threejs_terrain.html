@@ -35,7 +35,11 @@
 	var clock = new THREE.Clock();
 	var simplex = new SimplexNoise();
 	var shadowMapRes = 1024;
-	var terrainRes = 256;
+	var terrainRes = 255;  //this has to be resolution minus 1
+
+	var terrainImage = '/resources/images/clouds_256.png';
+	var useTerrainImage = true;
+	var terrainImageData;
 
 	function checkWebGl()
 	{
@@ -48,16 +52,61 @@
 		}
 	}
 
+	function loadTerrainImage()
+	{
+		//load terrain image
+		var imageObj = new Image();
+		imageObj.onload = function() {
+
+			//create canvas that is same size as terrain res so that one vertex maps to one resized pixel
+			var imageCanvasElem = document.createElement('canvas');
+			imageCanvasElem.width = terrainRes+1;
+			imageCanvasElem.height = terrainRes+1;
+			$('body').append(imageCanvasElem);
+	        var imageCanvasElemContext = imageCanvasElem.getContext('2d');
+
+	        var terrainImageWidth = imageObj.width;
+	        var terrainImageHeight = imageObj.height;
+	        console.log('terrain image width height: ' + terrainImageWidth + ' ' + terrainImageHeight);
+	        imageCanvasElemContext.drawImage(imageObj, 0, 0, terrainImageWidth, terrainImageHeight);
+	        terrainImageData = imageCanvasElemContext.getImageData(0, 0, imageCanvasElem.width, imageCanvasElem.height).data;
+
+			console.log('terrain image data obtained');
+			generateNoiseHeight(terrainGeom);  //FIXME: sort out the async calls
+		};
+		imageObj.src = terrainImage;
+	}
+
 	function generateNoiseHeight(geometry)
 	{
 		clock.start();
 
-		//TODO: use FBm instead
-		for (var i=0, l=geometry.vertices.length; i<l; i++)
+		if (useTerrainImage)
 		{
-			var vertex = geometry.vertices[i];
-			vertex.y = simplex.noise(vertex.x, vertex.z) * terrainHeight;
+			//read the image data and use that as height
+			//TODO: use shader to make this run parallel on GPU if too slow
+			console.log('accessing terrain image data');
+			if (terrainImageData)  //FIXME: sort out the async calls
+			{
+				//iterate through vertices (they are ordered)
+				for (var i=0; i<geometry.vertices.length; i++)
+				{
+					var vertex = geometry.vertices[i];
+					vertex.y = terrainImageData[i*4] / 255.0 * terrainHeight;
+				}
+			}
 		}
+		else
+		{
+			//TODO: use FBm instead
+			//TODO: use shader to make this run parallel on GPU if too slow
+			for (var i=0; i<geometry.vertices.length; i++)
+			{
+				var vertex = geometry.vertices[i];
+				vertex.y = (simplex.noise(vertex.x, vertex.z) / 2.0 + 0.5) * terrainHeight;
+			}
+		}
+		
 
 		//geometry.dynamic = true;
 		geometry.computeFaceNormals();  //must call this first before computeVertexNormals()
@@ -101,6 +150,16 @@
 		controls.userPanSpeed = 0.2;
 
 		//create plane
+		var groundPlaneGeom = new THREE.PlaneGeometry(10, 10, terrainRes, terrainRes);
+		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		var groundPlaneMaterial = new THREE.MeshPhongMaterial();
+		materials.push(groundPlaneMaterial);
+		var groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
+		groundPlaneMesh.castShadow = true;
+		groundPlaneMesh.receiveShadow = true;
+		scene.add(groundPlaneMesh);
+
+		//create terrain
 		terrainGeom = new THREE.PlaneGeometry(10, 10, terrainRes, terrainRes);
 		terrainGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		var terrainMaterial = new THREE.MeshPhongMaterial();
@@ -174,7 +233,7 @@
 	function setupGui() {
 
 		var options = {
-			terrainHeight: 0.2,
+			terrainHeight: 2.0,
 			displayWireframe: false,
 			displayLocalAxis: false,
 		};
@@ -185,7 +244,7 @@
 		//Terrain folder
 		folder = gui.addFolder('Terrain');
 
-		var control = folder.add(options, 'terrainHeight', 0, 1).name('Height');
+		var control = folder.add(options, 'terrainHeight', 0, 10).name('Height');
 		function changeTerrainHeight(value)
 		{
 			terrainHeight = value;
@@ -245,6 +304,12 @@
 		checkWebGl();
 
 		console.log('Document is ready.');
+
+		//load terrain image
+		if (useTerrainImage)
+		{
+			loadTerrainImage();
+		}
 
 		//setup scene
 		setupThreejsScene();
