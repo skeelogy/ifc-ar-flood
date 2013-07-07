@@ -33,14 +33,13 @@
 	var terrainGeom;
 	var materials = [];
 	var torusKnotMesh, boxMesh, sphereMesh;
-	var terrainHeight = 1.0;
 	var clock = new THREE.Clock();
 	var simplex = new SimplexNoise();
 	var shadowMapRes = 1024;
-	var terrainRes = 512;
+	var terrainRes = 256;
 	var options = {
 			terrainPreBlur: 2.0,
-			terrainHeight: 0.3,
+			terrainHeight: 0.2,
 			renderingShadows: true,
 			displayWireframe: false,
 			displayLocalAxis: false,
@@ -50,7 +49,7 @@
 	var useTerrainImage = true;
 	var terrainImageData;
 	var $imageCanvasElem, imageCanvasElemContext;
-	var $imageObj;
+	var $scaledImageObj;
 
 	function checkWebGl()
 	{
@@ -63,19 +62,19 @@
 		}
 	}
 
-	function filterTerrainImageAndGenerateHeight(blurRadius)
+	function filterTerrainImageAndGenerateHeight()
 	{
 		//draw image onto canvas
 		//NO NEED TO DO THIS WHEN USING stackBlurImage()
-        //imageCanvasElemContext.drawImage($imageObj, 0, 0, terrainImageWidth, terrainImageHeight);
+        //imageCanvasElemContext.drawImage($scaledImageObj, 0, 0, terrainImageWidth, terrainImageHeight);
 
         //do pre-blur filtering first
-        stackBlurImage('terrainImage', 'terrainImageCanvas', blurRadius, false);
+        stackBlurImage('scaledTerrainImage', 'terrainImageCanvas', options.terrainPreBlur, false);
 
         //get filtered image data
         terrainImageData = imageCanvasElemContext.getImageData(0, 0, terrainRes, terrainRes).data;
 
-		generateTerrainHeight(terrainGeom);  //FIXME: sort out the async calls
+		generateTerrainHeight(terrainGeom);
 	}
 
 	function loadTerrainImage()
@@ -92,25 +91,29 @@
         imageCanvasElemContext = $imageCanvasElem[0].getContext('2d');
 
 		//load terrain image
-		$imageObj = $(new Image());
-		$imageObj[0].id = 'terrainImage';
-		$imageObj[0].onload = function()
+		$scaledImageObj = $(new Image());
+		$scaledImageObj[0].id = 'scaledTerrainImage';
+		$scaledImageObj[0].onload = function()
 		{
-			//during init, we need to scale this image to terrainRes size first, then use this as input to the blurring of canvas.
-			//so the canvas is first used for scaling of image here during init, then used to display the blurred image later on.
-
-			//copy to scaled canvas to scale this image
-			imageCanvasElemContext.drawImage($imageObj[0], 0, 0, terrainRes, terrainRes);
-
-			//get this image back from the canvas for completion of scaling
-			$imageObj[0].src = $imageCanvasElem[0].toDataURL();
-
+			//this function is triggered from $origImageObj setting this src
+			
 			//start filtering and changing heights
-			filterTerrainImageAndGenerateHeight(options.terrainPreBlur);
+			filterTerrainImageAndGenerateHeight();
 		};
-		$imageObj[0].src = terrainImage;
-		$imageObj.css({'display':'none'});
-		$('body').append($imageObj);
+		$scaledImageObj.css({'display':'none'});
+		$('body').append($scaledImageObj);
+
+		//load original terrain image, scale it using canvas, then set scaled image to $scaledImageObj
+		var $origImageObj = $(new Image());
+		$origImageObj[0].onload = function()
+		{
+			//copy to scaled canvas to scale this image
+			imageCanvasElemContext.drawImage($origImageObj[0], 0, 0, terrainRes, terrainRes);
+
+			//get scaled data from canvas and set data for scaledImageObj
+			$scaledImageObj[0].src = $imageCanvasElem[0].toDataURL();
+		};
+		$origImageObj[0].src = terrainImage;
 	}
 
 	function generateTerrainHeight(geometry)
@@ -122,17 +125,14 @@
 		{
 			//read the image data and use that as height
 			//TODO: use shader to make this run parallel on GPU if too slow
-			if (terrainImageData)  //FIXME: sort out the async calls
+			//iterate through vertices (they are ordered)
+			for (var i=0; i<geometry.vertices.length; i++)
 			{
-				//iterate through vertices (they are ordered)
-				for (var i=0; i<geometry.vertices.length; i++)
+				var vertex = geometry.vertices[i];
+				vertex.y = terrainImageData[i*4] / 255.0 * options.terrainHeight;
+				if (vertex.y < minY)
 				{
-					var vertex = geometry.vertices[i];
-					vertex.y = terrainImageData[i*4] / 255.0 * terrainHeight;
-					if (vertex.y < minY)
-					{
-						minY = vertex.y;
-					}
+					minY = vertex.y;
 				}
 			}
 		}
@@ -143,7 +143,7 @@
 			for (var i=0; i<geometry.vertices.length; i++)
 			{
 				var vertex = geometry.vertices[i];
-				vertex.y = (simplex.noise(vertex.x, vertex.z) / 2.0 + 0.5) * terrainHeight;
+				vertex.y = (simplex.noise(vertex.x, vertex.z) / 2.0 + 0.5) * options.terrainHeight;
 				if (vertex.y < minY)
 				{
 					minY = vertex.y;
@@ -201,6 +201,7 @@
 		//create controls for camera
 		controls = new THREE.OrbitControls(camera);
 		controls.userPanSpeed = 0.2;
+		//controls.autoRotate = true;
 		controls.modifierKey = 'alt';
 
 		//create plane
@@ -309,7 +310,7 @@
 			generateTerrainHeight(terrainGeom);
 		}
 		control.onChange(changeTerrainHeight);
-		changeTerrainHeight(options.terrainHeight);
+		//changeTerrainHeight(options.terrainHeight);
 
 		//Rendering folder
 		folder = gui.addFolder('Rendering');
