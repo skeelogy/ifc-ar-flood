@@ -35,6 +35,8 @@ THREE.OrbitControls = function ( object, domElement ) {
 	this.maxDistance = Infinity;
 
 	this.keys = { LEFT: 37, UP: 38, RIGHT: 39, BOTTOM: 40 };
+	this.modifierKey = null;
+	this.modifierKeyEventMap = {'alt': 'altKey', 'ctrl': 'ctrlKey', 'shift': 'shiftKey'};
 
 	// internals
 
@@ -221,23 +223,27 @@ THREE.OrbitControls = function ( object, domElement ) {
 		if ( scope.userRotate === false ) return;
 
 		event.preventDefault();
+		
+		if ( scope.modifierKey && event[ scope.modifierKeyEventMap[ scope.modifierKey ] ] ) {
 
-		if ( event.button === 0 ) {
+			if ( event.button === 0 ) {
 
-			state = STATE.ROTATE;
+				state = STATE.ROTATE;
 
-			rotateStart.set( event.clientX, event.clientY );
+				rotateStart.set( event.clientX, event.clientY );
 
-		} else if ( event.button === 1 ) {
+			} else if ( event.button === 1 ) {
 
-			state = STATE.ZOOM;
+				state = STATE.ZOOM;
 
-			zoomStart.set( event.clientX, event.clientY );
+				zoomStart.set( event.clientX, event.clientY );
 
-		} else if ( event.button === 2 ) {
+			} else if ( event.button === 2 ) {
 
-			state = STATE.PAN;
+				state = STATE.PAN;
 
+			}
+		
 		}
 
 		document.addEventListener( 'mousemove', onMouseMove, false );
@@ -251,39 +257,43 @@ THREE.OrbitControls = function ( object, domElement ) {
 
 		event.preventDefault();
 
-		if ( state === STATE.ROTATE ) {
+		if ( scope.modifierKey && event[ scope.modifierKeyEventMap[ scope.modifierKey ] ] ) {
 
-			rotateEnd.set( event.clientX, event.clientY );
-			rotateDelta.subVectors( rotateEnd, rotateStart );
+			if ( state === STATE.ROTATE ) {
 
-			scope.rotateLeft( 2 * Math.PI * rotateDelta.x / PIXELS_PER_ROUND * scope.userRotateSpeed );
-			scope.rotateUp( 2 * Math.PI * rotateDelta.y / PIXELS_PER_ROUND * scope.userRotateSpeed );
+				rotateEnd.set( event.clientX, event.clientY );
+				rotateDelta.subVectors( rotateEnd, rotateStart );
 
-			rotateStart.copy( rotateEnd );
+				scope.rotateLeft( 2 * Math.PI * rotateDelta.x / PIXELS_PER_ROUND * scope.userRotateSpeed );
+				scope.rotateUp( 2 * Math.PI * rotateDelta.y / PIXELS_PER_ROUND * scope.userRotateSpeed );
 
-		} else if ( state === STATE.ZOOM ) {
+				rotateStart.copy( rotateEnd );
 
-			zoomEnd.set( event.clientX, event.clientY );
-			zoomDelta.subVectors( zoomEnd, zoomStart );
+			} else if ( state === STATE.ZOOM ) {
 
-			if ( zoomDelta.y > 0 ) {
+				zoomEnd.set( event.clientX, event.clientY );
+				zoomDelta.subVectors( zoomEnd, zoomStart );
 
-				scope.zoomIn();
+				if ( zoomDelta.y > 0 ) {
 
-			} else {
+					scope.zoomIn();
 
-				scope.zoomOut();
+				} else {
+
+					scope.zoomOut();
+
+				}
+
+				zoomStart.copy( zoomEnd );
+
+			} else if ( state === STATE.PAN ) {
+
+				var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+				var movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+
+				scope.pan( new THREE.Vector3( - movementX, movementY, 0 ) );
 
 			}
-
-			zoomStart.copy( zoomEnd );
-
-		} else if ( state === STATE.PAN ) {
-
-			var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-			var movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
-
-			scope.pan( new THREE.Vector3( - movementX, movementY, 0 ) );
 
 		}
 
@@ -306,25 +316,29 @@ THREE.OrbitControls = function ( object, domElement ) {
 		if ( scope.enabled === false ) return;
 		if ( scope.userZoom === false ) return;
 
-		var delta = 0;
+		if ( scope.modifierKey && event[ scope.modifierKeyEventMap[ scope.modifierKey ] ] ) {
 
-		if ( event.wheelDelta ) { // WebKit / Opera / Explorer 9
+			var delta = 0;
 
-			delta = event.wheelDelta;
+			if ( event.wheelDelta ) { // WebKit / Opera / Explorer 9
 
-		} else if ( event.detail ) { // Firefox
+				delta = event.wheelDelta;
 
-			delta = - event.detail;
+			} else if ( event.detail ) { // Firefox
 
-		}
+				delta = - event.detail;
 
-		if ( delta > 0 ) {
+			}
 
-			scope.zoomOut();
+			if ( delta > 0 ) {
 
-		} else {
+				scope.zoomOut();
 
-			scope.zoomIn();
+			} else {
+
+				scope.zoomIn();
+
+			}
 
 		}
 

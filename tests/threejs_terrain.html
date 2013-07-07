@@ -201,6 +201,7 @@
 		//create controls for camera
 		controls = new THREE.OrbitControls(camera);
 		controls.userPanSpeed = 0.2;
+		controls.modifierKey = 'alt';
 
 		//create plane
 		var groundPlaneGeom = new THREE.PlaneGeometry(10, 10, 1, 1);
