@@ -38,12 +38,13 @@
 	var shadowMapRes = 1024;
 	var terrainRes = 256;
 	var options = {
-			terrainPreBlur: 2.0,
-			terrainHeight: 0.2,
-			renderingShadows: true,
-			displayWireframe: false,
-			displayLocalAxis: false,
-		};
+		terrainPreBlur: 1.0,
+		terrainHeight: 0.2,
+		renderingShadows: true,
+		renderingShadowCasters: false,
+		displayWireframe: false,
+		displayLocalAxis: false,
+	};
 
 	var terrainImage = '/resources/images/igms_617851,4595749,620411,4598309_512.jpg';
 	var useTerrainImage = true;
@@ -315,7 +316,7 @@
 		//Rendering folder
 		folder = gui.addFolder('Rendering');
 
-		control = folder.add(options, 'renderingShadows', 0, 10).name('Shadows');
+		control = folder.add(options, 'renderingShadows').name('Shadows');
 		function changeRenderingShadows(value)
 		{
 			renderer.shadowMapAutoUpdate = value;
@@ -326,6 +327,16 @@
 		}
 		control.onChange(changeRenderingShadows);
 		changeRenderingShadows(options.renderingShadows);
+
+		control = folder.add(options, 'renderingShadowCasters').name('Shadow Casters');
+		function changeRenderingShadowCasters(value)
+		{
+			torusKnotMesh.visible = value;
+			boxMesh.visible = value;
+			sphereMesh.visible = value;
+		}
+		control.onChange(changeRenderingShadowCasters);
+		changeRenderingShadowCasters(options.renderingShadowCasters);
 
 		//Display folder
 		folder = gui.addFolder('Display');
@@ -402,9 +413,12 @@
 		{
 			var time = clock.getElapsedTime();
 
-			torusKnotMesh.position.y = 1.5 + 0.25 * Math.sin(time*3-0.5);
-			boxMesh.position.y = 1.5 + 0.25 * Math.sin(time*3);
-			sphereMesh.position.y = 1.5 + 0.25 * Math.sin(time*3+0.5);
+			if (options.renderingShadowCasters)
+			{
+				torusKnotMesh.position.y = 1.5 + 0.25 * Math.sin(time*3-0.5);
+				boxMesh.position.y = 1.5 + 0.25 * Math.sin(time*3);
+				sphereMesh.position.y = 1.5 + 0.25 * Math.sin(time*3+0.5);
+			}
 
 			renderer.autoClear = false;
 			renderer.clear();
