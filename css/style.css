@@ -5,13 +5,13 @@ body {
 }
 
 h1 {
-	font-family: 'Fauna One', serif;
-	text-align: center;
+  font-family: 'Fauna One', serif;
+  text-align: center;
 }
 
 h2 {
-	font-family: 'Fauna One', serif;
-	text-align: center;
+  font-family: 'Fauna One', serif;
+  text-align: center;
 }
 
 .invisible {
@@ -31,8 +31,23 @@ h2 {
 }
 
 .caption {
-	font-family: 'Fauna One', serif;
-	font-style: italic;
-	text-align: center;
-	padding: 1em;
+  font-family: 'Fauna One', serif;
+  font-style: italic;
+  text-align: center;
+  padding: 1em;
+}
+
+.translucent {
+  margin: 5px 100px 0;
+  width: 290px;
+  padding: 10px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: rgba(128, 128, 128, 0.2);
+  border-radius: 5px;
+  font-family: Helvetica, serif;
+  font-style: italic;
+  font-size: 12px;
+  color: white;
 }

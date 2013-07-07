@@ -232,15 +232,21 @@ THREE.OrbitControls = function ( object, domElement ) {
 
 				rotateStart.set( event.clientX, event.clientY );
 
-			} else if ( event.button === 1 ) {
+				document.body.style.cursor = 'w-resize';
+
+			} else if ( event.button === 2 ) {
 
 				state = STATE.ZOOM;
 
 				zoomStart.set( event.clientX, event.clientY );
 
-			} else if ( event.button === 2 ) {
+				document.body.style.cursor = 'n-resize';
+
+			} else if ( event.button === 1 ) {
 
 				state = STATE.PAN;
+
+				document.body.style.cursor = 'move';
 
 			}
 		
@@ -269,12 +275,14 @@ THREE.OrbitControls = function ( object, domElement ) {
 
 				rotateStart.copy( rotateEnd );
 
+				document.body.style.cursor = 'w-resize';
+
 			} else if ( state === STATE.ZOOM ) {
 
 				zoomEnd.set( event.clientX, event.clientY );
 				zoomDelta.subVectors( zoomEnd, zoomStart );
 
-				if ( zoomDelta.y > 0 ) {
+				if ( zoomDelta.y < 0) {
 
 					scope.zoomIn();
 
@@ -286,12 +294,16 @@ THREE.OrbitControls = function ( object, domElement ) {
 
 				zoomStart.copy( zoomEnd );
 
+				document.body.style.cursor = 'n-resize';
+
 			} else if ( state === STATE.PAN ) {
 
 				var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
 				var movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
 
 				scope.pan( new THREE.Vector3( - movementX, movementY, 0 ) );
+
+				document.body.style.cursor = 'move';
 
 			}
 
@@ -306,6 +318,8 @@ THREE.OrbitControls = function ( object, domElement ) {
 
 		document.removeEventListener( 'mousemove', onMouseMove, false );
 		document.removeEventListener( 'mouseup', onMouseUp, false );
+
+		document.body.style.cursor = 'default';
 
 		state = STATE.NONE;
 
