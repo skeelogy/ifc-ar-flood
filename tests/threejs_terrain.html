@@ -23,6 +23,7 @@
 	<script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
 
 	<script type="text/javascript" src="/js/lib/SimplexNoise.js"></script>	
+	<script type="text/javascript" src="/js/lib/StackBlur.js"></script>	
 	
 	<script>
 	
@@ -36,11 +37,20 @@
 	var clock = new THREE.Clock();
 	var simplex = new SimplexNoise();
 	var shadowMapRes = 1024;
-	var terrainRes = 256;
+	var terrainRes = 512;
+	var options = {
+			terrainPreBlur: 2.0,
+			terrainHeight: 0.3,
+			renderingShadows: true,
+			displayWireframe: false,
+			displayLocalAxis: false,
+		};
 
-	var terrainImage = '/resources/images/clouds_256.png';
+	var terrainImage = '/resources/images/igms_617851,4595749,620411,4598309_512.jpg';
 	var useTerrainImage = true;
 	var terrainImageData;
+	var $imageCanvasElem, imageCanvasElemContext;
+	var $imageObj;
 
 	function checkWebGl()
 	{
@@ -53,32 +63,57 @@
 		}
 	}
 
-	function loadTerrainImage()
+	function filterTerrainImageAndGenerateHeight(blurRadius)
 	{
-		//load terrain image
-		var imageObj = new Image();
-		imageObj.onload = function() {
+		//draw image onto canvas
+		//NO NEED TO DO THIS WHEN USING stackBlurImage()
+        //imageCanvasElemContext.drawImage($imageObj, 0, 0, terrainImageWidth, terrainImageHeight);
 
-			//create canvas that is same size as terrain res so that one vertex maps to one resized pixel
-			var imageCanvasElem = document.createElement('canvas');
-			imageCanvasElem.width = terrainRes;
-			imageCanvasElem.height = terrainRes;
-			$('body').append(imageCanvasElem);
-	        var imageCanvasElemContext = imageCanvasElem.getContext('2d');
+        //do pre-blur filtering first
+        stackBlurImage('terrainImage', 'terrainImageCanvas', blurRadius, false);
 
-	        var terrainImageWidth = imageObj.width;
-	        var terrainImageHeight = imageObj.height;
-	        console.log('terrain image width height: ' + terrainImageWidth + ' ' + terrainImageHeight);
-	        imageCanvasElemContext.drawImage(imageObj, 0, 0, terrainImageWidth, terrainImageHeight);
-	        terrainImageData = imageCanvasElemContext.getImageData(0, 0, imageCanvasElem.width, imageCanvasElem.height).data;
+        //get filtered image data
+        terrainImageData = imageCanvasElemContext.getImageData(0, 0, terrainRes, terrainRes).data;
 
-			console.log('terrain image data obtained');
-			generateNoiseHeight(terrainGeom);  //FIXME: sort out the async calls
-		};
-		imageObj.src = terrainImage;
+		generateTerrainHeight(terrainGeom);  //FIXME: sort out the async calls
 	}
 
-	function generateNoiseHeight(geometry)
+	function loadTerrainImage()
+	{
+		//create canvas that is same size as terrain res so that one vertex maps to one resized pixel
+		$imageCanvasElem = $(document.createElement('canvas'));
+		$imageCanvasElem[0].id = 'terrainImageCanvas';
+		$imageCanvasElem[0].width = terrainRes;
+		$imageCanvasElem[0].height = terrainRes;
+		$imageCanvasElem.css({'display':'none'});
+		$('body').append($imageCanvasElem);
+		
+		//get canvas context
+        imageCanvasElemContext = $imageCanvasElem[0].getContext('2d');
+
+		//load terrain image
+		$imageObj = $(new Image());
+		$imageObj[0].id = 'terrainImage';
+		$imageObj[0].onload = function()
+		{
+			//during init, we need to scale this image to terrainRes size first, then use this as input to the blurring of canvas.
+			//so the canvas is first used for scaling of image here during init, then used to display the blurred image later on.
+
+			//copy to scaled canvas to scale this image
+			imageCanvasElemContext.drawImage($imageObj[0], 0, 0, terrainRes, terrainRes);
+
+			//get this image back from the canvas for completion of scaling
+			$imageObj[0].src = $imageCanvasElem[0].toDataURL();
+
+			//start filtering and changing heights
+			filterTerrainImageAndGenerateHeight(options.terrainPreBlur);
+		};
+		$imageObj[0].src = terrainImage;
+		$imageObj.css({'display':'none'});
+		$('body').append($imageObj);
+	}
+
+	function generateTerrainHeight(geometry)
 	{
 		clock.start();
 
@@ -87,7 +122,6 @@
 		{
 			//read the image data and use that as height
 			//TODO: use shader to make this run parallel on GPU if too slow
-			console.log('accessing terrain image data');
 			if (terrainImageData)  //FIXME: sort out the async calls
 			{
 				//iterate through vertices (they are ordered)
@@ -138,7 +172,7 @@
 		geometry.normalsNeedUpdate = true;
 
 		var t = clock.getDelta();
-		console.log('Generate noise: ' + t.toFixed(3) + ' seconds');
+		console.log('Generate height: ' + t.toFixed(3) + ' seconds');
 		clock.stop();
 	}
 
@@ -189,7 +223,7 @@
 		scene.add(terrainMesh);
 
 		//change height using noise
-		//generateNoiseHeight(terrainGeom);  //called by ui during init
+		//generateTerrainHeight(terrainGeom);  //called by ui during init
 
 		var torusKnotGeom = new THREE.TorusKnotGeometry(0.35, 0.1, 50, 8);
 		var torusKnotMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
@@ -251,24 +285,27 @@
 
 	function setupGui() {
 
-		var options = {
-			terrainHeight: 2.0,
-			renderingShadows: true,
-			displayWireframe: false,
-			displayLocalAxis: false,
-		};
-
 		var gui = new dat.GUI();
-		gui.close();  //close GUI by default
+		//gui.close();  //close GUI by default
 
 		//Terrain folder
 		folder = gui.addFolder('Terrain');
+		folder.open();
 
-		var control = folder.add(options, 'terrainHeight', 0, 10).name('Height');
+		var control = folder.add(options, 'terrainPreBlur', 0, 10).name('Pre-Blur');
+		function changeTerrainPreBlur(value)
+		{
+			terrainPreBlur = value;
+			filterTerrainImageAndGenerateHeight(value);
+		}
+		control.onChange(changeTerrainPreBlur);
+		//changeTerrainPreBlur(options.terrainPreBlur);
+
+		control = folder.add(options, 'terrainHeight', 0, 2).name('Height');
 		function changeTerrainHeight(value)
 		{
 			terrainHeight = value;
-			generateNoiseHeight(terrainGeom);
+			generateTerrainHeight(terrainGeom);
 		}
 		control.onChange(changeTerrainHeight);
 		changeTerrainHeight(options.terrainHeight);
@@ -276,7 +313,7 @@
 		//Rendering folder
 		folder = gui.addFolder('Rendering');
 
-		var control = folder.add(options, 'renderingShadows', 0, 10).name('Shadows');
+		control = folder.add(options, 'renderingShadows', 0, 10).name('Shadows');
 		function changeRenderingShadows(value)
 		{
 			renderer.shadowMapAutoUpdate = value;
@@ -291,7 +328,7 @@
 		//Display folder
 		folder = gui.addFolder('Display');
 		
-		var control = folder.add(options, 'displayWireframe').name('Wireframe');
+		control = folder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
 		{
 			for (materialId in materials)
