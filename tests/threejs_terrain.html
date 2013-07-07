@@ -27,30 +27,42 @@
 	
 	<script>
 	
+	var projector = new THREE.Projector();
+	var raycaster = new THREE.Raycaster();
 	var renderer, scene, camera;
 	var keyLight, fillLight;
 	var localAxis;
 	var terrainGeom;
 	var materials = [];
 	var torusKnotMesh, boxMesh, sphereMesh;
+	var groundPlaneMesh;
+	var tempSphereMesh;
 	var clock = new THREE.Clock();
 	var simplex = new SimplexNoise();
 	var shadowMapRes = 1024;
 	var terrainRes = 256;
+	var terrainSize = 10;
+
 	var options = {
-		terrainPreBlur: 1.0,
-		terrainHeight: 0.2,
+		terrainPreBlur: 0.0,
+		terrainHeight: 2.0,
+		sculptRadius: 1.0,
+		sculptAmount: 0.1,
 		renderingShadows: true,
 		renderingShadowCasters: false,
 		displayWireframe: false,
 		displayLocalAxis: false,
 	};
 
-	var terrainImage = '/resources/images/igms_617851,4595749,620411,4598309_512.jpg';
+	var terrainImage = '/resources/images/clouds_256.png' //'/resources/images/igms_617851,4595749,620411,4598309_512.jpg';
 	var useTerrainImage = true;
 	var terrainImageData;
 	var $imageCanvasElem, imageCanvasElemContext;
 	var $scaledImageObj;
+	var terrainBaseHeight = [];
+	var terrainAddedHeight = [];
+
+	var mousePosNorm = new THREE.Vector2();
 
 	function checkWebGl()
 	{
@@ -129,11 +141,10 @@
 			//iterate through vertices (they are ordered)
 			for (var i=0; i<geometry.vertices.length; i++)
 			{
-				var vertex = geometry.vertices[i];
-				vertex.y = terrainImageData[i*4] / 255.0 * options.terrainHeight;
-				if (vertex.y < minY)
+				terrainBaseHeight[i] = terrainImageData[i*4] / 255.0 * options.terrainHeight;
+				if (terrainBaseHeight[i] < minY)
 				{
-					minY = vertex.y;
+					minY = terrainBaseHeight[i];
 				}
 			}
 		}
@@ -143,34 +154,30 @@
 			//TODO: use shader to make this run parallel on GPU if too slow
 			for (var i=0; i<geometry.vertices.length; i++)
 			{
-				var vertex = geometry.vertices[i];
-				vertex.y = (simplex.noise(vertex.x, vertex.z) / 2.0 + 0.5) * options.terrainHeight;
-				if (vertex.y < minY)
+				terrainBaseHeight[i] = (simplex.noise(vertex.x, vertex.z) / 2.0 + 0.5) * options.terrainHeight;
+				if (terrainBaseHeight[i] < minY)
 				{
-					minY = vertex.y;
+					minY = terrainBaseHeight[i];
 				}
 			}
-
-
 		}
 
 		//shift all vertices down so that min point touches y=0
 		for (var i=0; i<geometry.vertices.length; i++)
 		{
-			var vertex = geometry.vertices[i];
-			vertex.y -= minY;
+			terrainBaseHeight[i] -= minY;
+
+			//finally transfer the base+added heights to the vertices
+			var vertex = geometry.vertices[i]
+			vertex.y = terrainBaseHeight[i] + terrainAddedHeight[i];
+			if (vertex.y < 0)
+			{
+				vertex.y = 0;
+			}
 		}
 		
-
-		//geometry.dynamic = true;
-		geometry.computeFaceNormals();  //must call this first before computeVertexNormals()
-		geometry.computeVertexNormals();
-		//geometry.computeCentroids();
-		//geometry.computeBoundingBox();
-		//geometry.computeBoundingSphere();
-
-		geometry.verticesNeedUpdate = true;
-		geometry.normalsNeedUpdate = true;
+		//update geometry
+		updateGeometry(geometry);
 
 		var t = clock.getDelta();
 		console.log('Generate height: ' + t.toFixed(3) + ' seconds');
@@ -205,18 +212,18 @@
 		//controls.autoRotate = true;
 		controls.modifierKey = 'alt';
 
-		//create plane
-		var groundPlaneGeom = new THREE.PlaneGeometry(10, 10, 1, 1);
+		//create plane for reference and for intersection test
+		var groundPlaneGeom = new THREE.PlaneGeometry(terrainSize, terrainSize, 1, 1);  //much faster for intersection test when there are no divisions
 		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		var groundPlaneMaterial = new THREE.MeshPhongMaterial();
 		materials.push(groundPlaneMaterial);
-		var groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
+		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
 		groundPlaneMesh.castShadow = true;
 		groundPlaneMesh.receiveShadow = true;
 		scene.add(groundPlaneMesh);
 
 		//create terrain
-		terrainGeom = new THREE.PlaneGeometry(10, 10, terrainRes-1, terrainRes-1);
+		terrainGeom = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainRes-1, terrainRes-1);
 		terrainGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		var terrainMaterial = new THREE.MeshPhongMaterial();
 		materials.push(terrainMaterial);
@@ -284,6 +291,18 @@
 		fillLight.position.set(5, 2, 15);
 		fillLight.target.position.set(0, 0, 0);
 		scene.add(fillLight);
+
+
+		var tempSphereGeom = new THREE.SphereGeometry(0.15, 10, 10);
+		var tempSphereMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
+		tempSphereMaterial.shininess = 50;
+		materials.push(tempSphereMaterial);
+		tempSphereMesh = new THREE.Mesh(tempSphereGeom, tempSphereMaterial);
+		tempSphereMesh.position.x = 2;
+		tempSphereMesh.position.y = 1;
+		tempSphereMesh.castShadow = true;
+		tempSphereMesh.receiveShadow = false;
+		scene.add(tempSphereMesh);
 	}
 
 	function setupGui() {
@@ -304,7 +323,7 @@
 		control.onChange(changeTerrainPreBlur);
 		//changeTerrainPreBlur(options.terrainPreBlur);
 
-		control = folder.add(options, 'terrainHeight', 0, 2).name('Height');
+		control = folder.add(options, 'terrainHeight', 0, 4).name('Height');
 		function changeTerrainHeight(value)
 		{
 			terrainHeight = value;
@@ -312,6 +331,13 @@
 		}
 		control.onChange(changeTerrainHeight);
 		//changeTerrainHeight(options.terrainHeight);
+
+		//Sculpt folder
+		folder = gui.addFolder('Sculpt');
+		folder.open();
+
+		control = folder.add(options, 'sculptRadius', 0.1, 10.0).name('Radius');
+		control = folder.add(options, 'sculptAmount', 0.01, 0.5).name('Amount');
 
 		//Rendering folder
 		folder = gui.addFolder('Rendering');
@@ -364,6 +390,9 @@
 	function setupEvents()
 	{
 		window.addEventListener('resize', window_onResize, false);
+		window.addEventListener('mousedown', window_onMouseDown, false);
+		window.addEventListener('mousemove', window_onMouseMove, false);
+		window.addEventListener('mouseup', window_onMouseUp, false);
 	}
 
 	function setupStats()
@@ -383,6 +412,168 @@
 		renderer.setSize(window.innerWidth, window.innerHeight-5);
 	}
 
+	var isSculpting = false;
+	function window_onMouseDown(event)
+	{
+		if (event.ctrlKey)
+		{
+			if (event.button === 0)  //LMB
+			{
+				isSculpting = true;
+				sculptTerrain('add');
+			}
+			else if (event.button === 2)  //RMB
+			{
+				isSculpting = true;
+				sculptTerrain('remove');
+			}
+			
+		}
+		else if (event.shiftKey)
+		{
+			if (event.button === 0)  //LMB
+			{
+				isSculpting = true;
+				sculptTerrain('smooth');
+			}
+		}
+	}
+
+	function window_onMouseMove(event)
+	{
+		event.preventDefault();
+
+		if (isSculpting)
+		{
+			if (event.ctrlKey)
+			{
+				if (event.button === 0)  //LMB
+				{
+					sculptTerrain('add');
+				}
+				else if (event.button === 2)  //RMB
+				{
+					sculptTerrain('remove');
+				}
+				
+			}
+			else if (event.shiftKey)
+			{
+				if (event.button === 0)  //LMB
+				{
+					sculptTerrain('smooth');
+				}
+			}
+		}
+	}
+
+	function window_onMouseUp(event)
+	{
+		isSculpting = false;
+	}
+
+	function sculptTerrain(operation)
+	{
+		mousePosNorm.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+		mousePosNorm.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+		//cast a ray from camera into screen
+		var worldPos = new THREE.Vector3(mousePosNorm.x, mousePosNorm.y, 1);
+		projector.unprojectVector(worldPos, camera);
+		raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
+		var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
+		
+		//temp: move an object to that location
+		if (intersectInfo && intersectInfo[0])
+		{
+			var intersectPoint = intersectInfo[0].point;
+			var x = intersectPoint.x;
+			var z = intersectPoint.z;
+			var vertexId = calculateVertexId(x, z);
+			//TODO: move some kind of 3D object for visual feedback (arrow?)
+			// tempSphereMesh.position = new THREE.Vector3(x, terrainGeom.vertices[vertexId].y, z);
+			//TODO: interpolate between nearest points to locate Y within face.
+			//Not a problem at the moment since faces are dense.
+
+			//move that vertex up a bit
+			if (operation === 'add')
+			{
+				sculptTerrainPatch(x, z, options.sculptRadius, options.sculptAmount);
+			}
+			else if (operation === 'remove')
+			{
+				sculptTerrainPatch(x, z, options.sculptRadius, -options.sculptAmount);
+			}
+			else if (operation === 'smooth')
+			{
+				//TODO: smooth brush
+
+			}
+
+			//update geometry
+			updateGeometry(terrainGeom);
+		}
+	}
+
+	function sculptTerrainPatch(centerX, centerZ, diameter, amount)
+	{
+		//find all vertices that are in radius
+		//iterate in the square with width of 2*radius first
+		var step = terrainSize / terrainRes;  //TODO: store as global, and other variables too
+		var radius = diameter / 2.0;
+		for (var x = -radius; x <= radius; x += step)
+		{
+			for (var z = -radius; z <= radius; z += step)
+			{
+				var dist = Math.sqrt(x * x + z * z);
+				if (dist < radius)  //within the circle
+				{
+					//get vertex id for this (x, z) point
+					var vertexId = calculateVertexId(centerX+x, centerZ+z);
+					if (terrainGeom.vertices[vertexId])  //check that this vertexId exists
+					{
+						//add amount based on distance, using cosine curve
+						var fractionOf90Deg = dist / radius * Math.PI / 2.0;
+						terrainAddedHeight[vertexId] += amount * Math.cos(fractionOf90Deg);
+
+						//update terrain geometry vertex
+						terrainGeom.vertices[vertexId].y = terrainBaseHeight[vertexId] + terrainAddedHeight[vertexId];
+
+						//prevent going below 0
+						if (terrainGeom.vertices[vertexId].y < 0)
+						{
+							terrainGeom.vertices[vertexId].y = 0;
+							terrainAddedHeight[vertexId] = -terrainBaseHeight[vertexId];
+						}
+					}
+				}
+			}
+		}
+	}
+
+	function updateGeometry(geometry)
+	{
+		//geometry.dynamic = true;
+		terrainGeom.computeFaceNormals();  //must call this first before computeVertexNormals()
+		terrainGeom.computeVertexNormals();
+		//geometry.computeCentroids();
+		//geometry.computeBoundingBox();
+		//geometry.computeBoundingSphere();
+
+		terrainGeom.verticesNeedUpdate = true;
+		terrainGeom.normalsNeedUpdate = true;
+	}
+
+	function calculateVertexId(x, z)
+	{
+		//calculate vertex id using x and z
+		var half = terrainSize / 2.0;
+		var row = Math.floor((z + half) / terrainSize * terrainRes);
+		var col = Math.floor((x + half) / terrainSize * terrainRes);
+		//console.log(row + ' ' + col + ' ' + vertexId);
+		return (row * terrainRes) + col;
+	}
+
 	$(document).ready(function()
 	{
 		//check for WebGL
@@ -396,6 +587,13 @@
 			loadTerrainImage();
 		}
 
+		//init arrays
+		for (var i = 0; i < terrainRes * terrainRes; i++)
+		{
+			terrainBaseHeight[i] = 0;
+			terrainAddedHeight[i] = 0;
+		}
+		
 		//setup scene
 		setupThreejsScene();
 
@@ -437,6 +635,9 @@
 </head>
 <body>
 	<div id="threejs-container"></div>
-	<div class="translucent" id="info-container">[ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
+	<div class="translucent" id="info-container">
+		<div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
+		<div>Sculpt: [ Ctrl+LMB: add ] [ Ctrl+RMB: remove ] [ Shift+LMB: smooth ]</div>
+	</div>
 </body>
 </html>
