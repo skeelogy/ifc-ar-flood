@@ -44,9 +44,29 @@
 	var terrainSize = 10;
 	var terrainSegmentSize = terrainSize / terrainRes;
 
+	var terrainImages = {
+		'IGMS1':'/resources/images/igms_693432,4598934,694456,4599958_512.jpg',
+		'IGMS2':'/resources/images/igms_617851,4595749,620411,4598309_512.jpg',
+		'IGMS3':'/resources/images/igms_640934,4596481,643494,4599041_512.jpg',
+		'IGMS4':'/resources/images/igms_678336,4595147,680896,4597707_512.jpg',
+		'IGMS5':'/resources/images/igms_679104,4595950,680128,4596974_512.jpg',
+		'Clouds':'/resources/images/clouds_256.png'
+	};
+	//TODO: clean up these settings into json file
+	var terrainImageSettings = {
+		'/resources/images/igms_693432,4598934,694456,4599958_512.jpg': { 'preblur':2, 'height':0.3 },
+		'/resources/images/igms_617851,4595749,620411,4598309_512.jpg': { 'preblur':1, 'height':0.3 },
+		'/resources/images/igms_640934,4596481,643494,4599041_512.jpg': { 'preblur':3, 'height':0.3 },
+		'/resources/images/igms_678336,4595147,680896,4597707_512.jpg': { 'preblur':2, 'height':0.3 },
+		'/resources/images/igms_679104,4595950,680128,4596974_512.jpg': { 'preblur':3, 'height':0.3 },
+		'/resources/images/clouds_256.png': { 'preblur':0, 'height':2 }
+	}
 	var options = {
-		terrainPreBlur: 0.0,
-		terrainHeight: 2.0,
+		terrainImage: terrainImages[Object.keys(terrainImages)[0]],
+		terrainShowImage: false,
+		terrainMidGreyIsLowest: true,
+		terrainPreBlur: terrainImageSettings[Object.keys(terrainImageSettings)[0]].preblur,
+		terrainHeight: terrainImageSettings[Object.keys(terrainImageSettings)[0]].height,
 		sculptSize: 1.0,
 		sculptAmount: 0.1,
 		renderingShadows: true,
@@ -55,11 +75,10 @@
 		displayLocalAxis: false,
 	};
 
-	var terrainImage = '/resources/images/clouds_256.png' //'/resources/images/igms_617851,4595749,620411,4598309_512.jpg';
 	var useTerrainImage = true;
 	var terrainImageData;
 	var $imageCanvasElem, imageCanvasElemContext;
-	var $scaledImageObj;
+	var $scaledImageObj, $origImageObj;
 	var terrainBaseHeight = [];
 	var terrainAddedHeight = [];
 
@@ -91,14 +110,14 @@
 		generateTerrainHeight(terrainGeom);
 	}
 
-	function loadTerrainImage()
+	function prepareTerrainImageElements()
 	{
 		//create canvas that is same size as terrain res so that one vertex maps to one resized pixel
 		$imageCanvasElem = $(document.createElement('canvas'));
 		$imageCanvasElem[0].id = 'terrainImageCanvas';
 		$imageCanvasElem[0].width = terrainRes;
 		$imageCanvasElem[0].height = terrainRes;
-		$imageCanvasElem.css({'display':'none'});
+		$imageCanvasElem.css({'position':'fixed', 'top':'55px', 'left':0});
 		$('body').append($imageCanvasElem);
 		
 		//get canvas context
@@ -118,7 +137,7 @@
 		$('body').append($scaledImageObj);
 
 		//load original terrain image, scale it using canvas, then set scaled image to $scaledImageObj
-		var $origImageObj = $(new Image());
+		$origImageObj = $(new Image());
 		$origImageObj[0].onload = function()
 		{
 			//copy to scaled canvas to scale this image
@@ -127,7 +146,12 @@
 			//get scaled data from canvas and set data for scaledImageObj
 			$scaledImageObj[0].src = $imageCanvasElem[0].toDataURL();
 		};
-		$origImageObj[0].src = terrainImage;
+	}
+
+	function loadTerrainImage(image)
+	{
+		console.log('Loading terrain image: ' + image);
+		$origImageObj[0].src = image;
 	}
 
 	function generateTerrainHeight(geometry)
@@ -139,10 +163,21 @@
 		{
 			//read the image data and use that as height
 			//TODO: use shader to make this run parallel on GPU if too slow
+
 			//iterate through vertices (they are ordered)
 			for (var i=0; i<geometry.vertices.length; i++)
 			{
-				terrainBaseHeight[i] = terrainImageData[i*4] / 255.0 * options.terrainHeight;
+				var normalizedHeight;
+				if (options.terrainMidGreyIsLowest)
+				{
+					normalizedHeight = Math.abs(terrainImageData[i*4] / 255.0 - 0.5);
+				}
+				else
+				{
+					normalizedHeight = terrainImageData[i*4] / 255.0;
+				}
+				terrainBaseHeight[i] = normalizedHeight * options.terrainHeight;
+
 				if (terrainBaseHeight[i] < minY)
 				{
 					minY = terrainBaseHeight[i];
@@ -306,16 +341,61 @@
 		scene.add(brushMesh);
 	}
 
+	var gui;
+	var terrainFolder, sculptFolder, renderingFolder, displayFolder;
 	function setupGui() {
 
-		var gui = new dat.GUI();
+		gui = new dat.GUI();
 		//gui.close();  //close GUI by default
 
 		//Terrain folder
-		folder = gui.addFolder('Terrain');
-		folder.open();
+		terrainFolder = gui.addFolder('Terrain');
+		terrainFolder.open();
 
-		var control = folder.add(options, 'terrainPreBlur', 0, 10).name('Pre-Blur');
+		var control = terrainFolder.add(options, 'terrainImage', terrainImages).name('Image');
+		function changeTerrainImage(value)
+		{
+			terrainImage = value;
+			loadTerrainImage(value);
+
+			//load some presets so that the loaded terrain looks nicer
+			options.terrainPreBlur = terrainImageSettings[value].preblur;
+			options.terrainHeight = terrainImageSettings[value].height;
+
+			//update display
+			for (var i in terrainFolder.__controllers) {
+				terrainFolder.__controllers[i].updateDisplay();
+			}
+		}
+		control.onChange(changeTerrainImage);
+		//changeTerrainPreBlur('/resources/images/clouds_256.png');
+
+		control = terrainFolder.add(options, 'terrainShowImage').name('Show Image');
+		function changeTerrainShowImage(value)
+		{
+			terrainShowImage = value;
+			if (value)
+			{
+				$imageCanvasElem.css({'display':'block'});
+			}
+			else
+			{
+				$imageCanvasElem.css({'display':'none'});	
+			}
+		}
+		control.onChange(changeTerrainShowImage);
+		changeTerrainShowImage(options.terrainShowImage);
+
+		control = terrainFolder.add(options, 'terrainMidGreyIsLowest').name('Mid Grey Lowest');
+		function changeTerrainMidGreyIsLowest(value)
+		{
+			terrainMidGreyIsLowest = value;
+			generateTerrainHeight(terrainGeom);
+		}
+		control.onChange(changeTerrainMidGreyIsLowest);
+		//changeTerrainMidGreyIsLowest(options.terrainMidGreyIsLowest);
+
+		control = terrainFolder.add(options, 'terrainPreBlur', 0, 10).name('Pre-Blur');
 		function changeTerrainPreBlur(value)
 		{
 			terrainPreBlur = value;
@@ -324,7 +404,7 @@
 		control.onChange(changeTerrainPreBlur);
 		//changeTerrainPreBlur(options.terrainPreBlur);
 
-		control = folder.add(options, 'terrainHeight', 0, 4).name('Height');
+		control = terrainFolder.add(options, 'terrainHeight', 0, 4).name('Height');
 		function changeTerrainHeight(value)
 		{
 			terrainHeight = value;
@@ -334,10 +414,10 @@
 		//changeTerrainHeight(options.terrainHeight);
 
 		//Sculpt folder
-		folder = gui.addFolder('Sculpt');
-		folder.open();
+		sculptFolder = gui.addFolder('Sculpt');
+		sculptFolder.open();
 
-		control = folder.add(options, 'sculptSize', 0.1, 10.0).name('Size');
+		control = sculptFolder.add(options, 'sculptSize', 0.1, 10.0).name('Size');
 		function changeSculptSize(value)
 		{
 			brushMesh.scale.x = value;
@@ -345,12 +425,12 @@
 		}
 		control.onChange(changeSculptSize);
 
-		control = folder.add(options, 'sculptAmount', 0.01, 0.5).name('Amount');
+		control = sculptFolder.add(options, 'sculptAmount', 0.01, 0.5).name('Amount');
 
 		//Rendering folder
-		folder = gui.addFolder('Rendering');
+		renderingFolder = gui.addFolder('Rendering');
 
-		control = folder.add(options, 'renderingShadows').name('Shadows');
+		control = renderingFolder.add(options, 'renderingShadows').name('Shadows');
 		function changeRenderingShadows(value)
 		{
 			renderer.shadowMapAutoUpdate = value;
@@ -362,7 +442,7 @@
 		control.onChange(changeRenderingShadows);
 		changeRenderingShadows(options.renderingShadows);
 
-		control = folder.add(options, 'renderingShadowCasters').name('Shadow Casters');
+		control = renderingFolder.add(options, 'renderingShadowCasters').name('Shadow Casters');
 		function changeRenderingShadowCasters(value)
 		{
 			torusKnotMesh.visible = value;
@@ -373,9 +453,9 @@
 		changeRenderingShadowCasters(options.renderingShadowCasters);
 
 		//Display folder
-		folder = gui.addFolder('Display');
+		displayFolder = gui.addFolder('Display');
 		
-		control = folder.add(options, 'displayWireframe').name('Wireframe');
+		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
 		{
 			for (materialId in materials)
@@ -386,7 +466,7 @@
 		control.onChange(toggleWireframe);
 		toggleWireframe(options.displayWireframe);
 		
-		control = folder.add(options, 'displayLocalAxis').name('Local Axis');
+		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
 			localAxis.visible = value;
@@ -737,7 +817,8 @@
 		//load terrain image
 		if (useTerrainImage)
 		{
-			loadTerrainImage();
+			prepareTerrainImageElements();
+			loadTerrainImage(options.terrainImage);
 		}
 
 		//init arrays

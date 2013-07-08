@@ -222,7 +222,8 @@ THREE.OrbitControls = function ( object, domElement ) {
 		if ( scope.enabled === false ) return;
 		if ( scope.userRotate === false ) return;
 
-		event.preventDefault();
+		//NOTE: have to remove this so that dat.gui's dropdown menu can work
+		//event.preventDefault();
 		
 		if ( scope.modifierKey && event[ scope.modifierKeyEventMap[ scope.modifierKey ] ] ) {
 
