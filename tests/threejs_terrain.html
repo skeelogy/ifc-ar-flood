@@ -42,6 +42,7 @@
 	var shadowMapRes = 1024;
 	var terrainRes = 256;
 	var terrainSize = 10;
+	var terrainSegmentSize = terrainSize / terrainRes;
 
 	var options = {
 		terrainPreBlur: 0.0,
@@ -449,7 +450,7 @@
 			if (event.button === 0)  //LMB
 			{
 				isSculpting = true;
-				sculptTerrain('smooth');
+				sculptTerrain('flatten');
 			}
 		}
 	}
@@ -488,7 +489,7 @@
 			{
 				if (event.button === 0)  //LMB
 				{
-					sculptTerrain('smooth');
+					sculptTerrain('flatten');
 				}
 			}
 		}
@@ -590,10 +591,9 @@
 		{
 			sculptTerrainPatch(intersectPoint.x, intersectPoint.z, options.sculptSize, -options.sculptAmount);
 		}
-		else if (operation === 'smooth')
+		else if (operation === 'flatten')
 		{
-			//TODO: smooth brush
-
+			flattenTerrainPatch(intersectPoint.x, intersectPoint.z, options.sculptSize, options.sculptAmount);
 		}
 
 		//NOTE: intersection detection will occur again after sculpt, so there's no need to call project brush again
@@ -601,22 +601,80 @@
 		//projectBrush();
 	}
 
-	function sculptTerrainPatch(centerX, centerZ, diameter, amount)
+	function flattenTerrainPatch(centerX, centerZ, diameter, amount)
 	{
-		//find all vertices that are in radius
-		//iterate in the square with width of 2*radius first
-		var step = terrainSize / terrainRes;  //TODO: store as global, and other variables too
+		//sum up total heights
 		var radius = diameter / 2.0;
-		for (var x = -radius; x <= radius; x += step)
+		var totalHeight = 0;
+		var vertexCount = 0;
+		for (var x = -radius; x <= radius; x += terrainSegmentSize)
 		{
-			for (var z = -radius; z <= radius; z += step)
+			for (var z = -radius; z <= radius; z += terrainSegmentSize)
 			{
 				var dist = Math.sqrt(x * x + z * z);
 				if (dist < radius)  //within the circle
 				{
 					//get vertex id for this (x, z) point
 					var vertexId = calcTerrainVertexId(centerX+x, centerZ+z);
-					if (terrainGeom.vertices[vertexId])  //check that this vertexId exists
+					var thisTerrainGeomVertex = terrainGeom.vertices[vertexId];
+					if (thisTerrainGeomVertex)  //check that this vertexId exists
+					{
+						//sum up total heights within this circle
+						totalHeight += thisTerrainGeomVertex.y;
+						vertexCount++;
+					}
+				}
+			}
+		}
+
+		//calculate average height
+		var averageHeight = totalHeight / vertexCount;
+
+		//update vertices
+		for (var x = -radius; x <= radius; x += terrainSegmentSize)
+		{
+			for (var z = -radius; z <= radius; z += terrainSegmentSize)
+			{
+				var dist = Math.sqrt(x * x + z * z);
+				if (dist < radius)  //within the circle
+				{
+					//get vertex id for this (x, z) point
+					var vertexId = calcTerrainVertexId(centerX+x, centerZ+z);
+					var thisTerrainGeomVertex = terrainGeom.vertices[vertexId];
+					if (thisTerrainGeomVertex)  //check that this vertexId exists
+					{
+						//modulate average based on distance, using cosine curve
+						var modulator = Math.cos(dist / radius * Math.PI / 2.0);
+						var newHeight = modulator * averageHeight + (1-modulator) * thisTerrainGeomVertex.y
+						terrainAddedHeight[vertexId] = newHeight - terrainBaseHeight[vertexId];
+
+						//update terrain geometry vertex
+						thisTerrainGeomVertex.y = terrainBaseHeight[vertexId] + terrainAddedHeight[vertexId];
+					}
+				}
+			}
+		}
+
+		//update terrain geometry
+		updateGeometry(terrainGeom, true);
+	}
+
+	function sculptTerrainPatch(centerX, centerZ, diameter, amount)
+	{
+		//find all vertices that are in radius
+		//iterate in the square with width of 2*radius first
+		var radius = diameter / 2.0;
+		for (var x = -radius; x <= radius; x += terrainSegmentSize)
+		{
+			for (var z = -radius; z <= radius; z += terrainSegmentSize)
+			{
+				var dist = Math.sqrt(x * x + z * z);
+				if (dist < radius)  //within the circle
+				{
+					//get vertex id for this (x, z) point
+					var vertexId = calcTerrainVertexId(centerX+x, centerZ+z);
+					var thisTerrainGeomVertex = terrainGeom.vertices[vertexId];
+					if (thisTerrainGeomVertex)  //check that this vertexId exists
 					{
 						//add amount based on distance, using cosine curve
 						var fractionOf90Deg = dist / radius * Math.PI / 2.0;
@@ -625,12 +683,12 @@
 						//TODO: different profile curves
 
 						//update terrain geometry vertex
-						terrainGeom.vertices[vertexId].y = terrainBaseHeight[vertexId] + terrainAddedHeight[vertexId];
+						thisTerrainGeomVertex.y = terrainBaseHeight[vertexId] + terrainAddedHeight[vertexId];
 
 						//prevent going below 0
-						if (terrainGeom.vertices[vertexId].y < 0)
+						if (thisTerrainGeomVertex.y < 0)
 						{
-							terrainGeom.vertices[vertexId].y = 0;
+							thisTerrainGeomVertex.y = 0;
 							terrainAddedHeight[vertexId] = -terrainBaseHeight[vertexId];
 						}
 					}
@@ -732,7 +790,7 @@
 	<div id="threejs-container"></div>
 	<div class="translucent" id="info-container">
 		<div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
-		<div>Sculpt: [ Ctrl+LMB: add ] [ Ctrl+RMB: remove ] [ Shift+LMB: smooth ]</div>
+		<div>Sculpt: [ Ctrl+LMB: add ] [ Ctrl+RMB: remove ] [ Shift+LMB: flatten ]</div>
 	</div>
 </body>
 </html>
