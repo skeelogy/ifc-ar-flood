@@ -535,16 +535,18 @@
 
 	function projectBrush()
 	{
-		var brushMeshMatrixWorldInverse = new THREE.Matrix4().getInverse(brushMesh.matrixWorld);
+		//NOTE: Below algo works when using brushMesh.position but not brushMesh.matrixWorld. The former is better anyway because there's no need to find matrix inverse.
+		//var brushMeshMatrixWorldInverse = new THREE.Matrix4().getInverse(brushMesh.matrixWorld);
 
 		for (var i = 0; i < brushGeom.vertices.length; i++)
 		{
 			//get position of this brush geom vertex
 			var brushGeomVertex = brushGeom.vertices[i];
 
-			//get world space position
+			//get world space position (by adding position as offset)
 			var brushGeomVertexWorld = new THREE.Vector3().copy(brushGeomVertex);
-			brushGeomVertexWorld.applyMatrix4(brushMesh.matrixWorld);
+			//brushGeomVertexWorld.applyMatrix4(brushMesh.matrixWorld);
+			brushGeomVertexWorld.add(brushMesh.position);
 
 			//get nearest terrain geom vertex id
 			var terrainVertexId = calcTerrainVertexId(brushGeomVertexWorld.x, brushGeomVertexWorld.z);
@@ -560,17 +562,20 @@
 				//have to use brush vertex if unable to index into terrain vertex
 				brushGeomVertexLocal = brushGeomVertexWorld;
 			}
-			brushGeomVertexLocal.applyMatrix4(brushMeshMatrixWorldInverse);
+			//brushGeomVertexLocal.applyMatrix4(brushMeshMatrixWorldInverse);
+			brushGeomVertexLocal.sub(brushMesh.position);
 
 			//finally write brush geom vertex y in local space
 			brushGeomVertex.y = brushGeomVertexLocal.y;
-
-			//offset top row using sculpt amount to give thickness
-			if (i < brushGeomVertexCountHalf)
-			{
-				brushGeomVertex.y = brushGeom.vertices[i+brushGeomVertexCountHalf].y + options.sculptAmount;
-			}
 		}
+
+		//offset top row using sculpt amount to give thickness
+		for (var i = 0; i < brushGeomVertexCountHalf; i++)
+		{
+			brushGeom.vertices[i].y = brushGeom.vertices[i+brushGeomVertexCountHalf].y + options.sculptAmount;
+		}
+
+		//update brush geom
 		updateGeometry(brushGeom, false);
 	}
 
@@ -591,8 +596,9 @@
 
 		}
 
+		//NOTE: intersection detection will occur again after sculpt, so there's no need to call project brush again
 		//project brush
-		projectBrush();
+		//projectBrush();
 	}
 
 	function sculptTerrainPatch(centerX, centerZ, diameter, amount)
