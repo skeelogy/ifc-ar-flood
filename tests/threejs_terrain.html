@@ -36,7 +36,7 @@
 	var materials = [];
 	var torusKnotMesh, boxMesh, sphereMesh;
 	var groundPlaneMesh;
-	var tempSphereMesh;
+	var brushMesh, brushGeom, brushGeomVertexCountHalf;
 	var clock = new THREE.Clock();
 	var simplex = new SimplexNoise();
 	var shadowMapRes = 1024;
@@ -46,7 +46,7 @@
 	var options = {
 		terrainPreBlur: 0.0,
 		terrainHeight: 2.0,
-		sculptRadius: 1.0,
+		sculptSize: 1.0,
 		sculptAmount: 0.1,
 		renderingShadows: true,
 		renderingShadowCasters: false,
@@ -176,8 +176,8 @@
 			}
 		}
 		
-		//update geometry
-		updateGeometry(geometry);
+		//update terrain geometry
+		updateGeometry(geometry, true);
 
 		var t = clock.getDelta();
 		console.log('Generate height: ' + t.toFixed(3) + ' seconds');
@@ -292,17 +292,17 @@
 		fillLight.target.position.set(0, 0, 0);
 		scene.add(fillLight);
 
-
-		var tempSphereGeom = new THREE.SphereGeometry(0.15, 10, 10);
-		var tempSphereMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
-		tempSphereMaterial.shininess = 50;
-		materials.push(tempSphereMaterial);
-		tempSphereMesh = new THREE.Mesh(tempSphereGeom, tempSphereMaterial);
-		tempSphereMesh.position.x = 2;
-		tempSphereMesh.position.y = 1;
-		tempSphereMesh.castShadow = true;
-		tempSphereMesh.receiveShadow = false;
-		scene.add(tempSphereMesh);
+		//brush mesh
+		brushGeom = new THREE.CylinderGeometry(0.5, 0.5, 0, 32, 1, true);
+		brushGeomVertexCountHalf = brushGeom.vertices.length / 2.0;
+		var brushMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
+		brushMaterial.wireframe = true;
+		brushMaterial.shininess = 50;
+		brushMesh = new THREE.Mesh(brushGeom, brushMaterial);
+		brushMesh.castShadow = false;
+		brushMesh.receiveShadow = false;
+		//brushMesh.add(new THREE.AxisHelper());
+		scene.add(brushMesh);
 	}
 
 	function setupGui() {
@@ -336,7 +336,14 @@
 		folder = gui.addFolder('Sculpt');
 		folder.open();
 
-		control = folder.add(options, 'sculptRadius', 0.1, 10.0).name('Radius');
+		control = folder.add(options, 'sculptSize', 0.1, 10.0).name('Size');
+		function changeSculptSize(value)
+		{
+			brushMesh.scale.x = value;
+			brushMesh.scale.z = value;
+		}
+		control.onChange(changeSculptSize);
+
 		control = folder.add(options, 'sculptAmount', 0.01, 0.5).name('Amount');
 
 		//Rendering folder
@@ -417,6 +424,10 @@
 	{
 		if (event.ctrlKey)
 		{
+			//detect intersection and show brush
+			detectIntersection();
+
+			//do actual sculpting if clicked
 			if (event.button === 0)  //LMB
 			{
 				isSculpting = true;
@@ -431,6 +442,10 @@
 		}
 		else if (event.shiftKey)
 		{
+			//detect intersection and show brush
+			detectIntersection();
+
+			//do actual sculpting if clicked
 			if (event.button === 0)  //LMB
 			{
 				isSculpting = true;
@@ -443,9 +458,15 @@
 	{
 		event.preventDefault();
 
-		if (isSculpting)
+		brushMesh.visible = false;
+
+		if (event.ctrlKey)
 		{
-			if (event.ctrlKey)
+			//detect intersection and show brush
+			detectIntersection();
+
+			//do actual sculpting if clicked
+			if (isSculpting)
 			{
 				if (event.button === 0)  //LMB
 				{
@@ -455,9 +476,15 @@
 				{
 					sculptTerrain('remove');
 				}
-				
 			}
-			else if (event.shiftKey)
+		}
+		else if (event.shiftKey)
+		{
+			//detect intersection and show brush
+			detectIntersection();
+
+			//do actual sculpting if necessary
+			if (isSculpting)
 			{
 				if (event.button === 0)  //LMB
 				{
@@ -472,7 +499,8 @@
 		isSculpting = false;
 	}
 
-	function sculptTerrain(operation)
+	var intersectPoint = new THREE.Vector3();
+	function detectIntersection()
 	{
 		mousePosNorm.x = ( event.clientX / window.innerWidth ) * 2 - 1;
 		mousePosNorm.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
@@ -483,36 +511,88 @@
 		raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
 		var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
 		
-		//temp: move an object to that location
+		//get intersection point and vertexId
 		if (intersectInfo && intersectInfo[0])
 		{
-			var intersectPoint = intersectInfo[0].point;
-			var x = intersectPoint.x;
-			var z = intersectPoint.z;
-			var vertexId = calculateVertexId(x, z);
-			//TODO: move some kind of 3D object for visual feedback (arrow?)
-			// tempSphereMesh.position = new THREE.Vector3(x, terrainGeom.vertices[vertexId].y, z);
+			intersectPoint = intersectInfo[0].point;
+			var vertexId = calcTerrainVertexId(intersectPoint.x, intersectPoint.z);
+
+			//move cylinder to brush position for visual feedback
+			brushMesh.visible = true;
+			brushMesh.position = new THREE.Vector3(intersectPoint.x, terrainGeom.vertices[vertexId].y, intersectPoint.z);
+
+			//project brush down to terrain
+			projectBrush();
+
 			//TODO: interpolate between nearest points to locate Y within face.
 			//Not a problem at the moment since faces are dense.
-
-			//move that vertex up a bit
-			if (operation === 'add')
-			{
-				sculptTerrainPatch(x, z, options.sculptRadius, options.sculptAmount);
-			}
-			else if (operation === 'remove')
-			{
-				sculptTerrainPatch(x, z, options.sculptRadius, -options.sculptAmount);
-			}
-			else if (operation === 'smooth')
-			{
-				//TODO: smooth brush
-
-			}
-
-			//update geometry
-			updateGeometry(terrainGeom);
 		}
+		else
+		{
+			brushMesh.visible = false;
+		}
+	}
+
+	function projectBrush()
+	{
+		var brushMeshMatrixWorldInverse = new THREE.Matrix4().getInverse(brushMesh.matrixWorld);
+
+		for (var i = 0; i < brushGeom.vertices.length; i++)
+		{
+			//get position of this brush geom vertex
+			var brushGeomVertex = brushGeom.vertices[i];
+
+			//get world space position
+			var brushGeomVertexWorld = new THREE.Vector3().copy(brushGeomVertex);
+			brushGeomVertexWorld.applyMatrix4(brushMesh.matrixWorld);
+
+			//get nearest terrain geom vertex id
+			var terrainVertexId = calcTerrainVertexId(brushGeomVertexWorld.x, brushGeomVertexWorld.z);
+
+			//get y in brush geom's local space
+			var brushGeomVertexLocal;
+			if (terrainGeom.vertices[terrainVertexId])
+			{
+				brushGeomVertexLocal = new THREE.Vector3().copy(terrainGeom.vertices[terrainVertexId]);
+			}
+			else
+			{
+				//have to use brush vertex if unable to index into terrain vertex
+				brushGeomVertexLocal = brushGeomVertexWorld;
+			}
+			brushGeomVertexLocal.applyMatrix4(brushMeshMatrixWorldInverse);
+
+			//finally write brush geom vertex y in local space
+			brushGeomVertex.y = brushGeomVertexLocal.y;
+
+			//offset top row using sculpt amount to give thickness
+			if (i < brushGeomVertexCountHalf)
+			{
+				brushGeomVertex.y = brushGeom.vertices[i+brushGeomVertexCountHalf].y + options.sculptAmount;
+			}
+		}
+		updateGeometry(brushGeom, false);
+	}
+
+	function sculptTerrain(operation)
+	{
+		//sculpt based on operation
+		if (operation === 'add')
+		{
+			sculptTerrainPatch(intersectPoint.x, intersectPoint.z, options.sculptSize, options.sculptAmount);
+		}
+		else if (operation === 'remove')
+		{
+			sculptTerrainPatch(intersectPoint.x, intersectPoint.z, options.sculptSize, -options.sculptAmount);
+		}
+		else if (operation === 'smooth')
+		{
+			//TODO: smooth brush
+
+		}
+
+		//project brush
+		projectBrush();
 	}
 
 	function sculptTerrainPatch(centerX, centerZ, diameter, amount)
@@ -529,12 +609,14 @@
 				if (dist < radius)  //within the circle
 				{
 					//get vertex id for this (x, z) point
-					var vertexId = calculateVertexId(centerX+x, centerZ+z);
+					var vertexId = calcTerrainVertexId(centerX+x, centerZ+z);
 					if (terrainGeom.vertices[vertexId])  //check that this vertexId exists
 					{
 						//add amount based on distance, using cosine curve
 						var fractionOf90Deg = dist / radius * Math.PI / 2.0;
 						terrainAddedHeight[vertexId] += amount * Math.cos(fractionOf90Deg);
+
+						//TODO: different profile curves
 
 						//update terrain geometry vertex
 						terrainGeom.vertices[vertexId].y = terrainBaseHeight[vertexId] + terrainAddedHeight[vertexId];
@@ -549,22 +631,29 @@
 				}
 			}
 		}
+
+		//update terrain geometry
+		updateGeometry(terrainGeom, true);
 	}
 
-	function updateGeometry(geometry)
+	function updateGeometry(geometry, fullUpdate)
 	{
-		//geometry.dynamic = true;
-		terrainGeom.computeFaceNormals();  //must call this first before computeVertexNormals()
-		terrainGeom.computeVertexNormals();
-		//geometry.computeCentroids();
-		//geometry.computeBoundingBox();
-		//geometry.computeBoundingSphere();
+		geometry.verticesNeedUpdate = true;
 
-		terrainGeom.verticesNeedUpdate = true;
-		terrainGeom.normalsNeedUpdate = true;
+		if (fullUpdate)
+		{
+			//geometry.dynamic = true;
+			geometry.computeFaceNormals();  //must call this first before computeVertexNormals()
+			geometry.computeVertexNormals();
+			//geometry.computeCentroids();
+			//geometry.computeBoundingBox();
+			//geometry.computeBoundingSphere();
+			
+			geometry.normalsNeedUpdate = true;
+		}
 	}
 
-	function calculateVertexId(x, z)
+	function calcTerrainVertexId(x, z)
 	{
 		//calculate vertex id using x and z
 		var half = terrainSize / 2.0;
