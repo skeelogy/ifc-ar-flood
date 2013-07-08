@@ -640,6 +640,8 @@
 			//get world space position (by adding position as offset)
 			var brushGeomVertexWorld = new THREE.Vector3().copy(brushGeomVertex);
 			//brushGeomVertexWorld.applyMatrix4(brushMesh.matrixWorld);
+			brushGeomVertexWorld.setX(brushGeomVertexWorld.x * brushMesh.scale.x);
+			brushGeomVertexWorld.setZ(brushGeomVertexWorld.z * brushMesh.scale.z);
 			brushGeomVertexWorld.add(brushMesh.position);
 
 			//get nearest terrain geom vertex id
@@ -658,6 +660,8 @@
 			}
 			//brushGeomVertexLocal.applyMatrix4(brushMeshMatrixWorldInverse);
 			brushGeomVertexLocal.sub(brushMesh.position);
+			brushGeomVertexWorld.setX(brushGeomVertexWorld.x / brushMesh.scale.x);
+			brushGeomVertexWorld.setZ(brushGeomVertexWorld.z / brushMesh.scale.z);
 
 			//finally write brush geom vertex y in local space
 			brushGeomVertex.y = brushGeomVertexLocal.y;
