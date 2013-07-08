@@ -69,6 +69,7 @@
 		terrainHeight: terrainImageSettings[Object.keys(terrainImageSettings)[0]].height,
 		sculptSize: 1.0,
 		sculptAmount: 0.1,
+		sculptClearSculpts: sculptClearSculpts,
 		renderingShadows: true,
 		renderingShadowCasters: false,
 		displayWireframe: false,
@@ -218,6 +219,16 @@
 		var t = clock.getDelta();
 		console.log('Generate height: ' + t.toFixed(3) + ' seconds');
 		clock.stop();
+	}
+
+	function sculptClearSculpts()
+	{
+		for (var i = 0; i < terrainAddedHeight.length; i++)
+		{
+			terrainAddedHeight[i] = 0;
+		}
+		console.log('Sculpts cleared');
+		generateTerrainHeight(terrainGeom);
 	}
 
 	function setupThreejsScene()
@@ -426,6 +437,8 @@
 		control.onChange(changeSculptSize);
 
 		control = sculptFolder.add(options, 'sculptAmount', 0.01, 0.5).name('Amount');
+
+		control = sculptFolder.add(options, 'sculptClearSculpts').name('Clear Sculpts');
 
 		//Rendering folder
 		renderingFolder = gui.addFolder('Rendering');
