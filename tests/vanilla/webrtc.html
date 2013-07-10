@@ -19,7 +19,7 @@
 		console.log('Document is ready.');
 		
 		//use getUserMedia() to stream the webcam video
-		var $video = $('#mainVideo')[0];
+		var video = $('#mainVideo')[0];
 		if (getUserMedia)
 		{
 			console.log("Calling getUserMedia()...");
@@ -34,7 +34,7 @@
 
 					//call wrapper to attach the media stream to the video element
 					console.log('Attaching local media stream...');
-					attachMediaStream($video, localMediaStream);
+					attachMediaStream(video, localMediaStream);
 					console.log('Done.');
 				},
 				function(error)
