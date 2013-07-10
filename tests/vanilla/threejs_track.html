@@ -18,8 +18,7 @@
 	
 	<script>
 	
-	//declare some global variables
-	var DEBUG = true;  //turn on JSARToolKit built-in debugging info
+	var DEBUG = true;  //for JSARToolKit built-in debugging info
 	var threshold = 128;
 	
 	// I'm going to use a glMatrix-style matrix as an intermediary.
@@ -65,16 +64,49 @@
 		
 		console.log('Document is ready.');
 		
-		var $canvas = $('#mainCanvas')[0];
+		var canvas = $('#mainCanvas')[0];
+		var canvasWidth = canvas.width;
+		var canvasHeight = canvas.height;
 		
+		//===================================================
+		// PREPARE VIDEO
+		//===================================================
+
+		//stream to video element
+		var video = $('#mainVideo')[0];
+		var img = $('#mainImage')[0];
+		var source;
+		videoId = 0;
+		if (videoId == 0)
+		{
+			video.src = '/resources/markers/output_4.ogg';
+			source = video;
+		}
+		else if (videoId == 1)
+		{
+			video.src = '/resources/markers/swap_loop.ogg';
+			source = video;
+		}
+		else if (videoId == 2)
+		{
+			img.src = '/resources/markers/chalk_multi.jpg';
+			source = img;
+		}
+
+		//===================================================
+		// INIT JSARTOOLKIT
+		//===================================================
+
 		// Create a RGB raster object for the 2D canvas.
 		// JSARToolKit uses raster objects to read image data.
 		// Note that you need to set canvas.changed = true on every frame.
-		var raster = new NyARRgbRaster_Canvas2D($canvas);
+		var raster = new NyARRgbRaster_Canvas2D(canvas);
 
 		// FLARParam is the thing used by FLARToolKit to set camera parameters.
 		// Here we create a FLARParam for images with 320x240 pixel dimensions.
-		var param = new FLARParam(640, 480);
+		// NOTE: THESE DIMENSIONS MUST BE THE SAME SIZE AS THE RASTER
+		// OTHERWISE WILL GET AN "Uncaught #<Object>" ERROR
+		var param = new FLARParam(canvasWidth, canvasHeight);
 
 		// The FLARMultiIdMarkerDetector is the actual detection engine for marker detection.
 		// It detects multiple ID markers. ID markers are special markers that encode a number.
@@ -89,52 +121,22 @@
 		//var tmpGlMatCam	= new Float32Array(16);
 		//param.copyCameraMatrix(tmpGlMatCam, 10, 10000);
 		
-		
-		
-		//stream to video element
-		//TODO: create a list and allow user to select
-		var $video = $('#mainVideo')[0];
-		var $img = $('#mainImage')[0];
-		var source;
-		videoId = 0;
-		if (videoId == 0)
-		{
-			$video.src = '/resources/markers/output_4.ogg';
-			source = $video;
-		}
-		else if (videoId == 1)
-		{
-			$video.src = '/resources/markers/swap_loop.ogg';
-			source = $video;
-		}
-		else if (videoId == 2)
-		{
-			$img.src = '/resources/markers/chalk_multi.jpg';
-			source = $img;
-		}
-		
-		
-		
 		//===================================================
-		//THREE.JS
+		// INIT THREE.JS
 		//===================================================
 		
-		
-		
-		
-		var renderer	= new THREE.WebGLRenderer({
-			antialias	: true
+		var renderer = new THREE.WebGLRenderer({
+			antialias : true
 		});
-		renderer.setSize(640, 480);
-		var $container = $('#threejs-container');
-		$container.append(renderer.domElement);
+		renderer.setSize(canvasWidth, canvasHeight);
+		var $threejsContainerElem = $('#threejs-container');
+		$threejsContainerElem.append(renderer.domElement);
 
 		// create the scene
-		var scene	= new THREE.Scene();
+		var scene = new THREE.Scene();
 
 		// Create a camera and a marker root object for your Three.js scene.
 		var camera = new THREE.Camera();
-		scene.add(camera);
 		
 		// glMatrix matrices are flat arrays.
 		var tmp = new Float32Array(16);
@@ -144,35 +146,41 @@
 		camera.projectionMatrix.setFromArray(tmp);
 
 		// Create scene and quad for the video.
-		//NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
-		var videoTex 	= new THREE.Texture($canvas);
-		var geometry	= new THREE.PlaneGeometry(2, 2, 0);
-		var material	= new THREE.MeshBasicMaterial({
-			map		: videoTex,
-			depthTest	: false,
-			depthWrite	: false
+		// NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
+		var videoTex = new THREE.Texture(canvas);
+		var geometry = new THREE.PlaneGeometry(2, 2, 0);
+		var material = new THREE.MeshBasicMaterial({
+			map : videoTex,
+			depthTest : false,
+			depthWrite : false
 		});
-		var plane	= new THREE.Mesh(geometry, material );
-		var videoScene	= new THREE.Scene();
-		var videoCam	= new THREE.Camera();
+		var plane = new THREE.Mesh(geometry, material );
+		var videoScene = new THREE.Scene();
+		var videoCam = new THREE.Camera();
 		videoScene.add(plane);
 		videoScene.add(videoCam);
 
-		
+		//===================================================
+		// STATS
+		//===================================================
+
 		//create a stats monitor
 		stats = new Stats();
-		var $threejsContainerElem = $('#threejs-container');
 		$threejsContainerElem.append(stats.domElement);
 		
-		
-		var markerRoots = {};
+		//===================================================
+		// LOOP
+		//===================================================	
 		
 		// Create a NyARTransMatResult object for getting the marker translation matrices.
 		var resultMat = new NyARTransMatResult();
 
+		var markerRoots = {};
 		var markers = {};
 		
 		var emptyFloatArray = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+
+		var ctx = canvas.getContext('2d');
 		
 		// On every frame do the following:
 		function loop()
@@ -180,16 +188,15 @@
 			if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
 			{
 				// Draw the video frame to the canvas.
-				//$camera.getContext('2d').drawImage(video, 0, 0);
-				$canvas.getContext('2d').drawImage(source, 0, 0, $canvas.width, $canvas.height);
+				ctx.drawImage(source, 0, 0, canvasWidth, canvasHeight);
 
 				// Tell JSARToolKit that the canvas has changed.
-				$canvas.changed = true;
+				canvas.changed = true;
 
 				// Update the video texture.
 				videoTex.needsUpdate = true;
 
-				//move all marker roots to origin so that they will disappear when not tracked
+				// move all marker roots to origin so that they will disappear when not tracked
 				Object.keys(markerRoots).forEach(function (key){
 					markerRoots[key].matrix.setFromArray(emptyFloatArray);
 					markerRoots[key].matrixWorldNeedsUpdate = true;
@@ -198,20 +205,16 @@
 				// Do marker detection by using the detector object on the raster object.
 				// The threshold parameter determines the threshold value
 				// for turning the video frame into a 1-bit black-and-white image.
-				//
-				//NOTE: THE CANVAS MUST BE THE SAME SIZE AS THE RASTER
-				//OTHERWISE WILL GET AN "Uncaught #<Object>" ERROR
 				var markerCount = detector.detectMarkerLite(raster, threshold);
 				
 				// Go through the detected markers and get their IDs and transformation matrices.
-				for (var i=0; i<markerCount; i++)
+				for (var i = 0; i < markerCount; i++)
 				{
 				
 					// Get the ID marker data for the current marker.
 					// ID markers are special kind of markers that encode a number.
 					// The bytes for the number are in the ID marker data.
 					var id = detector.getIdMarkerData(i);
-
 
 					// Read bytes from the id packet.
 					var currId = -1;
@@ -222,7 +225,6 @@
 						  currId = (currId << 8) | id.getPacketData(j);
 						}
 					}
-
 
 					// If this is a new id, let's start tracking it.
 					if (markers[currId] == null) {
@@ -237,8 +239,8 @@
 
 						// Add the marker models and suchlike into your marker root object.
 						var cube = new THREE.Mesh(
-						  new THREE.CubeGeometry(120,120,120),
-						  new THREE.MeshNormalMaterial({color: 0xff00ff, side: THREE.BackSide, wireframe: false})
+							new THREE.CubeGeometry(120,120,120),
+							new THREE.MeshNormalMaterial({color: 0xff00ff, side: THREE.BackSide, wireframe: false})
 						);
 						cube.position.z = -60;
 						markerRoot.add(cube);
@@ -264,6 +266,7 @@
 				renderer.render(videoScene, videoCam);
 				renderer.render(scene, camera);
 				
+				//update stats
 				stats.update();
 			}
 		  
@@ -275,8 +278,7 @@
 	</script>
 </head>
 <body>
-	<h1>Test 4</h1>
-	<h2>Three.js and JSARToolKit tracking background video</h2>
+	<h2>Three.js and JSARToolKit</h2>
 	<div class="container" id="video-container">
 		<div class="caption">&lt;video&gt;</div>
 		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>

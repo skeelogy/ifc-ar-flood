@@ -63,8 +63,8 @@
 
 		// FLARParam is the thing used by FLARToolKit to set camera parameters.
 		// Here we create a FLARParam for images with 320x240 pixel dimensions.
-		//NOTE: THESE DIMENSIONS MUST BE THE SAME SIZE AS THE RASTER
-		//OTHERWISE WILL GET AN "Uncaught #<Object>" ERROR
+		// NOTE: THESE DIMENSIONS MUST BE THE SAME SIZE AS THE RASTER
+		// OTHERWISE WILL GET AN "Uncaught #<Object>" ERROR
 		var param = new FLARParam(canvasWidth, canvasHeight);
 
 		// The FLARMultiIdMarkerDetector is the actual detection engine for marker detection.
@@ -105,7 +105,6 @@
 				// Do marker detection by using the detector object on the raster object.
 				// The threshold parameter determines the threshold value
 				// for turning the video frame into a 1-bit black-and-white image.
-				//
 				var markerCount = detector.detectMarkerLite(raster, threshold);
 				
 				// Go through the detected markers and get their IDs and transformation matrices.
@@ -148,7 +147,7 @@
 	</script>
 </head>
 <body>
-	<h2>JSARToolKit Marker Tracking and Detection</h2>
+	<h2>JSARToolKit marker tracking and detection</h2>
 	<div class="container" id="video-container">
 		<div class="caption">&lt;video&gt;</div>
 		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
