@@ -26,9 +26,12 @@
 	
 	<script>
 
-	var SHADOW_MAP_RES = 512;
 	var WATER_SIZE = 10;
 	var WATER_RES = 128;
+	var DAMPING_FACTOR = 0.8;
+	var HORIZONTAL_SPEED = 2.0;
+
+	var SHADOW_MAP_RES = 512;
 
 	var clock = new THREE.Clock();
 
@@ -102,6 +105,17 @@
 		fillLight.target.position.set(0, 0, 0);
 		scene.add(fillLight);
 
+		//create plane for intersection test
+		var groundPlaneGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
+		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		var groundPlaneMaterial = new THREE.MeshPhongMaterial();
+		materials.push(groundPlaneMaterial);
+		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
+		groundPlaneMesh.castShadow = false;
+		groundPlaneMesh.receiveShadow = false;
+		groundPlaneMesh.visible = false;
+		scene.add(groundPlaneMesh);
+
 		//last but not least, create a height-field water sim from the plane
 		var waterGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_RES-1, WATER_RES-1);
 		waterGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
@@ -111,12 +125,15 @@
 		waterMesh.castShadow = true;
 		waterMesh.receiveShadow = true;
 		scene.add(waterMesh);
-		heightFieldWaterSim = new HeightFieldWaterSim(waterMesh, WATER_SIZE, WATER_RES);
+		heightFieldWaterSim = new HeightFieldWaterSim_Muller_GDC2008(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, HORIZONTAL_SPEED);
 	}
 
 	function setupEvents()
 	{
 		window.addEventListener('resize', window_onResize, false);
+		window.addEventListener('mousedown', window_onMouseDown, false);
+		window.addEventListener('mousemove', window_onMouseMove, false);
+		window.addEventListener('mouseup', window_onMouseUp, false);
 	}
 
 	function window_onResize(event)
@@ -127,6 +144,73 @@
 
 		//update renderer size
 		renderer.setSize(window.innerWidth, window.innerHeight-5);
+	}
+
+	var isDisturbing = false;
+	function window_onMouseDown(event)
+	{
+		if (event.ctrlKey)
+		{
+			if (event.button === 0)  //LMB
+			{
+				intersectPoint = detectIntersection();
+				if (intersectPoint)
+				{
+					isDisturbing = true;
+					heightFieldWaterSim.disturb(calcVertexId(intersectPoint.x, intersectPoint.z), 1);
+				}
+			}
+		}
+	}
+
+	function window_onMouseMove(event)
+	{
+		event.preventDefault();
+
+		if (event.ctrlKey && isDisturbing)
+		{
+			intersectPoint = detectIntersection();
+			if (intersectPoint)
+			{
+				heightFieldWaterSim.disturb(calcVertexId(intersectPoint.x, intersectPoint.z), 1);
+			}
+		}
+	}
+
+	function window_onMouseUp(event)
+	{
+		isDisturbing = false;
+	}
+
+	var intersectPoint = new THREE.Vector3();
+	var mousePosNorm = new THREE.Vector2();
+	var projector = new THREE.Projector();
+	var raycaster = new THREE.Raycaster();
+	function detectIntersection()
+	{
+		mousePosNorm.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+		mousePosNorm.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+		//cast a ray from camera into screen
+		var worldPos = new THREE.Vector3(mousePosNorm.x, mousePosNorm.y, 1);
+		projector.unprojectVector(worldPos, camera);
+		raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
+		var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
+		
+		//get intersection point and vertexId
+		if (intersectInfo && intersectInfo[0])
+		{
+			return intersectInfo[0].point;
+		}
+	}
+
+	function calcVertexId(x, z)
+	{
+		//calculate vertex id using x and z
+		var half = WATER_SIZE / 2.0;
+		var row = Math.floor((z + half) / WATER_SIZE * WATER_RES);
+		var col = Math.floor((x + half) / WATER_SIZE * WATER_RES);
+		return (row * WATER_RES) + col;
 	}
 
 	var stats;
@@ -233,6 +317,7 @@
 	<div id="threejs-container"></div>
 	<div class="translucent" id="info-container">
 		<div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
+		<div>Water Sim: [ Ctrl+LMB: disturb water ]</div>
 	</div>
 </body>
 </html>
