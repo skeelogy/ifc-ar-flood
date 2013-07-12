@@ -126,6 +126,8 @@
 		waterMesh.receiveShadow = true;
 		scene.add(waterMesh);
 		heightFieldWaterSim = new HeightFieldWaterSim_Muller_GDC2008(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, HORIZONTAL_SPEED);
+		// heightFieldWaterSim = new HeightFieldWaterSim_xWater(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
+		// heightFieldWaterSim = new HeightFieldWaterSim_Muller_GDC2008_HelloWorld(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
 	}
 
 	function setupEvents()
@@ -295,6 +297,16 @@
 		{
 			var dt = clock.getDelta();  //have to call this before getElapsedTime()
 			var time = clock.getElapsedTime();
+
+			//TEMP: block here
+			var segSize = WATER_SIZE / WATER_RES;
+			for (var i = 0; i < 20; i++)
+			{
+				for (var j = 0; j < 20; j++)
+				{
+					heightFieldWaterSim.block(calcVertexId(0+segSize*i,0+segSize*j), 0);
+				}
+			}
 
 			heightFieldWaterSim.update(dt);
 
