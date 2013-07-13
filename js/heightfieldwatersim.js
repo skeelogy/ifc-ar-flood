@@ -120,7 +120,7 @@ HeightFieldWaterSim_Muller_GDC2008_HelloWorld.prototype.sim = function(dt)
 		}
 	}
 
-	//apply algo
+	//propagate
 	for (i = 1; i < resMinusOne; i++)
 	{
 		for (j = 1; j < resMinusOne; j++)
@@ -250,7 +250,7 @@ HeightFieldWaterSim.prototype.sim = function(dt)
 		}
 	}
 
-	//apply algo
+	//propagate
 	for (i = 1; i < resMinusOne; i++)
 	{
 		for (j = 1; j < resMinusOne; j++)
@@ -284,6 +284,113 @@ HeightFieldWaterSim.prototype.sim = function(dt)
 			temp = this.field2[idx];
 			this.field2[idx] = this.field1[idx];
 			this.field1[idx] = temp;
+		}
+	}
+}
+
+//Jerry Tessendorf, "Interactive Water Surfaces", Game Programming Gems 4
+function HeightFieldWaterSim_Tessendorf_iWave(mesh, size, res, dampingFactor, kernelRadius)
+{
+	this.prevHeight = [];
+	this.vertDeriv = [];
+
+	HeightFieldWaterSim.call(this, mesh, size, res, dampingFactor);
+
+	this.kernelRadius = kernelRadius;
+
+	this.gravity = -9.81;
+
+	//load this.G from json file
+	var that = this;
+	$.getJSON('/python/iWave_kernels_'+this.kernelRadius+'.json', function(data){
+		that.G = data;
+	});
+}
+//inherit from HeightFieldWaterSim
+HeightFieldWaterSim_Tessendorf_iWave.prototype = Object.create(HeightFieldWaterSim.prototype);
+HeightFieldWaterSim_Tessendorf_iWave.prototype.constructor = HeightFieldWaterSim_Tessendorf_iWave;
+//override
+HeightFieldWaterSim_Tessendorf_iWave.prototype.init = function()
+{
+	//init fields first
+	var i;
+	for (i = 0; i < this.numVertices; i++)
+	{
+		this.prevHeight[i] = 0;
+		this.vertDeriv[i] = 0;
+	}
+
+	//call super class init to initialize other fields
+	HeightFieldWaterSim.prototype.init.call(this);
+}
+HeightFieldWaterSim_Tessendorf_iWave.prototype.sim = function(dt)
+{
+	//TODO: start using events, rather than having this check on every frame
+	if (!this.G)
+	{
+		return;
+	}
+	
+	var i, j, idx;
+	var v = this.geometry.vertices;
+	var resMinusOne = this.res - 1;
+
+	//add source and obstacles first
+	for (i = 1; i < resMinusOne; i++)
+	{
+		for (j = 1; j < resMinusOne; j++)
+		{
+			idx = i * this.res + j;
+			v[idx].y += this.sourceField[idx];
+			v[idx].y *= this.staticObstacleField[idx];
+		}
+	}
+
+	//convolve
+	this.__convolve();
+
+	//propagate
+	var temp;
+	var twoMinusDampTimesDt = 2.0 - this.dampingFactor * dt;
+	var onePlusDampTimesDt = 1.0 + this.dampingFactor * dt;
+	var gravityTimesDtTimesDt = this.gravity * dt * dt;
+	for (i = 1; i < resMinusOne; i++)
+	{
+		for (j = 1; j < resMinusOne; j++)
+		{
+			idx = i * this.res + j;
+			temp = v[idx].y;
+			v[idx].y = v[idx].y * twoMinusDampTimesDt / onePlusDampTimesDt
+						- this.prevHeight[idx] / onePlusDampTimesDt
+						- this.vertDeriv[idx] * gravityTimesDtTimesDt / onePlusDampTimesDt;
+			this.prevHeight[idx] = temp;
+		}
+	}
+
+	//update mesh
+	this.__updateMesh();
+}
+//methods
+HeightFieldWaterSim_Tessendorf_iWave.prototype.__convolve = function()
+{
+	var i, j, k, l;
+	var v = this.geometry.vertices;
+	for (i = this.kernelRadius; i < this.res - this.kernelRadius; i++)
+	{
+		for (j = this.kernelRadius; j < this.res - this.kernelRadius; j++)
+		{
+			idx = i * this.res + j;
+
+			//convolve for every pair of [i,j]
+			this.vertDeriv[idx] = 0;
+			for (k = 0; k <= this.kernelRadius; k++)
+			{
+				for (l = k + 1; l <= this.kernelRadius; l++)
+				{
+					this.vertDeriv[idx] += this.G[k][l] * (v[(i+k)*this.res+(j+l)].y + v[(i-k)*this.res+(j-l)].y + v[(i+k)*this.res+(j-l)].y + v[(i-k)*this.res+(j+l)].y);
+				}
+			}
+
 		}
 	}
 }
