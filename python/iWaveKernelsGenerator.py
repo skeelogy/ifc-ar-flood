@@ -3,11 +3,15 @@
 @contact: skeel@skeelogy.com
 @since: 12 Jul 2013
 
-Python script to generate the kernels in Tessendorf's iWave algorithm
+Python script to generate the kernels in Tessendorf's iWave algorithm.
 
-Tested with Python 2.7.3 only
+Usage: python iWaveKernelsGenerator <kernelRadius>
+e.g. python iWaveKernelsGenerator 6
+A JSON file which contains the kernel data will be created in the same directory.
 
-You need to install scipy for the script to work (need to evaluate the Bessel J0 function)
+Tested with Python 2.7.3 only.
+
+You need to install scipy for the script to work (need to evaluate the Bessel J0 function).
 """
 
 import sys
@@ -16,7 +20,7 @@ import json
 
 from scipy.special import jn
 
-class IWaveKernelPrecomputer(object):
+class IWaveKernelsGenerator(object):
 
 	def __init__(self):
 		self.deltaQ = 0.001
@@ -33,9 +37,12 @@ class IWaveKernelPrecomputer(object):
 			g0 += qnSquared * math.exp(-self.sigma * qnSquared)
 		return g0
 
-	def precompute(self, kernelRadius, outputFile):
+	def generate(self, kernelRadius, outputFile):
+
 		results = {}
-		for k in range(kernelRadius):
+
+		#compute kernel values
+		for k in range(0, kernelRadius+1):
 			results[k] = {}
 			for l in range(k+1, kernelRadius+1):
 				results[k][l] = 0
@@ -43,7 +50,8 @@ class IWaveKernelPrecomputer(object):
 				for n in range(1, self.nMax+1):
 					qn = n * self.deltaQ
 					qnSquared = qn * qn
-					results[k][l] += qnSquared * math.exp(-self.sigma * qnSquared) * jn(0, qn*r) / self.g0
+					results[k][l] += qnSquared * math.exp(-self.sigma * qnSquared) * jn(0, qn*r)
+				results[k][l] /= self.g0
 		
 		#write to file as json
 		with open(outputFile, 'w') as f:
@@ -58,5 +66,5 @@ if __name__ == '__main__':
 	kernelRadius = int(sys.argv[1])
 	outputFile = 'iWave_kernels_%d.json' % kernelRadius
 
-	p = IWaveKernelPrecomputer()
-	p.precompute(kernelRadius, outputFile)
+	g = IWaveKernelsGenerator()
+	g.generate(kernelRadius, outputFile)
