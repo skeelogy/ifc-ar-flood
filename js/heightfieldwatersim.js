@@ -3,6 +3,12 @@
 //@since: 11 July 2013
 //2D height-field water simulation
 
+HeightFieldWaterSim.obstacleType = {
+	STATIC: 0,
+	DYNAMIC: 1
+};
+Object.freeze(HeightFieldWaterSim.obstacleType);
+
 function HeightFieldWaterSim(mesh, size, res, dampingFactor)
 {
 	this.mesh = mesh;
@@ -47,12 +53,91 @@ HeightFieldWaterSim.prototype.init = function()
 
 	// //update mesh
 	// this.__updateMesh();
+
+	//init objects for depth map rendering
+	this.depthRttRenderer = new THREE.CanvasRenderer({
+		antialias : true
+	});
+	this.depthRttRenderer.setSize(this.res, this.res);
+	this.depthRttRenderer.setClearColor('#000000', 1);
+	var $container = $('#threejs-container');
+	$container.append(this.depthRttRenderer.domElement);
+	this.obstacleDepthMapCanvasElemContext = this.depthRttRenderer.domElement.getContext('2d');
+
+	this.depthRttScene = new THREE.Scene();
+
+	var halfSize = this.size / 2;
+	this.depthRttCamera = new THREE.OrthographicCamera(-halfSize, halfSize, -halfSize, halfSize, -2, 2);
+	this.depthRttCamera.rotation.x = THREE.Math.degToRad(90);
+	this.depthRttCamera.position.y = 0;
+
+	this.prepareTerrainImageElements();
+}
+
+HeightFieldWaterSim.prototype.prepareTerrainImageElements = function()
+{
+	// //create canvas that is same size as terrain res so that one vertex maps to one resized pixel
+	// $imageCanvasElem = $(document.createElement('canvas'));
+	// $imageCanvasElem[0].id = 'obstaclesDepthMapCanvas';
+	// $imageCanvasElem[0].width = this.res;
+	// $imageCanvasElem[0].height = this.res;
+	// $imageCanvasElem.css({'position':'fixed', 'top':'55px', 'left':0});
+	// $('body').append($imageCanvasElem);
+	
+	// //get canvas context
+ //    this.obstacleDepthMapCanvasElemContext = $imageCanvasElem[0].getContext('2d');
+
+	// //load terrain image
+	// $scaledImageObj = $(new Image());
+	// $scaledImageObj[0].id = 'scaledTerrainImage';
+	// $scaledImageObj[0].onload = function()
+	// {
+	// 	//this function is triggered from $origImageObj setting this src
+		
+	// 	//start filtering and changing heights
+	// 	// filterTerrainImageAndGenerateHeight();
+	// };
+	// $scaledImageObj.css({'display':'none'});
+	// $('body').append($scaledImageObj);
+
+	//load original terrain image, scale it using canvas, then set scaled image to $scaledImageObj
+	this.$origImageObj = $(new Image());
+	this.$origImageObj[0].onload = function()
+	{
+		//copy to scaled canvas to scale this image
+		// imageCanvasElemContext.drawImage($origImageObj[0], 0, 0, TERRAIN_RES, TERRAIN_RES);
+
+		//get scaled data from canvas and set data for scaledImageObj
+		// $scaledImageObj[0].src = $imageCanvasElem[0].toDataURL();
+		// console.log('done');
+	};
+	this.$origImageObj[0].src = this.depthRttRenderer.domElement.toDataURL();
+	$('body').append(this.$origImageObj);
 }
 
 HeightFieldWaterSim.prototype.update = function(dt)
 {
+	this.depthRttRenderer.autoClear = false;
+	this.depthRttRenderer.clear();
+	this.depthRttRenderer.render(this.depthRttScene, this.depthRttCamera);
+
 	this.sim(dt);
 	this.__clearFields();
+
+	//update obstacle depth map
+	this.$origImageObj[0].src = this.depthRttRenderer.domElement.toDataURL();
+	
+	//update obstacle field
+	this.obstacleDepthMapData = this.obstacleDepthMapCanvasElemContext.getImageData(0, 0, this.res, this.res).data;
+	var i;
+	var length = this.res * this.res;
+	for (i = 0; i < length; i++)
+	{	
+		var clampMin = 0.48;
+		var clampMax = 0.68;
+		var norm = this.obstacleDepthMapData[i*4] / 255.0;
+		this.staticObstacleField[i] = 1 - (norm >= clampMin && norm <= clampMax);
+	}
 }
 
 HeightFieldWaterSim.prototype.sim = function(dt)
@@ -65,16 +150,39 @@ HeightFieldWaterSim.prototype.disturb = function(idx, amount)
 	this.sourceField[idx] = amount;
 }
 
-HeightFieldWaterSim.prototype.block = function(idx, amount)
-{
-	this.staticObstacleField[idx] = amount;
-}
-
-// HeightFieldWaterSim.prototype.addObstacle = function(type, mesh)
+// HeightFieldWaterSim.prototype.block = function(idx, amount)
 // {
-// 	//TODO: rasterize the mesh onto the current water plane state
-// 	//this.staticObstacleField[idx] = amount;
+// 	this.staticObstacleField[idx] = amount;
 // }
+
+HeightFieldWaterSim.prototype.addObstacle = function(type, mesh)
+{
+	//TODO: rasterize the mesh onto the current water plane state
+	if (type === HeightFieldWaterSim.obstacleType.STATIC)
+	{
+		var depthMesh = new THREE.Mesh(
+			mesh.geometry,
+			new THREE.MeshDepthMaterial({side:THREE.DoubleSide, overdraw:true})
+		);
+
+		//TODO: not sure why cannot just get matrix from mesh and apply
+
+		//do a reference copy of position, rotation and scale, so that will auto-update
+		depthMesh.position = mesh.position;
+		depthMesh.rotation = mesh.rotation;
+		depthMesh.scale = mesh.scale;
+
+		this.depthRttScene.add(depthMesh);
+	}
+	else if (type === HeightFieldWaterSim.obstacleType.DYNAMIC)
+	{
+		
+	}
+	else
+	{
+		throw new Error('Unrecognised obstacle type: ' + type);
+	}
+}
 
 HeightFieldWaterSim.prototype.__clearFields = function()
 {

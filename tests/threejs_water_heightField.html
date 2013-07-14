@@ -22,15 +22,17 @@
 	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
 	<script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
 
+	<script type="text/javascript" src="/js/lib/seedrandom.js"></script>
+
 	<script type="text/javascript" src="/js/heightfieldwatersim.js"></script>
 	
 	<script>
 
 	var WATER_SIZE = 10;
-	var WATER_RES = 64;
+	var WATER_RES = 80;
 	var DAMPING_FACTOR = 0.8;
 
-	var SHADOW_MAP_RES = 512;
+	var SHADOW_MAP_RES = 1024;
 
 	var clock = new THREE.Clock();
 
@@ -46,7 +48,6 @@
 	}
 
 	var renderer, scene, camera, controls;
-	var heightFieldWaterSim;
 	var materials = [];
 	var waterMesh;
 	var localAxis;
@@ -57,9 +58,9 @@
 			antialias : true
 		});
 		renderer.setSize(window.innerWidth, window.innerHeight-5);
-		renderer.setClearColor('#081419', 1);
+		renderer.setClearColor('#111111', 1);
 		renderer.shadowMapEnabled = true;
-		renderer.shadowMapType = THREE.PCFShadowMap;
+		renderer.shadowMapType = THREE.PCFSoftShadowMap;
 		renderer.shadowMapSoft = true;
 		var $container = $('#threejs-container');
 		$container.append(renderer.domElement);
@@ -68,7 +69,7 @@
 		scene = new THREE.Scene();
 
 		//create camera
-		camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000 );
+		camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
 		camera.position.set(8, 8, 15);
 		camera.lookAt(new THREE.Vector3(0,0,0));
 
@@ -83,9 +84,9 @@
 		scene.add(localAxis);
 
 		//setup lights
-		scene.add(new THREE.AmbientLight(0x000015));
+		scene.add(new THREE.AmbientLight(0x111111));
 
-		keyLight = new THREE.SpotLight(0xffff00, 0.3);
+		keyLight = new THREE.SpotLight(0xffff44, 0.5);
 		keyLight.position.set(5, 15, -15);
 		keyLight.target.position.set(0, 0, 0);
 		keyLight.castShadow = true;
@@ -99,7 +100,7 @@
 		keyLight.shadowMapHeight = SHADOW_MAP_RES;
 		scene.add(keyLight);
 
-		fillLight = new THREE.SpotLight(0x00ff00, 0.2);
+		fillLight = new THREE.SpotLight(0xff0044, 0.3);
 		fillLight.position.set(5, 2, 15);
 		fillLight.target.position.set(0, 0, 0);
 		scene.add(fillLight);
@@ -114,11 +115,18 @@
 		groundPlaneMesh.receiveShadow = false;
 		groundPlaneMesh.visible = false;
 		scene.add(groundPlaneMesh);
+	}
 
-		//last but not least, create a height-field water sim from the plane
+	var RANDOM_SEED = 1;
+	Math.seedrandom(RANDOM_SEED);
+	var heightFieldWaterSim;
+	var obstacles = []
+	function setupWaterScene()
+	{
+		//create a height-field water sim from the plane
 		var waterGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_RES-1, WATER_RES-1);
 		waterGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-		var waterMaterial = new THREE.MeshPhongMaterial();
+		var waterMaterial = new THREE.MeshPhongMaterial({color:'#3366FF'});
 		materials.push(waterMaterial);
 		waterMesh = new THREE.Mesh(waterGeom, waterMaterial);
 		waterMesh.castShadow = true;
@@ -128,6 +136,35 @@
 		// heightFieldWaterSim = new HeightFieldWaterSim_xWater(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
 		// heightFieldWaterSim = new HeightFieldWaterSim_Muller_GDC2008_HelloWorld(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
 		heightFieldWaterSim = new HeightFieldWaterSim_Tessendorf_iWave(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, 6);
+
+		//create some obstacles for the water sim
+		var iSegments = 3;
+		var jSegments = 3;
+		var iSegmentSize = WATER_SIZE / iSegments;
+		var jSegmentSize = WATER_SIZE / jSegments;
+		var halfWaterSize = WATER_SIZE / 2.0;
+		for (var i = 0; i < 3; i++)
+		{
+			for (var j = 0; j < 3; j++)
+			{
+				var length = WATER_SIZE / 5.0;
+				var obstacleGeom = new THREE.CubeGeometry(length*(Math.random()*0.5+0.5), 1, length*(Math.random()*0.5+0.5));
+				var obstacleMaterial = new THREE.MeshPhongMaterial();
+				materials.push(obstacleMaterial);
+				obstacleMesh = new THREE.Mesh(obstacleGeom, obstacleMaterial);
+				obstacleMesh.castShadow = true;
+				obstacleMesh.receiveShadow = true;
+				obstacleMesh.position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize);
+				// obstacleMesh.position.y = Math.random() * 2 - 1.0;
+				obstacleMesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize);
+				obstacleMesh.rotation.y = (Math.random() * 360);
+				// obstacleMesh.visible = false;
+				scene.add(obstacleMesh);
+				obstacles.push(obstacleMesh);
+				heightFieldWaterSim.addObstacle(HeightFieldWaterSim.obstacleType.STATIC, obstacleMesh);
+			}
+		}
+
 	}
 
 	function setupEvents()
@@ -159,7 +196,7 @@
 				if (intersectPoint)
 				{
 					isDisturbing = true;
-					heightFieldWaterSim.disturb(calcVertexId(intersectPoint.x, intersectPoint.z), 0.05);
+					heightFieldWaterSim.disturb(calcVertexId(intersectPoint.x, intersectPoint.z), 0.015);
 				}
 			}
 		}
@@ -174,7 +211,7 @@
 			intersectPoint = detectIntersection();
 			if (intersectPoint)
 			{
-				heightFieldWaterSim.disturb(calcVertexId(intersectPoint.x, intersectPoint.z), 0.05);
+				heightFieldWaterSim.disturb(calcVertexId(intersectPoint.x, intersectPoint.z), 0.015);
 			}
 		}
 	}
@@ -224,7 +261,7 @@
 	}
 
 	var gui;
-	var terrainFolder, sculptFolder, renderingFolder, displayFolder;
+	var renderingFolder, displayFolder;
 	var options = {
 		renderingShadows: true,  //FIXME: this has to be init to true
 		displayWireframe: false,
@@ -283,6 +320,9 @@
 		//setup scene
 		setupThreejsScene();
 
+		//setup water
+		setupWaterScene();
+
 		//setup events
 		setupEvents();
 
@@ -298,16 +338,12 @@
 			var dt = clock.getDelta();  //have to call this before getElapsedTime()
 			var time = clock.getElapsedTime();
 
-			//TEMP: block here
-			var segSize = WATER_SIZE / WATER_RES;
-			for (var i = 0; i < 20; i++)
-			{
-				for (var j = 0; j < 20; j++)
-				{
-					heightFieldWaterSim.block(calcVertexId(0+segSize*i,0+segSize*j), 0);
-				}
-			}
-
+			//TEMP: animate the obstacles
+			// for (obstacleId in obstacles)
+			// {
+			// 	obstacles[obstacleId].position.y = Math.sin(time);
+			// }
+			
 			heightFieldWaterSim.update(dt);
 
 			controls.update();
