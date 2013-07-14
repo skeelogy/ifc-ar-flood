@@ -4,6 +4,7 @@
 @since: 12 Jul 2013
 
 Python script to generate the kernels in Tessendorf's iWave algorithm.
+Note that only the symmetrical kernel values are generated, not the full kernel.
 
 Usage: python iWaveKernelsGenerator <kernelRadius>
 e.g. python iWaveKernelsGenerator 6
@@ -42,9 +43,10 @@ class IWaveKernelsGenerator(object):
 		results = {}
 
 		#compute kernel values
+		print 'Computing kernels...'
 		for k in range(0, kernelRadius+1):
 			results[k] = {}
-			for l in range(k+1, kernelRadius+1):
+			for l in range(1, kernelRadius+1):
 				results[k][l] = 0
 				r = math.sqrt(k*k+l*l)
 				for n in range(1, self.nMax+1):
@@ -56,6 +58,7 @@ class IWaveKernelsGenerator(object):
 		#write to file as json
 		with open(outputFile, 'w') as f:
 			json.dump(results, f, indent=True)
+			print 'Generated kernel file: %s' % outputFile
 
 if __name__ == '__main__':
 

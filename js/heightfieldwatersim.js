@@ -62,7 +62,7 @@ HeightFieldWaterSim.prototype.sim = function(dt)
 
 HeightFieldWaterSim.prototype.disturb = function(idx, amount)
 {
-	this.sourceField[idx] += amount;
+	this.sourceField[idx] = amount;
 }
 
 HeightFieldWaterSim.prototype.block = function(idx, amount)
@@ -325,6 +325,9 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.init = function()
 }
 HeightFieldWaterSim_Tessendorf_iWave.prototype.sim = function(dt)
 {
+	//fixing dt: better to be in slow motion than to explode
+	dt = 1.0 / 60.0; 
+
 	//TODO: start using events, rather than having this check on every frame
 	if (!this.G)
 	{
@@ -346,8 +349,8 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.sim = function(dt)
 		}
 	}
 
-	//convolve
-	this.__convolve();
+	//convolve to update this.vertDeriv
+	this.__symmetricalConvolve();
 
 	//propagate
 	var temp;
@@ -360,9 +363,9 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.sim = function(dt)
 		{
 			idx = i * this.res + j;
 			temp = v[idx].y;
-			v[idx].y = v[idx].y * twoMinusDampTimesDt / onePlusDampTimesDt
-						- this.prevHeight[idx] / onePlusDampTimesDt
-						- this.vertDeriv[idx] * gravityTimesDtTimesDt / onePlusDampTimesDt;
+			v[idx].y = (v[idx].y * twoMinusDampTimesDt
+						- this.prevHeight[idx]
+						- this.vertDeriv[idx] * gravityTimesDtTimesDt) / onePlusDampTimesDt;
 			this.prevHeight[idx] = temp;
 		}
 	}
@@ -371,7 +374,7 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.sim = function(dt)
 	this.__updateMesh();
 }
 //methods
-HeightFieldWaterSim_Tessendorf_iWave.prototype.__convolve = function()
+HeightFieldWaterSim_Tessendorf_iWave.prototype.__symmetricalConvolve = function()
 {
 	var i, j, k, l;
 	var v = this.geometry.vertices;
@@ -382,12 +385,50 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.__convolve = function()
 			idx = i * this.res + j;
 
 			//convolve for every pair of [i,j]
-			this.vertDeriv[idx] = 0;
-			for (k = 0; k <= this.kernelRadius; k++)
+
+			//NOTE: symmetrical convolution forumla in article does not seem to work.
+			//I'm doing it the following way to cover all positions of the kernel:
+
+			//add [0,0] first
+			this.vertDeriv[idx] = v[idx].y;
+
+			//when k = 0, swap k and l in a specific manner while changing signs
+			k = 0;
+			for (l = 1; l <= this.kernelRadius; l++)  //article says to start from k+1, but I think it should start from 1 instead
 			{
-				for (l = k + 1; l <= this.kernelRadius; l++)
+				this.vertDeriv[idx] += this.G[k][l] * ( v[(i+k)*this.res+(j+l)].y + v[(i+k)*this.res+(j-l)].y + v[(i+l)*this.res+(j+k)].y + v[(i-l)*this.res+(j+k)].y );
+			}
+
+			//for k larger than 0, k and l do not swap at all, only change signs
+			for (k = 1; k <= this.kernelRadius; k++)
+			{
+				for (l = 1; l <= this.kernelRadius; l++)  //article says to start from k+1, but I think it should start from 1 instead
 				{
-					this.vertDeriv[idx] += this.G[k][l] * (v[(i+k)*this.res+(j+l)].y + v[(i-k)*this.res+(j-l)].y + v[(i+k)*this.res+(j-l)].y + v[(i-k)*this.res+(j+l)].y);
+					this.vertDeriv[idx] += this.G[k][l] * ( v[(i+k)*this.res+(j+l)].y + v[(i-k)*this.res+(j-l)].y + v[(i+k)*this.res+(j-l)].y + v[(i-k)*this.res+(j+l)].y );
+				}
+			}
+
+		}
+	}
+}
+HeightFieldWaterSim_Tessendorf_iWave.prototype.__convolve = function()
+{
+	//NOTE: this is not used. I left it here for debugging if necessary.
+	var i, j, k, l;
+	var v = this.geometry.vertices;
+	for (i = this.kernelRadius; i < this.res - this.kernelRadius; i++)
+	{
+		for (j = this.kernelRadius; j < this.res - this.kernelRadius; j++)
+		{
+			idx = i * this.res + j;
+
+			//convolve for every pair of [i,j]
+			this.vertDeriv[idx] = 0;
+			for (k = -this.kernelRadius; k <= this.kernelRadius; k++)
+			{
+				for (l = -this.kernelRadius; l <= this.kernelRadius; l++)
+				{
+					this.vertDeriv[idx] += this.G[k][l] * v[(i+k)*this.res+(j+l)].y;
 				}
 			}
 
