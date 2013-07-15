@@ -579,6 +579,7 @@ var ObstacleManager = {
 		{
 			this.$depthMapImageObj = $(new Image());
 			this.$depthMapImageObj[0].src = this.depthMapRenderer.domElement.toDataURL();
+			this.$depthMapImageObj.css({'position':'fixed', 'top':'55px', 'left':0});
 			$('body').append(this.$depthMapImageObj);
 		}
 	}
