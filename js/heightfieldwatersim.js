@@ -28,6 +28,7 @@ function HeightFieldWaterSim(mesh, size, res, dampingFactor)
 	this.obstacleField = [];
 
 	this.obstacleManager = new ObstacleManager(this.size, this.res, -2, 2);
+	this.obstaclesActive = true;
 	//FIXME: remove these hardcoded values
 	this.clampMin = 0.48;
 	this.clampMax = 0.68;
@@ -52,14 +53,17 @@ HeightFieldWaterSim.prototype.update = function(dt)
 	this.obstacleManager.update();
 
 	//update obstacle field using the depth map
-	var obstacleDepthMapData = this.obstacleManager.getObstacleDepthMap();
-	var i;
-	var length = this.res * this.res;
-	var norm;
-	for (i = 0; i < length; i++)
+	if (this.obstaclesActive)
 	{
-		norm = obstacleDepthMapData[i*4] / 255.0;
-		this.obstacleField[i] = 1 - (norm >= this.clampMin && norm <= this.clampMax);
+		var obstacleDepthMapData = this.obstacleManager.getObstacleDepthMap();
+		var i;
+		var length = this.res * this.res;
+		var norm;
+		for (i = 0; i < length; i++)
+		{
+			norm = obstacleDepthMapData[i*4] / 255.0;
+			this.obstacleField[i] = 1 - (norm >= this.clampMin && norm <= this.clampMax);
+		}
 	}
 
 	this.sim(dt);
@@ -79,6 +83,25 @@ HeightFieldWaterSim.prototype.disturb = function(idx, amount)
 HeightFieldWaterSim.prototype.addObstacle = function(mesh)
 {
 	this.obstacleManager.addObstacle(mesh);
+}
+
+HeightFieldWaterSim.prototype.setObstaclesActive = function(isActive)
+{
+	this.obstaclesActive = isActive;
+}
+
+HeightFieldWaterSim.prototype.reset = function()
+{
+	//set mesh back to 0
+	var i;
+	var v = this.geometry.vertices;
+	for (i = 0; i < this.numVertices; i++)
+	{
+		v[i].y = 0;
+	}
+
+	//clear fields
+	this.__clearFields();
 }
 
 HeightFieldWaterSim.prototype.__clearFields = function()
@@ -164,6 +187,9 @@ HeightFieldWaterSim_Muller_GDC2008.prototype.constructor = HeightFieldWaterSim_M
 //override
 HeightFieldWaterSim_Muller_GDC2008.prototype.sim = function(dt)
 {
+	//fixing dt: better to be in slow motion than to explode
+	dt = 1.0 / 60.0; 
+
 	var i, j, idx;
 	var v = this.geometry.vertices;
 	var resMinusOne = this.res - 1;
@@ -237,6 +263,17 @@ HeightFieldWaterSim_xWater.prototype.init = function()
 
 	//call super class init to initialize other fields
 	HeightFieldWaterSim.prototype.init.call(this);
+}
+HeightFieldWaterSim_xWater.prototype.reset = function()
+{
+	var i;
+	for (i = 0; i < this.numVertices; i++)
+	{
+		this.field1[i] = 0;
+		this.field2[i] = 0;
+	}
+
+	HeightFieldWaterSim.prototype.reset.call(this);
 }
 HeightFieldWaterSim.prototype.sim = function(dt)
 {
@@ -317,6 +354,7 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.constructor = HeightFieldWaterSim
 //override
 HeightFieldWaterSim_Tessendorf_iWave.prototype.init = function()
 {
+	console.log('iwave init');
 	//init fields first
 	var i;
 	for (i = 0; i < this.numVertices; i++)
@@ -327,6 +365,17 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.init = function()
 
 	//call super class init to initialize other fields
 	HeightFieldWaterSim.prototype.init.call(this);
+}
+HeightFieldWaterSim_Tessendorf_iWave.prototype.reset = function()
+{
+	var i;
+	for (i = 0; i < this.numVertices; i++)
+	{
+		this.prevHeight[i] = 0;
+		this.vertDeriv[i] = 0;
+	}
+
+	HeightFieldWaterSim.prototype.reset.call(this);
 }
 HeightFieldWaterSim_Tessendorf_iWave.prototype.sim = function(dt)
 {

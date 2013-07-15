@@ -31,6 +31,7 @@
 	var WATER_SIZE = 10;
 	var WATER_RES = 80;
 	var DAMPING_FACTOR = 0.8;
+	var DISTURB_AMOUNT = 0.015;
 
 	var SHADOW_MAP_RES = 1024;
 
@@ -49,7 +50,6 @@
 
 	var renderer, scene, camera, controls;
 	var materials = [];
-	var waterMesh;
 	var localAxis;
 	function setupThreejsScene()
 	{
@@ -90,11 +90,11 @@
 		keyLight.position.set(5, 15, -15);
 		keyLight.target.position.set(0, 0, 0);
 		keyLight.castShadow = true;
-		keyLight.shadowCameraNear = 15;
+		keyLight.shadowCameraNear = 10;
 		keyLight.shadowCameraFar = 30;
 		keyLight.shadowCameraFov = 30;
 		//keyLight.shadowCameraVisible = true;
-		keyLight.shadowBias = 0.0001;
+		keyLight.shadowBias = 0.000001;
 		keyLight.shadowDarkness = 0.5;
 		keyLight.shadowMapWidth = SHADOW_MAP_RES;
 		keyLight.shadowMapHeight = SHADOW_MAP_RES;
@@ -119,7 +119,8 @@
 
 	var RANDOM_SEED = 1;
 	Math.seedrandom(RANDOM_SEED);
-	var heightFieldWaterSim;
+	var waterMesh;
+	var heightFieldWaterSim, heightFieldWaterSim_iWave, heightFieldWaterSim_mullerGdc2008, heightFieldWaterSim_mullerGdc2008_helloWorld, heightFieldWaterSim_xWater;
 	var obstacles = []
 	function setupWaterScene()
 	{
@@ -132,10 +133,13 @@
 		waterMesh.castShadow = true;
 		waterMesh.receiveShadow = true;
 		scene.add(waterMesh);
-		// heightFieldWaterSim = new HeightFieldWaterSim_Muller_GDC2008(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, 2.0);
-		// heightFieldWaterSim = new HeightFieldWaterSim_xWater(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
-		// heightFieldWaterSim = new HeightFieldWaterSim_Muller_GDC2008_HelloWorld(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
-		heightFieldWaterSim = new HeightFieldWaterSim_Tessendorf_iWave(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, 6);
+
+		//create the different water sims
+		heightFieldWaterSim_iWave = new HeightFieldWaterSim_Tessendorf_iWave(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, 6);
+		heightFieldWaterSim_mullerGdc2008 = new HeightFieldWaterSim_Muller_GDC2008(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, 2.0);
+		heightFieldWaterSim_mullerGdc2008_helloWorld = new HeightFieldWaterSim_Muller_GDC2008_HelloWorld(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
+		heightFieldWaterSim_xWater = new HeightFieldWaterSim_xWater(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
+		heightFieldWaterSim = heightFieldWaterSim_iWave;
 
 		//create some obstacles for the water sim
 		var iSegments = 3;
@@ -196,7 +200,7 @@
 				if (intersectPoint)
 				{
 					isDisturbing = true;
-					heightFieldWaterSim.disturb(calcVertexId(intersectPoint.x, intersectPoint.z), 0.015);
+					heightFieldWaterSim.disturb(calcVertexId(intersectPoint.x, intersectPoint.z), DISTURB_AMOUNT);
 				}
 			}
 		}
@@ -211,7 +215,7 @@
 			intersectPoint = detectIntersection();
 			if (intersectPoint)
 			{
-				heightFieldWaterSim.disturb(calcVertexId(intersectPoint.x, intersectPoint.z), 0.015);
+				heightFieldWaterSim.disturb(calcVertexId(intersectPoint.x, intersectPoint.z), DISTURB_AMOUNT);
 			}
 		}
 	}
@@ -261,16 +265,71 @@
 	}
 
 	var gui;
-	var renderingFolder, displayFolder;
+	var waterSimFolder, renderingFolder, displayFolder;
+	var waterSimTypes = {
+		'Tessendorf iWave': 'heightFieldWaterSim_iWave',
+		'Muller GDC2008': 'heightFieldWaterSim_mullerGdc2008',
+		'Muller GDC2008 HelloWorld': 'heightFieldWaterSim_mullerGdc2008_helloWorld',
+		'X Water': 'heightFieldWaterSim_xWater'
+	};
+	var waterSimTypeSettings = {
+		'heightFieldWaterSim_iWave': { 'disturbAmount':0.015, 'dampingFactor':0.7 },
+		'heightFieldWaterSim_mullerGdc2008': { 'disturbAmount':0.25, 'dampingFactor':0.92 },
+		'heightFieldWaterSim_mullerGdc2008_helloWorld': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
+		'heightFieldWaterSim_xWater': { 'disturbAmount':0.35, 'dampingFactor':0.95 }
+	};
 	var options = {
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
+		waterSimShowObstacles: true,
+		waterSimObstaclesActive: true,
 		renderingShadows: true,  //FIXME: this has to be init to true
 		displayWireframe: false,
 		displayLocalAxis: false,
 	};
 	function setupGui() {
 
-		gui = new dat.GUI();
+		gui = new dat.GUI({width: 350});
 		//gui.close();  //close GUI by default
+
+		//Water Sim folder
+		waterSimFolder = gui.addFolder('Water Sim');
+		waterSimFolder.open();
+
+		var control = waterSimFolder.add(options, 'waterSimType', waterSimTypes).name('Type');
+		function changeWaterSimType(value)
+		{
+			//reset current sim first
+			heightFieldWaterSim.reset();
+
+			//swap the sim
+			heightFieldWaterSim = eval(value);
+
+			//load some presets so that that sim works well
+			DISTURB_AMOUNT = waterSimTypeSettings[value].disturbAmount;
+			DAMPING_FACTOR = waterSimTypeSettings[value].dampingFactor;
+			heightFieldWaterSim.dampingFactor = DAMPING_FACTOR;
+		}
+		control.onChange(changeWaterSimType);
+		changeWaterSimType(options.waterSimType);
+
+		control = waterSimFolder.add(options, 'waterSimShowObstacles').name('Show Obstacles');
+		function changeWaterSimShowObstacles(value)
+		{
+			for (obstacleId in obstacles)
+			{
+				obstacles[obstacleId].visible = value;
+			}
+		}
+		control.onChange(changeWaterSimShowObstacles);
+		changeWaterSimShowObstacles(options.waterSimShowObstacles);
+
+		control = waterSimFolder.add(options, 'waterSimObstaclesActive').name('Obstacles Active');
+		function changeWaterSimObstaclesActive(value)
+		{
+			heightFieldWaterSim.setObstaclesActive(value);
+		}
+		control.onChange(changeWaterSimObstaclesActive);
+		changeWaterSimObstaclesActive(options.waterSimObstaclesActive);
 
 		//Rendering folder
 		renderingFolder = gui.addFolder('Rendering');
