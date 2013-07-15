@@ -54,10 +54,10 @@ HeightFieldWaterSim.prototype.update = function(dt)
 	//update obstacle field using the depth map
 	var obstacleDepthMapData = this.obstacleManager.getObstacleDepthMap();
 	var i;
-	var length = this.depthMapRes * this.depthMapRes;
+	var length = this.res * this.res;
 	var norm;
 	for (i = 0; i < length; i++)
-	{	
+	{
 		norm = obstacleDepthMapData[i*4] / 255.0;
 		this.obstacleField[i] = 1 - (norm >= this.clampMin && norm <= this.clampMax);
 	}
@@ -487,7 +487,7 @@ ObstacleManager.prototype.addObstacle = function(mesh)
 	this.depthMapScene.add(depthMesh);
 }
 
-ObstacleManager.prototype.getObstacleDepthMap =  function()
+ObstacleManager.prototype.getObstacleDepthMap = function()
 {
 	return this.obstacleDepthMapCanvasElemContext.getImageData(0, 0, this.depthMapRes, this.depthMapRes).data;
 }
