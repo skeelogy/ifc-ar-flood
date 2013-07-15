@@ -338,7 +338,7 @@ HeightFieldWaterSim.prototype.sim = function(dt)
 }
 
 //Jerry Tessendorf, "Interactive Water Surfaces", Game Programming Gems 4
-function HeightFieldWaterSim_Tessendorf_iWave(mesh, size, res, dampingFactor, kernelRadius)
+function HeightFieldWaterSim_Tessendorf_iWave(mesh, size, res, dampingFactor, kernelRadius, substeps)
 {
 	this.prevHeight = [];
 	this.vertDeriv = [];
@@ -346,6 +346,7 @@ function HeightFieldWaterSim_Tessendorf_iWave(mesh, size, res, dampingFactor, ke
 	HeightFieldWaterSim.call(this, mesh, size, res, dampingFactor);
 
 	this.kernelRadius = kernelRadius;
+	this.substeps = substeps;
 
 	this.gravity = -9.81;
 
@@ -394,41 +395,47 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.sim = function(dt)
 		return;
 	}
 	
-	var i, j, idx;
-	var v = this.geometry.vertices;
-	var resMinusOne = this.res - 1;
-
-	//add source and obstacles first
-	for (i = 1; i < resMinusOne; i++)
+	//moving multiple time steps per loop so that the sim can go faster
+	var s;
+	for (s = 0; s < this.substeps; s++)
 	{
-		for (j = 1; j < resMinusOne; j++)
+		var i, j, idx;
+		var v = this.geometry.vertices;
+		var resMinusOne = this.res - 1;
+
+		//add source and obstacles first
+		for (i = 1; i < resMinusOne; i++)
 		{
-			idx = i * this.res + j;
-			v[idx].y += this.sourceField[idx];
-			v[idx].y *= this.obstacleField[idx];
+			for (j = 1; j < resMinusOne; j++)
+			{
+				idx = i * this.res + j;
+				v[idx].y += this.sourceField[idx];
+				v[idx].y *= this.obstacleField[idx];
+			}
+		}
+
+		//convolve to update this.vertDeriv
+		this.__symmetricalConvolve();
+
+		//propagate
+		var temp;
+		var twoMinusDampTimesDt = 2.0 - this.dampingFactor * dt;
+		var onePlusDampTimesDt = 1.0 + this.dampingFactor * dt;
+		var gravityTimesDtTimesDt = this.gravity * dt * dt;
+		for (i = 1; i < resMinusOne; i++)
+		{
+			for (j = 1; j < resMinusOne; j++)
+			{
+				idx = i * this.res + j;
+				temp = v[idx].y;
+				v[idx].y = (v[idx].y * twoMinusDampTimesDt
+							- this.prevHeight[idx]
+							- this.vertDeriv[idx] * gravityTimesDtTimesDt) / onePlusDampTimesDt;
+				this.prevHeight[idx] = temp;
+			}
 		}
 	}
-
-	//convolve to update this.vertDeriv
-	this.__symmetricalConvolve();
-
-	//propagate
-	var temp;
-	var twoMinusDampTimesDt = 2.0 - this.dampingFactor * dt;
-	var onePlusDampTimesDt = 1.0 + this.dampingFactor * dt;
-	var gravityTimesDtTimesDt = this.gravity * dt * dt;
-	for (i = 1; i < resMinusOne; i++)
-	{
-		for (j = 1; j < resMinusOne; j++)
-		{
-			idx = i * this.res + j;
-			temp = v[idx].y;
-			v[idx].y = (v[idx].y * twoMinusDampTimesDt
-						- this.prevHeight[idx]
-						- this.vertDeriv[idx] * gravityTimesDtTimesDt) / onePlusDampTimesDt;
-			this.prevHeight[idx] = temp;
-		}
-	}
+	
 
 	//update mesh
 	this.__updateMesh();
