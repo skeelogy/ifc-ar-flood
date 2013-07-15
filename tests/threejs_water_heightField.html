@@ -135,7 +135,7 @@
 		scene.add(waterMesh);
 
 		//create the different water sims
-		heightFieldWaterSim_iWave = new HeightFieldWaterSim_Tessendorf_iWave(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, 6, 3);
+		heightFieldWaterSim_iWave = new HeightFieldWaterSim_Tessendorf_iWave(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, 4, 3);
 		heightFieldWaterSim_mullerGdc2008 = new HeightFieldWaterSim_Muller_GDC2008(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, 2.0);
 		heightFieldWaterSim_mullerGdc2008_helloWorld = new HeightFieldWaterSim_Muller_GDC2008_HelloWorld(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
 		heightFieldWaterSim_xWater = new HeightFieldWaterSim_xWater(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
