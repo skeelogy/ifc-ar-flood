@@ -27,7 +27,11 @@ function HeightFieldWaterSim(mesh, size, res, dampingFactor)
 	this.sourceField = [];
 	this.obstacleField = [];
 
-	this.obstacleManager = new ObstacleManager(this.size, this.res, -2, 2);
+	ObstacleManager.depthMapSize = this.size;
+	ObstacleManager.depthMapRes = this.res;
+	ObstacleManager.depthMapNear = -2;
+	ObstacleManager.depthMapFar = 2;
+
 	this.obstaclesActive = true;
 	//FIXME: remove these hardcoded values
 	this.clampMin = 0.48;
@@ -46,16 +50,19 @@ HeightFieldWaterSim.prototype.init = function()
 		this.sourceField[i] = 0;
 		this.obstacleField[i] = 1;
 	}
+
+	//init ObstacleManager
+	ObstacleManager.init();
 }
 
 HeightFieldWaterSim.prototype.update = function(dt)
 {
-	this.obstacleManager.update();
+	ObstacleManager.update();
 
 	//update obstacle field using the depth map
 	if (this.obstaclesActive)
 	{
-		var obstacleDepthMapData = this.obstacleManager.getObstacleDepthMap();
+		var obstacleDepthMapData = ObstacleManager.getObstacleDepthMap();
 		var i;
 		var length = this.res * this.res;
 		var norm;
@@ -82,7 +89,7 @@ HeightFieldWaterSim.prototype.disturb = function(idx, amount)
 
 HeightFieldWaterSim.prototype.addObstacle = function(mesh)
 {
-	this.obstacleManager.addObstacle(mesh);
+	ObstacleManager.addObstacle(mesh);
 }
 
 HeightFieldWaterSim.prototype.setObstaclesActive = function(isActive)
@@ -354,7 +361,6 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.constructor = HeightFieldWaterSim
 //override
 HeightFieldWaterSim_Tessendorf_iWave.prototype.init = function()
 {
-	console.log('iwave init');
 	//init fields first
 	var i;
 	for (i = 0; i < this.numVertices; i++)
@@ -494,75 +500,80 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.__convolve = function()
 // OBSTACLES
 //===================================
 
-function ObstacleManager(depthMapSize, depthMapRes, depthMapNear, depthMapFar)
-{
-	this.depthMapSize = depthMapSize;
-	this.depthMapRes = depthMapRes;
-	this.depthMapNear = depthMapNear;
-	this.depthMapFar = depthMapFar;
+var ObstacleManager = {
 
-	this.init();
-}
-ObstacleManager.prototype.init =  function()
-{
-	this.__loadScene();
-	this.__prepareDepthMapImageElements();
-}
+	depthMapSize: 10,
+	depthMapRes: 512,
+	depthMapNear: -2,
+	depthMapFar: 2,
 
-ObstacleManager.prototype.update =  function()
-{
-	this.depthMapRenderer.autoClear = false;
-	this.depthMapRenderer.clear();
-	this.depthMapRenderer.render(this.depthMapScene, this.depthMapCamera);
+	init: function()
+	{
+		this.__loadScene();
+		this.__prepareDepthMapImageElements();
+	},
 
-	//update obstacle depth map image display
-	this.$depthMapImageObj[0].src = this.depthMapRenderer.domElement.toDataURL();
-}
+	update: function()
+	{
+		this.depthMapRenderer.autoClear = false;
+		this.depthMapRenderer.clear();
+		this.depthMapRenderer.render(this.depthMapScene, this.depthMapCamera);
 
-ObstacleManager.prototype.addObstacle = function(mesh)
-{
-	//create another mesh with the same geometry, but with a MeshDepthMaterial
-	var depthMesh = new THREE.Mesh(
-		mesh.geometry,
-		new THREE.MeshDepthMaterial({side:THREE.DoubleSide, overdraw:true})
-	);
+		//update obstacle depth map image display
+		this.$depthMapImageObj[0].src = this.depthMapRenderer.domElement.toDataURL();
+	},
 
-	//do a reference copy of position, rotation and scale, so that will auto-update
-	//TODO: not sure why cannot just get matrix from mesh and apply to depthMesh
-	depthMesh.position = mesh.position;
-	depthMesh.rotation = mesh.rotation;
-	depthMesh.scale = mesh.scale;
+	addObstacle: function(mesh)
+	{
+		//create another mesh with the same geometry, but with a MeshDepthMaterial
+		var depthMesh = new THREE.Mesh(
+			mesh.geometry,
+			new THREE.MeshDepthMaterial({side:THREE.DoubleSide, overdraw:true})
+		);
 
-	this.depthMapScene.add(depthMesh);
-}
+		//do a reference copy of position, rotation and scale, so that will auto-update
+		//TODO: not sure why cannot just get matrix from mesh and apply to depthMesh
+		depthMesh.position = mesh.position;
+		depthMesh.rotation = mesh.rotation;
+		depthMesh.scale = mesh.scale;
 
-ObstacleManager.prototype.getObstacleDepthMap = function()
-{
-	return this.obstacleDepthMapCanvasElemContext.getImageData(0, 0, this.depthMapRes, this.depthMapRes).data;
-}
+		this.depthMapScene.add(depthMesh);
+	},
 
-ObstacleManager.prototype.__loadScene = function()
-{
-	//init objects for depth map rendering
-	this.depthMapRenderer = new THREE.CanvasRenderer({
-		antialias : true
-	});
-	this.depthMapRenderer.setSize(this.depthMapRes, this.depthMapRes);
-	this.depthMapRenderer.setClearColor('#000000', 1);
-	this.obstacleDepthMapCanvasElemContext = this.depthMapRenderer.domElement.getContext('2d');
+	getObstacleDepthMap: function()
+	{
+		return this.obstacleDepthMapCanvasElemContext.getImageData(0, 0, this.depthMapRes, this.depthMapRes).data;
+	},
 
-	this.depthMapScene = new THREE.Scene();
+	__loadScene: function()
+	{
+		if (!this.depthMapRenderer)
+		{
+			this.depthMapRenderer = new THREE.CanvasRenderer({
+				antialias : true
+			});
+			this.depthMapRenderer.setSize(this.depthMapRes, this.depthMapRes);
+			this.depthMapRenderer.setClearColor('#000000', 1);
+			this.obstacleDepthMapCanvasElemContext = this.depthMapRenderer.domElement.getContext('2d');
 
-	var halfSize = this.depthMapSize / 2.0;
-	this.depthMapCamera = new THREE.OrthographicCamera(-halfSize, halfSize, -halfSize, halfSize, this.depthMapNear, this.depthMapFar);
-	this.depthMapCamera.rotation.x = THREE.Math.degToRad(90);
-	this.depthMapCamera.position.y = 0;
-}
+			this.depthMapScene = new THREE.Scene();
 
-ObstacleManager.prototype.__prepareDepthMapImageElements = function()
-{
-	//load original terrain image, scale it using canvas, then set scaled image to $scaledImageObj
-	this.$depthMapImageObj = $(new Image());
-	this.$depthMapImageObj[0].src = this.depthMapRenderer.domElement.toDataURL();
-	$('body').append(this.$depthMapImageObj);
+			var halfSize = this.depthMapSize / 2.0;
+			this.depthMapCamera = new THREE.OrthographicCamera(-halfSize, halfSize, -halfSize, halfSize, this.depthMapNear, this.depthMapFar);
+			this.depthMapCamera.rotation.x = THREE.Math.degToRad(90);
+			this.depthMapCamera.position.y = 0;
+		}
+	},
+
+	__prepareDepthMapImageElements: function()
+	{
+		//load original terrain image, scale it using canvas, then set scaled image to $scaledImageObj
+		if (!this.$depthMapImageObj)
+		{
+			this.$depthMapImageObj = $(new Image());
+			this.$depthMapImageObj[0].src = this.depthMapRenderer.domElement.toDataURL();
+			$('body').append(this.$depthMapImageObj);
+		}
+	}
+
 }
