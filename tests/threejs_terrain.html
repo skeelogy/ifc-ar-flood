@@ -40,9 +40,9 @@
 	var clock = new THREE.Clock();
 	var simplex = new SimplexNoise();
 	var shadowMapRes = 1024;
-	var terrainRes = 256;
-	var terrainSize = 10;
-	var terrainSegmentSize = terrainSize / terrainRes;
+	var TERRAIN_RES = 256;
+	var TERRAIN_SIZE = 10;
+	var terrainSegmentSize = TERRAIN_SIZE / TERRAIN_RES;
 
 	var terrainImages = {
 		'IGMS1':'/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg',
@@ -106,7 +106,7 @@
         stackBlurImage('scaledTerrainImage', 'terrainImageCanvas', options.terrainPreBlur, false);
 
         //get filtered image data
-        terrainImageData = imageCanvasElemContext.getImageData(0, 0, terrainRes, terrainRes).data;
+        terrainImageData = imageCanvasElemContext.getImageData(0, 0, TERRAIN_RES, TERRAIN_RES).data;
 
 		generateTerrainHeight(terrainGeom);
 	}
@@ -116,8 +116,8 @@
 		//create canvas that is same size as terrain res so that one vertex maps to one resized pixel
 		$imageCanvasElem = $(document.createElement('canvas'));
 		$imageCanvasElem[0].id = 'terrainImageCanvas';
-		$imageCanvasElem[0].width = terrainRes;
-		$imageCanvasElem[0].height = terrainRes;
+		$imageCanvasElem[0].width = TERRAIN_RES;
+		$imageCanvasElem[0].height = TERRAIN_RES;
 		$imageCanvasElem.css({'position':'fixed', 'top':'55px', 'left':0});
 		$('body').append($imageCanvasElem);
 		
@@ -142,7 +142,7 @@
 		$origImageObj[0].onload = function()
 		{
 			//copy to scaled canvas to scale this image
-			imageCanvasElemContext.drawImage($origImageObj[0], 0, 0, terrainRes, terrainRes);
+			imageCanvasElemContext.drawImage($origImageObj[0], 0, 0, TERRAIN_RES, TERRAIN_RES);
 
 			//get scaled data from canvas and set data for scaledImageObj
 			$scaledImageObj[0].src = $imageCanvasElem[0].toDataURL();
@@ -260,7 +260,7 @@
 		controls.modifierKey = 'alt';
 
 		//create plane for reference and for intersection test
-		var groundPlaneGeom = new THREE.PlaneGeometry(terrainSize, terrainSize, 1, 1);  //much faster for intersection test when there are no divisions
+		var groundPlaneGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);  //much faster for intersection test when there are no divisions
 		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		var groundPlaneMaterial = new THREE.MeshPhongMaterial();
 		materials.push(groundPlaneMaterial);
@@ -270,7 +270,7 @@
 		scene.add(groundPlaneMesh);
 
 		//create terrain
-		terrainGeom = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainRes-1, terrainRes-1);
+		terrainGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_RES-1, TERRAIN_RES-1);
 		terrainGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		var terrainMaterial = new THREE.MeshPhongMaterial();
 		materials.push(terrainMaterial);
@@ -818,11 +818,11 @@
 	function calcTerrainVertexId(x, z)
 	{
 		//calculate vertex id using x and z
-		var half = terrainSize / 2.0;
-		var row = Math.floor((z + half) / terrainSize * terrainRes);
-		var col = Math.floor((x + half) / terrainSize * terrainRes);
+		var half = TERRAIN_SIZE / 2.0;
+		var row = Math.floor((z + half) / TERRAIN_SIZE * TERRAIN_RES);
+		var col = Math.floor((x + half) / TERRAIN_SIZE * TERRAIN_RES);
 		//console.log(row + ' ' + col + ' ' + vertexId);
-		return (row * terrainRes) + col;
+		return (row * TERRAIN_RES) + col;
 	}
 
 	$(document).ready(function()
@@ -840,7 +840,8 @@
 		}
 
 		//init arrays
-		for (var i = 0; i < terrainRes * terrainRes; i++)
+		var count = TERRAIN_RES * TERRAIN_RES;
+		for (var i = 0; i < count; i++)
 		{
 			terrainBaseHeight[i] = 0;
 			terrainAddedHeight[i] = 0;
