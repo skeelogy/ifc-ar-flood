@@ -8,10 +8,10 @@ This is the github repository for my Google Summer of Code 2013 project with Iow
 > The aim of this project is to create a web-based augmented reality application using HTML5 technologies for an interactive flood simulation. Users will place encoded paper markers on a board, each representing an object such as a house, car, bridge, levee, dam etc. A webcam is then used to detect and track these markers in real-time. 3D virtual objects will be overlaid on these markers on the screen. A height-map terrain can be loaded by the user to represent the actual terrain condition of a specific place and to provide more interesting structures for flooding to occur. Additional sculpting of the terrain is possible using special “sculpting markers” which can either bump or dent a terrain area. A rainfall event can then be initiated which will flood the area according to variables such as rainfall amount, drainage rate and evaporation rate. Other sources of water can be created by the user using markers which represent water sources, or by removing water-holding structures such as levees or dams. The flood simulation will interact with the 3D virtual objects in the scene.
 
 
-### Running the demos locally in your web browser
+### Running the demos in your web browser locally
 
-You need to view the files via a http server for WebRTC to work, otherwise you will get a permission-denied error.
-I recommend installing node.js and its http-server module to get a quick http server running.
+You need to view the HTML files via a http server to prevent errors such as permission-denied error when using WebRTC and cross-origin error when loading textures.
+I recommend installing node.js and its http-server module to get a fast http server running.
 * Download and install node.js: http://nodejs.org/download/
 * Install the http-server module for node.js by typing this in the node.js command prompt:
  * npm install http-server -g
@@ -19,6 +19,8 @@ I recommend installing node.js and its http-server module to get a quick http se
  * http-server C:\path\to\directory
 * View the web page via the http server by using this URL in the browser:
  * http://localhost:8080/thePageYouWantToView.html
+
+For more information, please refer to this execellent document from Three.js: https://github.com/mrdoob/three.js/wiki/How-to-run-things-locally
 
 ### Browser support
 
