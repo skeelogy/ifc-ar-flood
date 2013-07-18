@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>IFC - Rigid Body Test</title>
+	<meta charset="UTF-8"/>
+	
+	<link rel="stylesheet" href="/css/style.css">
+	<style type="text/css">
+		#stats { position: absolute; top:0; left: 0 }
+		#stats #fps { background: transparent !important }
+		#stats #fps #fpsText { color: #aaa !important }
+		#stats #fps #fpsGraph { display: block }
+	</style>
+	
+	<!--load helper libraries-->
+	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+	
+	<!--load AR and 3D libraries-->
+	<script type="text/javascript" src="/js/lib/three.min.js"></script>
+	<script type="text/javascript" src="/js/lib/Detector.js"></script>
+	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
+	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
+	<script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
+
+	<script type="text/javascript" src="/js/lib/physics/physi.js"></script>
+	
+	<script>
+
+	//config Physijs
+	Physijs.scripts.worker = '/js/lib/physics/physijs_worker.js';
+	Physijs.scripts.ammo = '/js/lib/physics/ammo.js';
+
+	var SHADOW_MAP_RES = 1024;
+
+	var clock = new THREE.Clock();
+
+	function checkWebGl()
+	{
+		//check for WebGL
+		if (!Detector.webgl)
+		{
+			$('div').remove();
+			Detector.addGetWebGLMessage();
+			throw new Error('Your browser does not seem to support WebGL');
+		}
+	}
+
+	var renderer, scene, camera, controls;
+	var materials = [];
+	var localAxis;
+	function setupThreejsScene()
+	{
+		//create renderer
+		renderer = new THREE.WebGLRenderer({
+			antialias : true
+		});
+		renderer.setSize(window.innerWidth, window.innerHeight-5);
+		renderer.setClearColor('#111111', 1);
+		renderer.shadowMapEnabled = true;
+		renderer.shadowMapType = THREE.PCFSoftShadowMap;
+		renderer.shadowMapSoft = true;
+		var $container = $('#threejs-container');
+		$container.append(renderer.domElement);
+
+		//create scene
+		scene = new Physijs.Scene();
+
+		//create camera
+		camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
+		camera.position.set(16, 16, 30);
+		camera.lookAt(new THREE.Vector3(0,0,0));
+
+		//create controls for camera
+		controls = new THREE.OrbitControls(camera);
+		controls.userPanSpeed = 0.2;
+		//controls.autoRotate = true;
+		controls.modifierKey = 'alt';
+
+		//create axis
+		localAxis = new THREE.AxisHelper();
+		scene.add(localAxis);
+
+		//setup lights
+		scene.add(new THREE.AmbientLight(0x111111));
+
+		keyLight = new THREE.SpotLight(0xffff44, 0.6);
+		keyLight.position.set(5, 15, -15);
+		keyLight.target.position.set(0, 0, 0);
+		keyLight.castShadow = true;
+		keyLight.shadowCameraNear = 10;
+		keyLight.shadowCameraFar = 40;
+		keyLight.shadowCameraFov = 40;
+		// keyLight.shadowCameraVisible = true;
+		keyLight.shadowBias = 0.00001;
+		keyLight.shadowDarkness = 0.4;
+		keyLight.shadowMapWidth = SHADOW_MAP_RES;
+		keyLight.shadowMapHeight = SHADOW_MAP_RES;
+		scene.add(keyLight);
+
+		fillLight = new THREE.SpotLight(0xff0044, 0.4);
+		fillLight.position.set(5, 2, 15);
+		fillLight.target.position.set(0, 0, 0);
+		scene.add(fillLight);
+	}
+
+	function setupPhysicsScene()
+	{
+		//create static infinite plane
+		var planeGeom = new THREE.PlaneGeometry(100,100,100);
+		planeGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		var planeMaterial = new THREE.MeshPhongMaterial();
+		materials.push(planeMaterial);
+		var planeDynMesh = new Physijs.PlaneMesh(planeGeom, planeMaterial, 0);
+		planeDynMesh.castShadow = false;
+		planeDynMesh.receiveShadow = true;
+		scene.add(planeDynMesh);
+
+		//create an array of cubes
+		var i, j, k;
+		var width = 1.0;
+		var num = 8;
+		var offset = 0.5 * (num-1) * width;
+		for (i = 0; i < num; i++)
+		{
+			for (j = 0; j < num; j++)
+			{
+				for (k = 0; k < num; k++)
+				{
+					var cubeGeom = new THREE.CubeGeometry(width,width,width);
+					var cubeMaterial = new THREE.MeshPhongMaterial();
+					materials.push(cubeMaterial);
+					var cubeDynMesh = new Physijs.BoxMesh(cubeGeom, cubeMaterial);
+					cubeDynMesh.position.x = width * i - offset;
+					cubeDynMesh.position.y = width * j + 4;
+					cubeDynMesh.position.z = width * k - offset;
+					cubeDynMesh.castShadow = true;
+					cubeDynMesh.receiveShadow = true;
+					scene.add(cubeDynMesh);
+				}
+			}
+		}
+		
+	}
+
+	function setupEvents()
+	{
+		window.addEventListener('resize', window_onResize, false);
+		window.addEventListener('mousedown', window_onMouseDown, false);
+		window.addEventListener('mousemove', window_onMouseMove, false);
+		window.addEventListener('mouseup', window_onMouseUp, false);
+	}
+
+	function window_onResize(event)
+	{
+		//update camera projection
+		camera.aspect = window.innerWidth / (window.innerHeight-5);
+		camera.updateProjectionMatrix();
+
+		//update renderer size
+		renderer.setSize(window.innerWidth, window.innerHeight-5);
+	}
+
+	function window_onMouseDown(event)
+	{
+		
+	}
+
+	function window_onMouseMove(event)
+	{
+		event.preventDefault();
+	}
+
+	function window_onMouseUp(event)
+	{
+		
+	}
+
+	var stats;
+	function setupStats()
+	{
+		//create a stats monitor
+		stats = new Stats();
+		$('body').append(stats.domElement);
+	}
+
+	var gui;
+	var renderingFolder, displayFolder;
+	var options = {
+		renderingShadows: true,  //FIXME: this has to be init to true
+		displayWireframe: false,
+		displayLocalAxis: false,
+	};
+	function setupGui() {
+
+		gui = new dat.GUI();
+		//gui.close();  //close GUI by default
+
+		//Rendering folder
+		renderingFolder = gui.addFolder('Rendering');
+
+		var control = renderingFolder.add(options, 'renderingShadows').name('Shadows');
+		function changeRenderingShadows(value)
+		{
+			renderer.shadowMapAutoUpdate = value;
+			if (!value)
+			{
+				renderer.clearTarget(keyLight.shadowMap);
+			}
+		}
+		control.onChange(changeRenderingShadows);
+		changeRenderingShadows(options.renderingShadows);
+
+		//Display folder
+		displayFolder = gui.addFolder('Display');
+		
+		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
+		function toggleWireframe(value)
+		{
+			for (materialId in materials)
+			{
+				materials[materialId].wireframe = value;
+			}
+		}
+		control.onChange(toggleWireframe);
+		toggleWireframe(options.displayWireframe);
+		
+		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
+		function toggleLocalAxis(value)
+		{
+			localAxis.visible = value;
+		}
+		control.onChange(toggleLocalAxis);
+		toggleLocalAxis(options.displayLocalAxis);
+	}
+
+	$(document).ready(function()
+	{
+		//check for WebGL
+		checkWebGl();
+
+		console.log('Document is ready.');
+		
+		//setup scene
+		setupThreejsScene();
+
+		//setup physics scene
+		setupPhysicsScene();
+
+		//setup events
+		setupEvents();
+
+		//setup stats monitor
+		setupStats();
+		
+		//setup GUI
+		setupGui();
+		
+		//main loop
+		function loop()
+		{
+			var dt = clock.getDelta();  //have to call this before getElapsedTime()
+			var time = clock.getElapsedTime();
+
+			controls.update();
+
+			scene.simulate();
+
+			renderer.autoClear = false;
+			renderer.clear();
+			renderer.render(scene, camera);
+
+			stats.update();
+
+			requestAnimationFrame(loop);
+		}
+		loop();
+		
+	});
+	</script>
+</head>
+<body>
+	<div id="threejs-container"></div>
+	<div class="translucent" id="info-container">
+		<div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
+	</div>
+</body>
+</html>
