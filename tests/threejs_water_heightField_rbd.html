@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>IFC - Rigid Body Test</title>
+	<title>IFC - Two-Way Coupling Test</title>
 	<meta charset="UTF-8"/>
 	
 	<link rel="stylesheet" href="/css/style.css">
@@ -25,6 +25,7 @@
 	<script type="text/javascript" src="/js/lib/seedrandom.js"></script>
 
 	<script type="text/javascript" src="/js/heightfieldwatersim.js"></script>
+	<script type="text/javascript" src="/js/skvoxelizer.js"></script>
 	<script type="text/javascript" src="/js/lib/physics/physi.js"></script>
 	
 	<script>
@@ -35,10 +36,15 @@
 
 	var WATER_SIZE = 10;
 	var WATER_RES = 80;
+	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
+	var WATER_SIZE_HALF = WATER_SIZE / 2.0;
+	var WATER_VOXEL_VOL = WATER_GRID_SIZE * WATER_GRID_SIZE * WATER_GRID_SIZE;
 	var DAMPING_FACTOR = 0.8;
 	var DISTURB_AMOUNT = 0.015;
 
 	var SHADOW_MAP_RES = 1024;
+
+	var EPSILON = 0.001;
 
 	var clock = new THREE.Clock();
 
@@ -72,6 +78,14 @@
 
 		//create scene
 		scene = new Physijs.Scene();
+		scene.addEventListener(
+			'ready',
+			function() {
+				console.log('Physijs scene is ready');
+				setupDynamicAttributes();
+			}
+		);
+		// scene.setGravity(new THREE.Vector3(0, -5, 0));
 
 		//create camera
 		camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
@@ -150,47 +164,64 @@
 	var jSegments = 3;
 	var iSegmentSize = WATER_SIZE / iSegments;
 	var jSegmentSize = WATER_SIZE / jSegments;
-	var halfWaterSize = WATER_SIZE / 2.0;
 	var dynMeshes = [];
 	var obstacles = [];
 	function setupPhysicsScene()
 	{
-		// //create static infinite plane
-		// var planeGeom = new THREE.PlaneGeometry(100,100,100);
-		// planeGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-		// var planeMaterial = new THREE.MeshPhongMaterial();
-		// materials.push(planeMaterial);
-		// var planeDynMesh = new Physijs.PlaneMesh(planeGeom, planeMaterial, 0);
-		// planeDynMesh.castShadow = false;
-		// planeDynMesh.receiveShadow = true;
-		// scene.add(planeDynMesh);
+		//create a dynamic box
+		var boxGeom = new THREE.CubeGeometry(1, 1, 1);
+		var boxMaterial = new THREE.MeshPhongMaterial({color:'#00ff00'});
+		materials.push(boxMaterial);
+		var boxMass = 500;  //kg
+		var boxDynMesh = new Physijs.BoxMesh(boxGeom, boxMaterial, boxMass);
+		boxDynMesh.position.y = 2;
+		boxDynMesh.castShadow = true;
+		boxDynMesh.receiveShadow = true;
+		scene.add(boxDynMesh);
+		dynMeshes.push(boxDynMesh);
+		boxDynMesh.voxelizer = new SkVoxelizer(boxDynMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
 
-		//create an array of spheres
-		var i, j, k;
-		var width = 1.0;
-		var num = 3;
-		var offset = 0.5 * (num-1) * width;
-		for (i = 0; i < num; i++)
-		{
-			for (j = 0; j < num; j++)
-			{
-				for (k = 0; k < num; k++)
-				{
-					var sphereGeom = new THREE.SphereGeometry(width/2.0, 16, 32);
-					var sphereMaterial = new THREE.MeshPhongMaterial();
-					materials.push(sphereMaterial);
-					var sphereDynMesh = new Physijs.SphereMesh(sphereGeom, sphereMaterial);
-					sphereDynMesh.position.x = width * 0.9 * i - offset;
-					sphereDynMesh.position.y = width * 0.9 * j + 4;
-					sphereDynMesh.position.z = width * 0.9 * k - offset;
-					sphereDynMesh.castShadow = true;
-					sphereDynMesh.receiveShadow = true;
-					scene.add(sphereDynMesh);
-					dynMeshes.push(sphereDynMesh);
-				}
-			}
-		}
+		// //create a dynamic sphere
+		// var sphereGeom = new THREE.SphereGeometry(0.75, 8, 8);
+		// var sphereMaterial = new THREE.MeshPhongMaterial({color:'#00ff00'});
+		// materials.push(sphereMaterial);
+		// var sphereMass = 530;  //kg
+		// var sphereDynMesh = new Physijs.SphereMesh(sphereGeom, sphereMaterial, sphereMass);
+		// sphereDynMesh.position.set(3, 3, 3);
+		// sphereDynMesh.castShadow = true;
+		// sphereDynMesh.receiveShadow = true;
+		// scene.add(sphereDynMesh);
+		// dynMeshes.push(sphereDynMesh);
+		// sphereDynMesh.voxelizer = new SkVoxelizer(sphereDynMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
 		
+		//create 4 walls to prevent dynamic object from flying off
+		var thickness = 1;
+		var halfThickness = thickness / 2.0;
+		var wallGeom = new THREE.CubeGeometry(WATER_SIZE, WATER_SIZE * 2, thickness);
+		var wallRotatedGeom = new THREE.CubeGeometry(WATER_SIZE, WATER_SIZE * 2, thickness);
+		wallRotatedGeom.applyMatrix(new THREE.Matrix4().makeRotationY(-Math.PI/2));
+		var wallMaterial = new THREE.MeshPhongMaterial();
+		//+z wall
+		var wallMesh = new Physijs.BoxMesh(wallGeom, wallMaterial, 0);
+		wallMesh.position.z = WATER_SIZE_HALF + halfThickness;
+		wallMesh.visible = false;
+		scene.add(wallMesh);
+		//-z wall
+		wallMesh = new Physijs.BoxMesh(wallGeom, wallMaterial, 0);
+		wallMesh.position.z = - (WATER_SIZE_HALF + halfThickness);
+		wallMesh.visible = false;
+		scene.add(wallMesh);
+		//+x wall
+		wallMesh = new Physijs.BoxMesh(wallRotatedGeom, wallMaterial, 0);
+		wallMesh.position.x = WATER_SIZE_HALF + halfThickness;
+		wallMesh.visible = false;
+		scene.add(wallMesh);
+		//-x wall
+		wallMesh = new Physijs.BoxMesh(wallRotatedGeom, wallMaterial, 0);
+		wallMesh.position.x = -(WATER_SIZE_HALF + halfThickness);
+		wallMesh.visible = false;
+		scene.add(wallMesh);
+
 		//create some obstacles for the water sim
 		var i, j;
 		for (i = 0; i < iSegments; i++)
@@ -204,11 +235,9 @@
 				obstacleMesh = new Physijs.BoxMesh(obstacleGeom, obstacleMaterial, 0);
 				obstacleMesh.castShadow = true;
 				obstacleMesh.receiveShadow = true;
-				obstacleMesh.position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize);
-				// obstacleMesh.position.y = Math.random() * 2 - 1.0;
-				obstacleMesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize);
+				obstacleMesh.position.x = (iSegmentSize * i) - WATER_SIZE_HALF + ((Math.random()) * iSegmentSize);
+				obstacleMesh.position.z = (jSegmentSize * j) - WATER_SIZE_HALF + ((Math.random()) * jSegmentSize);
 				obstacleMesh.rotation.y = (Math.random() * 360);
-				// obstacleMesh.visible = false;
 				scene.add(obstacleMesh);
 				obstacles.push(obstacleMesh);
 				heightFieldWaterSim.addObstacle(obstacleMesh);
@@ -223,6 +252,16 @@
 		obstacles[2].__dirtyPosition = true;
 	}
 
+	function setupDynamicAttributes()
+	{
+		var dynMesh;
+		for (dynMeshId in dynMeshes)
+		{
+			dynMesh = dynMeshes[dynMeshId];
+			dynMesh.setDamping(0.95, 0.5);
+		}
+	}
+
 	function randomizeObstaclePositions()
 	{
 		var i, j;
@@ -231,42 +270,103 @@
 			for (j = 0; j < jSegments; j++)
 			{
 				idx = i * iSegments + j;
-				obstacles[idx].position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize * 0.8);
+				obstacles[idx].position.x = (iSegmentSize * i) - WATER_SIZE_HALF + ((Math.random()) * iSegmentSize * 0.8);
 				obstacles[idx].position.y = Math.random() * 4 - 2;
-				obstacles[idx].position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize * 0.8);
+				obstacles[idx].position.z = (jSegmentSize * j) - WATER_SIZE_HALF + ((Math.random()) * jSegmentSize * 0.8);
 				obstacles[idx].rotation.y = (Math.random() * 360);
 			}
 		}
 	}
 
-	displacedAmt = [];
+	//TODO: this should go into a HeightFieldTwoWayCoupledWaterSim class
+	displacedVoxelCount = {};
 	function handleTwoWayCoupling(dt)
 	{
 		//find out how much water the objects are displacing
-		//for each object, project AABB down to water, check all affected grid cells to see if sphere is inside or outside water
+		//for each object, project AABB down to water, check all affected grid points to see if they are inside or outside water
+		var dynMesh, bbox, h, voxelizer;
 		for (dynMeshId in dynMeshes)
 		{
-			var dynMesh = dynMeshes[dynMeshId];
-			affectedPoints = getAffectedPoints(dynMesh);
-			for (affectedPointId in affectedPoints)
+			dynMesh = dynMeshes[dynMeshId];
+
+			//TODO: check if dynMesh is totally not touching the water, using bounding box checks
+
+			//get intersection data from voxelizer
+			voxelizer = dynMesh.voxelizer;
+			voxelizer.updateIntersections();  //this will also update AABB voxelizer.__min and voxelizer.__max
+			//visualize if necessary, for debugging purposes:
+			// dynMesh.voxelizer.voxelize();
+			// dynMesh.voxelizer.visualize(scene);
+
+			//project AABB down and get (x,z) of all affected grid points
+			var startX = Math.ceil(voxelizer.__min.x / WATER_GRID_SIZE) * WATER_GRID_SIZE;
+			var endX = Math.ceil(voxelizer.__max.x / WATER_GRID_SIZE) * WATER_GRID_SIZE;
+			var startZ = Math.ceil(voxelizer.__min.z / WATER_GRID_SIZE) * WATER_GRID_SIZE;
+			var endZ = Math.ceil(voxelizer.__max.z / WATER_GRID_SIZE) * WATER_GRID_SIZE;
+			var x, z;
+			var vertices = heightFieldWaterSim.geometry.vertices;
+			var minIntersectHeight, maxIntersectHeight, waterHeight;
+			for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
 			{
-				var affectedPoint = affectedPoints[affectedPointId];
+				for (z = startZ; z <= endZ + EPSILON; z += WATER_GRID_SIZE)
+				{
+					// console.log(x +', ' + z);
+					var vertexId = calcVertexId(x, z);
+					if (vertices[vertexId])
+					{
+						//get current water height and intersection heights
+						waterHeight = vertices[vertexId].y;
+						if (voxelizer.intersectionFirstAndLastHeights[x] && voxelizer.intersectionFirstAndLastHeights[x][z])
+						{
+							minIntersectHeight = voxelizer.intersectionFirstAndLastHeights[x][z][0];
+							maxIntersectHeight = voxelizer.intersectionFirstAndLastHeights[x][z][1];
 
-				//if totally outside, then ignore
-
-				//else discretize column within obj's AABB height segment and check for inside/outside using radius
+							//compare current water height with the voxelizer intersection heights to figure out how much water has been displaced
+							if (minIntersectHeight > waterHeight)
+							{
+								//no intersection
+								displacedVoxelCount[vertexId] = 0;
+							}
+							else if (maxIntersectHeight < waterHeight)
+							{
+								//totally submerged
+								displacedVoxelCount[vertexId] = (maxIntersectHeight - minIntersectHeight) / WATER_GRID_SIZE;
+							}
+							else
+							{
+								//partially submerged
+								displacedVoxelCount[vertexId] = (waterHeight - minIntersectHeight) / WATER_GRID_SIZE;
+							}
+						}
+					}
+				}
 			}
+
+			//sum up all displaced amounts for the object and apply buoyancy force
+			var totalDisplacedVoxels = 0;
+			for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
+			{
+				for (z = startZ; z <= endZ + EPSILON; z += WATER_GRID_SIZE)
+				{
+					var vertexId = calcVertexId(x, z);
+					if (displacedVoxelCount[vertexId])
+					{
+						totalDisplacedVoxels += displacedVoxelCount[vertexId];
+					}
+				}
+			}
+			var totalDisplacedVol = totalDisplacedVoxels * WATER_VOXEL_VOL;  //cubic metres
+			// if (totalDisplacedVol !== 0) console.log(totalDisplacedVol);
+			var gravitationalAcc = -9.81;  //m per squared second
+			var waterDensity = 1000;  //1000 kg per cubic metres
+			var buoyancyForce = - totalDisplacedVol * waterDensity * gravitationalAcc;
+			// if (totalDisplacedVol !== 0) console.log(force);
+			//TODO: this force has to be applied per column
+			dynMesh.applyCentralForce(new THREE.Vector3(0, buoyancyForce, 0));
+
+			//TODO: spread out to water sim
+			
 		}
-
-		//spread out to water sim
-
-		//apply buoyancy force to objects, based on displacement
-
-	}
-
-	function getAffectedPoints(obj)
-	{
-
 	}
 
 	function setupEvents()
@@ -345,12 +445,22 @@
 		}
 	}
 
-	function calcVertexId(x, z)
+	function calcVertexId(x, z, roundDown)
 	{
+		roundDown = (typeof(roundDown)==='undefined') ? true : roundDown;
+
 		//calculate vertex id using x and z
-		var half = WATER_SIZE / 2.0;
-		var row = Math.floor((z + half) / WATER_SIZE * WATER_RES);
-		var col = Math.floor((x + half) / WATER_SIZE * WATER_RES);
+		var row, col;
+		if (roundDown)
+		{
+			row = Math.floor((z + WATER_SIZE_HALF) / WATER_SIZE * WATER_RES);
+			col = Math.floor((x + WATER_SIZE_HALF) / WATER_SIZE * WATER_RES);
+		}
+		else
+		{
+			row = Math.ceil((z + WATER_SIZE_HALF) / WATER_SIZE * WATER_RES);
+			col = Math.ceil((x + WATER_SIZE_HALF) / WATER_SIZE * WATER_RES);
+		}
 		return (row * WATER_RES) + col;
 	}
 
@@ -377,7 +487,7 @@
 		'heightFieldWaterSim_xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[3]],
 		obstaclesActive: true,
 		obstaclesSeed: 1,
 		obstaclesShowObstacles: true,
@@ -531,11 +641,6 @@
 			var dt = clock.getDelta();  //have to call this before getElapsedTime()
 			var time = clock.getElapsedTime();
 
-			//handle two-way coupling
-			handleTwoWayCoupling(dt);
-
-			heightFieldWaterSim.update(dt);
-
 			controls.update();
 
 			scene.simulate();
@@ -543,6 +648,12 @@
 			renderer.autoClear = false;
 			renderer.clear();
 			renderer.render(scene, camera);
+
+			//FIXME: this should appear before renderer.render(), but it seems like the transformation matrix hasn't been applied on the first frame before calling render(), so have to do it after.
+			//handle two-way coupling
+			handleTwoWayCoupling(dt);
+
+			heightFieldWaterSim.update(dt);
 
 			stats.update();
 
