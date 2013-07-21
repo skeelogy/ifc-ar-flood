@@ -44,7 +44,7 @@
 	var renderer, scene, camera, controls;
 	var materials = [];
 	var localAxis;
-	var sphereMesh;
+	var testMesh;
 	function setupThreejsScene()
 	{
 		//create renderer
@@ -88,14 +88,16 @@
 		scene.add(fillLight);
 
 		//create a sphere for voxelizing
-		var sphereGeom = new THREE.SphereGeometry(2, 16, 32);
-		// var sphereGeom = new THREE.CubeGeometry(2.2, 2.2, 2.2);
-		// sphereGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-		var sphereMaterial = new THREE.MeshPhongMaterial();
-		materials.push(sphereMaterial);
-		sphereMesh = new THREE.Mesh(sphereGeom, sphereMaterial);
-		// sphereMesh.visible = false;
-		scene.add(sphereMesh);
+		// var testGeom = new THREE.SphereGeometry(2, 8, 8);
+		var testGeom = new THREE.CubeGeometry(2.2, 2.2, 2.2);
+		var testMaterial = new THREE.MeshPhongMaterial();
+		materials.push(testMaterial);
+		testMesh = new THREE.Mesh(testGeom, testMaterial);
+		testMesh.position.x = 1;
+		testMesh.position.y = 1;
+		testMesh.position.z = 1;
+		// testMesh.visible = false;
+		scene.add(testMesh);
 	}
 
 	function setupEvents()
@@ -183,7 +185,7 @@
 		setupThreejsScene();
 
 		//voxelize the sphere
-		voxelizer = new SkVoxelizer(sphereMesh, 0.25, 0.25, 0.25);
+		voxelizer = new SkVoxelizer(testMesh, 0.25, 0.25, 0.25);
 
 		//setup events
 		setupEvents();
@@ -203,11 +205,13 @@
 			controls.update();
 
 			//update sphere
-			sphereMesh.position.x = Math.cos(time*1.5);
-			sphereMesh.position.y = Math.sin(time*2.5);
-			sphereMesh.position.z = Math.cos(time*2);
+			testMesh.position.x = Math.cos(time*1.5);
+			testMesh.position.y = Math.sin(time*2.5);
+			testMesh.position.z = Math.cos(time*2);
+			testMesh.rotation.x = time;
+			testMesh.rotation.z = time / 2;
 
-			//call voxelizer every frame to check frame rate
+			//voxelize on every frame
 			voxelizer.voxelize();
 			voxelizer.visualize(scene);
 

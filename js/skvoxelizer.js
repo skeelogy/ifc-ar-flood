@@ -16,18 +16,54 @@ function SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ)
 	this.__EPSILON = 0.001;
 
 	this.geometry = mesh.geometry;
+	this.mesh.material.side = THREE.DoubleSide;  //make sure that the material is double sided for intersection test to work properly
+
+	this.voxelData = {};
+	this.intersectionFirstAndLastHeights = {};
+
 	//if bounding box does not exist, force generate it first
 	if (!this.geometry.boundingBox) this.geometry.computeBoundingBox();
+	//store some private variables for calculations later
 	this.bbox = this.geometry.boundingBox;
+	this.__min = new THREE.Vector3();
+	this.__max = new THREE.Vector3();
+	this.__transformedBbox = this.bbox.clone();
+	this.__xMinMultiple = 0;
+	this.__xMaxMultiple = 0;
+	this.__yMinMultiple = 0;
+	this.__yMaxMultiple = 0;
+	this.__zMinMultiple = 0;
+	this.__zMaxMultiple = 0;
 
-	//for intersection test
-	this.voxelData = {};
-	this.voxelMeshes = null;
-	this.intersectionFirstAndLastHeights = {};
+	//store some private variables for intersection test
+	this.__voxelMeshes = {};
 	this.__raycaster = new THREE.Raycaster();
 	// this.__raycaster.precision = 0.1;
 	this.__startPoint = new THREE.Vector3(0, -99999, 0);
 	this.__up = new THREE.Vector3(0, 1, 0);
+
+	//store some private variables for voxel mesh generation
+	this.__voxelGeom = new THREE.CubeGeometry(this.voxelSizeX, this.voxelSizeY, this.voxelSizeZ);
+	this.__voxelMaterial = new THREE.MeshPhongMaterial();
+}
+
+SkVoxelizer.prototype.__updateMinMax = function()
+{
+	//get current world transform matrix of mesh
+	var worldMat = this.mesh.matrixWorld;
+
+	//transform bounding box
+	var transformedAabb = this.__transformedBbox.copy(this.bbox).applyMatrix4(worldMat);
+	this.__min = transformedAabb.min;
+	this.__max = transformedAabb.max;
+
+	//update the min/max multiples
+	this.__xMinMultiple = Math.ceil(this.__min.x / this.voxelSizeX) * this.voxelSizeX;
+	this.__xMaxMultiple = Math.floor(this.__max.x / this.voxelSizeX) * this.voxelSizeX;
+	this.__yMinMultiple = Math.ceil(this.__min.y / this.voxelSizeY) * this.voxelSizeY;
+	this.__yMaxMultiple = Math.floor(this.__max.y / this.voxelSizeY) * this.voxelSizeY;
+	this.__zMinMultiple = Math.ceil(this.__min.z / this.voxelSizeZ) * this.voxelSizeZ;
+	this.__zMaxMultiple = Math.floor(this.__max.z / this.voxelSizeZ) * this.voxelSizeZ;
 }
 
 SkVoxelizer.prototype.updateIntersections = function()
@@ -39,26 +75,17 @@ SkVoxelizer.prototype.updateIntersections = function()
 	//so I'm not doing multiple projections as suggested in the paper to handle difficult cases yet.
 	//I just need this to work a sphere for now.
 
-	var min = this.bbox.min;
-	var max = this.bbox.max;
-
-	//make sure that the material is double sided
-	this.mesh.material.side = THREE.DoubleSide;
-
-	//calculate min and max location of points that are within bounding box
-	var xMinMultiple = Math.ceil(min.x / this.voxelSizeX) * this.voxelSizeX;
-	var xMaxMultiple = Math.floor(max.x / this.voxelSizeX) * this.voxelSizeX;
-	var zMinMultiple = Math.ceil(min.z / this.voxelSizeZ) * this.voxelSizeZ;
-	var zMaxMultiple = Math.floor(max.z / this.voxelSizeZ) * this.voxelSizeZ;
+	//get min and max of bounding box in world space
+	this.__updateMinMax();
 
 	//cast ray upwards from each (x,z) point and detect intersection with mesh
 	Math.seedrandom(1);
 	var x, z;
 	var intersectInfo;
-	for (x = xMinMultiple; x <= xMaxMultiple + this.__EPSILON; x += this.voxelSizeX)
+	for (x = this.__xMinMultiple; x <= this.__xMaxMultiple + this.__EPSILON; x += this.voxelSizeX)
 	{
 		this.intersectionFirstAndLastHeights[x] = {};
-		for (z = zMinMultiple; z <= zMaxMultiple + this.__EPSILON; z += this.voxelSizeZ)
+		for (z = this.__zMinMultiple; z <= this.__zMaxMultiple + this.__EPSILON; z += this.voxelSizeZ)
 		{
 			//get first and last intersection points
 			this.__startPoint.x = x + Math.random() * this.__EPSILON;  //need to add small random offsets to prevent hitting exactly on vertices which causes intersection test to fail
@@ -80,26 +107,16 @@ SkVoxelizer.prototype.voxelize = function()
 	//calculate the intersection points first
 	this.updateIntersections();
 
-	var min = this.bbox.min;
-	var max = this.bbox.max;
-
-	//calculate min and max location of points that are within bounding box
-	var xMinMultiple = Math.ceil(min.x / this.voxelSizeX) * this.voxelSizeX;
-	var xMaxMultiple = Math.floor(max.x / this.voxelSizeX) * this.voxelSizeX;
-	var yMinMultiple = Math.ceil(min.y / this.voxelSizeY) * this.voxelSizeY;
-	var yMaxMultiple = Math.floor(max.y / this.voxelSizeY) * this.voxelSizeY;
-	var zMinMultiple = Math.ceil(min.z / this.voxelSizeZ) * this.voxelSizeZ;
-	var zMaxMultiple = Math.floor(max.z / this.voxelSizeZ) * this.voxelSizeZ;
-
-	//TODO: this needs to take into account mesh's world transformation
+	//do the voxelization
 	var x, y, z;
-	for (x = xMinMultiple; x <= xMaxMultiple + this.__EPSILON; x += this.voxelSizeX)
+	var count = 0;
+	for (x = this.__xMinMultiple; x <= this.__xMaxMultiple + this.__EPSILON; x += this.voxelSizeX)
 	{
 		this.voxelData[x] = {};
-		for (z = zMinMultiple; z <= zMaxMultiple + this.__EPSILON; z += this.voxelSizeZ)
+		for (z = this.__zMinMultiple; z <= this.__zMaxMultiple + this.__EPSILON; z += this.voxelSizeZ)
 		{
 			this.voxelData[x][z] = {};
-			for (y = yMinMultiple; y <= yMaxMultiple + this.__EPSILON; y += this.voxelSizeY)
+			for (y = this.__yMinMultiple; y <= this.__yMaxMultiple + this.__EPSILON; y += this.voxelSizeY)
 			{
 				//check y against the intersection boundaries for this (x,z) value
 				if (this.intersectionFirstAndLastHeights[x][z])
@@ -120,55 +137,50 @@ SkVoxelizer.prototype.voxelize = function()
 
 SkVoxelizer.prototype.visualize = function(scene)
 {
-	var min = this.bbox.min;
-	var max = this.bbox.max;
-
-	//calculate min and max location of points that are within bounding box
-	var xMinMultiple = Math.ceil(min.x / this.voxelSizeX) * this.voxelSizeX;
-	var xMaxMultiple = Math.floor(max.x / this.voxelSizeX) * this.voxelSizeX;
-	var yMinMultiple = Math.ceil(min.y / this.voxelSizeY) * this.voxelSizeY;
-	var yMaxMultiple = Math.floor(max.y / this.voxelSizeY) * this.voxelSizeY;
-	var zMinMultiple = Math.ceil(min.z / this.voxelSizeZ) * this.voxelSizeZ;
-	var zMaxMultiple = Math.floor(max.z / this.voxelSizeZ) * this.voxelSizeZ;
-
-	//TODO: this needs to take into account mesh's world transformation
-	//create the voxel meshes if they don't already exist
-	if (!this.voxelMeshes)
+	//turn off all voxels first
+	var x, y, z;
+	for (xId in this.__voxelMeshes)
 	{
-		var voxelGeom = new THREE.CubeGeometry(this.voxelSizeX, this.voxelSizeY, this.voxelSizeZ);
-		var voxelMaterial = new THREE.MeshPhongMaterial();
-
-		var x, y, z, thisVoxelMesh;
-		this.voxelMeshes = {};
-		for (x = xMinMultiple; x <= xMaxMultiple + this.__EPSILON; x += this.voxelSizeX)
+		x = this.__voxelMeshes[xId];
+		for (zId in x)
 		{
-			this.voxelMeshes[x] = {};
-			for (z = zMinMultiple; z <= zMaxMultiple + this.__EPSILON; z += this.voxelSizeZ)
+			z = x[zId];
+			for (yId in z)
 			{
-				this.voxelMeshes[x][z] = {};
-				for (y = yMinMultiple; y <= yMaxMultiple + this.__EPSILON; y += this.voxelSizeY)
-				{
-					thisVoxelMesh = new THREE.Mesh(voxelGeom, voxelMaterial);
-					this.voxelMeshes[x][z][y] = thisVoxelMesh;
-					thisVoxelMesh.position.x = x;
-					thisVoxelMesh.position.y = y;
-					thisVoxelMesh.position.z = z;
-					scene.add(thisVoxelMesh);
-				}
+				y = z[yId];
+				y.visible = false;
 			}
-		}	
+		}
 	}
 
 	//show voxel mesh if voxel data has value of 1
-	var x, y, z;
-	for (x = xMinMultiple; x <= xMaxMultiple + this.__EPSILON; x += this.voxelSizeX)
+	var x, y, z, thisVoxelMesh;
+	for (x = this.__xMinMultiple; x <= this.__xMaxMultiple + this.__EPSILON; x += this.voxelSizeX)
 	{
-		for (z = zMinMultiple; z <= zMaxMultiple + this.__EPSILON; z += this.voxelSizeZ)
+		if (!this.__voxelMeshes[x]) this.__voxelMeshes[x] = {};
+		for (z = this.__zMinMultiple; z <= this.__zMaxMultiple + this.__EPSILON; z += this.voxelSizeZ)
 		{
-			for (y = yMinMultiple; y <= yMaxMultiple + this.__EPSILON; y += this.voxelSizeY)
+			if (!this.__voxelMeshes[x][z]) this.__voxelMeshes[x][z] = {};
+			for (y = this.__yMinMultiple; y <= this.__yMaxMultiple + this.__EPSILON; y += this.voxelSizeY)
 			{
-				this.voxelMeshes[x][z][y].visible = this.voxelData[x][z][y] === 1;
+				//create a new voxel mesh if it has not been created at this space previously
+				if (!this.__voxelMeshes[x][z][y])
+				{
+					thisVoxelMesh = new THREE.Mesh(this.__voxelGeom, this.__voxelMaterial);
+					this.__voxelMeshes[x][z][y] = thisVoxelMesh;
+					thisVoxelMesh.position.x = x;
+					thisVoxelMesh.position.y = y;
+					thisVoxelMesh.position.z = z;
+					thisVoxelMesh.visible = false;
+					scene.add(thisVoxelMesh);
+				}
+
+				//show the voxel mesh if voxel data is 1
+				if (this.voxelData[x][z][y] === 1)
+				{
+					this.__voxelMeshes[x][z][y].visible = true;
+				}
 			}
 		}
-	}	
+	}
 }
