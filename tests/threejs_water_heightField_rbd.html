@@ -172,27 +172,27 @@
 		var boxGeom = new THREE.CubeGeometry(1, 1, 1);
 		var boxMaterial = new THREE.MeshPhongMaterial({color:'#00ff00'});
 		materials.push(boxMaterial);
-		var boxMass = 500;  //kg
+		var boxMass = 700;  //kg
 		var boxDynMesh = new Physijs.BoxMesh(boxGeom, boxMaterial, boxMass);
-		boxDynMesh.position.y = 2;
+		boxDynMesh.position.set(0, 2, 0);
 		boxDynMesh.castShadow = true;
 		boxDynMesh.receiveShadow = true;
 		scene.add(boxDynMesh);
 		dynMeshes.push(boxDynMesh);
 		boxDynMesh.voxelizer = new SkVoxelizer(boxDynMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
 
-		// //create a dynamic sphere
-		// var sphereGeom = new THREE.SphereGeometry(0.75, 8, 8);
-		// var sphereMaterial = new THREE.MeshPhongMaterial({color:'#00ff00'});
-		// materials.push(sphereMaterial);
-		// var sphereMass = 530;  //kg
-		// var sphereDynMesh = new Physijs.SphereMesh(sphereGeom, sphereMaterial, sphereMass);
-		// sphereDynMesh.position.set(3, 3, 3);
-		// sphereDynMesh.castShadow = true;
-		// sphereDynMesh.receiveShadow = true;
-		// scene.add(sphereDynMesh);
-		// dynMeshes.push(sphereDynMesh);
-		// sphereDynMesh.voxelizer = new SkVoxelizer(sphereDynMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
+		//create a dynamic sphere
+		var sphereGeom = new THREE.SphereGeometry(0.75, 8, 8);
+		var sphereMaterial = new THREE.MeshPhongMaterial({color:'#00ff00'});
+		materials.push(sphereMaterial);
+		var sphereMass = 930;  //kg
+		var sphereDynMesh = new Physijs.SphereMesh(sphereGeom, sphereMaterial, sphereMass);
+		sphereDynMesh.position.set(3, 3, 3);
+		sphereDynMesh.castShadow = true;
+		sphereDynMesh.receiveShadow = true;
+		scene.add(sphereDynMesh);
+		dynMeshes.push(sphereDynMesh);
+		sphereDynMesh.voxelizer = new SkVoxelizer(sphereDynMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
 		
 		//create 4 walls to prevent dynamic object from flying off
 		var thickness = 1;
@@ -258,7 +258,7 @@
 		for (dynMeshId in dynMeshes)
 		{
 			dynMesh = dynMeshes[dynMeshId];
-			dynMesh.setDamping(0.95, 0.5);
+			dynMesh.setDamping(0.75, 0.5);
 		}
 	}
 
@@ -278,7 +278,8 @@
 		}
 	}
 
-	//TODO: this should go into a HeightFieldTwoWayCoupledWaterSim class
+	//TODO: this should go into the height field water class
+	displacedVoxelCountPrev = {};
 	displacedVoxelCount = {};
 	function handleTwoWayCoupling(dt)
 	{
@@ -364,8 +365,69 @@
 			//TODO: this force has to be applied per column
 			dynMesh.applyCentralForce(new THREE.Vector3(0, buoyancyForce, 0));
 
-			//TODO: spread out to water sim
-			
+			//spread out displaced volume
+			for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
+			{
+				for (z = startZ; z <= endZ + EPSILON; z += WATER_GRID_SIZE)
+				{
+					var vertexId = calcVertexId(x, z);
+					if (displacedVoxelCount[vertexId])
+					{
+						var diff = displacedVoxelCount[vertexId];
+						if (displacedVoxelCountPrev[vertexId])
+						{
+							diff -= displacedVoxelCountPrev[vertexId];
+						}
+						var spreadHeight = diff / 4.0 * WATER_GRID_SIZE;
+						// if (x===0 && z===0 && spreadHeight!==0) console.log(spreadHeight);
+
+						//neighbour (x+1,z)
+						var neighbourId = vertexId + WATER_RES;
+						if (vertices[neighbourId])
+						{
+							heightFieldWaterSim.disturb(neighbourId, spreadHeight);
+						}
+
+						//neighbour (x-1,z)
+						neighbourId = vertexId - WATER_RES;
+						if (vertices[neighbourId])
+						{
+							heightFieldWaterSim.disturb(neighbourId, spreadHeight);
+						}
+
+						//neighbour (x,z+1)
+						neighbourId = vertexId + 1;
+						if (vertices[neighbourId])
+						{
+							heightFieldWaterSim.disturb(neighbourId, spreadHeight);
+						}
+
+						//neighbour (x,z-1)
+						neighbourId = vertexId - 1;
+						if (vertices[neighbourId])
+						{
+							heightFieldWaterSim.disturb(neighbourId, spreadHeight);
+						}
+
+						//store this value as prev
+						displacedVoxelCountPrev[vertexId] = displacedVoxelCount[vertexId];
+					}
+				}
+			}
+
+			//remove any spread in volume for inside the object which helps in stability and makes clearer ripples
+			for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
+			{
+				for (z = startZ; z <= endZ + EPSILON; z += WATER_GRID_SIZE)
+				{
+					var vertexId = calcVertexId(x, z);
+					if (displacedVoxelCount[vertexId] > 0)
+					{
+						heightFieldWaterSim.disturb(vertexId, 0);
+					}
+				}
+			}
+
 		}
 	}
 
