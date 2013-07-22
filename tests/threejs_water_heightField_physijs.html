@@ -311,7 +311,6 @@
 			{
 				for (z = startZ; z <= endZ + EPSILON; z += WATER_GRID_SIZE)
 				{
-					// console.log(x +', ' + z);
 					var vertexId = calcVertexId(x, z);
 					if (vertices[vertexId])
 					{
@@ -357,12 +356,10 @@
 				}
 			}
 			var totalDisplacedVol = totalDisplacedVoxels * WATER_VOXEL_VOL;  //cubic metres
-			// if (totalDisplacedVol !== 0) console.log(totalDisplacedVol);
 			var gravitationalAcc = -9.81;  //m per squared second
 			var waterDensity = 1000;  //1000 kg per cubic metres
 			var buoyancyForce = - totalDisplacedVol * waterDensity * gravitationalAcc;
-			// if (totalDisplacedVol !== 0) console.log(force);
-			//TODO: this force has to be applied per column
+			//TODO: this force has to be applied per column?
 			dynMesh.applyCentralForce(new THREE.Vector3(0, buoyancyForce, 0));
 
 			//spread out displaced volume
@@ -379,7 +376,6 @@
 							diff -= displacedVoxelCountPrev[vertexId];
 						}
 						var spreadHeight = diff / 4.0 * WATER_GRID_SIZE;
-						// if (x===0 && z===0 && spreadHeight!==0) console.log(spreadHeight);
 
 						//neighbour (x+1,z)
 						var neighbourId = vertexId + WATER_RES;
@@ -464,6 +460,17 @@
 				}
 			}
 		}
+		else if (event.shiftKey)
+		{
+			if (event.button === 0)  //LMB
+			{
+				intersectObj = detectIntersectionDynObjects();
+				if (intersectObj)
+				{
+					intersectObj.applyCentralImpulse(new THREE.Vector3(Math.random(), Math.random(), Math.random()).sub(intersectObj.position).multiplyScalar(5*intersectObj.mass));
+				}
+			}
+		}
 	}
 
 	function window_onMouseMove(event)
@@ -504,6 +511,24 @@
 		if (intersectInfo && intersectInfo[0])
 		{
 			return intersectInfo[0].point;
+		}
+	}
+
+	function detectIntersectionDynObjects()
+	{
+		mousePosNorm.x = (event.clientX / window.innerWidth) * 2 - 1;
+		mousePosNorm.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+		//cast a ray from camera into screen
+		var worldPos = new THREE.Vector3(mousePosNorm.x, mousePosNorm.y, 1);
+		projector.unprojectVector(worldPos, camera);
+		raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
+		var intersectInfo = raycaster.intersectObjects(dynMeshes);
+		
+		//get intersection point and vertexId
+		if (intersectInfo && intersectInfo[0])
+		{
+			return intersectInfo[0].object;
 		}
 	}
 
@@ -730,7 +755,7 @@
 	<div id="threejs-container"></div>
 	<div class="translucent" id="info-container">
 		<div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
-		<div>Water Sim: [ Ctrl+LMB: disturb water ]</div>
+		<div>Sim: [ Ctrl+LMB: disturb water ] [ Shift+LMB: push objects ] </div>
 	</div>
 </body>
 </html>
