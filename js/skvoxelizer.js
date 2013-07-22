@@ -73,7 +73,8 @@ SkVoxelizer.prototype.updateIntersections = function()
 
 	//NOTE: this assumes that the mesh is well-defined (water-tight, no self-intersections etc),
 	//so I'm not doing multiple projections as suggested in the paper to handle difficult cases yet.
-	//I just need this to work a sphere for now.
+
+	//TODO: implement parity check method so that it works on more complex shapes such as a torus knot
 
 	//get min and max of bounding box in world space
 	this.__updateMinMax();
@@ -135,9 +136,8 @@ SkVoxelizer.prototype.voxelize = function()
 	}
 }
 
-SkVoxelizer.prototype.visualize = function(scene)
+SkVoxelizer.prototype.hideAllVoxels = function()
 {
-	//turn off all voxels first
 	var x, y, z;
 	for (xId in this.__voxelMeshes)
 	{
@@ -152,6 +152,13 @@ SkVoxelizer.prototype.visualize = function(scene)
 			}
 		}
 	}
+}
+
+//Use this for debugging purposes only. It is very slow.
+SkVoxelizer.prototype.visualize = function(scene)
+{
+	//turn off all voxels first
+	this.hideAllVoxels();
 
 	//show voxel mesh if voxel data has value of 1
 	var x, y, z, thisVoxelMesh;

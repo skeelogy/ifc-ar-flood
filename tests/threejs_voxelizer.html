@@ -44,6 +44,7 @@
 	var renderer, scene, camera, controls;
 	var materials = [];
 	var localAxis;
+	var cubeMesh, sphereMesh, cylinderMesh;
 	var testMesh;
 	function setupThreejsScene()
 	{
@@ -87,17 +88,28 @@
 		fillLight.target.position.set(0, 0, 0);
 		scene.add(fillLight);
 
-		//create a sphere for voxelizing
-		// var testGeom = new THREE.SphereGeometry(2, 8, 8);
+		//cube
 		var testGeom = new THREE.CubeGeometry(2.2, 2.2, 2.2);
 		var testMaterial = new THREE.MeshPhongMaterial();
 		materials.push(testMaterial);
-		testMesh = new THREE.Mesh(testGeom, testMaterial);
-		testMesh.position.x = 1;
-		testMesh.position.y = 1;
-		testMesh.position.z = 1;
-		// testMesh.visible = false;
-		scene.add(testMesh);
+		cubeMesh = new THREE.Mesh(testGeom, testMaterial);
+		cubeMesh.visible = false;
+		cubeMesh.voxelizer = new SkVoxelizer(cubeMesh, 0.25, 0.25, 0.25);
+		scene.add(cubeMesh);
+
+		//sphere
+		testGeom = new THREE.SphereGeometry(1.5, 8, 8);
+		sphereMesh = new THREE.Mesh(testGeom, testMaterial);
+		sphereMesh.visible = false;
+		sphereMesh.voxelizer = new SkVoxelizer(sphereMesh, 0.4, 0.4, 0.4);
+		scene.add(sphereMesh);
+
+		//cylinder
+		testGeom = new THREE.CylinderGeometry(1, 1, 3, 8, 2);
+		cylinderMesh = new THREE.Mesh(testGeom, testMaterial);
+		cylinderMesh.visible = false;
+		cylinderMesh.voxelizer = new SkVoxelizer(cylinderMesh, 0.25, 0.25, 0.25);
+		scene.add(cylinderMesh);
 	}
 
 	function setupEvents()
@@ -124,8 +136,14 @@
 	}
 
 	var gui;
-	var renderingFolder, displayFolder;
+	var shapesFolder, renderingFolder, displayFolder;
+	var shapesTypes = {
+		'Cube': 'cubeMesh',
+		'Sphere': 'sphereMesh',
+		'Cylinder': 'cylinderMesh'
+	};
 	var options = {
+		shapesType: shapesTypes[Object.keys(shapesTypes)[0]],
 		renderingShadows: true,  //FIXME: this has to be init to true
 		displayWireframe: true,
 		displayLocalAxis: false,
@@ -135,10 +153,31 @@
 		gui = new dat.GUI();
 		//gui.close();  //close GUI by default
 
+		//Shapes folder
+		shapesFolder = gui.addFolder('Shapes');
+		shapesFolder.open();
+
+		var control = shapesFolder.add(options, 'shapesType', shapesTypes).name('Type');
+		function changeShapesType(value)
+		{
+			//hide current shape first
+			if (testMesh)
+			{
+				testMesh.visible = false;
+				testMesh.voxelizer.hideAllVoxels();
+			}
+
+			//swap the shape
+			testMesh = eval(value);
+			testMesh.visible = true;
+		}
+		control.onChange(changeShapesType);
+		changeShapesType(options.shapesType);
+
 		//Rendering folder
 		renderingFolder = gui.addFolder('Rendering');
 
-		var control = renderingFolder.add(options, 'renderingShadows').name('Shadows');
+		control = renderingFolder.add(options, 'renderingShadows').name('Shadows');
 		function changeRenderingShadows(value)
 		{
 			renderer.shadowMapAutoUpdate = value;
@@ -184,9 +223,6 @@
 		//setup scene
 		setupThreejsScene();
 
-		//voxelize the sphere
-		voxelizer = new SkVoxelizer(testMesh, 0.25, 0.25, 0.25);
-
 		//setup events
 		setupEvents();
 		
@@ -211,13 +247,13 @@
 			testMesh.rotation.x = time;
 			testMesh.rotation.z = time / 2;
 
-			//voxelize on every frame
-			voxelizer.voxelize();
-			voxelizer.visualize(scene);
-
 			renderer.autoClear = false;
 			renderer.clear();
 			renderer.render(scene, camera);
+
+			//voxelize on every frame
+			testMesh.voxelizer.voxelize();
+			testMesh.voxelizer.visualize(scene);
 
 			stats.update();
 
