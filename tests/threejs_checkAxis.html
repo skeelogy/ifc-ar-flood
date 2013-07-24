@@ -50,10 +50,13 @@
 
 		// Create a camera and a marker root object for your Three.js scene.
 		var camera = new THREE.PerspectiveCamera(35, renderer.domElement.width/renderer.domElement.height, 0.1, 1000 );
-		camera.position.set(1, 1, 1);
+		camera.position.set(0.5, 0.5, 0.5);
 		camera.lookAt(new THREE.Vector3(0,0,0));
 		controls = new THREE.OrbitControls(camera);
+		controls.modifierKey = 'alt';
 		controls.userPanSpeed = 0.04;
+		controls.pan(new THREE.Vector3(0, 1, 0));
+		controls.pan(new THREE.Vector3(0, 1, 0));
 		scene.add(camera);
 
 		// setup lights
@@ -107,7 +110,7 @@
 	<div class="caption">As you can see below, both coordinate systems are right-handed, so no flipping of coordinate system has occured during the export.</div>
 	<div class="container" id="threejs-container">
 		<div class="caption" id="threejs-heading">three.js &lt;canvas&gt;</div>
-		<div class="caption">LMB: tumble ("rotate"), MMB: dolly ("zoom"), RMB: track ("pan")</div>
+		<div class="caption">alt+LMB: tumble ("rotate")<br/>alt+MMB: dolly ("zoom")<br/>alt+RMB: track ("move")</div>
 	</div>
 	<div class="container" id="blender-container">
 		<div class="caption">Blender screenshot</div>
