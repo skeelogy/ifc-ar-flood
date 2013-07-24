@@ -79,33 +79,33 @@
 		
 		console.log('Document is ready.');
 		
-		var $canvas = $('#mainCanvas')[0];
+		var canvas = $('#mainCanvas')[0];
 		
 		//stream to video element
 		//TODO: create a list and allow user to select
-		var $video = $('#mainVideo')[0];
-		var $img = $('#mainImage')[0];
+		var video = $('#mainVideo')[0];
+		var img = $('#mainImage')[0];
 		var source;
 		videoId = 0;
 		if (videoId == 0)
 		{
-			$video.src = '/resources/markers/output_4.ogg';
-			source = $video;
+			video.src = '/resources/markers/output_4.ogg';
+			source = video;
 		}
 		else if (videoId == 1)
 		{
-			$video.src = '/resources/markers/swap_loop.ogg';
-			source = $video;
+			video.src = '/resources/markers/swap_loop.ogg';
+			source = video;
 		}
 		else if (videoId == 2)
 		{
-			$img.src = '/resources/markers/chalk_multi.jpg';
-			source = $img;
+			img.src = '/resources/markers/chalk_multi.jpg';
+			source = img;
 		}
 		
 		//create an AR library
 		var jsArToolKitArLib = new JsArToolKitArLib({
-			canvasElem: $canvas,
+			canvasElem: canvas,
 			markerWidth: 120,
 			threshold: g_trackingThreshold,
 			debug: g_debug
@@ -121,19 +121,19 @@
 			//container to attach the Three.js-created renderer canvas
 			rendererContainerElem: $threejsContainerElem,
 			//width of the Three.js-created renderer canvas
-			rendererCanvasWidth: $canvas.width,
+			rendererCanvasWidth: canvas.width,
 			//height of the Three.js-created renderer canvas
-			rendererCanvasHeight: $canvas.height,
+			rendererCanvasHeight: canvas.height,
 			//the streaming canvas for background plane
-			streamCanvasElem: $canvas,
+			streamCanvasElem: canvas,
 			camProjMatrixArray: camProjMatrixArray,
 			modelsJsonFile: '/resources/models/models.json'
 		});
 		
 		//create a framework
 		var skarf = new SkArF({
-			canvasElem: $canvas,
-			videoElem: $video,
+			canvasElem: canvas,
+			videoElem: video,
 			arLib: jsArToolKitArLib,
 			renderer: threeJsRenderer
 		});

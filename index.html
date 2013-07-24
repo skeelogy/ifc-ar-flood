@@ -82,16 +82,16 @@
 		
 		console.log('Document is ready.');
 		
-		var $canvas = $('#mainCanvas')[0];
+		var canvas = $('#mainCanvas')[0];
 		
 		//stream to video element
-		var $video = $('#mainVideo')[0];
-		streamVideo($video);
-		var source = $video;	
+		var video = $('#mainVideo')[0];
+		streamVideo(video);
+		var source = video;	
 		
 		//create an AR library
 		var jsArToolKitArLib = new JsArToolKitArLib({
-			canvasElem: $canvas,
+			canvasElem: canvas,
 			markerWidth: 120,
 			threshold: g_trackingThreshold,
 			debug: g_debug
@@ -107,19 +107,19 @@
 			//container to attach the Three.js-created renderer canvas
 			rendererContainerElem: $threejsContainerElem,
 			//width of the Three.js-created renderer canvas
-			rendererCanvasWidth: $canvas.width,
+			rendererCanvasWidth: canvas.width,
 			//height of the Three.js-created renderer canvas
-			rendererCanvasHeight: $canvas.height,
+			rendererCanvasHeight: canvas.height,
 			//the streaming canvas for background plane
-			streamCanvasElem: $canvas,
+			streamCanvasElem: canvas,
 			camProjMatrixArray: camProjMatrixArray,
 			modelsJsonFile: '/resources/models/models.json'
 		});
 		
 		//create a framework
 		var skarf = new SkArF({
-			canvasElem: $canvas,
-			videoElem: $video,
+			canvasElem: canvas,
+			videoElem: video,
 			arLib: jsArToolKitArLib,
 			renderer: threeJsRenderer
 		});
