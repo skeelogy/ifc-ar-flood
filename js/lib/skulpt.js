@@ -2,6 +2,9 @@
  * @fileOverview A JavaScript sculpting script for sculpting Three.js meshes
  * @author Skeel Lee <skeel@skeelogy.com>
  * @version 0.1.0
+ * 
+ * Probably only works for flat planes now. Need to check with spherical objects.
+ * This file still needs some clean up and checking.
  */
 
 //===================================
@@ -18,16 +21,79 @@ function SkulptLayer(skulptMesh) {
 
     this.data = [];
 
+    this.__simplex = undefined;
+
     this.__init();
 }
 SkulptLayer.prototype.__init = function () {
     this.clear();
 };
-SkulptLayer.prototype.loadFromImage = function () {
-    //TODO
+SkulptLayer.prototype.loadFromImageData = function (imageData, amount, midGreyIsLowest) {
+
+    //read the image data and use that as height
+    var vertices = this.__skulptMesh.__mesh.geometry.vertices;
+    var normalizedHeight;
+    var min = 99999;
+    var i, len;
+    for (i = 0, len = vertices.length; i < len; i++) {
+
+        if (midGreyIsLowest) {
+            normalizedHeight = Math.abs(imageData[i * 4] / 255.0 - 0.5);
+        } else {
+            normalizedHeight = imageData[i * 4] / 255.0;
+        }
+        this.data[i] = normalizedHeight * amount;
+
+        //store min
+        //FIXME: this assumes that it's a flat plane again...
+        if (this.data[i] < min) {
+            min = this.data[i];
+        }
+    }
+
+    //shift down so that min is at 0
+    for (i = 0, len = vertices.length; i < len; i++) {
+        this.data[i] -= min;
+    }
+
+    //update whole mesh
+    this.__skulptMesh.updateAll();
 };
-SkulptLayer.prototype.addNoise = function () {
-    //TODO
+SkulptLayer.prototype.addNoise = function (amp, freqX, freqY, freqZ, offsetX, offsetY, offsetZ) {
+
+    amp = amp || 1;
+    freqX = freqX || 1;
+    freqY = freqY || 1;
+    freqZ = freqZ || 1;
+    offsetX = offsetX || 0;
+    offsetY = offsetY || 0;
+    offsetZ = offsetZ || 0;
+
+    if (!this.__simplex) {
+        this.__simplex = new SimplexNoise();
+    }
+
+    //apply noise
+    //TODO: use FBm instead
+    var vertices = this.__skulptMesh.__mesh.geometry.vertices;
+    var i, len, vertex;
+    var min = 99999;
+    for (i = 0, len = vertices.length; i < len; i++) {
+        vertex = vertices[i];
+        this.data[i] = (this.__simplex.noise3d(freqX * vertex.x + offsetX, freqY * vertex.y + offsetY, freqZ * vertex.z + offsetZ) / 2.0 + 0.5) * amp;
+        //FIXME: this assumes that it's a flat plane again...
+        if (this.data[i] < min) {
+            min = this.data[i];
+        }
+    }
+
+    //shift down so that min is at 0
+    for (i = 0, len = vertices.length; i < len; i++) {
+        this.data[i] -= min;
+    }
+
+    //update whole mesh
+    this.__skulptMesh.updateAll();
 };
 SkulptLayer.prototype.clear = function () {
     var i, len;
@@ -51,6 +117,9 @@ function SkulptMesh(mesh) {
     this.__currLayer = undefined;
     this.__displacements = [];  //need to always keep this in sync
 
+    this.__meshWorldMat = this.__mesh.matrixWorld;
+    this.__geom = this.__mesh.geometry;
+
     this.__init();
 }
 SkulptMesh.prototype.__init = function () {
@@ -65,6 +134,7 @@ SkulptMesh.prototype.addLayer = function (name) {
     }
     this.__layers[name] = new SkulptLayer(this);
     this.__currLayer = this.__layers[name];
+    return this.__layers[name];
 };
 SkulptMesh.prototype.removeLayer = function (name) {
     //TODO
@@ -110,24 +180,24 @@ function SkulptTerrainMesh(mesh, size, res) {
 SkulptTerrainMesh.prototype = Object.create(SkulptMesh.prototype);
 SkulptTerrainMesh.prototype.constructor = SkulptTerrainMesh;
 /**
- * Calculates vertex id on this terrain using x and z values
+ * Calculates vertex id on this terrain using x and z values in local space
  * @param  {number} x
  * @param  {number} z
  * @return {number}
  */
 SkulptTerrainMesh.prototype.__calcTerrainVertexId = function (x, z) {
-    //TODO: take into account world transformations
     var row = Math.floor((z + this.__halfSize) / this.__size * this.__res);
     var col = Math.floor((x + this.__halfSize) / this.__size * this.__res);
-    //console.log(row + ' ' + col + ' ' + vertexId);
     return (row * this.__res) + col;
 };
 SkulptTerrainMesh.prototype.getAffectedVertexInfo = function (position, radius) {
 
-    var centerX = position.x;
-    var centerZ = position.z;
+    //convert back to local space first
+    var inv = this.__meshWorldMat.clone().getInverse(this.__meshWorldMat);
+    var localPosition = position.clone().applyMatrix4(inv);
 
-    var geom = this.__mesh.geometry;
+    var centerX = localPosition.x;
+    var centerZ = localPosition.z;
 
     //find all vertices that are in radius
     //iterate in the square with width of 2*radius first
@@ -140,8 +210,8 @@ SkulptTerrainMesh.prototype.getAffectedVertexInfo = function (position, radius) 
             if (dist < radius) { //within the circle
                 //get vertex id for this (x, z) point
                 var vertexId = this.__calcTerrainVertexId(centerX + x, centerZ + z);
-                var vertex = geom.vertices[vertexId];
-                if (vertex) { //check that a vertex with this vertexId exists
+                var vertex = this.__geom.vertices[vertexId];
+                if (vertex) {
                     //add to current layer
                     var vertexInfo = {
                         id: vertexId,
@@ -253,7 +323,7 @@ SkulptCursor.prototype.show = function () {
 SkulptCursor.prototype.hide = function () {
     throw new Error('Abstract method not implemented');
 };
-SkulptCursor.prototype.update = function (x, y, z, geom) {
+SkulptCursor.prototype.update = function (position, skulptMesh) {
     throw new Error('Abstract method not implemented');
 };
 
@@ -294,8 +364,6 @@ SkulptMeshCursor.prototype.__createMesh = function () {
     this.__cursorMesh.castShadow = false;
     this.__cursorMesh.receiveShadow = false;
 
-    this.__cursorMesh.add(new THREE.AxisHelper(1));
-
     this.__scene.add(this.__cursorMesh);
 };
 SkulptCursor.prototype.setSize = function (size) {
@@ -313,53 +381,45 @@ SkulptMeshCursor.prototype.show = function () {
 SkulptMeshCursor.prototype.hide = function () {
     this.__cursorMesh.visible = false;
 };
-SkulptMeshCursor.prototype.update = function (x, y, z, geom) {
-
-    //TODO: check if arguments are really needed or not
+SkulptMeshCursor.prototype.update = function (position, skulptMesh) {
 
     //move cursor to position
-    this.__cursorMesh.position.set(x, y, z);
+    this.__cursorMesh.position.copy(position);
 
-    //NOTE: Below algo works when using this.__cursorMesh.position but not this.__cursorMesh.matrixWorld. The former is better anyway because there's no need to find matrix inverse.
-    //var brushMeshMatrixWorldInverse = new THREE.Matrix4().getInverse(this.__cursorMesh.matrixWorld);
-    var i;
-    var len = this.__cursorGeom.vertices.length;
-    for (i = 0; i < len; i++) {
+    //rotate cursor to same orientation as skulptMesh
+    //TODO: orient to geom normal instead
+    this.__cursorMesh.rotation.copy(skulptMesh.__mesh.rotation);
 
-        //get position of this brush geom vertex
+    //store some transformation matrices for getting from one space to another
+    var cursorWorldMat = this.__cursorMesh.matrixWorld;
+    var cursorWorldMatInv = new THREE.Matrix4().getInverse(cursorWorldMat);
+    var meshWorldMat = skulptMesh.__mesh.matrixWorld;
+    var meshWorldMatInv = new THREE.Matrix4().getInverse(meshWorldMat);
+    var cursorLocalToMeshLocalMat = new THREE.Matrix4().multiplyMatrices(meshWorldMatInv, cursorWorldMat);
+    var meshLocalToCursorLocalMatInv = new THREE.Matrix4().multiplyMatrices(cursorWorldMatInv, meshWorldMat);
+
+    var displacements = skulptMesh.getDisplacements();
+    var i, len;
+    for (i = 0, len = this.__cursorGeom.vertices.length; i < len; i++) {
+
         var brushGeomVertex = this.__cursorGeom.vertices[i];
 
-        //get world space position (by adding position as offset)
-        var brushGeomVertexWorld = brushGeomVertex.clone();
-        //brushGeomVertexWorld.applyMatrix4(this.__cursorMesh.matrixWorld);
-        brushGeomVertexWorld.setX(brushGeomVertexWorld.x * this.__cursorMesh.scale.x);
-        brushGeomVertexWorld.setZ(brushGeomVertexWorld.z * this.__cursorMesh.scale.z);
-        brushGeomVertexWorld.add(this.__cursorMesh.position);
+        //transform from local space of cursor to local space of skulptMesh
+        brushGeomVertex.applyMatrix4(cursorLocalToMeshLocalMat);
 
         //get nearest terrain geom vertex id
-        //TODO: calcTerrainVertexId function
-        var terrainVertexId = calcTerrainVertexId(brushGeomVertexWorld.x, brushGeomVertexWorld.z);
+        var terrainVertexId = skulptMesh.__calcTerrainVertexId(brushGeomVertex.x, brushGeomVertex.z);
 
-        //get y in brush geom's local space
-        var brushGeomVertexLocal;
-        if (geom.vertices[terrainVertexId]) {
-            brushGeomVertexLocal = geom.vertices[terrainVertexId].clone();
-        } else {
-            //have to use brush vertex if unable to index into terrain vertex
-            brushGeomVertexLocal = brushGeomVertexWorld;
-        }
-        //brushGeomVertexLocal.applyMatrix4(brushMeshMatrixWorldInverse);
-        brushGeomVertexLocal.sub(this.__cursorMesh.position);
-        brushGeomVertexWorld.setX(brushGeomVertexWorld.x / this.__cursorMesh.scale.x);
-        brushGeomVertexWorld.setZ(brushGeomVertexWorld.z / this.__cursorMesh.scale.z);
+        //get height of current terrain at that point
+        brushGeomVertex.y = displacements[terrainVertexId];
 
-        //finally write brush geom vertex y in local space
-        brushGeomVertex.y = brushGeomVertexLocal.y;
+        //transform from local space of skulptMesh back to local space of cursor
+        brushGeomVertex.applyMatrix4(meshLocalToCursorLocalMatInv);
     }
 
     //offset top row using sculpt amount to give thickness
     for (i = 0; i < this.__brushGeomVertexCountHalf; i++) {
-        this.__cursorGeom.vertices[i].y = this.__cursorGeom.vertices[i + this.__brushGeomVertexCountHalf].y + this.__amount;
+        this.__cursorGeom.vertices[i].y = this.__cursorGeom.vertices[i + this.__brushGeomVertexCountHalf].y + 1;
     }
 
     //update cursor geom
@@ -451,8 +511,8 @@ SkulptBrush.prototype.showCursor = function () {
 SkulptBrush.prototype.hideCursor = function () {
     this.__cursor.hide();
 };
-SkulptBrush.prototype.updateCursor = function (x, y, z, geom) {
-    this.__cursor.update(x, y, z, geom);
+SkulptBrush.prototype.updateCursor = function (position, skulptMesh) {
+    this.__cursor.update(position, skulptMesh);
 };
 
 /**
@@ -507,12 +567,27 @@ SkulptRemoveBrush.prototype.sculpt = function (mesh, position, profile) {
     var layer = mesh.getCurrLayer();
     var radius = this.getSize() / 2.0;
     var amount = this.getAmount();
+    var displacements = mesh.getDisplacements();
     var affectedVertexInfos = mesh.getAffectedVertexInfo(position, radius);
+
+    var sumOtherLayersForThisVertex;
     var vertexInfo;
     var i, len;
     for (i = 0, len = affectedVertexInfos.length; i < len; i++) {
+
         vertexInfo = affectedVertexInfos[i];
+
+        //find the sum of all other layers first
+        sumOtherLayersForThisVertex = displacements[vertexInfo.id] - layer.data[vertexInfo.id];
+
+        //modify displacement amount in-place
         layer.data[vertexInfo.id] -= amount * profile.getValue(vertexInfo.weight);
+
+        //prevent going below 0
+        if (layer.data[vertexInfo.id] + sumOtherLayersForThisVertex < 0) {
+            //just set to negative of the other layers will set the sum to 0
+            layer.data[vertexInfo.id] = -sumOtherLayersForThisVertex;
+        }
     }
 
     //update the mesh at the affected vertices
@@ -538,7 +613,6 @@ SkulptFlattenBrush.prototype.sculpt = function (mesh, position, profile) {
 
     var layer = mesh.getCurrLayer();
     var radius = this.getSize() / 2.0;
-    // var amount = this.getAmount();  //TODO: flatten don't need amount?
     var affectedVertexInfos = mesh.getAffectedVertexInfo(position, radius);
     var displacements = mesh.getDisplacements();
 
@@ -553,12 +627,21 @@ SkulptFlattenBrush.prototype.sculpt = function (mesh, position, profile) {
     var averageDisp = totalAffectedDisplacements / affectedVertexInfos.length;
 
     //blend average displacement with existing displacement to flatten
-    var modulator, currDisplacement;
+    var modulator, currDisp, newDisp, dispFromOtherLayers;
     for (i = 0, len = affectedVertexInfos.length; i < len; i++) {
+
         vertexInfo = affectedVertexInfos[i];
         modulator = profile.getValue(vertexInfo.weight);
-        currDisplacement = displacements[vertexInfo.id];
-        layer.data[vertexInfo.id] = modulator * averageDisp + (1 - modulator) * currDisplacement;
+        currDisp = displacements[vertexInfo.id];
+
+        //store displacements from other layers first
+        dispFromOtherLayers = currDisp - layer.data[vertexInfo.id];
+
+        //calculate new displacements
+        layer.data[vertexInfo.id] = modulator * averageDisp + (1 - modulator) * currDisp;
+
+        //need to subtract away all the other layers to force flattening
+        layer.data[vertexInfo.id] -= dispFromOtherLayers;
     }
 
     //update the mesh at the affected vertices
@@ -658,8 +741,8 @@ Skulpt.prototype.setBrushAmount = function (amount) {
         }
     }
 };
-Skulpt.prototype.updateCursor = function (x, y, z, geom) {
-    this.__currBrush.updateCursor(x, y, z, geom);
+Skulpt.prototype.updateCursor = function (position, mesh) {
+    this.__currBrush.updateCursor(position, mesh);
 };
 Skulpt.prototype.showCursor = function () {
     this.__currBrush.showCursor();
