@@ -114,6 +114,8 @@
 		groundPlaneMesh.castShadow = false;
 		groundPlaneMesh.receiveShadow = false;
 		groundPlaneMesh.visible = false;
+		groundPlaneMesh.position.set(1,1,1);
+		groundPlaneMesh.rotation.set(THREE.Math.degToRad(10),THREE.Math.degToRad(10),THREE.Math.degToRad(10));
 		scene.add(groundPlaneMesh);
 	}
 
@@ -137,6 +139,8 @@
 		waterMesh = new THREE.Mesh(waterGeom, waterMaterial);
 		waterMesh.castShadow = true;
 		waterMesh.receiveShadow = true;
+		waterMesh.position.copy(groundPlaneMesh.position);
+		waterMesh.rotation.copy(groundPlaneMesh.rotation);
 		scene.add(waterMesh);
 
 		//create the different water sims
@@ -221,7 +225,7 @@
 				if (intersectPoint)
 				{
 					isDisturbing = true;
-					heightFieldWaterSim.disturb(calcVertexId(intersectPoint.x, intersectPoint.z), DISTURB_AMOUNT);
+					heightFieldWaterSim.disturb(intersectPoint, DISTURB_AMOUNT);
 				}
 			}
 		}
@@ -236,7 +240,7 @@
 			intersectPoint = detectIntersection();
 			if (intersectPoint)
 			{
-				heightFieldWaterSim.disturb(calcVertexId(intersectPoint.x, intersectPoint.z), DISTURB_AMOUNT);
+				heightFieldWaterSim.disturb(intersectPoint, DISTURB_AMOUNT);
 			}
 		}
 	}
@@ -266,15 +270,6 @@
 		{
 			return intersectInfo[0].point;
 		}
-	}
-
-	function calcVertexId(x, z)
-	{
-		//calculate vertex id using x and z
-		var half = WATER_SIZE / 2.0;
-		var row = Math.floor((z + half) / WATER_SIZE * WATER_RES);
-		var col = Math.floor((x + half) / WATER_SIZE * WATER_RES);
-		return (row * WATER_RES) + col;
 	}
 
 	var stats;

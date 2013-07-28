@@ -11,6 +11,7 @@ function HeightFieldWaterSim(mesh, size, res, dampingFactor)
 {
 	this.mesh = mesh;
 	this.size = size;
+	this.halfSize = size / 2.0;
 	this.res = res;
 	this.dampingFactor = dampingFactor;
 
@@ -36,6 +37,10 @@ function HeightFieldWaterSim(mesh, size, res, dampingFactor)
 	//FIXME: remove these hardcoded values
 	this.clampMin = 0.48;
 	this.clampMax = 0.68;
+
+	//some temp variables to prevent recreation every frame
+	this.__worldMatInv = new THREE.Matrix4();
+	this.__localPos = new THREE.Vector3();
 
 	this.init();
 }
@@ -82,8 +87,27 @@ HeightFieldWaterSim.prototype.sim = function(dt)
 	throw new Error('Abstract method not implemented');
 }
 
-HeightFieldWaterSim.prototype.disturb = function(idx, amount)
+/**
+ * Calculates the vertex id of the mesh that is nearest position
+ * @param  {THREE.Vector3} position
+ * @return {number}
+ */
+HeightFieldWaterSim.prototype.__calcVertexId = function(x, z)
 {
+	var row = Math.floor((z + this.halfSize) / this.size * this.res);
+    var col = Math.floor((x + this.halfSize) / this.size * this.res);
+    return (row * this.res) + col;
+}
+
+HeightFieldWaterSim.prototype.disturb = function(position, amount)
+{
+	//convert back to local space first
+    this.__worldMatInv.getInverse(this.mesh.matrixWorld);
+	this.__localPos.copy(intersectPoint).applyMatrix4(this.__worldMatInv);
+
+    //calculate idx
+    var idx = this.__calcVertexId(this.__localPos.x, this.__localPos.z);
+
 	this.sourceField[idx] = amount;
 }
 
