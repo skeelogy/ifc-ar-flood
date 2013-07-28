@@ -8,7 +8,33 @@
 // OBSTACLES
 //===================================
 
-var ObstacleManager = {
+/**
+ * Obstacles for height field water sim
+ * @constructor
+ * @param {THREE.Mesh} mesh
+ */
+function Obstacle(mesh) {
+    this.mesh = mesh;
+    this.intersectionHeights = [];
+    this.intersectionHeightsNeedUpdate = false;
+
+    this.update();
+}
+Obstacle.prototype.update = function () {
+    var vertices = this.mesh.geometry.vertices;
+    var i, len;
+    for (i = 0, len = vertices.length; i < len; i++) {
+        this.intersectionHeights[i] = [];
+        this.intersectionHeights[i].push(0);
+        this.intersectionHeights[i].push(vertices[i].y);
+    }
+};
+Obstacle.prototype.getIntersectionHeights = function () {
+    return this.intersectionHeights;
+};
+
+//TODO: obsolete, should be removed
+var DepthMapObstacleManager = {
 
     depthMapSize: 10,
     depthMapRes: 512,
@@ -94,16 +120,16 @@ var ObstacleManager = {
  */
 function HeightFieldWaterSim(options) {
 
-    if (typeof options.mesh === 'undefined') { throw new Error('mesh not specified'); }
+    if (options.mesh === 'undefined') { throw new Error('mesh not specified'); }
     this.mesh = options.mesh;
-    if (typeof options.size === 'undefined') { throw new Error('size not specified'); }
+    if (options.size === 'undefined') { throw new Error('size not specified'); }
     this.size = options.size;
     this.halfSize = this.size / 2.0;
-    if (typeof options.res === 'undefined') { throw new Error('res not specified'); }
+    if (options.res === 'undefined') { throw new Error('res not specified'); }
     this.res = options.res;
-    if (typeof options.dampingFactor === 'undefined') { throw new Error('dampingFactor not specified'); }
+    if (options.dampingFactor === 'undefined') { throw new Error('dampingFactor not specified'); }
     this.dampingFactor = options.dampingFactor;
-    if (typeof options.meanHeight === 'undefined') { throw new Error('meanHeight not specified'); }
+    if (options.meanHeight === 'undefined') { throw new Error('meanHeight not specified'); }
     this.meanHeight = options.meanHeight;
 
     this.geometry = this.mesh.geometry;
@@ -114,14 +140,16 @@ function HeightFieldWaterSim(options) {
     this.segmentSize = this.size / this.res;
     this.segmentSizeSquared = this.segmentSize * this.segmentSize;
 
+    this.obstacles = {};
+
     this.velocityField = [];
     this.sourceField = [];
     this.obstacleField = [];
 
-    ObstacleManager.depthMapSize = this.size;
-    ObstacleManager.depthMapRes = this.res;
-    ObstacleManager.depthMapNear = -2;
-    ObstacleManager.depthMapFar = 2;
+    // DepthMapObstacleManager.depthMapSize = this.size;
+    // DepthMapObstacleManager.depthMapRes = this.res;
+    // DepthMapObstacleManager.depthMapNear = -2;
+    // DepthMapObstacleManager.depthMapFar = 2;
 
     this.obstaclesActive = true;
     //FIXME: remove these hardcoded values
@@ -145,23 +173,65 @@ HeightFieldWaterSim.prototype.init = function () {
         this.obstacleField[i] = 1;
     }
 
-    //init ObstacleManager
-    ObstacleManager.init();
+    //init DepthMapObstacleManager
+    // DepthMapObstacleManager.init();
 };
 
 HeightFieldWaterSim.prototype.update = function (dt) {
 
-    ObstacleManager.update();
+    // DepthMapObstacleManager.update();
 
-    //update obstacle field using the depth map
-    if (this.obstaclesActive) {
-        var obstacleDepthMapData = ObstacleManager.getObstacleDepthMap();
-        var i, len;
-        var norm;
-        for (i = 0, len = this.res * this.res; i < len; i++) {
-            norm = obstacleDepthMapData[i * 4] / 255.0;
-            this.obstacleField[i] = 1 - (norm >= this.clampMin && norm <= this.clampMax);
+    // //update obstacle field using the depth map
+    // if (this.obstaclesActive) {
+    //     var obstacleDepthMapData = DepthMapObstacleManager.getObstacleDepthMap();
+    //     var i, len;
+    //     var norm;
+    //     for (i = 0, len = this.res * this.res; i < len; i++) {
+    //         norm = obstacleDepthMapData[i * 4] / 255.0;
+    //         this.obstacleField[i] = 1 - (norm >= this.clampMin && norm <= this.clampMax);
+    //     }
+    // }
+
+    // //update obstacles first
+    // var obstacle, obstacleId;
+    // for (obstacleId in this.obstacles) {
+    //     if (this.obstacles.hasOwnProperty(obstacleId)) {
+    //         obstacle = this.obstacles[obstacleId];
+    //         obstacle.update();
+    //     }
+    // }
+
+    var waterHeight;
+    // var v = this.geometry.vertices;
+    var minIntersectHeight, maxIntersectHeight;
+    var i, len;
+    for (i = 0, len = this.res * this.res; i < len; i++) {
+
+        //NOTE: must use mean height to compare, rather than v[i].y.
+        //The latter will cause unstable behaviour because obstacles detection test passes and fails as water geometry height varies.
+        waterHeight = this.meanHeight;
+        // waterHeight = v[i].y;
+
+        var obstacle, obstacleId;
+        for (obstacleId in this.obstacles) {
+            if (this.obstacles.hasOwnProperty(obstacleId)) {
+
+                obstacle = this.obstacles[obstacleId];
+
+                if (obstacle.intersectionHeights[i]) {
+
+                    minIntersectHeight = obstacle.intersectionHeights[i][0];
+                    maxIntersectHeight = obstacle.intersectionHeights[i][1];  //TODO: this assumes only two heights
+
+                    //update obstacle field, compare obstacle intersection heights with water mean height
+                    if (minIntersectHeight < waterHeight && maxIntersectHeight > waterHeight) {
+                        this.obstacleField[i] = 0;
+                    }
+                }
+
+            }
         }
+
     }
 
     this.sim(dt);
@@ -195,8 +265,15 @@ HeightFieldWaterSim.prototype.disturb = function (position, amount) {
     this.sourceField[idx] = amount;
 };
 
-HeightFieldWaterSim.prototype.addObstacle = function (mesh) {
-    ObstacleManager.addObstacle(mesh);
+HeightFieldWaterSim.prototype.addObstacle = function (obstacle, name) {
+    // DepthMapObstacleManager.addObstacle(mesh);
+    if (!(obstacle instanceof Obstacle)) {
+        throw new Error('obstacle must be of type Obstacle');
+    }
+    if (Object.keys(this.obstacles).indexOf(name) !== -1) {
+        throw new Error('obstacle name already exists: ' + name);
+    }
+    this.obstacles[name] = obstacle;
 };
 
 HeightFieldWaterSim.prototype.setObstaclesActive = function (isActive) {
@@ -204,6 +281,8 @@ HeightFieldWaterSim.prototype.setObstaclesActive = function (isActive) {
 };
 
 HeightFieldWaterSim.prototype.reset = function () {
+
+    console.log('reset water');
 
     //set mesh back to 0
     var i;
@@ -287,7 +366,7 @@ HeightFieldWaterSim_Muller_GDC2008_HelloWorld.prototype.sim = function (dt) {
 function HeightFieldWaterSim_Muller_GDC2008(options) {
     HeightFieldWaterSim.call(this, options);
 
-    if (typeof options.horizontalSpeed === 'undefined') { throw new Error('horizontalSpeed not specified'); }
+    if (options.horizontalSpeed === 'undefined') { throw new Error('horizontalSpeed not specified'); }
     this.horizontalSpeed = options.horizontalSpeed;
     this.horizontalSpeedSquared = this.horizontalSpeed * this.horizontalSpeed;
 }
@@ -439,9 +518,9 @@ function HeightFieldWaterSim_Tessendorf_iWave(options) {
 
     HeightFieldWaterSim.call(this, options);
 
-    if (typeof options.kernelRadius === 'undefined') { throw new Error('kernelRadius not specified'); }
+    if (options.kernelRadius === 'undefined') { throw new Error('kernelRadius not specified'); }
     this.kernelRadius = options.kernelRadius;
-    if (typeof options.substeps === 'undefined') { throw new Error('substeps not specified'); }
+    if (options.substeps === 'undefined') { throw new Error('substeps not specified'); }
     this.substeps = options.substeps;
 
     this.gravity = -9.81;

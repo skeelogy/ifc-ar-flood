@@ -32,13 +32,13 @@
 	<script>
 	
 	var SHADOW_MAP_RES = 1024;
-	var TERRAIN_RES = 256;
+	var TERRAIN_RES = 64;
 	var TERRAIN_SIZE = 10;
 	var USE_TERRAIN_IMAGE = true;
 	var MEAN_WATER_HEIGHT  = 0.2;
 
 	var WATER_SIZE = 10;
-	var WATER_RES = 80;
+	var WATER_RES = 64;
 	var DAMPING_FACTOR = 0.8;
 	var DISTURB_AMOUNT = 0.015;
 
@@ -115,6 +115,9 @@
 
 		//update base layer
 		baseLayer.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
+
+		//update the terrain obstacle
+		terrainObstacle.update();
 	}
 
 	var $imageCanvasElem, imageCanvasElemContext;
@@ -277,6 +280,7 @@
 	Math.seedrandom(RANDOM_SEED);
 	var waterMesh;
 	var heightFieldWaterSim, heightFieldWaterSim_iWave, heightFieldWaterSim_mullerGdc2008, heightFieldWaterSim_mullerGdc2008_helloWorld, heightFieldWaterSim_xWater;
+	var terrainObstacle;
 	var iSegments = 3;
 	var jSegments = 3;
 	var iSegmentSize = WATER_SIZE / iSegments;
@@ -359,6 +363,10 @@
 		// obstacles[1].position.x += -1;
 		// obstacles[2].position.x = 10000;
 		// obstacles[2].position.x = 10000;
+
+		//add terrain as an obstacle
+		terrainObstacle = new Obstacle(terrainMesh);
+		heightFieldWaterSim.addObstacle(terrainObstacle, 'terrainObstacle');
 	}
 
 	var gui;
@@ -436,6 +444,9 @@
 		{
 			terrainMidGreyIsLowest = value;
 			baseLayer.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
+			
+			//update the terrain obstacle
+			terrainObstacle.update();
 		}
 		control.onChange(changeTerrainMidGreyIsLowest);
 		//changeTerrainMidGreyIsLowest(options.terrainMidGreyIsLowest);
@@ -454,6 +465,9 @@
 		{
 			terrainHeight = value;
 			baseLayer.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
+
+			//update the terrain obstacle
+			terrainObstacle.update();
 		}
 		control.onChange(changeTerrainHeight);
 		//changeTerrainHeight(options.terrainHeight);
@@ -729,6 +743,9 @@
 		skulpt.setBrush(operation);
 		skulpt.showCursor();
 		skulpt.sculpt(intersectPoint);
+
+		//update the terrain obstacle
+		terrainObstacle.update();
 	}
 
 	function updateGeometry(geometry, fullUpdate)
@@ -782,7 +799,7 @@
 	}
 
 	$(document).ready(function()
-	{
+	{ 
 		//check for WebGL
 		checkWebGl();
 
