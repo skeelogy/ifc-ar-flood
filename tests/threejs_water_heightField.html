@@ -32,6 +32,7 @@
 	var WATER_RES = 80;
 	var DAMPING_FACTOR = 0.8;
 	var DISTURB_AMOUNT = 0.015;
+	var MEAN_WATER_HEIGHT  = 1.5;
 
 	var SHADOW_MAP_RES = 1024;
 
@@ -49,6 +50,7 @@
 	}
 
 	var renderer, scene, camera, controls;
+	var groundPlaneGeom, groundPlaneMesh;
 	var materials = [];
 	var localAxis;
 	function setupThreejsScene()
@@ -106,8 +108,9 @@
 		scene.add(fillLight);
 
 		//create plane for intersection test
-		var groundPlaneGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
+		groundPlaneGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
 		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeTranslation(0, MEAN_WATER_HEIGHT, 0));  //move groundPlaneGeom up by MEAN_WATER_HEIGHT to detect correct intersection later
 		var groundPlaneMaterial = new THREE.MeshPhongMaterial();
 		materials.push(groundPlaneMaterial);
 		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
@@ -121,7 +124,7 @@
 
 	var RANDOM_SEED = 1;
 	Math.seedrandom(RANDOM_SEED);
-	var waterMesh;
+	var waterGeom, waterMesh;
 	var heightFieldWaterSim, heightFieldWaterSim_iWave, heightFieldWaterSim_mullerGdc2008, heightFieldWaterSim_mullerGdc2008_helloWorld, heightFieldWaterSim_xWater;
 	var iSegments = 3;
 	var jSegments = 3;
@@ -132,8 +135,9 @@
 	function setupWaterScene()
 	{
 		//create a height-field water sim from the plane
-		var waterGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_RES-1, WATER_RES-1);
+		waterGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_RES-1, WATER_RES-1);
 		waterGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		// waterGeom.applyMatrix(new THREE.Matrix4().makeTranslation(0, MEAN_WATER_HEIGHT, 0));
 		var waterMaterial = new THREE.MeshPhongMaterial({color:'#3366FF'});
 		materials.push(waterMaterial);
 		waterMesh = new THREE.Mesh(waterGeom, waterMaterial);
@@ -144,40 +148,67 @@
 		scene.add(waterMesh);
 
 		//create the different water sims
-		heightFieldWaterSim_iWave = new HeightFieldWaterSim_Tessendorf_iWave(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, 4, 3);
-		heightFieldWaterSim_mullerGdc2008 = new HeightFieldWaterSim_Muller_GDC2008(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, 5.0);
-		heightFieldWaterSim_mullerGdc2008_helloWorld = new HeightFieldWaterSim_Muller_GDC2008_HelloWorld(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
-		heightFieldWaterSim_xWater = new HeightFieldWaterSim_xWater(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
+		heightFieldWaterSim_iWave = new HeightFieldWaterSim_Tessendorf_iWave({
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: DAMPING_FACTOR,
+			kernelRadius: 4,
+			substeps: 3,
+			meanHeight: MEAN_WATER_HEIGHT
+		});
+		heightFieldWaterSim_mullerGdc2008 = new HeightFieldWaterSim_Muller_GDC2008({
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: DAMPING_FACTOR,
+			horizontalSpeed: 5.0,
+			meanHeight: MEAN_WATER_HEIGHT
+		});
+		heightFieldWaterSim_mullerGdc2008_helloWorld = new HeightFieldWaterSim_Muller_GDC2008_HelloWorld({
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: DAMPING_FACTOR,
+			meanHeight: MEAN_WATER_HEIGHT
+		});
+		heightFieldWaterSim_xWater = new HeightFieldWaterSim_xWater({
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: DAMPING_FACTOR,
+			meanHeight: MEAN_WATER_HEIGHT
+		});
 		heightFieldWaterSim = heightFieldWaterSim_iWave;
 
-		//create some obstacles for the water sim
-		var i, j;
-		for (i = 0; i < iSegments; i++)
-		{
-			for (j = 0; j < jSegments; j++)
-			{
-				var length = WATER_SIZE / 5.0;
-				var obstacleGeom = new THREE.CubeGeometry(length*(Math.random()*0.5+0.5), 1, length*(Math.random()*0.5+0.5));
-				var obstacleMaterial = new THREE.MeshPhongMaterial();
-				materials.push(obstacleMaterial);
-				obstacleMesh = new THREE.Mesh(obstacleGeom, obstacleMaterial);
-				obstacleMesh.castShadow = true;
-				obstacleMesh.receiveShadow = true;
-				obstacleMesh.position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize);
-				// obstacleMesh.position.y = Math.random() * 2 - 1.0;
-				obstacleMesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize);
-				obstacleMesh.rotation.y = (Math.random() * 360);
-				// obstacleMesh.visible = false;
-				scene.add(obstacleMesh);
-				obstacles.push(obstacleMesh);
-				heightFieldWaterSim.addObstacle(obstacleMesh);
-			}
-		}
+		// //create some obstacles for the water sim
+		// var i, j;
+		// for (i = 0; i < iSegments; i++)
+		// {
+		// 	for (j = 0; j < jSegments; j++)
+		// 	{
+		// 		var length = WATER_SIZE / 5.0;
+		// 		var obstacleGeom = new THREE.CubeGeometry(length*(Math.random()*0.5+0.5), 1, length*(Math.random()*0.5+0.5));
+		// 		var obstacleMaterial = new THREE.MeshPhongMaterial();
+		// 		materials.push(obstacleMaterial);
+		// 		obstacleMesh = new THREE.Mesh(obstacleGeom, obstacleMaterial);
+		// 		obstacleMesh.castShadow = true;
+		// 		obstacleMesh.receiveShadow = true;
+		// 		obstacleMesh.position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize);
+		// 		// obstacleMesh.position.y = Math.random() * 2 - 1.0;
+		// 		obstacleMesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize);
+		// 		obstacleMesh.rotation.y = (Math.random() * 360);
+		// 		// obstacleMesh.visible = false;
+		// 		scene.add(obstacleMesh);
+		// 		obstacles.push(obstacleMesh);
+		// 		heightFieldWaterSim.addObstacle(obstacleMesh);
+		// 	}
+		// }
 
-		//temp, just to make the demo nicer
-		obstacles[1].position.x += -1;
-		obstacles[2].position.x = 10000;
-		obstacles[2].position.x = 10000;
+		// //temp, just to make the demo nicer
+		// obstacles[1].position.x += -1;
+		// obstacles[2].position.x = 10000;
+		// obstacles[2].position.x = 10000;
 	}
 
 	function randomizeObstaclePositions()
@@ -295,7 +326,8 @@
 		'heightFieldWaterSim_xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[3]],
+		waterSimMeanHeight: MEAN_WATER_HEIGHT,
 		obstaclesActive: true,
 		obstaclesSeed: 1,
 		obstaclesShowObstacles: true,
@@ -332,6 +364,29 @@
 		}
 		control.onChange(changeWaterSimType);
 		changeWaterSimType(options.waterSimType);
+
+		control = waterSimFolder.add(options, 'waterSimMeanHeight', 0, 10).step(0.1).name('Mean Height');
+		function changeWaterSimMeanHeight(value)
+		{
+			groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeTranslation(0, -MEAN_WATER_HEIGHT, 0));
+
+			//update global
+			MEAN_WATER_HEIGHT = value;
+
+			//update all water sims
+			heightFieldWaterSim_xWater.meanHeight = value;
+			heightFieldWaterSim_iWave.meanHeight = value;
+			heightFieldWaterSim_mullerGdc2008.meanHeight = value;
+			heightFieldWaterSim_mullerGdc2008_helloWorld.meanHeight = value;
+
+			//update the ground plane geom so that detection is correct
+			groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeTranslation(0, value, 0));
+
+			//update the water geom itself too
+			//FIXME: resetting is not a good indication of reaction when mean height changes
+			heightFieldWaterSim_xWater.reset();
+		}
+		control.onChange(changeWaterSimMeanHeight);
 
 		//Obstacles folder
 		obstaclesFolder = gui.addFolder('Obstacles');

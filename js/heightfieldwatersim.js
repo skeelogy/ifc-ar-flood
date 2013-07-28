@@ -90,16 +90,24 @@ var ObstacleManager = {
  * @param {number} size
  * @param {number} res
  * @param {number} dampingFactor
+ * @param {number} meanHeight
  */
-function HeightFieldWaterSim(mesh, size, res, dampingFactor) {
-    this.mesh = mesh;
-    this.size = size;
-    this.halfSize = size / 2.0;
-    this.res = res;
-    this.dampingFactor = dampingFactor;
+function HeightFieldWaterSim(options) {
+
+    if (typeof options.mesh === 'undefined') { throw new Error('mesh not specified'); }
+    this.mesh = options.mesh;
+    if (typeof options.size === 'undefined') { throw new Error('size not specified'); }
+    this.size = options.size;
+    this.halfSize = this.size / 2.0;
+    if (typeof options.res === 'undefined') { throw new Error('res not specified'); }
+    this.res = options.res;
+    if (typeof options.dampingFactor === 'undefined') { throw new Error('dampingFactor not specified'); }
+    this.dampingFactor = options.dampingFactor;
+    if (typeof options.meanHeight === 'undefined') { throw new Error('meanHeight not specified'); }
+    this.meanHeight = options.meanHeight;
 
     this.geometry = this.mesh.geometry;
-    this.numVertices = res * res;
+    this.numVertices = this.res * this.res;
     if (this.numVertices !== this.geometry.vertices.length) {
         throw new Error('Number of vertices in mesh does not match res*res');
     }
@@ -128,6 +136,7 @@ function HeightFieldWaterSim(mesh, size, res, dampingFactor) {
 }
 
 HeightFieldWaterSim.prototype.init = function () {
+
     //init fields first
     var i;
     for (i = 0; i < this.numVertices; i++) {
@@ -195,11 +204,12 @@ HeightFieldWaterSim.prototype.setObstaclesActive = function (isActive) {
 };
 
 HeightFieldWaterSim.prototype.reset = function () {
+
     //set mesh back to 0
     var i;
     var v = this.geometry.vertices;
     for (i = 0; i < this.numVertices; i++) {
-        v[i].y = 0;
+        v[i].y = this.meanHeight;
     }
 
     //clear fields
@@ -225,13 +235,9 @@ HeightFieldWaterSim.prototype.__updateMesh = function () {
  * Height field water simulation based on HelloWorld code of "Fast Water Simulation for Games Using Height Fields" (Matthias Mueller-Fisher, GDC2008)
  * @constructor
  * @extends {HeightFieldWaterSim}
- * @param {THREE.Mesh} mesh
- * @param {number} size
- * @param {number} res
- * @param {number} dampingFactor
  */
-function HeightFieldWaterSim_Muller_GDC2008_HelloWorld(mesh, size, res, dampingFactor) {
-    HeightFieldWaterSim.call(this, mesh, size, res, dampingFactor);
+function HeightFieldWaterSim_Muller_GDC2008_HelloWorld(options) {
+    HeightFieldWaterSim.call(this, options);
 }
 //inherit from HeightFieldWaterSim
 HeightFieldWaterSim_Muller_GDC2008_HelloWorld.prototype = Object.create(HeightFieldWaterSim.prototype);
@@ -277,15 +283,12 @@ HeightFieldWaterSim_Muller_GDC2008_HelloWorld.prototype.sim = function (dt) {
  * Height field water simulation based on "Fast Water Simulation for Games Using Height Fields" (Matthias Mueller-Fisher, GDC2008)
  * @constructor
  * @extends {HeightFieldWaterSim}
- * @param {THREE.Mesh} mesh
- * @param {number} size
- * @param {number} res
- * @param {number} dampingFactor
  */
-function HeightFieldWaterSim_Muller_GDC2008(mesh, size, res, dampingFactor, horizontalSpeed) {
-    HeightFieldWaterSim.call(this, mesh, size, res, dampingFactor);
+function HeightFieldWaterSim_Muller_GDC2008(options) {
+    HeightFieldWaterSim.call(this, options);
 
-    this.horizontalSpeed = horizontalSpeed;
+    if (typeof options.horizontalSpeed === 'undefined') { throw new Error('horizontalSpeed not specified'); }
+    this.horizontalSpeed = options.horizontalSpeed;
     this.horizontalSpeedSquared = this.horizontalSpeed * this.horizontalSpeed;
 }
 //inherit from HeightFieldWaterSim
@@ -344,16 +347,12 @@ HeightFieldWaterSim_Muller_GDC2008.prototype.sim = function (dt) {
  * Height field water simulation based on http://freespace.virgin.net/hugo.elias/graphics/x_water.htm
  * @constructor
  * @extends {HeightFieldWaterSim}
- * @param {THREE.Mesh} mesh
- * @param {number} size
- * @param {number} res
- * @param {number} dampingFactor
  */
-function HeightFieldWaterSim_xWater(mesh, size, res, dampingFactor) {
+function HeightFieldWaterSim_xWater(options) {
     this.field1 = [];
     this.field2 = [];
 
-    HeightFieldWaterSim.call(this, mesh, size, res, dampingFactor);
+    HeightFieldWaterSim.call(this, options);
 }
 //inherit from HeightFieldWaterSim
 HeightFieldWaterSim_xWater.prototype = Object.create(HeightFieldWaterSim.prototype);
@@ -364,8 +363,8 @@ HeightFieldWaterSim_xWater.prototype.init = function () {
     //init fields first
     var i;
     for (i = 0; i < this.numVertices; i++) {
-        this.field1[i] = 0;
-        this.field2[i] = 0;
+        this.field1[i] = this.meanHeight;
+        this.field2[i] = this.meanHeight;
     }
 
     //call super class init to initialize other fields
@@ -374,13 +373,13 @@ HeightFieldWaterSim_xWater.prototype.init = function () {
 HeightFieldWaterSim_xWater.prototype.reset = function () {
     var i;
     for (i = 0; i < this.numVertices; i++) {
-        this.field1[i] = 0;
-        this.field2[i] = 0;
+        this.field1[i] = this.meanHeight;
+        this.field2[i] = this.meanHeight;
     }
 
     HeightFieldWaterSim.prototype.reset.call(this);
 };
-HeightFieldWaterSim.prototype.sim = function (dt) {
+HeightFieldWaterSim_xWater.prototype.sim = function (dt) {
 
     var i, j, idx;
     var v = this.geometry.vertices;
@@ -400,7 +399,8 @@ HeightFieldWaterSim.prototype.sim = function (dt) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
             this.field2[idx] = (this.field1[(i - 1) * this.res + j] + this.field1[(i + 1) * this.res + j] + this.field1[i * this.res + (j - 1)] + this.field1[i * this.res + (j + 1)]) / 2.0 - this.field2[idx];
-            this.field2[idx] *= this.dampingFactor;
+            //scale down using damping factor, relative to the mean height
+            this.field2[idx] = (this.field2[idx] - this.meanHeight) * this.dampingFactor + this.meanHeight;
         }
     }
 
@@ -431,20 +431,18 @@ HeightFieldWaterSim.prototype.sim = function (dt) {
  * Height field water simulation based on "Interactive Water Surfaces" (Jerry Tessendorf, Game Programming Gems 4)
  * @constructor
  * @extends {HeightFieldWaterSim}
- * @param {THREE.Mesh} mesh
- * @param {number} size
- * @param {number} res
- * @param {number} dampingFactor
  */
-function HeightFieldWaterSim_Tessendorf_iWave(mesh, size, res, dampingFactor, kernelRadius, substeps) {
+function HeightFieldWaterSim_Tessendorf_iWave(options) {
 
     this.prevHeight = [];
     this.vertDeriv = [];
 
-    HeightFieldWaterSim.call(this, mesh, size, res, dampingFactor);
+    HeightFieldWaterSim.call(this, options);
 
-    this.kernelRadius = kernelRadius;
-    this.substeps = substeps;
+    if (typeof options.kernelRadius === 'undefined') { throw new Error('kernelRadius not specified'); }
+    this.kernelRadius = options.kernelRadius;
+    if (typeof options.substeps === 'undefined') { throw new Error('substeps not specified'); }
+    this.substeps = options.substeps;
 
     this.gravity = -9.81;
 
@@ -480,6 +478,7 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.reset = function () {
     HeightFieldWaterSim.prototype.reset.call(this);
 };
 HeightFieldWaterSim_Tessendorf_iWave.prototype.sim = function (dt) {
+
     //fixing dt: better to be in slow motion than to explode
     dt = 1.0 / 60.0;
 
@@ -531,10 +530,10 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.sim = function (dt) {
 //methods
 HeightFieldWaterSim_Tessendorf_iWave.prototype.__symmetricalConvolve = function () {
 
-    var i, j, k, l, idx;
+    var i, j, k, l, iMax, jMax, idx;
     var v = this.geometry.vertices;
-    for (i = this.kernelRadius; i < this.res - this.kernelRadius; i++) {
-        for (j = this.kernelRadius; j < this.res - this.kernelRadius; j++) {
+    for (i = this.kernelRadius, iMax = this.res - this.kernelRadius; i < iMax; i++) {
+        for (j = this.kernelRadius, jMax = this.res - this.kernelRadius; j < jMax; j++) {
 
             idx = i * this.res + j;
 
@@ -564,10 +563,10 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.__symmetricalConvolve = function 
 };
 HeightFieldWaterSim_Tessendorf_iWave.prototype.__convolve = function () {
     //NOTE: this is not used. I left it here for debugging if necessary.
-    var i, j, k, l, idx;
+    var i, j, k, l, iMax, jMax, idx;
     var v = this.geometry.vertices;
-    for (i = this.kernelRadius; i < this.res - this.kernelRadius; i++) {
-        for (j = this.kernelRadius; j < this.res - this.kernelRadius; j++) {
+    for (i = this.kernelRadius, iMax = this.res - this.kernelRadius; i < iMax; i++) {
+        for (j = this.kernelRadius, jMax = this.res - this.kernelRadius; j < jMax; j++) {
 
             idx = i * this.res + j;
 

@@ -35,6 +35,7 @@
 	var TERRAIN_RES = 256;
 	var TERRAIN_SIZE = 10;
 	var USE_TERRAIN_IMAGE = true;
+	var MEAN_WATER_HEIGHT  = 0.2;
 
 	var WATER_SIZE = 10;
 	var WATER_RES = 80;
@@ -53,7 +54,7 @@
 	};
 	//TODO: clean up these settings into json file
 	var terrainImageSettings = {
-		'/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg': { 'preblur':2, 'height':0.3, 'midGreyIsLowest':true },
+		'/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg': { 'preblur':5, 'height':1.5, 'midGreyIsLowest':true },
 		'/resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg': { 'preblur':1, 'height':0.3, 'midGreyIsLowest':true },
 		'/resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg': { 'preblur':3, 'height':0.3, 'midGreyIsLowest':true },
 		'/resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg': { 'preblur':2, 'height':0.3, 'midGreyIsLowest':true },
@@ -61,16 +62,16 @@
 		'/resources/images/terrain/clouds_256.png': { 'preblur':0, 'height':2, 'midGreyIsLowest':false }
 	};
 	var waterSimTypes = {
+		'X Water': 'heightFieldWaterSim_xWater',
 		'Tessendorf iWave': 'heightFieldWaterSim_iWave',
 		'Muller GDC2008': 'heightFieldWaterSim_mullerGdc2008',
-		'Muller GDC2008 HelloWorld': 'heightFieldWaterSim_mullerGdc2008_helloWorld',
-		'X Water': 'heightFieldWaterSim_xWater'
+		'Muller GDC2008 HelloWorld': 'heightFieldWaterSim_mullerGdc2008_helloWorld'
 	};
 	var waterSimTypeSettings = {
+		'heightFieldWaterSim_xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
 		'heightFieldWaterSim_iWave': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
 		'heightFieldWaterSim_mullerGdc2008': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
-		'heightFieldWaterSim_mullerGdc2008_helloWorld': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
-		'heightFieldWaterSim_xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
+		'heightFieldWaterSim_mullerGdc2008_helloWorld': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
 		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
@@ -180,7 +181,7 @@
 			antialias : true
 		});
 		renderer.setSize(window.innerWidth, window.innerHeight-5);
-		renderer.setClearColor('#081419', 1);
+		renderer.setClearColor('#111111', 1);
 		renderer.shadowMapEnabled = true;
 		renderer.shadowMapType = THREE.PCFShadowMap;
 		renderer.shadowMapSoft = true;
@@ -209,8 +210,9 @@
 		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
 		groundPlaneMesh.castShadow = true;
 		groundPlaneMesh.receiveShadow = true;
-		// groundPlaneMesh.position.set(1,1,1);
-		// groundPlaneMesh.rotation.set(THREE.Math.degToRad(10),THREE.Math.degToRad(10),THREE.Math.degToRad(10));
+		groundPlaneMesh.position.set(1,1,1);
+		groundPlaneMesh.rotation.set(THREE.Math.degToRad(10),THREE.Math.degToRad(10),THREE.Math.degToRad(10));
+		groundPlaneMesh.visible = false;
 		scene.add(groundPlaneMesh);
 
 		var torusKnotGeom = new THREE.TorusKnotGeometry(0.35, 0.1, 50, 8);
@@ -251,7 +253,7 @@
 		//setup lights
 		scene.add(new THREE.AmbientLight(0x000015));
 
-		keyLight = new THREE.SpotLight(0xffff00, 0.3);
+		keyLight = new THREE.SpotLight(0xffff00, 0.4);
 		keyLight.position.set(5, 15, -15);
 		keyLight.target.position.set(0, 0, 0);
 		keyLight.castShadow = true;
@@ -265,7 +267,7 @@
 		keyLight.shadowMapHeight = SHADOW_MAP_RES;
 		scene.add(keyLight);
 
-		fillLight = new THREE.SpotLight(0x00ff00, 0.2);
+		fillLight = new THREE.SpotLight(0x00ff00, 0.3);
 		fillLight.position.set(5, 2, 15);
 		fillLight.target.position.set(0, 0, 0);
 		scene.add(fillLight);
@@ -286,19 +288,48 @@
 		//create a height-field water sim from the plane
 		var waterGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_RES-1, WATER_RES-1);
 		waterGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-		var waterMaterial = new THREE.MeshPhongMaterial({color:'#3366FF'});
+		var waterMaterial = new THREE.MeshPhongMaterial({emissive:'#113366'});
 		materials.push(waterMaterial);
 		waterMesh = new THREE.Mesh(waterGeom, waterMaterial);
 		waterMesh.castShadow = true;
 		waterMesh.receiveShadow = true;
+		waterMesh.position.copy(groundPlaneMesh.position);
+		waterMesh.rotation.copy(groundPlaneMesh.rotation);
 		scene.add(waterMesh);
 
 		//create the different water sims
-		heightFieldWaterSim_iWave = new HeightFieldWaterSim_Tessendorf_iWave(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, 4, 3);
-		heightFieldWaterSim_mullerGdc2008 = new HeightFieldWaterSim_Muller_GDC2008(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, 5.0);
-		heightFieldWaterSim_mullerGdc2008_helloWorld = new HeightFieldWaterSim_Muller_GDC2008_HelloWorld(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
-		heightFieldWaterSim_xWater = new HeightFieldWaterSim_xWater(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
-		heightFieldWaterSim = heightFieldWaterSim_iWave;
+		heightFieldWaterSim_iWave = new HeightFieldWaterSim_Tessendorf_iWave({
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: DAMPING_FACTOR,
+			kernelRadius: 4,
+			substeps: 3,
+			meanHeight: MEAN_WATER_HEIGHT
+		});
+		heightFieldWaterSim_mullerGdc2008 = new HeightFieldWaterSim_Muller_GDC2008({
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: DAMPING_FACTOR,
+			horizontalSpeed: 5.0,
+			meanHeight: MEAN_WATER_HEIGHT
+		});
+		heightFieldWaterSim_mullerGdc2008_helloWorld = new HeightFieldWaterSim_Muller_GDC2008_HelloWorld({
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: DAMPING_FACTOR,
+			meanHeight: MEAN_WATER_HEIGHT
+		});
+		heightFieldWaterSim_xWater = new HeightFieldWaterSim_xWater({
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: DAMPING_FACTOR,
+			meanHeight: MEAN_WATER_HEIGHT
+		});
+		heightFieldWaterSim = heightFieldWaterSim_xWater;
 
 		// //create some obstacles for the water sim
 		// var i, j;
@@ -500,6 +531,8 @@
 	function setupEvents()
 	{
 		window.addEventListener('resize', window_onResize, false);
+		window.addEventListener('keydown', window_onKeyDown, false);
+		window.addEventListener('keyup', window_onKeyUp, false);
 		window.addEventListener('mousedown', window_onMouseDown, false);
 		window.addEventListener('mousemove', window_onMouseMove, false);
 		window.addEventListener('mouseup', window_onMouseUp, false);
@@ -522,13 +555,31 @@
 		renderer.setSize(window.innerWidth, window.innerHeight-5);
 	}
 
+	var activateDisturb = false;
+	function window_onKeyDown(event)
+	{
+		if (event.keyCode === 32)  //space
+		{
+			activateDisturb = true;
+		}
+	}
+
+	function window_onKeyUp(event)
+	{
+		if (event.keyCode === 32)  //space
+		{
+			activateDisturb = false;
+		}
+	}
+
 	var isSculpting = false;
+	var isDisturbing = false;
 	function window_onMouseDown(event)
 	{
 		if (event.ctrlKey)
 		{
-			//detect intersection and show brush
-			detectIntersection();
+			//detect intersection and show cursor
+			detectIntersectionAndShowSculptCursor();
 
 			//do actual sculpting if clicked
 			if (event.button === 0)  //LMB
@@ -545,8 +596,8 @@
 		}
 		else if (event.shiftKey)
 		{
-			//detect intersection and show brush
-			detectIntersection();
+			//detect intersection and show cursor
+			detectIntersectionAndShowSculptCursor();
 
 			//do actual sculpting if clicked
 			if (event.button === 0)  //LMB
@@ -555,19 +606,33 @@
 				sculptTerrain('flatten');
 			}
 		}
+		else
+		{
+			//for water
+			if (activateDisturb && event.button === 0)  //LMB
+			{
+				isDisturbing = true;
+
+				//detect intersection
+				intersectPoint = detectIntersection();
+				if (intersectPoint)
+				{
+					heightFieldWaterSim.disturb(intersectPoint, DISTURB_AMOUNT);
+				}
+			}
+		}
 	}
 
 	function window_onMouseMove(event)
 	{
 		event.preventDefault();
 
-		// brushMesh.visible = false;
 		skulpt.hideCursor();
 
 		if (event.ctrlKey)
 		{
-			//detect intersection and show brush
-			detectIntersection();
+			//detect intersection and show cursor
+			detectIntersectionAndShowSculptCursor();
 
 			//do actual sculpting if clicked
 			if (isSculpting)
@@ -584,8 +649,8 @@
 		}
 		else if (event.shiftKey)
 		{
-			//detect intersection and show brush
-			detectIntersection();
+			//detect intersection and show cursor
+			detectIntersectionAndShowSculptCursor();
 
 			//do actual sculpting if necessary
 			if (isSculpting)
@@ -596,11 +661,25 @@
 				}
 			}
 		}
+		else
+		{
+			//for water
+			if (activateDisturb && isDisturbing)  //LMB
+			{
+				//detect intersection
+				intersectPoint = detectIntersection();
+				if (intersectPoint)
+				{
+					heightFieldWaterSim.disturb(intersectPoint, DISTURB_AMOUNT);
+				}
+			}
+		}
 	}
 
 	function window_onMouseUp(event)
 	{
 		isSculpting = false;
+		isDisturbing = false;
 	}
 
 	var projector = new THREE.Projector();
@@ -618,10 +697,23 @@
 		raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
 		var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
 		
-		//get intersection point and vertexId
+		//get intersection point
 		if (intersectInfo && intersectInfo[0])
 		{
-			intersectPoint = intersectInfo[0].point;
+			return intersectInfo[0].point;
+		}
+		else
+		{
+			return null;
+		}
+	}
+
+	function detectIntersectionAndShowSculptCursor()
+	{
+		//detect intersection and show cursor
+		intersectPoint = detectIntersection();
+		if (intersectPoint)
+		{
 			skulpt.updateCursor(intersectPoint, skulptTerrainMesh);
 			skulpt.showCursor();
 		}
@@ -756,6 +848,7 @@
 	<div class="translucent" id="info-container">
 		<div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
 		<div>Sculpt: [ Ctrl+LMB: add ] [ Ctrl+RMB: remove ] [ Shift+LMB: flatten ]</div>
+		<div>Water Sim: [ Space+LMB: disturb water ]</div>
 	</div>
 </body>
 </html>
