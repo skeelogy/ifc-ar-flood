@@ -25,14 +25,16 @@
 	<script type="text/javascript" src="/js/lib/seedrandom.js"></script>
 
 	<script type="text/javascript" src="/js/heightfieldwatersim.js"></script>
+	<script type="text/javascript" src="/js/skvoxelizer.js"></script>
 	
 	<script>
 
 	var WATER_SIZE = 10;
 	var WATER_RES = 80;
+	var WATER_SEGMENT_SIZE = WATER_SIZE / WATER_RES;
 	var DAMPING_FACTOR = 0.8;
 	var DISTURB_AMOUNT = 0.015;
-	var MEAN_WATER_HEIGHT  = 1.5;
+	var MEAN_WATER_HEIGHT = 0;
 
 	var SHADOW_MAP_RES = 1024;
 
@@ -117,8 +119,8 @@
 		groundPlaneMesh.castShadow = false;
 		groundPlaneMesh.receiveShadow = false;
 		groundPlaneMesh.visible = false;
-		groundPlaneMesh.position.set(1,1,1);
-		groundPlaneMesh.rotation.set(THREE.Math.degToRad(10),THREE.Math.degToRad(10),THREE.Math.degToRad(10));
+		// groundPlaneMesh.position.set(1,1,1);
+		// groundPlaneMesh.rotation.set(THREE.Math.degToRad(10),THREE.Math.degToRad(10),THREE.Math.degToRad(10));
 		scene.add(groundPlaneMesh);
 	}
 
@@ -181,34 +183,42 @@
 		});
 		heightFieldWaterSim = heightFieldWaterSim_iWave;
 
-		// //create some obstacles for the water sim
-		// var i, j;
-		// for (i = 0; i < iSegments; i++)
-		// {
-		// 	for (j = 0; j < jSegments; j++)
-		// 	{
-		// 		var length = WATER_SIZE / 5.0;
-		// 		var obstacleGeom = new THREE.CubeGeometry(length*(Math.random()*0.5+0.5), 1, length*(Math.random()*0.5+0.5));
-		// 		var obstacleMaterial = new THREE.MeshPhongMaterial();
-		// 		materials.push(obstacleMaterial);
-		// 		obstacleMesh = new THREE.Mesh(obstacleGeom, obstacleMaterial);
-		// 		obstacleMesh.castShadow = true;
-		// 		obstacleMesh.receiveShadow = true;
-		// 		obstacleMesh.position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize);
-		// 		// obstacleMesh.position.y = Math.random() * 2 - 1.0;
-		// 		obstacleMesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize);
-		// 		obstacleMesh.rotation.y = (Math.random() * 360);
-		// 		// obstacleMesh.visible = false;
-		// 		scene.add(obstacleMesh);
-		// 		obstacles.push(obstacleMesh);
-		// 		heightFieldWaterSim.addObstacle(obstacleMesh);
-		// 	}
-		// }
+		//create some obstacles for the water sim
+		var i, j;
+		for (i = 0; i < iSegments; i++)
+		{
+			for (j = 0; j < jSegments; j++)
+			{
+				var length = WATER_SIZE / 5.0;
+				var obstacleGeom = new THREE.CubeGeometry(length*(Math.random()*0.5+0.5), 1, length*(Math.random()*0.5+0.5));
+				var obstacleMaterial = new THREE.MeshPhongMaterial();
+				materials.push(obstacleMaterial);
+				obstacleMesh = new THREE.Mesh(obstacleGeom, obstacleMaterial);
+				obstacleMesh.castShadow = true;
+				obstacleMesh.receiveShadow = true;
+				obstacleMesh.position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize);
+				// obstacleMesh.position.y = Math.random() * 2 - 1.0;
+				obstacleMesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize);
+				obstacleMesh.rotation.y = (Math.random() * 360);
+				// obstacleMesh.visible = false;
+				scene.add(obstacleMesh);
 
-		// //temp, just to make the demo nicer
-		// obstacles[1].position.x += -1;
-		// obstacles[2].position.x = 10000;
-		// obstacles[2].position.x = 10000;
+				var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_SEGMENT_SIZE, WATER_SEGMENT_SIZE, WATER_SEGMENT_SIZE);
+				heightFieldWaterSim_iWave.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				heightFieldWaterSim_mullerGdc2008.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				heightFieldWaterSim_mullerGdc2008_helloWorld.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				heightFieldWaterSim_xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				obstacle.updateAlways = true;  //TODO: should not always need to update
+				obstacle.update();  //NOTE: this does not work because transformations have not been applied yet
+
+				obstacles.push(obstacle);
+			}
+		}
+
+		//temp, just to make the demo nicer
+		obstacles[1].mesh.position.x += -1;
+		obstacles[2].mesh.position.x = 10000;
+		obstacles[2].mesh.position.x = 10000;
 	}
 
 	function randomizeObstaclePositions()
@@ -219,10 +229,12 @@
 			for (j = 0; j < jSegments; j++)
 			{
 				idx = i * iSegments + j;
-				obstacles[idx].position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize * 0.8);
-				obstacles[idx].position.y = Math.random() * 4 - 2;
-				obstacles[idx].position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize * 0.8);
-				obstacles[idx].rotation.y = (Math.random() * 360);
+				obstacles[idx].mesh.position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize * 0.8);
+				obstacles[idx].mesh.position.y = Math.random() * 4 - 2;
+				obstacles[idx].mesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize * 0.8);
+				obstacles[idx].mesh.rotation.y = (Math.random() * 360);
+
+				obstacles[idx].update();
 			}
 		}
 	}
@@ -414,26 +426,26 @@
 		{
 			for (obstacleId in obstacles)
 			{
-				obstacles[obstacleId].visible = value;
+				obstacles[obstacleId].mesh.visible = value;
 			}
 		}
 		control.onChange(changeObstaclesShowObstacles);
 		changeObstaclesShowObstacles(options.obstaclesShowObstacles);
 
-		control = obstaclesFolder.add(options, 'obstaclesShowDepthMap').name('Show Depth Map');
-		function changeObstaclesShowDepthMap(value)
-		{
-			if (value)
-			{
-				ObstacleManager.$depthMapImageObj.css({display:'block'});
-			}
-			else
-			{
-				ObstacleManager.$depthMapImageObj.css({display:'none'});
-			}
-		}
-		control.onChange(changeObstaclesShowDepthMap);
-		changeObstaclesShowDepthMap(options.obstaclesShowDepthMap);
+		// control = obstaclesFolder.add(options, 'obstaclesShowDepthMap').name('Show Depth Map');
+		// function changeObstaclesShowDepthMap(value)
+		// {
+		// 	if (value)
+		// 	{
+		// 		ObstacleManager.$depthMapImageObj.css({display:'block'});
+		// 	}
+		// 	else
+		// 	{
+		// 		ObstacleManager.$depthMapImageObj.css({display:'none'});
+		// 	}
+		// }
+		// control.onChange(changeObstaclesShowDepthMap);
+		// changeObstaclesShowDepthMap(options.obstaclesShowDepthMap);
 
 		//Rendering folder
 		renderingFolder = gui.addFolder('Rendering');
@@ -514,6 +526,15 @@
 			requestAnimationFrame(loop);
 		}
 		loop();
+
+		//anything that needs to be called after first render call/update can be done here
+
+		//update obstacles once
+		var i, len;
+		for (i = 0, len = obstacles.length; i < len; i++)
+		{
+			obstacles[i].update();
+		}
 		
 	});
 	</script>

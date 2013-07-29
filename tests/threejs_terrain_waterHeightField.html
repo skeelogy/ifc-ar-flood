@@ -35,7 +35,7 @@
 	var TERRAIN_RES = 64;
 	var TERRAIN_SIZE = 10;
 	var USE_TERRAIN_IMAGE = true;
-	var MEAN_WATER_HEIGHT  = 0.2;
+	var MEAN_WATER_HEIGHT = 0.1;
 
 	var WATER_SIZE = 10;
 	var WATER_RES = 64;
@@ -213,8 +213,8 @@
 		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
 		groundPlaneMesh.castShadow = true;
 		groundPlaneMesh.receiveShadow = true;
-		groundPlaneMesh.position.set(1,1,1);
-		groundPlaneMesh.rotation.set(THREE.Math.degToRad(10),THREE.Math.degToRad(10),THREE.Math.degToRad(10));
+		// groundPlaneMesh.position.set(1,1,1);
+		// groundPlaneMesh.rotation.set(THREE.Math.degToRad(10),THREE.Math.degToRad(10),THREE.Math.degToRad(10));
 		groundPlaneMesh.visible = false;
 		scene.add(groundPlaneMesh);
 
@@ -365,8 +365,9 @@
 		// obstacles[2].position.x = 10000;
 
 		//add terrain as an obstacle
-		terrainObstacle = new Obstacle(terrainMesh);
+		terrainObstacle = new TerrainObstacle(terrainMesh);
 		heightFieldWaterSim.addObstacle(terrainObstacle, 'terrainObstacle');
+		terrainObstacle.updateAlways = true;
 	}
 
 	var gui;
@@ -395,7 +396,7 @@
 			heightFieldWaterSim.dampingFactor = DAMPING_FACTOR;
 
 			//make sure to inherit the active value from the GUI too
-			heightFieldWaterSim.setObstaclesActive(options.obstaclesActive);
+			// heightFieldWaterSim.setObstaclesActive(options.obstaclesActive);
 		}
 		control.onChange(changeWaterSimType);
 		changeWaterSimType(options.waterSimType);

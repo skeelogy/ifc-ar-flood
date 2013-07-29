@@ -9,18 +9,80 @@
 //===================================
 
 /**
- * Obstacles for height field water sim
+ * Abstract class for obstacles
  * @constructor
  * @param {THREE.Mesh} mesh
  */
 function Obstacle(mesh) {
     this.mesh = mesh;
-    this.intersectionHeights = [];
-    this.intersectionHeightsNeedUpdate = false;
-
+    this.updateAlways = false;  //updates obstacle representation whenever calculations are done
     this.update();
 }
 Obstacle.prototype.update = function () {
+    throw new Error('Abstract method not implemented');
+};
+Obstacle.prototype.updateObstacleField = function (obstacleField, waterSim, waterHeight) {
+    throw new Error('Abstract method not implemented');
+};
+
+/**
+ * Obstacles that are voxelized
+ * @constructor
+ * @extends {Obstacle}
+ * @param {THREE.Mesh} mesh
+ * @param {number} voxelSizeX
+ * @param {number} voxelSizeY
+ * @param {number} voxelSizeZ
+ */
+function VoxelizedObstacle(mesh, voxelSizeX, voxelSizeY, voxelSizeZ) {
+    this.voxelizer = new SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ);
+    Obstacle.call(this, mesh);
+}
+VoxelizedObstacle.prototype = Object.create(Obstacle.prototype);
+VoxelizedObstacle.prototype.constructor = VoxelizedObstacle;
+VoxelizedObstacle.prototype.update = function () {
+    this.voxelizer.updateIntersections();
+};
+VoxelizedObstacle.prototype.updateObstacleField = function (obstacleField, waterSim, waterHeight) {
+
+    if (this.updateAlways) {
+        this.update();
+    }
+
+    var minIntersectHeight, maxIntersectHeight, intersectionHeights;
+    var x, z, idx;
+    for (x = this.voxelizer.__xMinMultiple; x <= this.voxelizer.__xMaxMultiple + this.voxelizer.__EPSILON; x += this.voxelizer.voxelSizeX) {
+        for (z = this.voxelizer.__zMinMultiple; z <= this.voxelizer.__zMaxMultiple + this.voxelizer.__EPSILON; z += this.voxelizer.voxelSizeZ) {
+            intersectionHeights = this.voxelizer.intersectionFirstAndLastHeights;
+            if (intersectionHeights && intersectionHeights[x] && intersectionHeights[x][z]) {
+
+                minIntersectHeight = intersectionHeights[x][z][0];
+                maxIntersectHeight = intersectionHeights[x][z][1];  //TODO: this assumes only two heights
+
+                //update obstacle field, compare obstacle intersection heights with water mean height
+                if (minIntersectHeight < waterHeight && maxIntersectHeight > waterHeight) {
+                    idx = waterSim.__calcVertexId(x, z);
+                    obstacleField[idx] = 0;
+                }
+            }
+        }
+    }
+};
+
+/**
+ * Obstacle that is a height-field terrain
+ * @constructor
+ * @extends {Obstacle}
+ * @param {THREE.Mesh} mesh
+ */
+function TerrainObstacle(mesh) {
+    this.intersectionHeights = [];
+    Obstacle.call(this, mesh);
+}
+TerrainObstacle.prototype = Object.create(Obstacle.prototype);
+TerrainObstacle.prototype.constructor = TerrainObstacle;
+TerrainObstacle.prototype.update = function () {
+    //since we are using a height-field terrain, we can just get the height without doing intersection tests
     var vertices = this.mesh.geometry.vertices;
     var i, len;
     for (i = 0, len = vertices.length; i < len; i++) {
@@ -29,8 +91,26 @@ Obstacle.prototype.update = function () {
         this.intersectionHeights[i].push(vertices[i].y);
     }
 };
-Obstacle.prototype.getIntersectionHeights = function () {
-    return this.intersectionHeights;
+TerrainObstacle.prototype.updateObstacleField = function (obstacleField, waterSim, waterHeight) {
+
+    if (this.updateAlways) {
+        this.update();
+    }
+
+    var minIntersectHeight, maxIntersectHeight;
+    var i, len;
+    for (i = 0, len = waterSim.res * waterSim.res; i < len; i++) {
+        if (this.intersectionHeights[i]) {
+
+            minIntersectHeight = this.intersectionHeights[i][0];
+            maxIntersectHeight = this.intersectionHeights[i][1];  //TODO: this assumes only two heights
+
+            //update obstacle field, compare obstacle intersection heights with water mean height
+            if (minIntersectHeight < waterHeight && maxIntersectHeight > waterHeight) {
+                obstacleField[i] = 0;
+            }
+        }
+    }
 };
 
 //TODO: obsolete, should be removed
@@ -201,37 +281,16 @@ HeightFieldWaterSim.prototype.update = function (dt) {
     //     }
     // }
 
-    var waterHeight;
-    // var v = this.geometry.vertices;
-    var minIntersectHeight, maxIntersectHeight;
-    var i, len;
-    for (i = 0, len = this.res * this.res; i < len; i++) {
-
-        //NOTE: must use mean height to compare, rather than v[i].y.
-        //The latter will cause unstable behaviour because obstacles detection test passes and fails as water geometry height varies.
-        waterHeight = this.meanHeight;
-        // waterHeight = v[i].y;
-
+    //update obstacle field
+    if (this.obstaclesActive) {
+        var waterHeight = this.meanHeight;
         var obstacle, obstacleId;
         for (obstacleId in this.obstacles) {
             if (this.obstacles.hasOwnProperty(obstacleId)) {
-
                 obstacle = this.obstacles[obstacleId];
-
-                if (obstacle.intersectionHeights[i]) {
-
-                    minIntersectHeight = obstacle.intersectionHeights[i][0];
-                    maxIntersectHeight = obstacle.intersectionHeights[i][1];  //TODO: this assumes only two heights
-
-                    //update obstacle field, compare obstacle intersection heights with water mean height
-                    if (minIntersectHeight < waterHeight && maxIntersectHeight > waterHeight) {
-                        this.obstacleField[i] = 0;
-                    }
-                }
-
+                obstacle.updateObstacleField(this.obstacleField, this, waterHeight);
             }
         }
-
     }
 
     this.sim(dt);
@@ -270,6 +329,9 @@ HeightFieldWaterSim.prototype.addObstacle = function (obstacle, name) {
     if (!(obstacle instanceof Obstacle)) {
         throw new Error('obstacle must be of type Obstacle');
     }
+    if (typeof name !== 'string') {
+        throw new Error('name must be of type string');
+    }
     if (Object.keys(this.obstacles).indexOf(name) !== -1) {
         throw new Error('obstacle name already exists: ' + name);
     }
@@ -281,8 +343,6 @@ HeightFieldWaterSim.prototype.setObstaclesActive = function (isActive) {
 };
 
 HeightFieldWaterSim.prototype.reset = function () {
-
-    console.log('reset water');
 
     //set mesh back to 0
     var i;
@@ -469,7 +529,8 @@ HeightFieldWaterSim_xWater.prototype.sim = function (dt) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
             this.field1[idx] += this.sourceField[idx];
-            this.field1[idx] *= this.obstacleField[idx];
+            //mask using obstacle field, relative to the mean height
+            this.field1[idx] = (this.field1[idx] - this.meanHeight) * this.obstacleField[idx] + this.meanHeight;
         }
     }
 

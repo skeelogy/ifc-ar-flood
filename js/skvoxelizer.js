@@ -80,7 +80,7 @@ SkVoxelizer.prototype.updateIntersections = function()
 	this.__updateMinMax();
 
 	//cast ray upwards from each (x,z) point and detect intersection with mesh
-	Math.seedrandom(1);
+	// Math.seedrandom(1);  //FIXME: conflicts with other random seedings
 	var x, z;
 	var intersectInfo;
 	for (x = this.__xMinMultiple; x <= this.__xMaxMultiple + this.__EPSILON; x += this.voxelSizeX)
@@ -89,8 +89,8 @@ SkVoxelizer.prototype.updateIntersections = function()
 		for (z = this.__zMinMultiple; z <= this.__zMaxMultiple + this.__EPSILON; z += this.voxelSizeZ)
 		{
 			//get first and last intersection points
-			this.__startPoint.x = x + Math.random() * this.__EPSILON;  //need to add small random offsets to prevent hitting exactly on vertices which causes intersection test to fail
-			this.__startPoint.z = z + Math.random() * this.__EPSILON;  //need to add small random offsets to prevent hitting exactly on vertices which causes intersection test to fail
+			this.__startPoint.x = x; // + Math.random() * this.__EPSILON;  //need to add small random offsets to prevent hitting exactly on vertices which causes intersection test to fail
+			this.__startPoint.z = z; // + Math.random() * this.__EPSILON;  //need to add small random offsets to prevent hitting exactly on vertices which causes intersection test to fail
 			this.__raycaster.set(this.__startPoint, this.__up);
 			intersectInfo = this.__raycaster.intersectObject(this.mesh);
 			if (intersectInfo && intersectInfo.length >= 2)
