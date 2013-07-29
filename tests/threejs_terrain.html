@@ -28,11 +28,22 @@
 	<script type="text/javascript" src="/js/lib/skulpt.js"></script>
 	
 	<script>
-	
+
 	var SHADOW_MAP_RES = 1024;
 	var TERRAIN_RES = 256;
 	var TERRAIN_SIZE = 10;
 	var USE_TERRAIN_IMAGE = true;
+
+	var GLOBAL_POS = new THREE.Vector3(0.5, 1, 1);
+	var GLOBAL_ROT = new THREE.Vector3(THREE.Math.degToRad(10),-THREE.Math.degToRad(10),THREE.Math.degToRad(10));
+	var GLOBAL_SCALE = new THREE.Vector3(1.25, 1.25, 1.25);
+
+	var GLOBAL_MAT = new THREE.Matrix4();
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeTranslation(GLOBAL_POS.x, GLOBAL_POS.y, GLOBAL_POS.z));
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationX(GLOBAL_ROT.x));
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationY(GLOBAL_ROT.y));
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationZ(GLOBAL_ROT.z));
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeScale(GLOBAL_SCALE.x, GLOBAL_SCALE.y, GLOBAL_SCALE.z));
 
 	var clock = new THREE.Clock();
 
@@ -147,9 +158,9 @@
 		skulpt.getMesh('terrainMesh').clearCurrLayer();
 	}
 
-	var renderer, scene, camera;
+	var renderer, scene, camera, globalTransform;
 	var keyLight, fillLight;
-	var localAxis;
+	var worldAxis, localAxis;
 	var materials = [];
 	var torusKnotMesh, boxMesh, sphereMesh;
 	var groundPlaneMesh;
@@ -170,9 +181,16 @@
 		//create scene
 		scene = new THREE.Scene();
 
+		//create an overall transformation to hold the global transform
+		globalTransform = new THREE.Object3D();
+		globalTransform.matrixAutoUpdate = false;
+		globalTransform.matrix.multiply(GLOBAL_MAT);
+		globalTransform.matrixWorldNeedsUpdate = true;
+		scene.add(globalTransform);
+
 		//create camera
-		camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000 );
-		camera.position.set(8, 8, 15);
+		camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
+		camera.position.set(4, 10, 19);
 		camera.lookAt(new THREE.Vector3(0,0,0));
 
 		//create controls for camera
@@ -189,9 +207,7 @@
 		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
 		groundPlaneMesh.castShadow = true;
 		groundPlaneMesh.receiveShadow = true;
-		groundPlaneMesh.position.set(1,1,1);
-		groundPlaneMesh.rotation.set(THREE.Math.degToRad(10),THREE.Math.degToRad(10),THREE.Math.degToRad(10));
-		scene.add(groundPlaneMesh);
+		globalTransform.add(groundPlaneMesh);
 
 		var torusKnotGeom = new THREE.TorusKnotGeometry(0.35, 0.1, 50, 8);
 		var torusKnotMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
@@ -202,7 +218,7 @@
 		torusKnotMesh.position.y = 1;
 		torusKnotMesh.castShadow = true;
 		torusKnotMesh.receiveShadow = false;
-		scene.add(torusKnotMesh);
+		globalTransform.add(torusKnotMesh);
 
 		var boxGeom = new THREE.CubeGeometry(1, 1, 1);
 		var boxMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
@@ -211,7 +227,7 @@
 		boxMesh.position.y = 1;
 		boxMesh.castShadow = true;
 		boxMesh.receiveShadow = false;
-		scene.add(boxMesh);
+		globalTransform.add(boxMesh);
 
 		var sphereGeom = new THREE.SphereGeometry(0.65, 10, 10);
 		var sphereMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
@@ -222,33 +238,35 @@
 		sphereMesh.position.y = 1;
 		sphereMesh.castShadow = true;
 		sphereMesh.receiveShadow = false;
-		scene.add(sphereMesh);
+		globalTransform.add(sphereMesh);
 
 		//create axis
+		worldAxis = new THREE.AxisHelper();
+		scene.add(worldAxis);
 		localAxis = new THREE.AxisHelper();
-		scene.add(localAxis);
+		globalTransform.add(localAxis);
 
 		//setup lights
-		scene.add(new THREE.AmbientLight(0x000015));
+		globalTransform.add(new THREE.AmbientLight(0x000015));
 
 		keyLight = new THREE.SpotLight(0xffff00, 0.3);
 		keyLight.position.set(5, 15, -15);
 		keyLight.target.position.set(0, 0, 0);
 		keyLight.castShadow = true;
-		keyLight.shadowCameraNear = 15;
-		keyLight.shadowCameraFar = 30;
-		keyLight.shadowCameraFov = 30;
+		keyLight.shadowCameraNear = 20;
+		keyLight.shadowCameraFar = 33;
+		keyLight.shadowCameraFov = 35;
 		//keyLight.shadowCameraVisible = true;
 		keyLight.shadowBias = 0.0001;
 		keyLight.shadowDarkness = 0.5;
 		keyLight.shadowMapWidth = SHADOW_MAP_RES;
 		keyLight.shadowMapHeight = SHADOW_MAP_RES;
-		scene.add(keyLight);
+		globalTransform.add(keyLight);
 
 		fillLight = new THREE.SpotLight(0x00ff00, 0.2);
 		fillLight.position.set(5, 2, 15);
 		fillLight.target.position.set(0, 0, 0);
-		scene.add(fillLight);
+		globalTransform.add(fillLight);
 	}
 
 	var gui;
@@ -388,6 +406,7 @@
 		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
+			worldAxis.visible = value;
 			localAxis.visible = value;
 		}
 		control.onChange(toggleLocalAxis);
@@ -581,12 +600,10 @@
 		terrainMesh = new THREE.Mesh(terrainGeom, terrainMaterial);
 		terrainMesh.castShadow = true;
 		terrainMesh.receiveShadow = true;
-		terrainMesh.position.copy(groundPlaneMesh.position);
-		terrainMesh.rotation.copy(groundPlaneMesh.rotation);
-		scene.add(terrainMesh);
+		globalTransform.add(terrainMesh);
 
 		//create a Skulpt first
-		skulpt = new Skulpt(scene);
+		skulpt = new Skulpt(globalTransform);
 		
 		//create a SkulptMesh, add a layer
 		skulptTerrainMesh = new SkulptTerrainMesh(terrainMesh, TERRAIN_SIZE, TERRAIN_RES);

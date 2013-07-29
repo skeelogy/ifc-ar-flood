@@ -352,6 +352,10 @@ function SkulptMeshCursor(size, amount, scene, radiusSegments) {
 
     //hide the mesh by default
     this.hide();
+
+    //temp variables to avoid recreation every frame
+    this.__pos = new THREE.Vector3();
+    this.__matInv = new THREE.Matrix4();
 }
 SkulptMeshCursor.prototype = Object.create(SkulptCursor.prototype);
 SkulptMeshCursor.prototype.constructor = SkulptMeshCursor;
@@ -382,10 +386,19 @@ SkulptMeshCursor.prototype.show = function () {
 SkulptMeshCursor.prototype.hide = function () {
     this.__cursorMesh.visible = false;
 };
+/**
+ * Updates the cursor to <tt>position</tt>
+ * @param  {THREE.Vector3} position - world space position
+ * @param  {SkulptMesh} skulptMesh
+ */
 SkulptMeshCursor.prototype.update = function (position, skulptMesh) {
 
     //move cursor to position
-    this.__cursorMesh.position.copy(position);
+    this.__pos.copy(position);
+    if (this.__scene instanceof THREE.Object3D) {
+        this.__pos.applyMatrix4(this.__matInv.getInverse(this.__scene.matrixWorld));
+    }
+    this.__cursorMesh.position.copy(this.__pos);
 
     //rotate cursor to same orientation as skulptMesh
     //TODO: orient to geom normal instead
@@ -673,7 +686,6 @@ function Skulpt(scene) {
     };  //TODO: probably should be managed by a singleton
     this.__currBrush = this.__brushes[Object.keys(this.__brushes)[0]];
     this.__currProfile = new CosineSkulptProfile(); //TODO: methods for profile, probably should be managed by a singleton
-    this.__cursor = new SkulptCursor(scene);
 }
 /**
  * Adds a mesh with name <tt>name</tt>
