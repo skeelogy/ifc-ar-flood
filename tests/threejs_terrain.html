@@ -424,8 +424,8 @@
 	{
 		if (event.ctrlKey)
 		{
-			//detect intersection and show brush
-			detectIntersection();
+			//detect intersection and show cursor
+			detectIntersectionAndShowSculptCursor();
 
 			//do actual sculpting if clicked
 			if (event.button === 0)  //LMB
@@ -442,8 +442,8 @@
 		}
 		else if (event.shiftKey)
 		{
-			//detect intersection and show brush
-			detectIntersection();
+			//detect intersection and show cursor
+			detectIntersectionAndShowSculptCursor();
 
 			//do actual sculpting if clicked
 			if (event.button === 0)  //LMB
@@ -458,13 +458,12 @@
 	{
 		event.preventDefault();
 
-		// brushMesh.visible = false;
 		skulpt.hideCursor();
 
 		if (event.ctrlKey)
 		{
-			//detect intersection and show brush
-			detectIntersection();
+			//detect intersection and show cursor
+			detectIntersectionAndShowSculptCursor();
 
 			//do actual sculpting if clicked
 			if (isSculpting)
@@ -481,8 +480,8 @@
 		}
 		else if (event.shiftKey)
 		{
-			//detect intersection and show brush
-			detectIntersection();
+			//detect intersection and show cursor
+			detectIntersectionAndShowSculptCursor();
 
 			//do actual sculpting if necessary
 			if (isSculpting)
@@ -515,10 +514,23 @@
 		raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
 		var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
 		
-		//get intersection point and vertexId
+		//get intersection point
 		if (intersectInfo && intersectInfo[0])
 		{
-			intersectPoint = intersectInfo[0].point;
+			return intersectInfo[0].point;
+		}
+		else
+		{
+			return null;
+		}
+	}
+
+	function detectIntersectionAndShowSculptCursor()
+	{
+		//detect intersection and show cursor
+		intersectPoint = detectIntersection();
+		if (intersectPoint)
+		{
 			skulpt.updateCursor(intersectPoint, skulptTerrainMesh);
 			skulpt.showCursor();
 		}

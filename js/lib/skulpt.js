@@ -117,8 +117,9 @@ function SkulptMesh(mesh) {
     this.__currLayer = undefined;
     this.__displacements = [];  //need to always keep this in sync
 
-    this.__meshWorldMat = this.__mesh.matrixWorld;
-    this.__geom = this.__mesh.geometry;
+    //temp variables to prevent recreation every frame
+    this.__worldMatInv = new THREE.Matrix4();
+    this.__localPos = new THREE.Vector3();
 
     this.__init();
 }
@@ -193,11 +194,11 @@ SkulptTerrainMesh.prototype.__calcTerrainVertexId = function (x, z) {
 SkulptTerrainMesh.prototype.getAffectedVertexInfo = function (position, radius) {
 
     //convert back to local space first
-    var inv = this.__meshWorldMat.clone().getInverse(this.__meshWorldMat);
-    var localPosition = position.clone().applyMatrix4(inv);
+    this.__worldMatInv.getInverse(this.__mesh.matrixWorld);
+    this.__localPos.copy(position).applyMatrix4(this.__worldMatInv);
 
-    var centerX = localPosition.x;
-    var centerZ = localPosition.z;
+    var centerX = this.__localPos.x;
+    var centerZ = this.__localPos.z;
 
     //find all vertices that are in radius
     //iterate in the square with width of 2*radius first
@@ -210,7 +211,7 @@ SkulptTerrainMesh.prototype.getAffectedVertexInfo = function (position, radius) 
             if (dist < radius) { //within the circle
                 //get vertex id for this (x, z) point
                 var vertexId = this.__calcTerrainVertexId(centerX + x, centerZ + z);
-                var vertex = this.__geom.vertices[vertexId];
+                var vertex = this.__mesh.geometry.vertices[vertexId];
                 if (vertex) {
                     //add to current layer
                     var vertexInfo = {
