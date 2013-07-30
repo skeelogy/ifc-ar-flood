@@ -28,6 +28,7 @@
 
 	<script type="text/javascript" src="/js/lib/skulpt.js"></script>
 	<script type="text/javascript" src="/js/heightfieldwatersim.js"></script>
+	<script type="text/javascript" src="/js/skvoxelizer.js"></script>
 	
 	<script>
 	
@@ -39,6 +40,7 @@
 
 	var WATER_SIZE = 10;
 	var WATER_RES = 64;
+	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
 	var DAMPING_FACTOR = 0.8;
 	var DISTURB_AMOUNT = 0.015;
 
@@ -307,6 +309,7 @@
 	var jSegmentSize = WATER_SIZE / jSegments;
 	var halfWaterSize = WATER_SIZE / 2.0;
 	var obstacles = [];
+	var shouldUpdateObstacles;
 	function setupWaterScene()
 	{
 		//create a height-field water sim from the plane
@@ -355,34 +358,45 @@
 		});
 		heightFieldWaterSim = heightFieldWaterSim_xWater;
 
-		// //create some obstacles for the water sim
-		// var i, j;
-		// for (i = 0; i < iSegments; i++)
-		// {
-		// 	for (j = 0; j < jSegments; j++)
-		// 	{
-		// 		var length = WATER_SIZE / 5.0;
-		// 		var obstacleGeom = new THREE.CubeGeometry(length*(Math.random()*0.5+0.5), 1, length*(Math.random()*0.5+0.5));
-		// 		var obstacleMaterial = new THREE.MeshPhongMaterial();
-		// 		materials.push(obstacleMaterial);
-		// 		obstacleMesh = new THREE.Mesh(obstacleGeom, obstacleMaterial);
-		// 		obstacleMesh.castShadow = true;
-		// 		obstacleMesh.receiveShadow = true;
-		// 		obstacleMesh.position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize);
-		// 		// obstacleMesh.position.y = Math.random() * 2 - 1.0;
-		// 		obstacleMesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize);
-		// 		obstacleMesh.rotation.y = (Math.random() * 360);
-		// 		// obstacleMesh.visible = false;
-		// 		globalTransform.add(obstacleMesh);
-		// 		obstacles.push(obstacleMesh);
-		// 		heightFieldWaterSim.addObstacle(obstacleMesh);
-		// 	}
-		// }
+		//create some obstacles for the water sim
+		var i, j;
+		for (i = 0; i < iSegments; i++)
+		{
+			for (j = 0; j < jSegments; j++)
+			{
+				var length = WATER_SIZE / 5.0;
+				var obstacleGeom = new THREE.CubeGeometry(length*(Math.random()*0.5+0.5), 1, length*(Math.random()*0.5+0.5));
+				var obstacleMaterial = new THREE.MeshPhongMaterial({color: '#ff0000'});
+				materials.push(obstacleMaterial);
+				obstacleMesh = new THREE.Mesh(obstacleGeom, obstacleMaterial);
+				obstacleMesh.castShadow = true;
+				obstacleMesh.receiveShadow = true;
+				obstacleMesh.position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize);
+				// obstacleMesh.position.y = Math.random() * 2 - 1.0;
+				obstacleMesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize);
+				obstacleMesh.rotation.y = (Math.random() * 360);
+				// obstacleMesh.visible = false;
+				globalTransform.add(obstacleMesh);
 
-		// //temp, just to make the demo nicer
-		// obstacles[1].position.x += -1;
-		// obstacles[2].position.x = 10000;
-		// obstacles[2].position.x = 10000;
+				//create Obstacle
+				var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE, globalTransform.matrixWorld);
+				heightFieldWaterSim_iWave.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				heightFieldWaterSim_mullerGdc2008.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				heightFieldWaterSim_mullerGdc2008_helloWorld.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				heightFieldWaterSim_xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				obstacle.updateAlways = false;
+				// obstacle.update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
+
+				obstacles.push(obstacle);
+			}
+		}
+
+		//temp, just to make the demo nicer
+		obstacles[1].mesh.position.x += -1;
+		obstacles[2].mesh.position.x = 10000;
+		obstacles[2].mesh.position.x = 10000;
+
+		shouldUpdateObstacles = true;
 
 		//add terrain as an obstacle
 		terrainObstacle = new TerrainObstacle(terrainMesh);
@@ -417,9 +431,6 @@
 			DISTURB_AMOUNT = waterSimTypeSettings[value].disturbAmount;
 			DAMPING_FACTOR = waterSimTypeSettings[value].dampingFactor;
 			heightFieldWaterSim.dampingFactor = DAMPING_FACTOR;
-
-			//make sure to inherit the active value from the GUI too
-			// heightFieldWaterSim.setObstaclesActive(options.obstaclesActive);
 		}
 		control.onChange(changeWaterSimType);
 		changeWaterSimType(options.waterSimType);
@@ -893,6 +904,17 @@
 			controls.update();
 
 			stats.update();
+
+			//update obstacles after rendering is done, so that meshes are updated and obstacles are good to update
+			if (shouldUpdateObstacles) {
+				console.log('updating obstacles');
+				var i, len;
+				for (i = 0, len = obstacles.length; i < len; i++)
+				{
+					obstacles[i].update();
+				}
+				shouldUpdateObstacles = false;
+			}
 
 			//animating mean height to increase flood levels
 			currWaterHeight += options.waterSimFloodRate * dt;
