@@ -561,7 +561,7 @@ SkulptAddBrush.prototype.sculpt = function (mesh, position, profile) {
         affectedVertexInfos[i].oldDisplacement = displacements[vertexInfo.id];
 
         //modify layer displacement
-        delta = amount * profile.getValue(vertexInfo.weight)
+        delta = amount * profile.getValue(vertexInfo.weight);
         layer.data[vertexInfo.id] += delta;
 
         //store new displacement
@@ -612,7 +612,7 @@ SkulptRemoveBrush.prototype.sculpt = function (mesh, position, profile) {
         sumOtherLayersForThisVertex = displacements[vertexInfo.id] - layer.data[vertexInfo.id];
 
         //modify displacement amount in-place
-        delta = - (amount * profile.getValue(vertexInfo.weight));
+        delta = -(amount * profile.getValue(vertexInfo.weight));
         layer.data[vertexInfo.id] += delta;
 
         //prevent going below 0

@@ -320,8 +320,6 @@
 		waterMesh = new THREE.Mesh(waterGeom, waterMaterial);
 		waterMesh.castShadow = true;
 		waterMesh.receiveShadow = true;
-		waterMesh.position.copy(groundPlaneMesh.position);
-		waterMesh.rotation.copy(groundPlaneMesh.rotation);
 		globalTransform.add(waterMesh);
 
 		//create the different water sims
@@ -833,8 +831,6 @@
 		terrainMesh = new THREE.Mesh(terrainGeom, terrainMaterial);
 		terrainMesh.castShadow = true;
 		terrainMesh.receiveShadow = true;
-		terrainMesh.position.copy(groundPlaneMesh.position);
-		terrainMesh.rotation.copy(groundPlaneMesh.rotation);
 		globalTransform.add(terrainMesh);
 
 		//create a Skulpt first
