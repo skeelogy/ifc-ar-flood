@@ -330,6 +330,10 @@ HeightFieldWaterSim.prototype.disturb = function (position, amount) {
     this.sourceField[idx] = amount;
 };
 
+HeightFieldWaterSim.prototype.disturbById = function (id, amount) {
+    this.sourceField[id] = amount;
+};
+
 HeightFieldWaterSim.prototype.addObstacle = function (obstacle, name) {
     // DepthMapObstacleManager.addObstacle(mesh);
     if (!(obstacle instanceof Obstacle)) {

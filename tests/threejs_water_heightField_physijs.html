@@ -41,6 +41,7 @@
 	var WATER_VOXEL_VOL = WATER_GRID_SIZE * WATER_GRID_SIZE * WATER_GRID_SIZE;
 	var DAMPING_FACTOR = 0.8;
 	var DISTURB_AMOUNT = 0.015;
+	var MEAN_WATER_HEIGHT = 0;
 
 	var SHADOW_MAP_RES = 1024;
 
@@ -153,10 +154,37 @@
 		scene.add(waterMesh);
 
 		//create the different water sims
-		heightFieldWaterSim_iWave = new HeightFieldWaterSim_Tessendorf_iWave(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, 4, 3);
-		heightFieldWaterSim_mullerGdc2008 = new HeightFieldWaterSim_Muller_GDC2008(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR, 5.0);
-		heightFieldWaterSim_mullerGdc2008_helloWorld = new HeightFieldWaterSim_Muller_GDC2008_HelloWorld(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
-		heightFieldWaterSim_xWater = new HeightFieldWaterSim_xWater(waterMesh, WATER_SIZE, WATER_RES, DAMPING_FACTOR);
+		heightFieldWaterSim_iWave = new HeightFieldWaterSim_Tessendorf_iWave({
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: DAMPING_FACTOR,
+			kernelRadius: 4,
+			substeps: 3,
+			meanHeight: MEAN_WATER_HEIGHT
+		});
+		heightFieldWaterSim_mullerGdc2008 = new HeightFieldWaterSim_Muller_GDC2008({
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: DAMPING_FACTOR,
+			horizontalSpeed: 5.0,
+			meanHeight: MEAN_WATER_HEIGHT
+		});
+		heightFieldWaterSim_mullerGdc2008_helloWorld = new HeightFieldWaterSim_Muller_GDC2008_HelloWorld({
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: DAMPING_FACTOR,
+			meanHeight: MEAN_WATER_HEIGHT
+		});
+		heightFieldWaterSim_xWater = new HeightFieldWaterSim_xWater({
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: DAMPING_FACTOR,
+			meanHeight: MEAN_WATER_HEIGHT
+		});
 		heightFieldWaterSim = heightFieldWaterSim_iWave;
 	}
 
@@ -239,17 +267,29 @@
 				obstacleMesh.position.z = (jSegmentSize * j) - WATER_SIZE_HALF + ((Math.random()) * jSegmentSize);
 				obstacleMesh.rotation.y = (Math.random() * 360);
 				scene.add(obstacleMesh);
-				obstacles.push(obstacleMesh);
-				heightFieldWaterSim.addObstacle(obstacleMesh);
+
+				//create Obstacle
+				var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
+				heightFieldWaterSim_iWave.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				heightFieldWaterSim_mullerGdc2008.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				heightFieldWaterSim_mullerGdc2008_helloWorld.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				heightFieldWaterSim_xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				obstacle.updateAlways = false;
+				// obstacle.update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
+
+				obstacles.push(obstacle);
 			}
 		}
 
 		//temp, just to make the demo nicer
-		obstacles[1].position.x += -1;
-		obstacles[1].__dirtyPosition = true;
-		obstacles[2].position.x = 10000;
-		obstacles[2].position.x = 10000;
-		obstacles[2].__dirtyPosition = true;
+		obstacles[1].mesh.position.x += -1;
+		obstacles[1].mesh.__dirtyPosition = true;
+		obstacles[2].mesh.position.x = 10000;
+		obstacles[2].mesh.position.x = 10000;
+		obstacles[2].mesh.__dirtyPosition = true;
+
+		//using a flag to let obstacles update once after mesh updates
+		shouldUpdateObstacles = true;
 	}
 
 	function setupDynamicAttributes()
@@ -262,6 +302,7 @@
 		}
 	}
 
+	var shouldUpdateObstacles;
 	function randomizeObstaclePositions()
 	{
 		var i, j;
@@ -274,6 +315,11 @@
 				obstacles[idx].position.y = Math.random() * 4 - 2;
 				obstacles[idx].position.z = (jSegmentSize * j) - WATER_SIZE_HALF + ((Math.random()) * jSegmentSize * 0.8);
 				obstacles[idx].rotation.y = (Math.random() * 360);
+
+				// obstacles[idx].update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
+
+				//so set a flag here to let obstacles update once after mesh updates
+				shouldUpdateObstacles = true;
 			}
 		}
 	}
@@ -381,28 +427,28 @@
 						var neighbourId = vertexId + WATER_RES;
 						if (vertices[neighbourId])
 						{
-							heightFieldWaterSim.disturb(neighbourId, spreadHeight);
+							heightFieldWaterSim.disturbById(neighbourId, spreadHeight);
 						}
 
 						//neighbour (x-1,z)
 						neighbourId = vertexId - WATER_RES;
 						if (vertices[neighbourId])
 						{
-							heightFieldWaterSim.disturb(neighbourId, spreadHeight);
+							heightFieldWaterSim.disturbById(neighbourId, spreadHeight);
 						}
 
 						//neighbour (x,z+1)
 						neighbourId = vertexId + 1;
 						if (vertices[neighbourId])
 						{
-							heightFieldWaterSim.disturb(neighbourId, spreadHeight);
+							heightFieldWaterSim.disturbById(neighbourId, spreadHeight);
 						}
 
 						//neighbour (x,z-1)
 						neighbourId = vertexId - 1;
 						if (vertices[neighbourId])
 						{
-							heightFieldWaterSim.disturb(neighbourId, spreadHeight);
+							heightFieldWaterSim.disturbById(neighbourId, spreadHeight);
 						}
 
 						//store this value as prev
@@ -419,7 +465,7 @@
 					var vertexId = calcVertexId(x, z);
 					if (displacedVoxelCount[vertexId] > 0)
 					{
-						heightFieldWaterSim.disturb(vertexId, 0);
+						heightFieldWaterSim.disturbById(vertexId, 0);
 					}
 				}
 			}
@@ -456,7 +502,7 @@
 				if (intersectPoint)
 				{
 					isDisturbing = true;
-					heightFieldWaterSim.disturb(calcVertexId(intersectPoint.x, intersectPoint.z), DISTURB_AMOUNT);
+					heightFieldWaterSim.disturb(intersectPoint, DISTURB_AMOUNT);
 				}
 			}
 		}
@@ -482,7 +528,7 @@
 			intersectPoint = detectIntersection();
 			if (intersectPoint)
 			{
-				heightFieldWaterSim.disturb(calcVertexId(intersectPoint.x, intersectPoint.z), DISTURB_AMOUNT);
+				heightFieldWaterSim.disturb(intersectPoint, DISTURB_AMOUNT);
 			}
 		}
 	}
@@ -644,20 +690,20 @@
 		control.onChange(changeObstaclesShowObstacles);
 		changeObstaclesShowObstacles(options.obstaclesShowObstacles);
 
-		control = obstaclesFolder.add(options, 'obstaclesShowDepthMap').name('Show Depth Map');
-		function changeObstaclesShowDepthMap(value)
-		{
-			if (value)
-			{
-				ObstacleManager.$depthMapImageObj.css({display:'block'});
-			}
-			else
-			{
-				ObstacleManager.$depthMapImageObj.css({display:'none'});
-			}
-		}
-		control.onChange(changeObstaclesShowDepthMap);
-		changeObstaclesShowDepthMap(options.obstaclesShowDepthMap);
+		// control = obstaclesFolder.add(options, 'obstaclesShowDepthMap').name('Show Depth Map');
+		// function changeObstaclesShowDepthMap(value)
+		// {
+		// 	if (value)
+		// 	{
+		// 		ObstacleManager.$depthMapImageObj.css({display:'block'});
+		// 	}
+		// 	else
+		// 	{
+		// 		ObstacleManager.$depthMapImageObj.css({display:'none'});
+		// 	}
+		// }
+		// control.onChange(changeObstaclesShowDepthMap);
+		// changeObstaclesShowDepthMap(options.obstaclesShowDepthMap);
 
 		//Rendering folder
 		renderingFolder = gui.addFolder('Rendering');
@@ -744,10 +790,20 @@
 
 			stats.update();
 
+			//update obstacles after rendering is done, so that meshes are updated and obstacles are good to update
+			if (shouldUpdateObstacles) {
+				var i, len;
+				for (i = 0, len = obstacles.length; i < len; i++)
+				{
+					obstacles[i].update();
+				}
+				shouldUpdateObstacles = false;
+			}
+
 			requestAnimationFrame(loop);
 		}
 		loop();
-		
+
 	});
 	</script>
 </head>
