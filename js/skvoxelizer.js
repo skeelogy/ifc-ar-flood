@@ -6,19 +6,20 @@
 
 /**
  * Voxelizer for <tt>mesh</tt>
+ * @constructor
  * @param {THREE.Mesh} mesh
  * @param {number} voxelSizeX
  * @param {number} voxelSizeY
  * @param {number} voxelSizeZ
- * @param {THREE.Object3D} transform
+ * @param {THREE.Matrix4} transformMatrix
  */
-function SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, transform)
+function SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, transformMatrix)
 {
 	this.mesh = mesh;
 	this.voxelSizeX = voxelSizeX || 1;
 	this.voxelSizeY = voxelSizeY || 1;
 	this.voxelSizeZ = voxelSizeZ || 1;
-	this.transform = transform;
+	this.transformMatrix = transformMatrix || new THREE.Matrix4();
 
 	this.__EPSILON = 0.001;
 
@@ -58,7 +59,7 @@ function SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, transform)
 SkVoxelizer.prototype.__updateMinMax = function()
 {
 	//get a matrix that represents conversion to transform's space
-	this.__mat.getInverse(this.transform.matrixWorld);
+	this.__mat.getInverse(this.transformMatrix);
 	this.__mat.multiply(this.mesh.matrixWorld);
 
 	//create AABB that is in transform's space
@@ -103,8 +104,8 @@ SkVoxelizer.prototype.updateIntersections = function()
 			
 			//create a ray in world space
 			this.__raycaster.set(
-				this.__startPoint.clone().applyMatrix4(this.transform.matrixWorld),
-				this.__up.clone().transformDirection(this.transform.matrixWorld)
+				this.__startPoint.clone().applyMatrix4(this.transformMatrix),
+				this.__up.clone().transformDirection(this.transformMatrix)
 			);
 
 			//get world space intersect info
@@ -112,7 +113,7 @@ SkVoxelizer.prototype.updateIntersections = function()
 			if (intersectInfo && intersectInfo.length >= 2)
 			{
 				//convert intersectInfo back to local space
-				this.__mat.getInverse(this.transform.matrixWorld);
+				this.__mat.getInverse(this.transformMatrix);
 				var p1 = intersectInfo[0].point.applyMatrix4(this.__mat);
 				var p2 = intersectInfo[intersectInfo.length-1].point.applyMatrix4(this.__mat);
 
