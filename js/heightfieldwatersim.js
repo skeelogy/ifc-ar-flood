@@ -15,7 +15,7 @@
  */
 function Obstacle(mesh) {
     this.mesh = mesh;
-    this.updateAlways = false;  //updates obstacle representation whenever calculations are done
+    this.updateAlways = false;  //updates obstacle representation whenever calculations are done, meant for dynamic obstacles that are always moving
     this.update();
 }
 Obstacle.prototype.update = function () {
@@ -34,8 +34,8 @@ Obstacle.prototype.updateObstacleField = function (obstacleField, waterSim, wate
  * @param {number} voxelSizeY
  * @param {number} voxelSizeZ
  */
-function VoxelizedObstacle(mesh, voxelSizeX, voxelSizeY, voxelSizeZ) {
-    this.voxelizer = new SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ);
+function VoxelizedObstacle(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, globalTransform) {
+    this.voxelizer = new SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, globalTransform);
     Obstacle.call(this, mesh);
 }
 VoxelizedObstacle.prototype = Object.create(Obstacle.prototype);
@@ -97,6 +97,8 @@ TerrainObstacle.prototype.updateObstacleField = function (obstacleField, waterSi
         this.update();
     }
 
+    //compare intersection heights in local space.
+    //For terrain obstacle, heights are in local space too, so can just compare directly without transformations.
     var minIntersectHeight, maxIntersectHeight;
     var i, len;
     for (i = 0, len = waterSim.res * waterSim.res; i < len; i++) {

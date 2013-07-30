@@ -28,6 +28,17 @@
 	
 	<script>
 
+	var GLOBAL_POS = new THREE.Vector3(0.5, 1, 1);
+	var GLOBAL_ROT = new THREE.Vector3(THREE.Math.degToRad(30),-THREE.Math.degToRad(30),THREE.Math.degToRad(30));
+	var GLOBAL_SCALE = new THREE.Vector3(1, 1, 1);
+
+	var GLOBAL_MAT = new THREE.Matrix4();
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeTranslation(GLOBAL_POS.x, GLOBAL_POS.y, GLOBAL_POS.z));
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationX(GLOBAL_ROT.x));
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationY(GLOBAL_ROT.y));
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationZ(GLOBAL_ROT.z));
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeScale(GLOBAL_SCALE.x, GLOBAL_SCALE.y, GLOBAL_SCALE.z));
+
 	var clock = new THREE.Clock();
 
 	function checkWebGl()
@@ -41,9 +52,9 @@
 		}
 	}
 
-	var renderer, scene, camera, controls;
+	var renderer, scene, camera, controls, globalTransform;
 	var materials = [];
-	var localAxis;
+	var worldAxis, localAxis;
 	var cubeMesh, sphereMesh, cylinderMesh;
 	var testMesh;
 	function setupThreejsScene()
@@ -60,6 +71,13 @@
 		//create scene
 		scene = new THREE.Scene();
 
+		//create an overall transformation to hold the global transform
+		globalTransform = new THREE.Object3D();
+		globalTransform.matrixAutoUpdate = false;
+		globalTransform.matrix.multiply(GLOBAL_MAT);
+		globalTransform.matrixWorldNeedsUpdate = true;
+		scene.add(globalTransform);
+
 		//create camera
 		camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
 		camera.position.set(8, 8, 15);
@@ -72,21 +90,23 @@
 		controls.modifierKey = 'alt';
 
 		//create axis
+		worldAxis = new THREE.AxisHelper();
+		scene.add(worldAxis);
 		localAxis = new THREE.AxisHelper();
-		scene.add(localAxis);
+		globalTransform.add(localAxis);
 
 		//setup lights
-		scene.add(new THREE.AmbientLight(0x111111));
+		globalTransform.add(new THREE.AmbientLight(0x111111));
 
 		keyLight = new THREE.SpotLight(0xffff44, 0.6);
 		keyLight.position.set(5, 15, -15);
 		keyLight.target.position.set(0, 0, 0);
-		scene.add(keyLight);
+		globalTransform.add(keyLight);
 
 		fillLight = new THREE.SpotLight(0xff0044, 0.4);
 		fillLight.position.set(5, 2, 15);
 		fillLight.target.position.set(0, 0, 0);
-		scene.add(fillLight);
+		globalTransform.add(fillLight);
 
 		//cube
 		var testGeom = new THREE.CubeGeometry(2.2, 2.2, 2.2);
@@ -94,27 +114,28 @@
 		materials.push(testMaterial);
 		cubeMesh = new THREE.Mesh(testGeom, testMaterial);
 		cubeMesh.visible = false;
-		cubeMesh.voxelizer = new SkVoxelizer(cubeMesh, 0.25, 0.25, 0.25);
-		scene.add(cubeMesh);
+		cubeMesh.voxelizer = new SkVoxelizer(cubeMesh, 0.25, 0.25, 0.25, globalTransform);
+		globalTransform.add(cubeMesh);
 
 		//sphere
 		testGeom = new THREE.SphereGeometry(1.5, 8, 8);
 		sphereMesh = new THREE.Mesh(testGeom, testMaterial);
 		sphereMesh.visible = false;
-		sphereMesh.voxelizer = new SkVoxelizer(sphereMesh, 0.4, 0.4, 0.4);
-		scene.add(sphereMesh);
+		sphereMesh.voxelizer = new SkVoxelizer(sphereMesh, 0.4, 0.4, 0.4, globalTransform);
+		globalTransform.add(sphereMesh);
 
 		//cylinder
 		testGeom = new THREE.CylinderGeometry(1, 1, 3, 8, 2);
 		cylinderMesh = new THREE.Mesh(testGeom, testMaterial);
 		cylinderMesh.visible = false;
-		cylinderMesh.voxelizer = new SkVoxelizer(cylinderMesh, 0.25, 0.25, 0.25);
-		scene.add(cylinderMesh);
+		cylinderMesh.voxelizer = new SkVoxelizer(cylinderMesh, 0.25, 0.25, 0.25, globalTransform);
+		globalTransform.add(cylinderMesh);
 	}
 
 	function setupEvents()
 	{
 		window.addEventListener('resize', window_onResize, false);
+		window.addEventListener('keypress', window_onKeyPress, false);
 	}
 
 	function window_onResize(event)
@@ -125,6 +146,15 @@
 
 		//update renderer size
 		renderer.setSize(window.innerWidth, window.innerHeight-5);
+	}
+
+	isAnimating = true;
+	function window_onKeyPress(event)
+	{
+		if (event.keyCode === 32)
+		{
+			isAnimating = !isAnimating;
+		}
 	}
 
 	var stats;
@@ -206,6 +236,7 @@
 		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
+			worldAxis.visible = value;
 			localAxis.visible = value;
 		}
 		control.onChange(toggleLocalAxis);
@@ -241,11 +272,14 @@
 			controls.update();
 
 			//update sphere
-			testMesh.position.x = Math.cos(time*1.5);
-			testMesh.position.y = Math.sin(time*2.5);
-			testMesh.position.z = Math.cos(time*2);
-			testMesh.rotation.x = time;
-			testMesh.rotation.z = time / 2;
+			if (isAnimating)
+			{
+				testMesh.position.x = Math.cos(time*1.5);
+				testMesh.position.y = Math.sin(time*2.5);
+				testMesh.position.z = Math.cos(time*2);
+				testMesh.rotation.x = time;
+				testMesh.rotation.z = time / 2;
+			}
 
 			renderer.autoClear = false;
 			renderer.clear();
@@ -253,7 +287,7 @@
 
 			//voxelize on every frame
 			testMesh.voxelizer.voxelize();
-			testMesh.voxelizer.visualize(scene);
+			testMesh.voxelizer.visualize(globalTransform);
 
 			stats.update();
 

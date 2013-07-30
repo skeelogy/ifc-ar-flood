@@ -31,12 +31,23 @@
 
 	var WATER_SIZE = 10;
 	var WATER_RES = 80;
-	var WATER_SEGMENT_SIZE = WATER_SIZE / WATER_RES;
+	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
 	var DAMPING_FACTOR = 0.8;
 	var DISTURB_AMOUNT = 0.015;
 	var MEAN_WATER_HEIGHT = 0;
 
 	var SHADOW_MAP_RES = 1024;
+
+	var GLOBAL_POS = new THREE.Vector3(0.5, 1, 1);
+	var GLOBAL_ROT = new THREE.Vector3(THREE.Math.degToRad(10),-THREE.Math.degToRad(10),THREE.Math.degToRad(10));
+	var GLOBAL_SCALE = new THREE.Vector3(1.25, 1.25, 1.25);
+
+	var GLOBAL_MAT = new THREE.Matrix4();
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeTranslation(GLOBAL_POS.x, GLOBAL_POS.y, GLOBAL_POS.z));
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationX(GLOBAL_ROT.x));
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationY(GLOBAL_ROT.y));
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationZ(GLOBAL_ROT.z));
+	GLOBAL_MAT.multiply(new THREE.Matrix4().makeScale(GLOBAL_SCALE.x, GLOBAL_SCALE.y, GLOBAL_SCALE.z));
 
 	var clock = new THREE.Clock();
 
@@ -51,10 +62,10 @@
 		}
 	}
 
-	var renderer, scene, camera, controls;
+	var renderer, scene, camera, controls, globalTransform;
 	var groundPlaneGeom, groundPlaneMesh;
 	var materials = [];
-	var localAxis;
+	var worldAxis, localAxis;
 	function setupThreejsScene()
 	{
 		//create renderer
@@ -72,9 +83,16 @@
 		//create scene
 		scene = new THREE.Scene();
 
+		//create an overall transformation to hold the global transform
+		globalTransform = new THREE.Object3D();
+		globalTransform.matrixAutoUpdate = false;
+		globalTransform.matrix.multiply(GLOBAL_MAT);
+		globalTransform.matrixWorldNeedsUpdate = true;
+		scene.add(globalTransform);
+
 		//create camera
 		camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
-		camera.position.set(8, 8, 15);
+		camera.position.set(4, 10, 19);
 		camera.lookAt(new THREE.Vector3(0,0,0));
 
 		//create controls for camera
@@ -84,30 +102,32 @@
 		controls.modifierKey = 'alt';
 
 		//create axis
+		worldAxis = new THREE.AxisHelper();
+		scene.add(worldAxis);
 		localAxis = new THREE.AxisHelper();
-		scene.add(localAxis);
+		globalTransform.add(localAxis);
 
 		//setup lights
-		scene.add(new THREE.AmbientLight(0x111111));
+		globalTransform.add(new THREE.AmbientLight(0x111111));
 
 		keyLight = new THREE.SpotLight(0xffff44, 0.6);
 		keyLight.position.set(5, 15, -15);
-		keyLight.target.position.set(0, 0, 0);
+		keyLight.target.position.set(-1, 0, 0);
 		keyLight.castShadow = true;
-		keyLight.shadowCameraNear = 10;
-		keyLight.shadowCameraFar = 30;
-		keyLight.shadowCameraFov = 30;
-		//keyLight.shadowCameraVisible = true;
+		keyLight.shadowCameraNear = 20;
+		keyLight.shadowCameraFar = 33;
+		keyLight.shadowCameraFov = 35;
+		// keyLight.shadowCameraVisible = true;
 		keyLight.shadowBias = 0.00001;
 		keyLight.shadowDarkness = 0.4;
 		keyLight.shadowMapWidth = SHADOW_MAP_RES;
 		keyLight.shadowMapHeight = SHADOW_MAP_RES;
-		scene.add(keyLight);
+		globalTransform.add(keyLight);
 
 		fillLight = new THREE.SpotLight(0xff0044, 0.4);
 		fillLight.position.set(5, 2, 15);
 		fillLight.target.position.set(0, 0, 0);
-		scene.add(fillLight);
+		globalTransform.add(fillLight);
 
 		//create plane for intersection test
 		groundPlaneGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
@@ -119,9 +139,7 @@
 		groundPlaneMesh.castShadow = false;
 		groundPlaneMesh.receiveShadow = false;
 		groundPlaneMesh.visible = false;
-		// groundPlaneMesh.position.set(1,1,1);
-		// groundPlaneMesh.rotation.set(THREE.Math.degToRad(10),THREE.Math.degToRad(10),THREE.Math.degToRad(10));
-		scene.add(groundPlaneMesh);
+		globalTransform.add(groundPlaneMesh);
 	}
 
 	var RANDOM_SEED = 1;
@@ -145,9 +163,7 @@
 		waterMesh = new THREE.Mesh(waterGeom, waterMaterial);
 		waterMesh.castShadow = true;
 		waterMesh.receiveShadow = true;
-		waterMesh.position.copy(groundPlaneMesh.position);
-		waterMesh.rotation.copy(groundPlaneMesh.rotation);
-		scene.add(waterMesh);
+		globalTransform.add(waterMesh);
 
 		//create the different water sims
 		heightFieldWaterSim_iWave = new HeightFieldWaterSim_Tessendorf_iWave({
@@ -201,15 +217,16 @@
 				obstacleMesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize);
 				obstacleMesh.rotation.y = (Math.random() * 360);
 				// obstacleMesh.visible = false;
-				scene.add(obstacleMesh);
+				globalTransform.add(obstacleMesh);
 
-				var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_SEGMENT_SIZE, WATER_SEGMENT_SIZE, WATER_SEGMENT_SIZE);
+				//create Obstacle
+				var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE, globalTransform);
 				heightFieldWaterSim_iWave.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				heightFieldWaterSim_mullerGdc2008.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				heightFieldWaterSim_mullerGdc2008_helloWorld.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				heightFieldWaterSim_xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				obstacle.updateAlways = true;  //TODO: should not always need to update
-				obstacle.update();  //NOTE: this does not work because transformations have not been applied yet
+				obstacle.updateAlways = false;
+				// obstacle.update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
 
 				obstacles.push(obstacle);
 			}
@@ -219,8 +236,12 @@
 		obstacles[1].mesh.position.x += -1;
 		obstacles[2].mesh.position.x = 10000;
 		obstacles[2].mesh.position.x = 10000;
+
+		//using a flag to let obstacles update once after mesh updates
+		shouldUpdateObstacles = true;
 	}
 
+	var shouldUpdateObstacles;
 	function randomizeObstaclePositions()
 	{
 		var i, j;
@@ -234,7 +255,10 @@
 				obstacles[idx].mesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize * 0.8);
 				obstacles[idx].mesh.rotation.y = (Math.random() * 360);
 
-				obstacles[idx].update();
+				// obstacles[idx].update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
+
+				//so set a flag here to let obstacles update once after mesh updates
+				shouldUpdateObstacles = true;
 			}
 		}
 	}
@@ -479,6 +503,7 @@
 		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
+			worldAxis.visible = value;
 			localAxis.visible = value;
 		}
 		control.onChange(toggleLocalAxis);
@@ -523,18 +548,19 @@
 
 			stats.update();
 
+			//update obstacles after rendering is done, so that meshes are updated and obstacles are good to update
+			if (shouldUpdateObstacles) {
+				var i, len;
+				for (i = 0, len = obstacles.length; i < len; i++)
+				{
+					obstacles[i].update();
+				}
+				shouldUpdateObstacles = false;
+			}
+
 			requestAnimationFrame(loop);
 		}
 		loop();
-
-		//anything that needs to be called after first render call/update can be done here
-
-		//update obstacles once
-		var i, len;
-		for (i = 0, len = obstacles.length; i < len; i++)
-		{
-			obstacles[i].update();
-		}
 		
 	});
 	</script>

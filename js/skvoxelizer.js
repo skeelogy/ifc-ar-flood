@@ -6,12 +6,13 @@ skvoxelizer.js
 A voxelizer for Three.js meshes
 ===================================*/
 
-function SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ)
+function SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, transform)
 {
 	this.mesh = mesh;
 	this.voxelSizeX = voxelSizeX || 1;
 	this.voxelSizeY = voxelSizeY || 1;
 	this.voxelSizeZ = voxelSizeZ || 1;
+	this.transform = transform;
 
 	this.__EPSILON = 0.001;
 
@@ -41,6 +42,7 @@ function SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ)
 	// this.__raycaster.precision = 0.1;
 	this.__startPoint = new THREE.Vector3(0, -99999, 0);
 	this.__up = new THREE.Vector3(0, 1, 0);
+	this.__mat = new THREE.Matrix4();
 
 	//store some private variables for voxel mesh generation
 	this.__voxelGeom = new THREE.CubeGeometry(this.voxelSizeX, this.voxelSizeY, this.voxelSizeZ);
@@ -49,15 +51,16 @@ function SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ)
 
 SkVoxelizer.prototype.__updateMinMax = function()
 {
-	//get current world transform matrix of mesh
-	var worldMat = this.mesh.matrixWorld;
+	//get a matrix that represents conversion to transform's space
+	this.__mat.getInverse(this.transform.matrixWorld);
+	this.__mat.multiply(this.mesh.matrixWorld);
 
-	//transform bounding box
-	var transformedAabb = this.__transformedBbox.copy(this.bbox).applyMatrix4(worldMat);
+	//create AABB that is in transform's space
+	var transformedAabb = this.__transformedBbox.copy(this.bbox).applyMatrix4(this.__mat);
 	this.__min = transformedAabb.min;
 	this.__max = transformedAabb.max;
 
-	//update the min/max multiples
+	//update the min/max multiples (in transform's space)
 	this.__xMinMultiple = Math.ceil(this.__min.x / this.voxelSizeX) * this.voxelSizeX;
 	this.__xMaxMultiple = Math.floor(this.__max.x / this.voxelSizeX) * this.voxelSizeX;
 	this.__yMinMultiple = Math.ceil(this.__min.y / this.voxelSizeY) * this.voxelSizeY;
@@ -91,13 +94,25 @@ SkVoxelizer.prototype.updateIntersections = function()
 			//get first and last intersection points
 			this.__startPoint.x = x; // + Math.random() * this.__EPSILON;  //need to add small random offsets to prevent hitting exactly on vertices which causes intersection test to fail
 			this.__startPoint.z = z; // + Math.random() * this.__EPSILON;  //need to add small random offsets to prevent hitting exactly on vertices which causes intersection test to fail
-			this.__raycaster.set(this.__startPoint, this.__up);
+			
+			//create a ray in world space
+			this.__raycaster.set(
+				this.__startPoint.clone().applyMatrix4(this.transform.matrixWorld),
+				this.__up.clone().transformDirection(this.transform.matrixWorld)
+			);
+
+			//get world space intersect info
 			intersectInfo = this.__raycaster.intersectObject(this.mesh);
 			if (intersectInfo && intersectInfo.length >= 2)
 			{
+				//convert intersectInfo back to local space
+				this.__mat.getInverse(this.transform.matrixWorld);
+				var p1 = intersectInfo[0].point.applyMatrix4(this.__mat);
+				var p2 = intersectInfo[intersectInfo.length-1].point.applyMatrix4(this.__mat);
+
 				this.intersectionFirstAndLastHeights[x][z] = [];
-				this.intersectionFirstAndLastHeights[x][z].push(intersectInfo[0].point.y);
-				this.intersectionFirstAndLastHeights[x][z].push(intersectInfo[intersectInfo.length-1].point.y);
+				this.intersectionFirstAndLastHeights[x][z].push(p1.y);
+				this.intersectionFirstAndLastHeights[x][z].push(p2.y);
 			}
 		}
 	}
