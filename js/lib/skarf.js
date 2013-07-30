@@ -228,6 +228,8 @@ function Renderer(options)
 	
 	if (!options.modelsJsonFile) throw new Error('modelsJsonFile not specified');
 	this.modelsJsonFile = options.modelsJsonFile;
+
+	this.useDefaultLights = (typeof(options.useDefaultLights)==='undefined') ? true : options.useDefaultLights;
 	
 	this.isWireframeVisible = (typeof(options.displayWireframe)==='undefined') ? false : options.displayWireframe;
 	this.isLocalAxisVisible = (typeof(options.displayLocalAxis)==='undefined') ? false : options.displayLocalAxis;
@@ -314,7 +316,10 @@ ThreeJsRenderer.prototype.init = function()
 {
 	this.setupCamera();
 	this.setupScene();
-	this.setupLights();
+	if (this.useDefaultLights)
+	{
+		this.setupLights();
+	}
 	this.setupRenderer();
 	this.setupBackgroundVideo();
 }
@@ -553,7 +558,7 @@ ModelLoader.prototype.loadForMarker = function(markerId, markerTransform, isWire
 }
 ModelLoader.prototype.transformAndParent = function(model, object, markerTransform)
 {
-	//bake transformations
+	//accumulate transformations into matrix
 	var m = new THREE.Matrix4();
 	if (model.translate)
 	{
@@ -571,12 +576,39 @@ ModelLoader.prototype.transformAndParent = function(model, object, markerTransfo
 	{
 		m.scale(new THREE.Vector3(model.scale[0], model.scale[1], model.scale[2]));
 	}
-	object.applyMatrix(m);
-
-	//add object to transform
-	markerTransform.add(object);
+	
+	//apply the transforms
+	if (object)
+	{
+		object.applyMatrix(m);
+		markerTransform.add(object);
+	}
 }
 
+function EmptyModelLoader()
+{
+	ModelLoader.call(this);
+	this.loader = new THREE.JSONLoader();
+	console.log('Created a EmptyModelLoader');
+}
+
+//inherit from ModelLoader
+EmptyModelLoader.prototype = Object.create(ModelLoader.prototype);
+EmptyModelLoader.prototype.constructor = EmptyModelLoader;
+
+//register with factory
+ModelLoaderFactory.register('empty', EmptyModelLoader);
+
+//override methods
+EmptyModelLoader.prototype.loadForMarker = function(model, markerId, markerTransform, isWireframeVisible)
+{
+	//TODO: time how long it takes to load
+	
+	//bake transformations into vertices
+	this.transformAndParent(model, null, markerTransform);
+
+	console.log('Loaded empty transform for marker id ' + markerId);
+}
 
 function JsonModelLoader()
 {
