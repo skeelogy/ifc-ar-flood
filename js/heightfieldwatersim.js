@@ -304,7 +304,42 @@ HeightFieldWaterSim.prototype.sim = function (dt) {
 };
 
 HeightFieldWaterSim.prototype.setMeanHeight = function (meanHeight) {
-    throw new Error('Abstract method not implemented');
+
+    this.__meanHeight = meanHeight;
+
+    var v = this.geometry.vertices;
+    var resMinusOne = this.res - 1;
+
+    //set edge vertices to mean height
+    var i, j, idx;
+    j = 0;
+    for (i = 0; i < this.res; i++) {
+        idx = i * this.res + j;
+        // this.field1[idx] = this.__meanHeight;
+        // this.field2[idx] = this.__meanHeight;
+        v[idx].y = this.__meanHeight;
+    }
+    j = resMinusOne;
+    for (i = 0; i < this.res; i++) {
+        idx = i * this.res + j;
+        // this.field1[idx] = this.__meanHeight;
+        // this.field2[idx] = this.__meanHeight;
+        v[idx].y = this.__meanHeight;
+    }
+    i = 0;
+    for (j = 1; j < resMinusOne; j++) {
+        idx = i * this.res + j;
+        // this.field1[idx] = this.__meanHeight;
+        // this.field2[idx] = this.__meanHeight;
+        v[idx].y = this.__meanHeight;
+    }
+    i = resMinusOne;
+    for (j = 1; j < resMinusOne; j++) {
+        idx = i * this.res + j;
+        // this.field1[idx] = this.__meanHeight;
+        // this.field2[idx] = this.__meanHeight;
+        v[idx].y = this.__meanHeight;
+    }
 };
 
 /**
@@ -444,7 +479,8 @@ HeightFieldWaterSim_Muller_GDC2008_HelloWorld.prototype.sim = function (dt) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
             v[idx].y += this.sourceField[idx];
-            v[idx].y *= this.obstacleField[idx];
+            //mask using obstacle field, relative to the mean height
+            v[idx].y = (v[idx].y - this.__meanHeight) * this.obstacleField[idx] + this.__meanHeight;
         }
     }
 
@@ -499,7 +535,8 @@ HeightFieldWaterSim_Muller_GDC2008.prototype.sim = function (dt) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
             v[idx].y += this.sourceField[idx];
-            v[idx].y *= this.obstacleField[idx];
+            //mask using obstacle field, relative to the mean height
+            v[idx].y = (v[idx].y - this.__meanHeight) * this.obstacleField[idx] + this.__meanHeight;
         }
     }
 
@@ -583,29 +620,27 @@ HeightFieldWaterSim_xWater.prototype.setMeanHeight = function (meanHeight) {
         idx = i * this.res + j;
         this.field1[idx] = this.__meanHeight;
         this.field2[idx] = this.__meanHeight;
-        v[idx].y = this.__meanHeight;
     }
     j = resMinusOne;
     for (i = 0; i < this.res; i++) {
         idx = i * this.res + j;
         this.field1[idx] = this.__meanHeight;
         this.field2[idx] = this.__meanHeight;
-        v[idx].y = this.__meanHeight;
     }
     i = 0;
     for (j = 1; j < resMinusOne; j++) {
         idx = i * this.res + j;
         this.field1[idx] = this.__meanHeight;
         this.field2[idx] = this.__meanHeight;
-        v[idx].y = this.__meanHeight;
     }
     i = resMinusOne;
     for (j = 1; j < resMinusOne; j++) {
         idx = i * this.res + j;
         this.field1[idx] = this.__meanHeight;
         this.field2[idx] = this.__meanHeight;
-        v[idx].y = this.__meanHeight;
     }
+
+    HeightFieldWaterSim.prototype.setMeanHeight.call(this, meanHeight);
 };
 HeightFieldWaterSim_xWater.prototype.sim = function (dt) {
 
@@ -716,6 +751,8 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.sim = function (dt) {
         return;
     }
 
+    //FIXME: fix weird boundaries when using mean height
+
     //moving multiple time steps per loop so that the sim can go faster
     var s;
     for (s = 0; s < this.substeps; s++) {
@@ -729,7 +766,12 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.sim = function (dt) {
             for (j = 1; j < resMinusOne; j++) {
                 idx = i * this.res + j;
                 v[idx].y += this.sourceField[idx];
-                v[idx].y *= this.obstacleField[idx];
+                //mask using obstacle field, relative to the mean height
+                // v[idx].y *= this.obstacleField[idx];
+                v[idx].y = (v[idx].y - this.__meanHeight) * this.obstacleField[idx] + this.__meanHeight;
+
+                //also remove mean height so that everything is back to 0-height
+                v[idx].y -= this.__meanHeight;
             }
         }
 
@@ -744,11 +786,16 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.sim = function (dt) {
         for (i = 1; i < resMinusOne; i++) {
             for (j = 1; j < resMinusOne; j++) {
                 idx = i * this.res + j;
+
+                //do the algo
                 temp = v[idx].y;
                 v[idx].y = (v[idx].y * twoMinusDampTimesDt
                             - this.prevHeight[idx]
                             - this.vertDeriv[idx] * gravityTimesDtTimesDt) / onePlusDampTimesDt;
                 this.prevHeight[idx] = temp;
+
+                //move back to mean height
+                v[idx].y += this.__meanHeight;
             }
         }
     }

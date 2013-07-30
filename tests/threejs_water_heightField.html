@@ -385,11 +385,14 @@
 		var control = waterSimFolder.add(options, 'waterSimType', waterSimTypes).name('Type');
 		function changeWaterSimType(value)
 		{
-			//reset current sim first
-			heightFieldWaterSim.reset();
-
 			//swap the sim
 			heightFieldWaterSim = eval(value);
+
+			//set mean height
+			heightFieldWaterSim.setMeanHeight(currWaterHeight);
+
+			//reset sim
+			heightFieldWaterSim.reset();
 
 			//load some presets so that that sim works well
 			DISTURB_AMOUNT = waterSimTypeSettings[value].disturbAmount;
@@ -540,7 +543,7 @@
 
 			//animating mean height to increase flood levels
 			currWaterHeight += options.waterSimFloodRate * dt;
-			heightFieldWaterSim_xWater.setMeanHeight(currWaterHeight);
+			heightFieldWaterSim.setMeanHeight(currWaterHeight);
 
 			requestAnimationFrame(loop);
 		}
