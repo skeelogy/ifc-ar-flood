@@ -1,11 +1,17 @@
-/*===================================
-skvoxelizer.js
-@author: Skeel Lee
-@contact: skeel@skeelogy.com
-@since: 19 Jul 2013
-A voxelizer for Three.js meshes
-===================================*/
+/**
+ * @fileOverview A JavaScript voxelizer for Three.js meshes
+ * @author Skeel Lee <skeel@skeelogy.com>
+ * @version 0.1.0
+ */
 
+/**
+ * Voxelizer for <tt>mesh</tt>
+ * @param {THREE.Mesh} mesh
+ * @param {number} voxelSizeX
+ * @param {number} voxelSizeY
+ * @param {number} voxelSizeZ
+ * @param {THREE.Object3D} transform
+ */
 function SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, transform)
 {
 	this.mesh = mesh;
