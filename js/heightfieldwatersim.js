@@ -327,11 +327,52 @@ HeightFieldWaterSim.prototype.disturb = function (position, amount) {
     //calculate idx
     var idx = this.__calcVertexId(this.__localPos.x, this.__localPos.z);
 
-    this.sourceField[idx] = amount;
+    this.disturbById(idx, amount);
 };
 
 HeightFieldWaterSim.prototype.disturbById = function (id, amount) {
     this.sourceField[id] = amount;
+};
+
+HeightFieldWaterSim.prototype.disturbNeighbours = function (position, amount) {
+
+    //convert back to local space first
+    this.__worldMatInv.getInverse(this.mesh.matrixWorld);
+    this.__localPos.copy(position).applyMatrix4(this.__worldMatInv);
+
+    //calculate idx
+    var idx = this.__calcVertexId(this.__localPos.x, this.__localPos.z);
+
+    this.disturbNeighboursById(idx, amount);
+};
+
+HeightFieldWaterSim.prototype.disturbNeighboursById = function (id, amount) {
+
+    var vertices = this.geometry.vertices;
+
+    //neighbour (x+1,z)
+    var neighbourId = id + this.res;
+    if (vertices[neighbourId]) {
+        this.disturbById(neighbourId, amount);
+    }
+
+    //neighbour (x-1,z)
+    neighbourId = id - this.res;
+    if (vertices[neighbourId]) {
+        this.disturbById(neighbourId, amount);
+    }
+
+    //neighbour (x,z+1)
+    neighbourId = id + 1;
+    if (vertices[neighbourId]) {
+        this.disturbById(neighbourId, amount);
+    }
+
+    //neighbour (x,z-1)
+    neighbourId = id - 1;
+    if (vertices[neighbourId]) {
+        this.disturbById(neighbourId, amount);
+    }
 };
 
 HeightFieldWaterSim.prototype.addObstacle = function (obstacle, name) {

@@ -549,16 +549,30 @@ SkulptAddBrush.prototype.sculpt = function (mesh, position, profile) {
     var layer = mesh.getCurrLayer();
     var radius = this.getSize() / 2.0;
     var amount = this.getAmount();
+    var displacements = mesh.getDisplacements();
     var affectedVertexInfos = mesh.getAffectedVertexInfo(position, radius);
     var vertexInfo;
-    var i, len;
+    var i, len, delta;
     for (i = 0, len = affectedVertexInfos.length; i < len; i++) {
+
         vertexInfo = affectedVertexInfos[i];
-        layer.data[vertexInfo.id] += amount * profile.getValue(vertexInfo.weight);
+
+        //store current total displacement
+        affectedVertexInfos[i].oldDisplacement = displacements[vertexInfo.id];
+
+        //modify layer displacement
+        delta = amount * profile.getValue(vertexInfo.weight)
+        layer.data[vertexInfo.id] += delta;
+
+        //store new displacement
+        affectedVertexInfos[i].newDisplacement = affectedVertexInfos[i].oldDisplacement + delta;
     }
 
     //update the mesh at the affected vertices
     mesh.update(affectedVertexInfos);
+
+    //return affectedVertexInfos in case the data is needed outside this function
+    return affectedVertexInfos;
 };
 
 /**
@@ -586,26 +600,36 @@ SkulptRemoveBrush.prototype.sculpt = function (mesh, position, profile) {
 
     var sumOtherLayersForThisVertex;
     var vertexInfo;
-    var i, len;
+    var i, len, delta;
     for (i = 0, len = affectedVertexInfos.length; i < len; i++) {
 
         vertexInfo = affectedVertexInfos[i];
 
-        //find the sum of all other layers first
+        //store current total displacement
+        affectedVertexInfos[i].oldDisplacement = displacements[vertexInfo.id];
+
+        //find the sum of all other layers
         sumOtherLayersForThisVertex = displacements[vertexInfo.id] - layer.data[vertexInfo.id];
 
         //modify displacement amount in-place
-        layer.data[vertexInfo.id] -= amount * profile.getValue(vertexInfo.weight);
+        delta = - (amount * profile.getValue(vertexInfo.weight));
+        layer.data[vertexInfo.id] += delta;
 
         //prevent going below 0
         if (layer.data[vertexInfo.id] + sumOtherLayersForThisVertex < 0) {
             //just set to negative of the other layers will set the sum to 0
             layer.data[vertexInfo.id] = -sumOtherLayersForThisVertex;
         }
+
+        //store new displacement
+        affectedVertexInfos[i].newDisplacement = affectedVertexInfos[i].oldDisplacement + delta;
     }
 
     //update the mesh at the affected vertices
     mesh.update(affectedVertexInfos);
+
+    //return affectedVertexInfos in case the data is needed outside this function
+    return affectedVertexInfos;
 };
 
 /**
@@ -641,25 +665,35 @@ SkulptFlattenBrush.prototype.sculpt = function (mesh, position, profile) {
     var averageDisp = totalAffectedDisplacements / affectedVertexInfos.length;
 
     //blend average displacement with existing displacement to flatten
-    var modulator, currDisp, newDisp, dispFromOtherLayers;
+    var modulator, currDisp, newDisp, dispFromOtherLayers, prev;
     for (i = 0, len = affectedVertexInfos.length; i < len; i++) {
 
         vertexInfo = affectedVertexInfos[i];
         modulator = profile.getValue(vertexInfo.weight);
         currDisp = displacements[vertexInfo.id];
 
-        //store displacements from other layers first
+        //store current total displacement
+        affectedVertexInfos[i].oldDisplacement = displacements[vertexInfo.id];
+
+        //store displacements from other layers
         dispFromOtherLayers = currDisp - layer.data[vertexInfo.id];
 
         //calculate new displacements
+        prev = layer.data[vertexInfo.id];
         layer.data[vertexInfo.id] = modulator * averageDisp + (1 - modulator) * currDisp;
 
         //need to subtract away all the other layers to force flattening
         layer.data[vertexInfo.id] -= dispFromOtherLayers;
+
+        //store new displacement
+        affectedVertexInfos[i].newDisplacement = affectedVertexInfos[i].oldDisplacement + (layer.data[vertexInfo.id] - prev);
     }
 
     //update the mesh at the affected vertices
     mesh.update(affectedVertexInfos);
+
+    //return affectedVertexInfos in case the data is needed outside this function
+    return affectedVertexInfos;
 };
 
 //===================================
@@ -768,7 +802,7 @@ Skulpt.prototype.hideCursor = function () {
  * @param {THREE.Vector3} position - position to sculpt at
  */
 Skulpt.prototype.sculpt = function (position) {
-    this.__currBrush.sculpt(this.__currMesh, position, this.__currProfile);
+    return this.__currBrush.sculpt(this.__currMesh, position, this.__currProfile);
 };
 // Skulpt.prototype.export = function()
 // {

@@ -766,10 +766,24 @@
 		skulpt.hideCursor();
 		skulpt.setBrush(operation);
 		skulpt.showCursor();
-		skulpt.sculpt(intersectPoint);
+		var affectedVertexInfos = skulpt.sculpt(intersectPoint);
 
 		//update the terrain obstacle
 		terrainObstacle.update();
+
+		//disturb water
+		var i, len, vertexInfo;
+	    for (i = 0, len = affectedVertexInfos.length; i < len; i++) {
+
+	        vertexInfo = affectedVertexInfos[i];
+
+	        //if terrain height change cuts across the current water height, it should disturb the water
+	        if ((vertexInfo.oldDisplacement-currWaterHeight)*(vertexInfo.newDisplacement-currWaterHeight) < 0)  //change of sign
+	        {
+	        	//must spread to neighbours, otherwise will be blocked by the terrain itself
+	        	heightFieldWaterSim.disturbNeighboursById(vertexInfo.id, vertexInfo.newDisplacement - vertexInfo.oldDisplacement);  //should really divide by 4.0, but can't really see the effect
+	        }
+	    }
 	}
 
 	function updateGeometry(geometry, fullUpdate)

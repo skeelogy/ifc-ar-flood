@@ -401,7 +401,7 @@
 					}
 				}
 			}
-			var totalDisplacedVol = totalDisplacedVoxels * WATER_VOXEL_VOL;  //cubic metres
+			var totalDisplacedVol = totalDisplacedVoxels * WATER_VOXEL_VOL; //cubic metres
 			var gravitationalAcc = -9.81;  //m per squared second
 			var waterDensity = 1000;  //1000 kg per cubic metres
 			var buoyancyForce = - totalDisplacedVol * waterDensity * gravitationalAcc;
@@ -423,33 +423,8 @@
 						}
 						var spreadHeight = diff / 4.0 * WATER_GRID_SIZE;
 
-						//neighbour (x+1,z)
-						var neighbourId = vertexId + WATER_RES;
-						if (vertices[neighbourId])
-						{
-							heightFieldWaterSim.disturbById(neighbourId, spreadHeight);
-						}
-
-						//neighbour (x-1,z)
-						neighbourId = vertexId - WATER_RES;
-						if (vertices[neighbourId])
-						{
-							heightFieldWaterSim.disturbById(neighbourId, spreadHeight);
-						}
-
-						//neighbour (x,z+1)
-						neighbourId = vertexId + 1;
-						if (vertices[neighbourId])
-						{
-							heightFieldWaterSim.disturbById(neighbourId, spreadHeight);
-						}
-
-						//neighbour (x,z-1)
-						neighbourId = vertexId - 1;
-						if (vertices[neighbourId])
-						{
-							heightFieldWaterSim.disturbById(neighbourId, spreadHeight);
-						}
+						//disturb neighbours
+						heightFieldWaterSim.disturbNeighboursById(vertexId, spreadHeight)
 
 						//store this value as prev
 						displacedVoxelCountPrev[vertexId] = displacedVoxelCount[vertexId];
