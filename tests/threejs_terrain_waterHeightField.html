@@ -54,6 +54,7 @@
 	GLOBAL_MAT.multiply(new THREE.Matrix4().makeScale(GLOBAL_SCALE.x, GLOBAL_SCALE.y, GLOBAL_SCALE.z));
 
 	var clock = new THREE.Clock();
+	var currWaterHeight = MEAN_WATER_HEIGHT;
 
 	var terrainImages = {
 		'IGMS1':'/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg',
@@ -86,6 +87,7 @@
 	};
 	var options = {
 		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
+		waterSimFloodRate: 0.01,
 		terrainImage: terrainImages[Object.keys(terrainImages)[0]],
 		terrainShowImage: false,
 		terrainMidGreyIsLowest: true,
@@ -231,8 +233,6 @@
 		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
 		groundPlaneMesh.castShadow = true;
 		groundPlaneMesh.receiveShadow = true;
-		// groundPlaneMesh.position.set(1,1,1);
-		// groundPlaneMesh.rotation.set(THREE.Math.degToRad(10),THREE.Math.degToRad(10),THREE.Math.degToRad(10));
 		groundPlaneMesh.visible = false;
 		globalTransform.add(groundPlaneMesh);
 
@@ -420,6 +420,8 @@
 		}
 		control.onChange(changeWaterSimType);
 		changeWaterSimType(options.waterSimType);
+
+		control = waterSimFolder.add(options, 'waterSimFloodRate', -0.1, 0.1).step(0.01).name('Flood Rate');
 
 		//Terrain folder
 		terrainFolder = gui.addFolder('Terrain');
@@ -876,8 +878,8 @@
 			stats.update();
 
 			//animating mean height to increase flood levels
-			MEAN_WATER_HEIGHT += 0.01 * dt;
-			heightFieldWaterSim_xWater.setMeanHeight(MEAN_WATER_HEIGHT);
+			currWaterHeight += options.waterSimFloodRate * dt;
+			heightFieldWaterSim_xWater.setMeanHeight(currWaterHeight);
 
 			requestAnimationFrame(loop);
 		}
