@@ -212,7 +212,7 @@ function HeightFieldWaterSim(options) {
     if (options.dampingFactor === 'undefined') { throw new Error('dampingFactor not specified'); }
     this.dampingFactor = options.dampingFactor;
     if (options.meanHeight === 'undefined') { throw new Error('meanHeight not specified'); }
-    this.meanHeight = options.meanHeight;
+    this.__meanHeight = options.meanHeight;
 
     this.geometry = this.mesh.geometry;
     this.numVertices = this.res * this.res;
@@ -285,7 +285,7 @@ HeightFieldWaterSim.prototype.update = function (dt) {
 
     //update obstacle field
     if (this.obstaclesActive) {
-        var waterHeight = this.meanHeight;
+        var waterHeight = this.__meanHeight;
         var obstacle, obstacleId;
         for (obstacleId in this.obstacles) {
             if (this.obstacles.hasOwnProperty(obstacleId)) {
@@ -300,6 +300,10 @@ HeightFieldWaterSim.prototype.update = function (dt) {
 };
 
 HeightFieldWaterSim.prototype.sim = function (dt) {
+    throw new Error('Abstract method not implemented');
+};
+
+HeightFieldWaterSim.prototype.setMeanHeight = function (meanHeight) {
     throw new Error('Abstract method not implemented');
 };
 
@@ -350,7 +354,7 @@ HeightFieldWaterSim.prototype.reset = function () {
     var i;
     var v = this.geometry.vertices;
     for (i = 0; i < this.numVertices; i++) {
-        v[i].y = this.meanHeight;
+        v[i].y = this.__meanHeight;
     }
 
     //clear fields
@@ -504,8 +508,8 @@ HeightFieldWaterSim_xWater.prototype.init = function () {
     //init fields first
     var i;
     for (i = 0; i < this.numVertices; i++) {
-        this.field1[i] = this.meanHeight;
-        this.field2[i] = this.meanHeight;
+        this.field1[i] = this.__meanHeight;
+        this.field2[i] = this.__meanHeight;
     }
 
     //call super class init to initialize other fields
@@ -514,11 +518,49 @@ HeightFieldWaterSim_xWater.prototype.init = function () {
 HeightFieldWaterSim_xWater.prototype.reset = function () {
     var i;
     for (i = 0; i < this.numVertices; i++) {
-        this.field1[i] = this.meanHeight;
-        this.field2[i] = this.meanHeight;
+        this.field1[i] = this.__meanHeight;
+        this.field2[i] = this.__meanHeight;
     }
 
     HeightFieldWaterSim.prototype.reset.call(this);
+};
+HeightFieldWaterSim_xWater.prototype.setMeanHeight = function (meanHeight) {
+
+    this.__meanHeight = meanHeight;
+
+    var v = this.geometry.vertices;
+    var resMinusOne = this.res - 1;
+
+    //set edge vertices to mean height
+    var i, j, idx;
+    j = 0;
+    for (i = 0; i < this.res; i++) {
+        idx = i * this.res + j;
+        this.field1[idx] = this.__meanHeight;
+        this.field2[idx] = this.__meanHeight;
+        v[idx].y = this.__meanHeight;
+    }
+    j = resMinusOne;
+    for (i = 0; i < this.res; i++) {
+        idx = i * this.res + j;
+        this.field1[idx] = this.__meanHeight;
+        this.field2[idx] = this.__meanHeight;
+        v[idx].y = this.__meanHeight;
+    }
+    i = 0;
+    for (j = 1; j < resMinusOne; j++) {
+        idx = i * this.res + j;
+        this.field1[idx] = this.__meanHeight;
+        this.field2[idx] = this.__meanHeight;
+        v[idx].y = this.__meanHeight;
+    }
+    i = resMinusOne;
+    for (j = 1; j < resMinusOne; j++) {
+        idx = i * this.res + j;
+        this.field1[idx] = this.__meanHeight;
+        this.field2[idx] = this.__meanHeight;
+        v[idx].y = this.__meanHeight;
+    }
 };
 HeightFieldWaterSim_xWater.prototype.sim = function (dt) {
 
@@ -532,7 +574,7 @@ HeightFieldWaterSim_xWater.prototype.sim = function (dt) {
             idx = i * this.res + j;
             this.field1[idx] += this.sourceField[idx];
             //mask using obstacle field, relative to the mean height
-            this.field1[idx] = (this.field1[idx] - this.meanHeight) * this.obstacleField[idx] + this.meanHeight;
+            this.field1[idx] = (this.field1[idx] - this.__meanHeight) * this.obstacleField[idx] + this.__meanHeight;
         }
     }
 
@@ -542,7 +584,7 @@ HeightFieldWaterSim_xWater.prototype.sim = function (dt) {
             idx = i * this.res + j;
             this.field2[idx] = (this.field1[(i - 1) * this.res + j] + this.field1[(i + 1) * this.res + j] + this.field1[i * this.res + (j - 1)] + this.field1[i * this.res + (j + 1)]) / 2.0 - this.field2[idx];
             //scale down using damping factor, relative to the mean height
-            this.field2[idx] = (this.field2[idx] - this.meanHeight) * this.dampingFactor + this.meanHeight;
+            this.field2[idx] = (this.field2[idx] - this.__meanHeight) * this.dampingFactor + this.__meanHeight;
         }
     }
 
