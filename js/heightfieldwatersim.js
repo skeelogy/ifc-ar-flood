@@ -695,17 +695,17 @@ HeightFieldWaterSim_xWater.prototype.sim = function (dt) {
         }
     }
 
-    //update velocity fields
-    var g = -9.81;
-    for (i = 1; i < resMinusOne; i++) {
-        for (j = 1; j < resMinusOne; j++) {
-            idx = i * this.res + j;
-            this.velocityField[idx].x = (g / this.segmentSize) * (v[idx + this.res].y - v[idx].y) * dt;
-            this.velocityField[idx].y = (g / this.segmentSize) * (v[idx + 1].y - v[idx].y) * dt;
-        }
-    }
-    this.updateVelColors();
-    this.updateVelVisualizer();
+    // //update velocity fields
+    // var g = -9.81;
+    // for (i = 1; i < resMinusOne; i++) {
+        // for (j = 1; j < resMinusOne; j++) {
+            // idx = i * this.res + j;
+            // this.velocityField[idx].x = (g / this.segmentSize) * (v[idx + this.res].y - v[idx].y) * dt;
+            // this.velocityField[idx].y = (g / this.segmentSize) * (v[idx + 1].y - v[idx].y) * dt;
+        // }
+    // }
+    // this.updateVelColors();
+    // this.updateVelVisualizer();
 
     //update mesh
     this.__updateMesh();
