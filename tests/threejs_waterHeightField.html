@@ -205,7 +205,7 @@
 			dampingFactor: DAMPING_FACTOR,
 			scene: scene
 		});
-		hfWater = iWaveWater;
+		hfWater = pipeModelWater;
 
 		// //create some obstacles for the water sim
 		// var i, j;
@@ -274,6 +274,8 @@
 	function setupEvents()
 	{
 		window.addEventListener('resize', window_onResize, false);
+		window.addEventListener('keydown', window_onKeyDown, false);
+		window.addEventListener('keyup', window_onKeyUp, false);
 		window.addEventListener('mousedown', window_onMouseDown, false);
 		window.addEventListener('mousemove', window_onMouseMove, false);
 		window.addEventListener('mouseup', window_onMouseUp, false);
@@ -289,35 +291,52 @@
 		renderer.setSize(window.innerWidth, window.innerHeight-5);
 	}
 
+	var activateDisturb = false;
+	function window_onKeyDown(event)
+	{
+		if (event.keyCode === 32)  //space
+		{
+			activateDisturb = true;
+		}
+	}
+
+	function window_onKeyUp(event)
+	{
+		if (event.keyCode === 32)  //space
+		{
+			activateDisturb = false;
+		}
+	}
+
 	var isDisturbing = false;
 	function window_onMouseDown(event)
 	{
-		if (event.ctrlKey)
-		{
-			if (event.button === 0)  //LMB
-			{
-				intersectPoint = detectIntersection();
-				if (intersectPoint)
-				{
-					isDisturbing = true;
-					hfWater.disturb(intersectPoint, DISTURB_AMOUNT);
-				}
-			}
-		}
+        if (activateDisturb && event.button === 0)  //LMB
+        {
+            isDisturbing = true;
+
+            //detect intersection
+            intersectPoint = detectIntersection();
+            if (intersectPoint)
+            {
+                hfWater.disturb(intersectPoint, DISTURB_AMOUNT);
+            }
+        }
 	}
 
 	function window_onMouseMove(event)
 	{
 		event.preventDefault();
 
-		if (event.ctrlKey && isDisturbing)
-		{
-			intersectPoint = detectIntersection();
-			if (intersectPoint)
-			{
-				hfWater.disturb(intersectPoint, DISTURB_AMOUNT);
-			}
-		}
+		if (activateDisturb && isDisturbing)  //LMB
+        {
+            //detect intersection
+            intersectPoint = detectIntersection();
+            if (intersectPoint)
+            {
+                hfWater.disturb(intersectPoint, DISTURB_AMOUNT);
+            }
+        }
 	}
 
 	function window_onMouseUp(event)
@@ -358,21 +377,21 @@
 	var gui;
 	var waterSimFolder, obstaclesFolder, renderingFolder, displayFolder;
 	var waterSimTypes = {
+	    'Pipe Model': 'pipeModelWater',
+	    'X Water': 'xWater',
 		'Tessendorf iWave': 'iWaveWater',
 		'Muller GDC2008': 'muellerGdc2008Water',
 		'Muller GDC2008 HelloWorld': 'muellerGdc2008HwWater',
-		'X Water': 'xWater',
-		'Pipe Model': 'pipeModelWater',
 	};
 	var waterSimTypeSettings = {
+	    'pipeModelWater': { 'disturbAmount':0.5, 'dampingFactor':0.99 },
+	    'xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
 		'iWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
 		'muellerGdc2008Water': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
 		'muellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
-		'xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
-		'pipeModelWater': { 'disturbAmount':0.5, 'dampingFactor':0.99 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[4]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
 		waterSimFloodRate: 0.0,
 		obstaclesActive: true,
 		obstaclesSeed: 1,
@@ -584,7 +603,7 @@
 	<div id="threejs-container"></div>
 	<div class="translucent" id="info-container">
 		<div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
-		<div>Water Sim: [ Ctrl+LMB: disturb water ]</div>
+		<div>Water Sim: [ Space+LMB: disturb water ]</div>
 	</div>
 </body>
 </html>
