@@ -200,18 +200,28 @@ var DepthMapObstacleManager = {
  * @param {number} dampingFactor
  * @param {number} meanHeight
  */
-function HeightFieldWaterSim(options) {
+function HeightFieldWater(options) {
 
-    if (options.mesh === 'undefined') { throw new Error('mesh not specified'); }
+    if (options.mesh === 'undefined') {
+        throw new Error('mesh not specified');
+    }
     this.mesh = options.mesh;
-    if (options.size === 'undefined') { throw new Error('size not specified'); }
+    if (options.size === 'undefined') {
+        throw new Error('size not specified');
+    }
     this.size = options.size;
     this.halfSize = this.size / 2.0;
-    if (options.res === 'undefined') { throw new Error('res not specified'); }
+    if (options.res === 'undefined') {
+        throw new Error('res not specified');
+    }
     this.res = options.res;
-    if (options.dampingFactor === 'undefined') { throw new Error('dampingFactor not specified'); }
+    if (options.dampingFactor === 'undefined') {
+        throw new Error('dampingFactor not specified');
+    }
     this.dampingFactor = options.dampingFactor;
-    if (options.meanHeight === 'undefined') { throw new Error('meanHeight not specified'); }
+    if (options.meanHeight === 'undefined') {
+        throw new Error('meanHeight not specified');
+    }
     this.__meanHeight = options.meanHeight;
 
     this.geometry = this.mesh.geometry;
@@ -245,12 +255,12 @@ function HeightFieldWaterSim(options) {
     this.init();
 }
 
-HeightFieldWaterSim.prototype.init = function () {
+HeightFieldWater.prototype.init = function () {
 
     //init fields first
     var i;
     for (i = 0; i < this.numVertices; i++) {
-        this.velocityField[i] = new THREE.Vector2();  //FIXME: this is used by some sim classes as a scalar
+        this.velocityField[i] = 0; //TODO: rename this vertVel
         this.sourceField[i] = 0;
         this.obstacleField[i] = 1;
     }
@@ -259,7 +269,7 @@ HeightFieldWaterSim.prototype.init = function () {
     // DepthMapObstacleManager.init();
 };
 
-HeightFieldWaterSim.prototype.update = function (dt) {
+HeightFieldWater.prototype.update = function (dt) {
 
     // DepthMapObstacleManager.update();
 
@@ -299,11 +309,11 @@ HeightFieldWaterSim.prototype.update = function (dt) {
     this.__clearFields();
 };
 
-HeightFieldWaterSim.prototype.sim = function (dt) {
+HeightFieldWater.prototype.sim = function (dt) {
     throw new Error('Abstract method not implemented');
 };
 
-HeightFieldWaterSim.prototype.setMeanHeight = function (meanHeight) {
+HeightFieldWater.prototype.setMeanHeight = function (meanHeight) {
 
     this.__meanHeight = meanHeight;
 
@@ -347,13 +357,13 @@ HeightFieldWaterSim.prototype.setMeanHeight = function (meanHeight) {
  * @param  {THREE.Vector3} position
  * @return {number}
  */
-HeightFieldWaterSim.prototype.__calcVertexId = function (x, z) {
+HeightFieldWater.prototype.__calcVertexId = function (x, z) {
     var row = Math.floor((z + this.halfSize) / this.size * this.res);
     var col = Math.floor((x + this.halfSize) / this.size * this.res);
     return (row * this.res) + col;
 };
 
-HeightFieldWaterSim.prototype.disturb = function (position, amount) {
+HeightFieldWater.prototype.disturb = function (position, amount) {
 
     //convert back to local space first
     this.__worldMatInv.getInverse(this.mesh.matrixWorld);
@@ -365,11 +375,11 @@ HeightFieldWaterSim.prototype.disturb = function (position, amount) {
     this.disturbById(idx, amount);
 };
 
-HeightFieldWaterSim.prototype.disturbById = function (id, amount) {
+HeightFieldWater.prototype.disturbById = function (id, amount) {
     this.sourceField[id] = amount;
 };
 
-HeightFieldWaterSim.prototype.disturbNeighbours = function (position, amount) {
+HeightFieldWater.prototype.disturbNeighbours = function (position, amount) {
 
     //convert back to local space first
     this.__worldMatInv.getInverse(this.mesh.matrixWorld);
@@ -381,7 +391,7 @@ HeightFieldWaterSim.prototype.disturbNeighbours = function (position, amount) {
     this.disturbNeighboursById(idx, amount);
 };
 
-HeightFieldWaterSim.prototype.disturbNeighboursById = function (id, amount) {
+HeightFieldWater.prototype.disturbNeighboursById = function (id, amount) {
 
     var vertices = this.geometry.vertices;
 
@@ -410,7 +420,7 @@ HeightFieldWaterSim.prototype.disturbNeighboursById = function (id, amount) {
     }
 };
 
-HeightFieldWaterSim.prototype.addObstacle = function (obstacle, name) {
+HeightFieldWater.prototype.addObstacle = function (obstacle, name) {
     // DepthMapObstacleManager.addObstacle(mesh);
     if (!(obstacle instanceof Obstacle)) {
         throw new Error('obstacle must be of type Obstacle');
@@ -424,11 +434,11 @@ HeightFieldWaterSim.prototype.addObstacle = function (obstacle, name) {
     this.obstacles[name] = obstacle;
 };
 
-HeightFieldWaterSim.prototype.setObstaclesActive = function (isActive) {
+HeightFieldWater.prototype.setObstaclesActive = function (isActive) {
     this.obstaclesActive = isActive;
 };
 
-HeightFieldWaterSim.prototype.reset = function () {
+HeightFieldWater.prototype.reset = function () {
 
     //set mesh back to 0
     var i;
@@ -441,7 +451,7 @@ HeightFieldWaterSim.prototype.reset = function () {
     this.__clearFields();
 };
 
-HeightFieldWaterSim.prototype.__clearFields = function () {
+HeightFieldWater.prototype.__clearFields = function () {
     var i;
     for (i = 0; i < this.numVertices; i++) {
         this.sourceField[i] = 0;
@@ -449,7 +459,7 @@ HeightFieldWaterSim.prototype.__clearFields = function () {
     }
 };
 
-HeightFieldWaterSim.prototype.__updateMesh = function () {
+HeightFieldWater.prototype.__updateMesh = function () {
     this.geometry.verticesNeedUpdate = true;
     this.geometry.computeFaceNormals();  //must call this first before computeVertexNormals()
     this.geometry.computeVertexNormals();
@@ -459,16 +469,16 @@ HeightFieldWaterSim.prototype.__updateMesh = function () {
 /**
  * Height field water simulation based on HelloWorld code of "Fast Water Simulation for Games Using Height Fields" (Matthias Mueller-Fisher, GDC2008)
  * @constructor
- * @extends {HeightFieldWaterSim}
+ * @extends {HeightFieldWater}
  */
-function HeightFieldWaterSim_Muller_GDC2008_HelloWorld(options) {
-    HeightFieldWaterSim.call(this, options);
+function MuellerGdc2008HwWater(options) {
+    HeightFieldWater.call(this, options);
 }
-//inherit from HeightFieldWaterSim
-HeightFieldWaterSim_Muller_GDC2008_HelloWorld.prototype = Object.create(HeightFieldWaterSim.prototype);
-HeightFieldWaterSim_Muller_GDC2008_HelloWorld.prototype.constructor = HeightFieldWaterSim_Muller_GDC2008_HelloWorld;
+//inherit from HeightFieldWater
+MuellerGdc2008HwWater.prototype = Object.create(HeightFieldWater.prototype);
+MuellerGdc2008HwWater.prototype.constructor = MuellerGdc2008HwWater;
 //override
-HeightFieldWaterSim_Muller_GDC2008_HelloWorld.prototype.sim = function (dt) {
+MuellerGdc2008HwWater.prototype.sim = function (dt) {
 
     var i, j, idx;
     var v = this.geometry.vertices;
@@ -508,20 +518,22 @@ HeightFieldWaterSim_Muller_GDC2008_HelloWorld.prototype.sim = function (dt) {
 /**
  * Height field water simulation based on "Fast Water Simulation for Games Using Height Fields" (Matthias Mueller-Fisher, GDC2008)
  * @constructor
- * @extends {HeightFieldWaterSim}
+ * @extends {HeightFieldWater}
  */
-function HeightFieldWaterSim_Muller_GDC2008(options) {
-    HeightFieldWaterSim.call(this, options);
+function MuellerGdc2008Water(options) {
+    HeightFieldWater.call(this, options);
 
-    if (options.horizontalSpeed === 'undefined') { throw new Error('horizontalSpeed not specified'); }
+    if (options.horizontalSpeed === 'undefined') {
+        throw new Error('horizontalSpeed not specified');
+    }
     this.horizontalSpeed = options.horizontalSpeed;
     this.horizontalSpeedSquared = this.horizontalSpeed * this.horizontalSpeed;
 }
-//inherit from HeightFieldWaterSim
-HeightFieldWaterSim_Muller_GDC2008.prototype = Object.create(HeightFieldWaterSim.prototype);
-HeightFieldWaterSim_Muller_GDC2008.prototype.constructor = HeightFieldWaterSim_Muller_GDC2008;
+//inherit from HeightFieldWater
+MuellerGdc2008Water.prototype = Object.create(HeightFieldWater.prototype);
+MuellerGdc2008Water.prototype.constructor = MuellerGdc2008Water;
 //override
-HeightFieldWaterSim_Muller_GDC2008.prototype.sim = function (dt) {
+MuellerGdc2008Water.prototype.sim = function (dt) {
 
     //fixing dt: better to be in slow motion than to explode
     dt = 1.0 / 60.0;
@@ -573,19 +585,19 @@ HeightFieldWaterSim_Muller_GDC2008.prototype.sim = function (dt) {
 /**
  * Height field water simulation based on http://freespace.virgin.net/hugo.elias/graphics/x_water.htm
  * @constructor
- * @extends {HeightFieldWaterSim}
+ * @extends {HeightFieldWater}
  */
-function HeightFieldWaterSim_xWater(options) {
+function XWater(options) {
     this.field1 = [];
     this.field2 = [];
 
-    HeightFieldWaterSim.call(this, options);
+    HeightFieldWater.call(this, options);
 }
-//inherit from HeightFieldWaterSim
-HeightFieldWaterSim_xWater.prototype = Object.create(HeightFieldWaterSim.prototype);
-HeightFieldWaterSim_xWater.prototype.constructor = HeightFieldWaterSim_xWater;
+//inherit from HeightFieldWater
+XWater.prototype = Object.create(HeightFieldWater.prototype);
+XWater.prototype.constructor = XWater;
 //override
-HeightFieldWaterSim_xWater.prototype.init = function () {
+XWater.prototype.init = function () {
 
     //init fields first
     var i;
@@ -595,18 +607,18 @@ HeightFieldWaterSim_xWater.prototype.init = function () {
     }
 
     //call super class init to initialize other fields
-    HeightFieldWaterSim.prototype.init.call(this);
+    HeightFieldWater.prototype.init.call(this);
 };
-HeightFieldWaterSim_xWater.prototype.reset = function () {
+XWater.prototype.reset = function () {
     var i;
     for (i = 0; i < this.numVertices; i++) {
         this.field1[i] = this.__meanHeight;
         this.field2[i] = this.__meanHeight;
     }
 
-    HeightFieldWaterSim.prototype.reset.call(this);
+    HeightFieldWater.prototype.reset.call(this);
 };
-HeightFieldWaterSim_xWater.prototype.setMeanHeight = function (meanHeight) {
+XWater.prototype.setMeanHeight = function (meanHeight) {
 
     this.__meanHeight = meanHeight;
 
@@ -640,9 +652,9 @@ HeightFieldWaterSim_xWater.prototype.setMeanHeight = function (meanHeight) {
         this.field2[idx] = this.__meanHeight;
     }
 
-    HeightFieldWaterSim.prototype.setMeanHeight.call(this, meanHeight);
+    HeightFieldWater.prototype.setMeanHeight.call(this, meanHeight);
 };
-HeightFieldWaterSim_xWater.prototype.sim = function (dt) {
+XWater.prototype.sim = function (dt) {
 
     var i, j, idx;
     var v = this.geometry.vertices;
@@ -678,18 +690,6 @@ HeightFieldWaterSim_xWater.prototype.sim = function (dt) {
         }
     }
 
-    // //update velocity fields
-    // var g = -9.81;
-    // for (i = 1; i < resMinusOne; i++) {
-        // for (j = 1; j < resMinusOne; j++) {
-            // idx = i * this.res + j;
-            // this.velocityField[idx].x = (g / this.segmentSize) * (v[idx + this.res].y - v[idx].y) * dt;
-            // this.velocityField[idx].y = (g / this.segmentSize) * (v[idx + 1].y - v[idx].y) * dt;
-        // }
-    // }
-    // this.updateVelColors();
-    // this.updateVelVisualizer();
-
     //update mesh
     this.__updateMesh();
 
@@ -708,18 +708,22 @@ HeightFieldWaterSim_xWater.prototype.sim = function (dt) {
 /**
  * Height field water simulation based on "Interactive Water Surfaces" (Jerry Tessendorf, Game Programming Gems 4)
  * @constructor
- * @extends {HeightFieldWaterSim}
+ * @extends {HeightFieldWater}
  */
-function HeightFieldWaterSim_Tessendorf_iWave(options) {
+function TessendorfIWaveWater(options) {
 
     this.prevHeight = [];
     this.vertDeriv = [];
 
-    HeightFieldWaterSim.call(this, options);
+    HeightFieldWater.call(this, options);
 
-    if (options.kernelRadius === 'undefined') { throw new Error('kernelRadius not specified'); }
+    if (options.kernelRadius === 'undefined') {
+        throw new Error('kernelRadius not specified');
+    }
     this.kernelRadius = options.kernelRadius;
-    if (options.substeps === 'undefined') { throw new Error('substeps not specified'); }
+    if (options.substeps === 'undefined') {
+        throw new Error('substeps not specified');
+    }
     this.substeps = options.substeps;
 
     this.gravity = -9.81;
@@ -730,11 +734,11 @@ function HeightFieldWaterSim_Tessendorf_iWave(options) {
         that.G = data;
     });
 }
-//inherit from HeightFieldWaterSim
-HeightFieldWaterSim_Tessendorf_iWave.prototype = Object.create(HeightFieldWaterSim.prototype);
-HeightFieldWaterSim_Tessendorf_iWave.prototype.constructor = HeightFieldWaterSim_Tessendorf_iWave;
+//inherit from HeightFieldWater
+TessendorfIWaveWater.prototype = Object.create(HeightFieldWater.prototype);
+TessendorfIWaveWater.prototype.constructor = TessendorfIWaveWater;
 //override
-HeightFieldWaterSim_Tessendorf_iWave.prototype.init = function () {
+TessendorfIWaveWater.prototype.init = function () {
 
     //init fields first
     var i;
@@ -744,18 +748,18 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.init = function () {
     }
 
     //call super class init to initialize other fields
-    HeightFieldWaterSim.prototype.init.call(this);
+    HeightFieldWater.prototype.init.call(this);
 };
-HeightFieldWaterSim_Tessendorf_iWave.prototype.reset = function () {
+TessendorfIWaveWater.prototype.reset = function () {
     var i;
     for (i = 0; i < this.numVertices; i++) {
         this.prevHeight[i] = 0;
         this.vertDeriv[i] = 0;
     }
 
-    HeightFieldWaterSim.prototype.reset.call(this);
+    HeightFieldWater.prototype.reset.call(this);
 };
-HeightFieldWaterSim_Tessendorf_iWave.prototype.sim = function (dt) {
+TessendorfIWaveWater.prototype.sim = function (dt) {
 
     //fixing dt: better to be in slow motion than to explode
     dt = 1.0 / 60.0;
@@ -818,7 +822,7 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.sim = function (dt) {
     this.__updateMesh();
 };
 //methods
-HeightFieldWaterSim_Tessendorf_iWave.prototype.__symmetricalConvolve = function () {
+TessendorfIWaveWater.prototype.__symmetricalConvolve = function () {
 
     var i, j, k, l, iMax, jMax, idx;
     var v = this.geometry.vertices;
@@ -851,7 +855,7 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.__symmetricalConvolve = function 
         }
     }
 };
-HeightFieldWaterSim_Tessendorf_iWave.prototype.__convolve = function () {
+TessendorfIWaveWater.prototype.__convolve = function () {
     //NOTE: this is not used. I left it here for debugging if necessary.
     var i, j, k, l, iMax, jMax, idx;
     var v = this.geometry.vertices;
@@ -873,10 +877,160 @@ HeightFieldWaterSim_Tessendorf_iWave.prototype.__convolve = function () {
 };
 
 /**
+ * Height field water that is able to generate a horizontal velocity
+ * @constructor
+ * @extends {HeightFieldWater}
+ */
+function HeightFieldWaterWithHorizVel(options) {
+
+    this.horizVel = [];
+    this.horizVelColors = [];
+    if (options.scene === 'undefined') {
+        throw new Error('scene not specified');
+    }
+    this.scene = options.scene;
+
+    HeightFieldWater.call(this, options);
+
+    this.minVisVel = options.minVisVel || 0;  //for remapping of visualizing colors
+    this.maxVisVel = options.maxVisVel || 0.02;  //for remapping of visualizing colors
+    this.minVisVelLength = options.minVisVelLength || 0.01;  //for clamping of line length
+    this.maxVisVelLength = options.maxVisVelLength || 0.5;  //for clamping of line length
+
+    this.lineStartColor = options.lineStartColor || new THREE.Color(0x0066cc);
+    this.lineEndColor = options.lineEndColor || new THREE.Color(0x99ffff);
+    this.waterColor = options.waterColor || new THREE.Color(0x0066cc);
+    this.foamColor = options.foamColor || new THREE.Color(0x99ffff);
+
+    this.__faceIndices = ['a', 'b', 'c', 'd'];
+
+    this.__origMeshMaterialSettings = {
+        emissive: this.mesh.material.emissive,
+        vertexColors: this.mesh.material.vertexColors
+    };
+    // this.visHorizVelMaterial = new THREE.Material({emissive: '#ffffff', vertexColors: THREE.VertexColors});
+
+    this.__visHorizVelColors = false;
+    this.__visHorizVelLines = false;
+    this.visualizeVelColors(true);  //TODO: this should be called outside the class
+    this.visualizeVelLines(true);  //TODO: this should be called outside the class
+}
+//inherit
+HeightFieldWaterWithHorizVel.prototype = Object.create(HeightFieldWater.prototype);
+HeightFieldWaterWithHorizVel.prototype.constructor = HeightFieldWaterWithHorizVel;
+//override
+HeightFieldWaterWithHorizVel.prototype.init = function () {
+
+    //init arrays
+    var i, len;
+    for (i = 0, len = this.mesh.geometry.vertices.length; i < len; i++) {
+        this.horizVel[i] = new THREE.Vector2();
+        this.horizVelColors[i] = new THREE.Color();
+    }
+
+    //create vel lines mesh
+    var horizVelLinesGeom = new THREE.Geometry();
+    for (i = 0, len = 2 * this.mesh.geometry.vertices.length; i < len; i++) {
+        horizVelLinesGeom.vertices.push(new THREE.Vector3());
+        if (i % 2 === 0) {
+            horizVelLinesGeom.colors.push(new THREE.Color(0xffffff));
+        } else {
+            horizVelLinesGeom.colors.push(new THREE.Color(0xff0000));
+        }
+    }
+    var horizVelLinesMaterial = new THREE.LineBasicMaterial({vertexColors: THREE.VertexColors});
+    this.horizVelLinesMesh = new THREE.Line(horizVelLinesGeom, horizVelLinesMaterial, THREE.LinePieces);
+    this.scene.add(this.horizVelLinesMesh);
+
+    HeightFieldWater.prototype.init.call(this);
+};
+HeightFieldWaterWithHorizVel.prototype.update = function () {
+
+    HeightFieldWater.prototype.update.call(this);
+
+    if (this.__visHorizVelColors) {
+        this.updateHorizVelColors();
+    }
+    if (this.__visHorizVelLines) {
+        this.updateHorizVelLines();
+    }
+};
+
+//methods
+HeightFieldWaterWithHorizVel.prototype.visualizeVelColors = function (shouldVisualize) {
+    this.__visHorizVelColors = shouldVisualize;
+    if (shouldVisualize) {
+        this.mesh.material.emissive.set('#ffffff');
+        this.mesh.material.vertexColors = THREE.VertexColors;
+    } else {
+        this.mesh.material.emissive.set(this.__origMeshMaterialSettings.emissive);
+        this.mesh.material.vertexColors = this.__origMeshMaterialSettings.vertexColors;
+    }
+};
+HeightFieldWaterWithHorizVel.prototype.visualizeVelLines = function (shouldVisualize) {
+    this.__visHorizVelLines = shouldVisualize;
+};
+HeightFieldWaterWithHorizVel.prototype.updateHorizVelColors = function () {
+
+    var i, len, f, j, n, vertexIndex, velMag;
+    for (i = 0, len = this.geometry.faces.length; i < len; i ++) {
+        f  = this.geometry.faces[i];
+        n = (f instanceof THREE.Face3) ? 3 : 4;
+        for (j = 0; j < n; j++) {
+
+            vertexIndex = f[this.__faceIndices[j]];
+
+            //normalize vel magnitude and clamp
+            velMag = this.horizVel[vertexIndex].length() / (this.maxVisVel - this.minVisVel) + this.minVisVel;
+            velMag = THREE.Math.clamp(velMag, 0, 1);
+
+            //linear interpolate between the base and water color using velMag
+            f.vertexColors[j] = this.horizVelColors[vertexIndex].set(this.waterColor).lerp(this.foamColor, velMag);
+        }
+    }
+    this.geometry.colorsNeedUpdate = true;
+};
+HeightFieldWaterWithHorizVel.prototype.updateHorizVelLines = function () {
+
+    //TODO: transform into another space
+
+    var v = this.horizVelLinesMesh.geometry.vertices;
+
+    var start = new THREE.Vector3();
+    var offset = new THREE.Vector3();
+
+    var i, len, offsetLen;
+    // var mat = this.mesh.matrixWorld;
+    for (i = 0, len = this.mesh.geometry.vertices.length; i < len; i++) {
+
+        start.copy(this.mesh.geometry.vertices[i]); //.clone().applyMatrix4(mat);
+
+        offset.set(this.horizVel[i].x, 0, this.horizVel[i].y);
+        // offset.transformDirection(mat);
+        offset.multiplyScalar(25);
+
+        //clamp velocity visualize vector
+        offsetLen = offset.length();
+        if (offsetLen > this.maxVisVelLength) {
+            offset.setLength(this.maxVisVelLength);
+        } else if (offsetLen < this.minVisVelLength) {
+            offset.setLength(0);
+        }
+
+        //update line vertex positions
+        v[2 * i].copy(start);
+        v[2 * i + 1].copy(start).add(offset);
+    }
+
+    this.horizVelLinesMesh.geometry.verticesNeedUpdate = true;
+};
+
+/**
  * Height field water based on the hydrostatic pipe model
  * @constructor
+ * @extends {HeightFieldWaterWithHorizVel}
  */
-function HeightFieldPipeWater(options) {
+function PipeModelWater(options) {
 
     //per-grid variables
     this.baseHeights = [];  //height of the base terrain layer
@@ -887,7 +1041,7 @@ function HeightFieldPipeWater(options) {
     this.flowVelsXPrev = [];
     this.flowVelsZPrev = [];
 
-    HeightFieldWaterSim.call(this, options);
+    HeightFieldWaterWithHorizVel.call(this, options);
 
     //some constants
     this.gravity = -9.81;
@@ -898,33 +1052,15 @@ function HeightFieldPipeWater(options) {
 
     //sources and sinks
     this.flowChangers = [];
-
-    //TODO: this should be in superclass
-    var geometry = new THREE.Geometry();
-    var i, len;
-    for (i = 0, len = 2 * this.mesh.geometry.vertices.length; i < len; i++) {
-        geometry.vertices.push(new THREE.Vector3());
-        if (i % 2 === 0) {
-            geometry.colors.push(new THREE.Color(0xffffff));
-        } else {
-            geometry.colors.push(new THREE.Color(0xff0000));
-        }
-    }
-    var material = new THREE.LineBasicMaterial({vertexColors: THREE.VertexColors});
-    this.velVisualizeMesh = new THREE.Line(geometry, material, THREE.LinePieces);
-    if (options.scene) {
-        options.scene.add(this.velVisualizeMesh);
-    }
 }
 //inherit
-HeightFieldPipeWater.prototype = Object.create(HeightFieldWaterSim.prototype);
-HeightFieldPipeWater.prototype.constructor = HeightFieldPipeWater;
+PipeModelWater.prototype = Object.create(HeightFieldWaterWithHorizVel.prototype);
+PipeModelWater.prototype.constructor = PipeModelWater;
 //override
-HeightFieldPipeWater.prototype.init = function () {
+PipeModelWater.prototype.init = function () {
 
-    //init fields first
-    var i;
-    for (i = 0; i < this.numVertices; i++) {
+    var i, len;
+    for (i = 0, len = this.numVertices; i < len; i++) {
         this.baseHeights[i] = 0;
         this.heights[i] = 0;
         this.extPressures[i] = 0;
@@ -934,26 +1070,25 @@ HeightFieldPipeWater.prototype.init = function () {
         this.flowVelsZPrev[i] = 0;
     }
 
-    //call super class init to initialize other fields
-    HeightFieldWaterSim.prototype.init.call(this);
+    HeightFieldWaterWithHorizVel.prototype.init.call(this);
 };
-HeightFieldPipeWater.prototype.reset = function () {
-    var i;
-    for (i = 0; i < this.numVertices; i++) {
+PipeModelWater.prototype.reset = function () {
+
+    var i, len;
+    for (i = 0, len = this.numVertices; i < len; i++) {
         this.extPressures[i] = 0;
     }
 
-    HeightFieldWaterSim.prototype.reset.call(this);
+    HeightFieldWaterWithHorizVel.prototype.reset.call(this);
 };
-HeightFieldPipeWater.prototype.sim = function (dt) {
+PipeModelWater.prototype.sim = function (dt) {
 
     var i, j, idx;
     var v = this.geometry.vertices;
     var resMinusOne = this.res - 1;
 
-    // dt = 1.0 / 60.0;  //fix dt
     var substeps = 5;
-    dt = 1.0 / 60.0 / substeps;
+    dt = 1.0 / 60.0 / substeps;  //fix dt
 
     //add source and obstacles first
     for (i = 1; i < resMinusOne; i++) {
@@ -977,26 +1112,23 @@ HeightFieldPipeWater.prototype.sim = function (dt) {
                 idx = i * this.res + j;
 
                 //find velocity flow in +X direction for all X-pipes
-                dHeight = (this.baseHeights[idx] + this.heights[idx]) - (this.baseHeights[idx+1] + this.heights[idx+1]);
+                dHeight = (this.baseHeights[idx] + this.heights[idx]) - (this.baseHeights[idx + 1] + this.heights[idx + 1]);
                 acc = this.gravity * dHeight / this.pipeLength;
                 this.flowVelsXPrev[idx] = this.flowVelsX[idx];
                 this.flowVelsX[idx] *= this.dampingFactor;
                 this.flowVelsX[idx] += acc * dt * this.pipeCrossSectionArea;
-                if (isNaN(this.flowVelsX[idx])) debugger;
 
                 //find velocity flow in +Z direction for all Z-pipes
-                dHeight = (this.baseHeights[idx] + this.heights[idx]) - (this.baseHeights[idx+this.res] + this.heights[idx+this.res]);
+                dHeight = (this.baseHeights[idx] + this.heights[idx]) - (this.baseHeights[idx + this.res] + this.heights[idx + this.res]);
                 acc = this.gravity * dHeight / this.pipeLength;
                 this.flowVelsZPrev[idx] = this.flowVelsZ[idx];
                 this.flowVelsZ[idx] *= this.dampingFactor;
                 this.flowVelsZ[idx] += acc * dt * this.pipeCrossSectionArea;
-                if (isNaN(this.flowVelsZ[idx])) debugger;
-
             }
         }
 
         //find new heights
-        var velFlowSum;
+        var velFlowSum, dV;
         for (i = 1; i < resMinusOne; i++) {
             for (j = 1; j < resMinusOne; j++) {
 
@@ -1008,13 +1140,13 @@ HeightFieldPipeWater.prototype.sim = function (dt) {
                 velFlowSum += (this.flowVelsX[idx] + this.flowVelsXPrev[idx]) * 0.5;
 
                 //(i-1, j)
-                velFlowSum += -(this.flowVelsX[idx-1] + this.flowVelsXPrev[idx-1]) * 0.5;
+                velFlowSum += -(this.flowVelsX[idx - 1] + this.flowVelsXPrev[idx - 1]) * 0.5;
 
                 //(i, j+1)
-                velFlowSum += (this.flowVelsZ[idx] + this.flowVelsZPrev[idx]) * 0.5
+                velFlowSum += (this.flowVelsZ[idx] + this.flowVelsZPrev[idx]) * 0.5;
 
                 //(i, j-1)
-                velFlowSum += -(this.flowVelsZ[idx-this.res] + this.flowVelsZPrev[idx-this.res]) * 0.5;
+                velFlowSum += -(this.flowVelsZ[idx - this.res] + this.flowVelsZPrev[idx - this.res]) * 0.5;
 
                 // this.heights[idx] += dt * velFlowSum / (this.pipeLength * this.pipeLength);
                 dV = velFlowSum * dt;
@@ -1026,7 +1158,6 @@ HeightFieldPipeWater.prototype.sim = function (dt) {
                     }
                 }
                 this.heights[idx] += dV / (this.segmentSize * this.segmentSize);
-                if (isNaN(this.heights[idx])) debugger;
             }
         }
     }
@@ -1036,7 +1167,6 @@ HeightFieldPipeWater.prototype.sim = function (dt) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
             v[idx].y = this.baseHeights[idx] + this.heights[idx];
-            if (isNaN(v[idx].y)) debugger;
         }
     }
 
@@ -1045,77 +1175,15 @@ HeightFieldPipeWater.prototype.sim = function (dt) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
             //TODO: check sign of flows
-            this.velocityField[idx].x = -0.5 * (this.flowVelsX[idx] + this.flowVelsX[idx-1]);
-            this.velocityField[idx].y = -0.5 * (this.flowVelsZ[idx] + this.flowVelsZ[idx-this.res]);
+            this.horizVel[idx].x = -0.5 * (this.flowVelsX[idx] + this.flowVelsX[idx - 1]);
+            this.horizVel[idx].y = -0.5 * (this.flowVelsZ[idx] + this.flowVelsZ[idx - this.res]);
         }
     }
-    this.updateVelColors();
-    this.updateVelVisualizer();
 
     //update mesh
     this.__updateMesh();
 };
-HeightFieldPipeWater.prototype.updateVelColors = function () {
 
-    //TODO: this should go into superclass. Not putting it yet because I want to test it on xwater only.
-
-    //update colors using velocity field
-    var faceIndices = ['a', 'b', 'c', 'd'];
-
-    //TODO: these should all be instance var
-    var minVel = 0;
-    var maxVel = 0.02;
-    var baseColor = new THREE.Color(0x0066cc);
-
-    var i, len, f, j, n, vertexIndex, velMag, color;
-    for (i = 0, len = this.geometry.faces.length; i < len; i ++) {
-        f  = this.geometry.faces[i];
-        n = (f instanceof THREE.Face3) ? 3 : 4;
-        for (j = 0; j < n; j++) {
-
-            vertexIndex = f[faceIndices[j]];
-
-            velMag = this.velocityField[vertexIndex].length() / (maxVel - minVel) + minVel;
-            velMag = THREE.Math.clamp(velMag, 0, 1);
-
-            //linear interpolate between the base and water color using velMag
-            color = new THREE.Color(0x99ffff);  //TODO: don't recreate every frame
-            color.lerp(baseColor, 1 - velMag);
-
-            f.vertexColors[j] = color;
-        }
-    }
-    this.geometry.colorsNeedUpdate = true;
-};
-HeightFieldPipeWater.prototype.updateVelVisualizer = function () {
-
-    //TODO: this should go into superclass. Not putting it yet because I want to test it on xwater only.
-
-    //TODO: transform into another space
-
-    var i, len, start, end, offset;
-    var minVisualizeLength = 0.01;
-    var maxVisualizeLength = 0.5;
-    // var mat = this.mesh.matrixWorld;
-    for (i = 0, len = this.mesh.geometry.vertices.length; i < len; i++) {
-        start = this.mesh.geometry.vertices[i]; //.clone().applyMatrix4(mat);
-        // start.y = 0;
-        offset = new THREE.Vector3(this.velocityField[i].x, 0, this.velocityField[i].y);
-        // offset.transformDirection(mat);
-        offset.multiplyScalar(25);
-        //clamp velocity visualize vector
-        if (offset.length() > maxVisualizeLength) {
-            offset.setLength(maxVisualizeLength);
-        }
-        if (offset.length() < minVisualizeLength) {
-            offset.setLength(0);
-        }
-        end = start.clone().add(offset);
-        this.velVisualizeMesh.geometry.vertices[2 * i].copy(start);
-        this.velVisualizeMesh.geometry.vertices[2 * i + 1].copy(end);
-    }
-    this.velVisualizeMesh.geometry.verticesNeedUpdate = true;
-};
 
 function PipeFlowChanger(rate) {
     this.rate = rate;
