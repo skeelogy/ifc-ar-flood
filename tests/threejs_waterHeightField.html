@@ -381,11 +381,13 @@
 		renderingShadows: true,  //FIXME: this has to be init to true
 		displayWireframe: false,
 		displayLocalAxis: false,
+		displayVelMag: false,
+		displayVelDir: false
 	};
 	function setupGui() {
 
 		gui = new dat.GUI({width: 350});
-		gui.close();  //close GUI by default
+		// gui.close();  //close GUI by default
 
 		//Water Sim folder
 		waterSimFolder = gui.addFolder('Water Sim');
@@ -418,7 +420,7 @@
 
 		//Obstacles folder
 		obstaclesFolder = gui.addFolder('Obstacles');
-		obstaclesFolder.open();
+		// obstaclesFolder.open();
 
 		control = obstaclesFolder.add(options, 'obstaclesActive').name('Active');
 		function changeObstaclesActive(value)
@@ -480,6 +482,7 @@
 
 		//Display folder
 		displayFolder = gui.addFolder('Display');
+		displayFolder.open();
 
 		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
@@ -500,6 +503,22 @@
 		}
 		control.onChange(toggleLocalAxis);
 		toggleLocalAxis(options.displayLocalAxis);
+
+		control = displayFolder.add(options, 'displayVelMag').name('Velocity Mag');
+		function toggleVelMag(value)
+		{
+			hfWater.visualizeVelColors(value);
+		}
+		control.onChange(toggleVelMag);
+		toggleVelMag(options.displayVelMag);
+
+		control = displayFolder.add(options, 'displayVelDir').name('Velocity Dir');
+		function displayVelDir(value)
+		{
+			hfWater.visualizeVelLines(value);
+		}
+		control.onChange(displayVelDir);
+		displayVelDir(options.displayVelDir);
 	}
 
 	$(document).ready(function()

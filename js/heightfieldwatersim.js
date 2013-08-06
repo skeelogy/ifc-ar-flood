@@ -903,17 +903,13 @@ function HeightFieldWaterWithHorizVel(options) {
     this.foamColor = options.foamColor || new THREE.Color(0x99ffff);
 
     this.__faceIndices = ['a', 'b', 'c', 'd'];
-
     this.__origMeshMaterialSettings = {
-        emissive: this.mesh.material.emissive,
+        emissive: this.mesh.material.emissive.clone(),
         vertexColors: this.mesh.material.vertexColors
     };
-    // this.visHorizVelMaterial = new THREE.Material({emissive: '#ffffff', vertexColors: THREE.VertexColors});
 
     this.__visHorizVelColors = false;
     this.__visHorizVelLines = false;
-    this.visualizeVelColors(true);  //TODO: this should be called outside the class
-    this.visualizeVelLines(true);  //TODO: this should be called outside the class
 }
 //inherit
 HeightFieldWaterWithHorizVel.prototype = Object.create(HeightFieldWater.prototype);
@@ -966,9 +962,12 @@ HeightFieldWaterWithHorizVel.prototype.visualizeVelColors = function (shouldVisu
         this.mesh.material.emissive.set(this.__origMeshMaterialSettings.emissive);
         this.mesh.material.vertexColors = this.__origMeshMaterialSettings.vertexColors;
     }
+    this.mesh.geometry.buffersNeedUpdate = true;
+    this.mesh.material.needsUpdate = true;
 };
 HeightFieldWaterWithHorizVel.prototype.visualizeVelLines = function (shouldVisualize) {
     this.__visHorizVelLines = shouldVisualize;
+    this.horizVelLinesMesh.visible = shouldVisualize;
 };
 HeightFieldWaterWithHorizVel.prototype.updateHorizVelColors = function () {
 
