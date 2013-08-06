@@ -3,7 +3,7 @@
 <head>
 	<title>IFC - Height Field Water</title>
 	<meta charset="UTF-8"/>
-	
+
 	<link rel="stylesheet" href="/css/style.css">
 	<style type="text/css">
 		#stats { position: absolute; top:0; left: 0 }
@@ -11,10 +11,10 @@
 		#stats #fps #fpsText { color: #aaa !important }
 		#stats #fps #fpsGraph { display: block }
 	</style>
-	
+
 	<!--load helper libraries-->
 	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-	
+
 	<!--load AR and 3D libraries-->
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
@@ -26,11 +26,11 @@
 
 	<script type="text/javascript" src="/js/heightfieldwatersim.js"></script>
 	<script type="text/javascript" src="/js/skvoxelizer.js"></script>
-	
+
 	<script>
 
 	var WATER_SIZE = 10;
-	var WATER_RES = 80;
+	var WATER_RES = 64;
 	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
 	var DAMPING_FACTOR = 0.8;
 	var DISTURB_AMOUNT = 0.015;
@@ -43,11 +43,11 @@
 	var GLOBAL_SCALE = new THREE.Vector3(1.25, 1.25, 1.25);
 
 	var GLOBAL_MAT = new THREE.Matrix4();
-	GLOBAL_MAT.multiply(new THREE.Matrix4().makeTranslation(GLOBAL_POS.x, GLOBAL_POS.y, GLOBAL_POS.z));
-	GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationX(GLOBAL_ROT.x));
-	GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationY(GLOBAL_ROT.y));
-	GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationZ(GLOBAL_ROT.z));
-	GLOBAL_MAT.multiply(new THREE.Matrix4().makeScale(GLOBAL_SCALE.x, GLOBAL_SCALE.y, GLOBAL_SCALE.z));
+	// GLOBAL_MAT.multiply(new THREE.Matrix4().makeTranslation(GLOBAL_POS.x, GLOBAL_POS.y, GLOBAL_POS.z));
+	// GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationX(GLOBAL_ROT.x));
+	// GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationY(GLOBAL_ROT.y));
+	// GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationZ(GLOBAL_ROT.z));
+	// GLOBAL_MAT.multiply(new THREE.Matrix4().makeScale(GLOBAL_SCALE.x, GLOBAL_SCALE.y, GLOBAL_SCALE.z));
 
 	var clock = new THREE.Clock();
 	var currWaterHeight = MEAN_WATER_HEIGHT;
@@ -198,48 +198,56 @@
 			dampingFactor: DAMPING_FACTOR,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
+		heightFieldPipeWater = new HeightFieldPipeWater({
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: DAMPING_FACTOR,
+			meanHeight: MEAN_WATER_HEIGHT,  //TODO: get rid of this
+			scene: scene
+		});
 		heightFieldWaterSim = heightFieldWaterSim_iWave;
 
-		//create some obstacles for the water sim
-		var i, j;
-		for (i = 0; i < iSegments; i++)
-		{
-			for (j = 0; j < jSegments; j++)
-			{
-				var length = WATER_SIZE / 5.0;
-				var obstacleGeom = new THREE.CubeGeometry(length*(Math.random()*0.5+0.5), 1, length*(Math.random()*0.5+0.5));
-				var obstacleMaterial = new THREE.MeshPhongMaterial();
-				materials.push(obstacleMaterial);
-				obstacleMesh = new THREE.Mesh(obstacleGeom, obstacleMaterial);
-				obstacleMesh.castShadow = true;
-				obstacleMesh.receiveShadow = true;
-				obstacleMesh.position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize);
-				// obstacleMesh.position.y = Math.random() * 2 - 1.0;
-				obstacleMesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize);
-				obstacleMesh.rotation.y = (Math.random() * 360);
-				// obstacleMesh.visible = false;
-				globalTransform.add(obstacleMesh);
-
-				//create Obstacle
-				var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE, globalTransform.matrixWorld);
-				heightFieldWaterSim_iWave.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				heightFieldWaterSim_mullerGdc2008.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				heightFieldWaterSim_mullerGdc2008_helloWorld.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				heightFieldWaterSim_xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				obstacle.updateAlways = false;
-				// obstacle.update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
-
-				obstacles.push(obstacle);
-			}
-		}
-
-		//temp, just to make the demo nicer
-		obstacles[1].mesh.position.x += -1;
-		obstacles[2].mesh.position.x = 10000;
-		obstacles[2].mesh.position.x = 10000;
-
-		//using a flag to let obstacles update once after mesh updates
-		shouldUpdateObstacles = true;
+		// //create some obstacles for the water sim
+		// var i, j;
+		// for (i = 0; i < iSegments; i++)
+		// {
+			// for (j = 0; j < jSegments; j++)
+			// {
+				// var length = WATER_SIZE / 5.0;
+				// var obstacleGeom = new THREE.CubeGeometry(length*(Math.random()*0.5+0.5), 1, length*(Math.random()*0.5+0.5));
+				// var obstacleMaterial = new THREE.MeshPhongMaterial();
+				// materials.push(obstacleMaterial);
+				// obstacleMesh = new THREE.Mesh(obstacleGeom, obstacleMaterial);
+				// obstacleMesh.castShadow = true;
+				// obstacleMesh.receiveShadow = true;
+				// obstacleMesh.position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize);
+				// // obstacleMesh.position.y = Math.random() * 2 - 1.0;
+				// obstacleMesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize);
+				// obstacleMesh.rotation.y = (Math.random() * 360);
+				// // obstacleMesh.visible = false;
+				// globalTransform.add(obstacleMesh);
+//
+				// //create Obstacle
+				// var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE, globalTransform.matrixWorld);
+				// heightFieldWaterSim_iWave.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				// heightFieldWaterSim_mullerGdc2008.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				// heightFieldWaterSim_mullerGdc2008_helloWorld.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				// heightFieldWaterSim_xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				// obstacle.updateAlways = false;
+				// // obstacle.update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
+//
+				// obstacles.push(obstacle);
+			// }
+		// }
+//
+		// //temp, just to make the demo nicer
+		// obstacles[1].mesh.position.x += -1;
+		// obstacles[2].mesh.position.x = 10000;
+		// obstacles[2].mesh.position.x = 10000;
+//
+		// //using a flag to let obstacles update once after mesh updates
+		// shouldUpdateObstacles = true;
 	}
 
 	var shouldUpdateObstacles;
@@ -332,7 +340,7 @@
 		projector.unprojectVector(worldPos, camera);
 		raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
 		var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
-		
+
 		//get intersection point and vertexId
 		if (intersectInfo && intersectInfo[0])
 		{
@@ -354,17 +362,19 @@
 		'Tessendorf iWave': 'heightFieldWaterSim_iWave',
 		'Muller GDC2008': 'heightFieldWaterSim_mullerGdc2008',
 		'Muller GDC2008 HelloWorld': 'heightFieldWaterSim_mullerGdc2008_helloWorld',
-		'X Water': 'heightFieldWaterSim_xWater'
+		'X Water': 'heightFieldWaterSim_xWater',
+		'Pipe Model': 'heightFieldPipeWater',
 	};
 	var waterSimTypeSettings = {
 		'heightFieldWaterSim_iWave': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
 		'heightFieldWaterSim_mullerGdc2008': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
 		'heightFieldWaterSim_mullerGdc2008_helloWorld': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
-		'heightFieldWaterSim_xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
+		'heightFieldWaterSim_xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
+		'heightFieldPipeWater': { 'disturbAmount':0.5, 'dampingFactor':0.99 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[3]],
-		waterSimFloodRate: 0.01,
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[4]],
+		waterSimFloodRate: 0.0,
 		obstaclesActive: true,
 		obstaclesSeed: 1,
 		obstaclesShowObstacles: true,
@@ -376,7 +386,7 @@
 	function setupGui() {
 
 		gui = new dat.GUI({width: 350});
-		//gui.close();  //close GUI by default
+		gui.close();  //close GUI by default
 
 		//Water Sim folder
 		waterSimFolder = gui.addFolder('Water Sim');
@@ -471,7 +481,7 @@
 
 		//Display folder
 		displayFolder = gui.addFolder('Display');
-		
+
 		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
 		{
@@ -482,7 +492,7 @@
 		}
 		control.onChange(toggleWireframe);
 		toggleWireframe(options.displayWireframe);
-		
+
 		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
@@ -499,7 +509,7 @@
 		checkWebGl();
 
 		console.log('Document is ready.');
-		
+
 		//setup scene
 		setupThreejsScene();
 
@@ -511,16 +521,16 @@
 
 		//setup stats monitor
 		setupStats();
-		
+
 		//setup GUI
 		setupGui();
-		
+
 		//main loop
 		function loop()
 		{
 			var dt = clock.getDelta();  //have to call this before getElapsedTime()
 			var time = clock.getElapsedTime();
-			
+
 			heightFieldWaterSim.update(dt);
 
 			controls.update();
@@ -548,7 +558,7 @@
 			requestAnimationFrame(loop);
 		}
 		loop();
-		
+
 	});
 	</script>
 </head>
