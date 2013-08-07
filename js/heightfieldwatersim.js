@@ -24,6 +24,9 @@ Obstacle.prototype.update = function () {
 Obstacle.prototype.updateObstacleField = function (obstacleField, waterSim, waterHeight) {
     throw new Error('Abstract method not implemented');
 };
+Obstacle.prototype.updateFlowObstaclesField = function (waterSim) {
+    throw new Error('Abstract method not implemented');
+};
 
 /**
  * Obstacles that are voxelized
@@ -63,6 +66,43 @@ VoxelizedObstacle.prototype.updateObstacleField = function (obstacleField, water
                 if (minIntersectHeight < waterHeight && maxIntersectHeight > waterHeight) {
                     idx = waterSim.__calcVertexId(x, z);
                     obstacleField[idx] = 0;
+                }
+            }
+        }
+    }
+};
+VoxelizedObstacle.prototype.updateFlowObstacleFields = function (waterSim) {
+
+    if (this.updateAlways) {
+        this.update();
+    }
+
+    var minIntersectHeight, maxIntersectHeight, intersectionHeights;
+    var x, z, idx, prevIdx, prevWaterHeight;
+    for (x = this.voxelizer.__xMinMultiple; x <= this.voxelizer.__xMaxMultiple + this.voxelizer.__EPSILON; x += this.voxelizer.voxelSizeX) {
+        for (z = this.voxelizer.__zMinMultiple; z <= this.voxelizer.__zMaxMultiple + this.voxelizer.__EPSILON; z += this.voxelizer.voxelSizeZ) {
+            intersectionHeights = this.voxelizer.intersectionFirstAndLastHeights;
+            if (intersectionHeights && intersectionHeights[x] && intersectionHeights[x][z]) {
+
+                minIntersectHeight = intersectionHeights[x][z][0];
+                maxIntersectHeight = intersectionHeights[x][z][1];  //TODO: this assumes only two heights
+
+                idx = waterSim.__calcVertexId(x, z);
+
+                //if obstacle in this cell blocks previous cell, then stop flow coming from previous cell
+
+                //X
+                prevIdx = idx - 1;
+                prevWaterHeight = waterSim.baseHeights[prevIdx] + waterSim.heights[prevIdx];
+                if (minIntersectHeight < prevWaterHeight && maxIntersectHeight > prevWaterHeight) {
+                    waterSim.flowVelsX[prevIdx] = 0;
+                }
+
+                //Z
+                prevIdx = idx - waterSim.res;
+                prevWaterHeight = waterSim.baseHeights[prevIdx] + waterSim.heights[prevIdx];
+                if (minIntersectHeight < prevWaterHeight && maxIntersectHeight > prevWaterHeight) {
+                    waterSim.flowVelsZ[prevIdx] = 0;
                 }
             }
         }
@@ -110,6 +150,29 @@ TerrainObstacle.prototype.updateObstacleField = function (obstacleField, waterSi
             //update obstacle field, compare obstacle intersection heights with water mean height
             if (minIntersectHeight < waterHeight && maxIntersectHeight > waterHeight) {
                 obstacleField[i] = 0;
+            }
+        }
+    }
+};
+TerrainObstacle.prototype.updateFlowObstacleFields = function (waterSim) {
+
+    if (this.updateAlways) {
+        this.update();
+    }
+
+    var resMinusOne = waterSim.res - 1;
+
+    //stop flow velocity if adjacent terrain height is more than this water height
+    for (i = 1; i < resMinusOne; i++) {
+        for (j = 1; j < resMinusOne; j++) {
+            idx = i * waterSim.res + j;
+            if (waterSim.baseHeights[idx + 1] > waterSim.baseHeights[idx] + waterSim.heights[idx]) {
+                waterSim.flowVelsX[idx] = 0
+                waterSim.flowVelsXPrev[idx] = 0
+            }
+            if (waterSim.baseHeights[idx + waterSim.res] > waterSim.baseHeights[idx] + waterSim.heights[idx]) {
+                waterSim.flowVelsZ[idx] = 0;
+                waterSim.flowVelsZPrev[idx] = 0;
             }
         }
     }
@@ -1148,17 +1211,13 @@ PipeModelWater.prototype.sim = function (dt) {
             }
         }
 
-        //stop flow velocity if adjacent terrain height is more than this water height
-        for (i = 1; i < resMinusOne; i++) {
-            for (j = 1; j < resMinusOne; j++) {
-                idx = i * this.res + j;
-                if (this.baseHeights[idx + 1] > this.baseHeights[idx] + this.heights[idx]) {
-                    this.flowVelsX[idx] = 0
-                    this.flowVelsXPrev[idx] = 0
-                }
-                if (this.baseHeights[idx + this.res] > this.baseHeights[idx] + this.heights[idx]) {
-                    this.flowVelsZ[idx] = 0;
-                    this.flowVelsZPrev[idx] = 0;
+        //stop flow velocity if pipe flows to an obstacle
+        if (this.obstaclesActive) {
+            var obstacle, obstacleId;
+            for (obstacleId in this.obstacles) {
+                if (this.obstacles.hasOwnProperty(obstacleId)) {
+                    obstacle = this.obstacles[obstacleId];
+                    obstacle.updateFlowObstacleFields(this);
                 }
             }
         }

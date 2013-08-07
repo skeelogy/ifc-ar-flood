@@ -203,50 +203,52 @@
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: DAMPING_FACTOR,
+			meanHeight: MEAN_WATER_HEIGHT,  //TODO: figure out if this is needed for pipe model
 			scene: scene
 		});
 		hfWater = pipeModelWater;
 
-		// //create some obstacles for the water sim
-		// var i, j;
-		// for (i = 0; i < iSegments; i++)
-		// {
-			// for (j = 0; j < jSegments; j++)
-			// {
-				// var length = WATER_SIZE / 5.0;
-				// var obstacleGeom = new THREE.CubeGeometry(length*(Math.random()*0.5+0.5), 1, length*(Math.random()*0.5+0.5));
-				// var obstacleMaterial = new THREE.MeshPhongMaterial();
-				// materials.push(obstacleMaterial);
-				// obstacleMesh = new THREE.Mesh(obstacleGeom, obstacleMaterial);
-				// obstacleMesh.castShadow = true;
-				// obstacleMesh.receiveShadow = true;
-				// obstacleMesh.position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize);
-				// // obstacleMesh.position.y = Math.random() * 2 - 1.0;
-				// obstacleMesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize);
-				// obstacleMesh.rotation.y = (Math.random() * 360);
-				// // obstacleMesh.visible = false;
-				// globalTransform.add(obstacleMesh);
-//
-				// //create Obstacle
-				// var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE, globalTransform.matrixWorld);
-				// iWaveWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				// muellerGdc2008Water.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				// muellerGdc2008HwWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				// xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				// obstacle.updateAlways = false;
-				// // obstacle.update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
-//
-				// obstacles.push(obstacle);
-			// }
-		// }
-//
-		// //temp, just to make the demo nicer
-		// obstacles[1].mesh.position.x += -1;
-		// obstacles[2].mesh.position.x = 10000;
-		// obstacles[2].mesh.position.x = 10000;
-//
-		// //using a flag to let obstacles update once after mesh updates
-		// shouldUpdateObstacles = true;
+		//create some obstacles for the water sim
+		var i, j;
+		for (i = 0; i < iSegments; i++)
+		{
+			for (j = 0; j < jSegments; j++)
+			{
+				var length = WATER_SIZE / 5.0;
+				var obstacleGeom = new THREE.CubeGeometry(length*(Math.random()*0.5+0.5), 1, length*(Math.random()*0.5+0.5));
+				var obstacleMaterial = new THREE.MeshPhongMaterial();
+				materials.push(obstacleMaterial);
+				obstacleMesh = new THREE.Mesh(obstacleGeom, obstacleMaterial);
+				obstacleMesh.castShadow = true;
+				obstacleMesh.receiveShadow = true;
+				obstacleMesh.position.x = (iSegmentSize * i) - halfWaterSize + ((Math.random()) * iSegmentSize);
+				// obstacleMesh.position.y = Math.random() * 2 - 1.0;
+				obstacleMesh.position.z = (jSegmentSize * j) - halfWaterSize + ((Math.random()) * jSegmentSize);
+				obstacleMesh.rotation.y = (Math.random() * 360);
+				// obstacleMesh.visible = false;
+				globalTransform.add(obstacleMesh);
+
+				//create Obstacle
+				var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE, globalTransform.matrixWorld);
+				iWaveWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				muellerGdc2008Water.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				muellerGdc2008HwWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				pipeModelWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				obstacle.updateAlways = false;
+				// obstacle.update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
+
+				obstacles.push(obstacle);
+			}
+		}
+
+		//temp, just to make the demo nicer
+		obstacles[1].mesh.position.x += -1;
+		obstacles[2].mesh.position.x = 10000;
+		obstacles[2].mesh.position.x = 10000;
+
+		//using a flag to let obstacles update once after mesh updates
+		shouldUpdateObstacles = true;
 	}
 
 	var shouldUpdateObstacles;
