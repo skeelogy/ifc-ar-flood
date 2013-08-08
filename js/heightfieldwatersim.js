@@ -73,14 +73,14 @@ VoxelizedObstacle.prototype.updateObstacleField = function (waterSim) {
         }
     }
 };
-VoxelizedObstacle.prototype.updateFlowObstacleFields = function (waterSim) {
+VoxelizedObstacle.prototype.updateFlux = function (waterSim) {
 
     if (this.updateAlways) {
         this.update();
     }
 
     var minIntersectHeight, maxIntersectHeight, intersectionHeights;
-    var x, z, idx, prevIdx, prevWaterHeight;
+    var x, z, idx, prevIdx, prevWaterHeight, nextIdx, nextWaterHeight;
     for (x = this.voxelizer.__xMinMultiple; x <= this.voxelizer.__xMaxMultiple + this.voxelizer.__EPSILON; x += this.voxelizer.voxelSizeX) {
         for (z = this.voxelizer.__zMinMultiple; z <= this.voxelizer.__zMaxMultiple + this.voxelizer.__EPSILON; z += this.voxelizer.voxelSizeZ) {
             intersectionHeights = this.voxelizer.intersectionFirstAndLastHeights;
@@ -91,20 +91,34 @@ VoxelizedObstacle.prototype.updateFlowObstacleFields = function (waterSim) {
 
                 idx = waterSim.__calcVertexId(x, z);
 
-                //if obstacle in this cell blocks previous cell, then stop flow coming from previous cell
+                //if obstacle in this cell blocks adjacent cell, then stop flow coming from that cell
 
-                //X
+                //+X
                 prevIdx = idx - 1;
                 prevWaterHeight = waterSim.baseHeights[prevIdx] + waterSim.heights[prevIdx];
                 if (minIntersectHeight < prevWaterHeight && maxIntersectHeight > prevWaterHeight) {
-                    waterSim.flowVelsX[prevIdx] = 0;
+                    waterSim.fluxR[prevIdx] = 0;
                 }
 
-                //Z
+                //-X
+                nextIdx = idx + 1;
+                nextWaterHeight = waterSim.baseHeights[nextIdx] + waterSim.heights[nextIdx];
+                if (minIntersectHeight < nextWaterHeight && maxIntersectHeight > nextWaterHeight) {
+                    waterSim.fluxL[nextIdx] = 0;
+                }
+
+                //+Z
                 prevIdx = idx - waterSim.res;
                 prevWaterHeight = waterSim.baseHeights[prevIdx] + waterSim.heights[prevIdx];
                 if (minIntersectHeight < prevWaterHeight && maxIntersectHeight > prevWaterHeight) {
-                    waterSim.flowVelsZ[prevIdx] = 0;
+                    waterSim.fluxB[prevIdx] = 0;
+                }
+
+                //-Z
+                nextIdx = idx + waterSim.res;
+                nextWaterHeight = waterSim.baseHeights[nextIdx] + waterSim.heights[nextIdx];
+                if (minIntersectHeight < nextWaterHeight && maxIntersectHeight > nextWaterHeight) {
+                    waterSim.fluxT[nextIdx] = 0;
                 }
             }
         }
@@ -160,7 +174,7 @@ TerrainObstacle.prototype.updateObstacleField = function (waterSim) {
         }
     }
 };
-TerrainObstacle.prototype.updateFlowObstacleFields = function (waterSim) {
+TerrainObstacle.prototype.updateFlux = function (waterSim) {
 
     if (this.updateAlways) {
         this.update();
@@ -169,17 +183,35 @@ TerrainObstacle.prototype.updateFlowObstacleFields = function (waterSim) {
     var resMinusOne = waterSim.res - 1;
 
     //stop flow velocity if adjacent terrain height is more than this water height
+    //TODO: fix water sticking on terrain on one side
+    var EPSILON = 0.0;
     var i, j, idx;
     for (i = 1; i < resMinusOne; i++) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * waterSim.res + j;
-            if (waterSim.baseHeights[idx + 1] > waterSim.baseHeights[idx] + waterSim.heights[idx]) {
-                waterSim.flowVelsX[idx] = 0;
-                waterSim.flowVelsXPrev[idx] = 0;
+
+            //+X
+            if (waterSim.baseHeights[idx + 1] > waterSim.baseHeights[idx] + waterSim.heights[idx] + EPSILON) {
+                waterSim.fluxR[idx] = 0;
+                // waterSim.fluxRPrev[idx] = 0;
             }
-            if (waterSim.baseHeights[idx + waterSim.res] > waterSim.baseHeights[idx] + waterSim.heights[idx]) {
-                waterSim.flowVelsZ[idx] = 0;
-                waterSim.flowVelsZPrev[idx] = 0;
+
+            //-X
+            if (waterSim.baseHeights[idx - 1] > waterSim.baseHeights[idx] + waterSim.heights[idx] + EPSILON) {
+                waterSim.fluxL[idx] = 0;
+                // waterSim.fluxRPrev[idx] = 0;
+            }
+
+            //+Z
+            if (waterSim.baseHeights[idx + waterSim.res] > waterSim.baseHeights[idx] + waterSim.heights[idx] + EPSILON) {
+                waterSim.fluxB[idx] = 0;
+                // waterSim.fluxBPrev[idx] = 0;
+            }
+
+            //-Z
+            if (waterSim.baseHeights[idx - waterSim.res] > waterSim.baseHeights[idx] + waterSim.heights[idx] + EPSILON) {
+                waterSim.fluxB[idx] = 0;
+                // waterSim.fluxBPrev[idx] = 0;
             }
         }
     }
@@ -963,9 +995,9 @@ function HeightFieldWaterWithVel(options) {
     HeightFieldWater.call(this, options);
 
     this.minVisVel = options.minVisVel || 0;  //for remapping of visualizing colors
-    this.maxVisVel = options.maxVisVel || 0.02;  //for remapping of visualizing colors
-    this.minVisVelLength = options.minVisVelLength || 0.01;  //for clamping of line length
-    this.maxVisVelLength = options.maxVisVelLength || 0.5;  //for clamping of line length
+    this.maxVisVel = options.maxVisVel || 0.25;  //for remapping of visualizing colors
+    this.minVisVelLength = options.minVisVelLength || 0.02;  //for clamping of line length
+    this.maxVisVelLength = options.maxVisVelLength || 1.0;  //for clamping of line length
 
     this.lineStartColor = options.lineStartColor || new THREE.Color(0x0066cc);
     this.lineEndColor = options.lineEndColor || new THREE.Color(0x99ffff);
@@ -1076,7 +1108,7 @@ HeightFieldWaterWithVel.prototype.updateVelLines = function () {
 
         offset.copy(this.vel[i]);
         // offset.transformDirection(mat);
-        offset.multiplyScalar(25);
+        // offset.multiplyScalar(25);
 
         //clamp velocity visualize vector
         offsetLen = offset.length();
@@ -1105,10 +1137,10 @@ function PipeModelWater(options) {
     this.baseHeights = [];  //height of the base terrain layer
     this.heights = [];  //just the water height, not including the terrain
     this.extPressures = [];
-    this.flowVelsX = [];
-    this.flowVelsZ = [];
-    this.flowVelsXPrev = [];
-    this.flowVelsZPrev = [];
+    this.fluxR = [];
+    this.fluxB = [];
+    this.fluxL = [];
+    this.fluxT = [];
 
     this.dHeights = [];
 
@@ -1118,7 +1150,7 @@ function PipeModelWater(options) {
     HeightFieldWaterWithVel.call(this, options);
 
     //some constants
-    this.gravity = -9.81;
+    this.gravity = 9.81;
     this.density = 1;
     this.atmosPressure = 0;  //assume one constant atmos pressure throughout
     this.pipeLength = this.segmentSize;
@@ -1136,12 +1168,12 @@ PipeModelWater.prototype.init = function () {
     var i, len;
     for (i = 0, len = this.numVertices; i < len; i++) {
         this.baseHeights[i] = 0;
-        this.heights[i] = 0.1;
+        this.heights[i] = 0;
         this.extPressures[i] = 0;
-        this.flowVelsX[i] = 0;
-        this.flowVelsZ[i] = 0;
-        this.flowVelsXPrev[i] = 0;
-        this.flowVelsZPrev[i] = 0;
+        this.fluxR[i] = 0;
+        this.fluxB[i] = 0;
+        this.fluxL[i] = 0;
+        this.fluxT[i] = 0;
 
         this.dHeights[i] = 0;
     }
@@ -1199,74 +1231,133 @@ PipeModelWater.prototype.sim = function (dt) {
     var x;
     for (x = 0; x < substeps; x++) {
 
-        //find flow vels first
-        var dHeight, acc;
+        //find flux first
+        var thisHeight, dHeight;
+        var heightToFluxFactor = dt * this.pipeCrossSectionArea * this.gravity / this.pipeLength;
         for (i = 1; i < resMinusOne; i++) {
             for (j = 1; j < resMinusOne; j++) {
 
                 idx = i * this.res + j;
+                thisHeight = this.baseHeights[idx] + this.heights[idx];
 
-                //find velocity flow in +X direction for all X-pipes
-                dHeight = (this.baseHeights[idx] + this.heights[idx]) - (this.baseHeights[idx + 1] + this.heights[idx + 1]);
-                acc = this.gravity * dHeight / this.pipeLength;
-                this.flowVelsXPrev[idx] = this.flowVelsX[idx];
-                this.flowVelsX[idx] *= this.dampingFactor;
-                this.flowVelsX[idx] += acc * dt * this.pipeCrossSectionArea;
+                //find out flux in +X direction
+                dHeight = thisHeight - (this.baseHeights[idx + 1] + this.heights[idx + 1]);
+                this.fluxR[idx] *= this.dampingFactor;
+                this.fluxR[idx] += dHeight * heightToFluxFactor;
+                if (this.fluxR[idx] < 0) {
+                    this.fluxR[idx] = 0;
+                }
 
-                //find velocity flow in +Z direction for all Z-pipes
-                dHeight = (this.baseHeights[idx] + this.heights[idx]) - (this.baseHeights[idx + this.res] + this.heights[idx + this.res]);
-                acc = this.gravity * dHeight / this.pipeLength;
-                this.flowVelsZPrev[idx] = this.flowVelsZ[idx];
-                this.flowVelsZ[idx] *= this.dampingFactor;
-                this.flowVelsZ[idx] += acc * dt * this.pipeCrossSectionArea;
+                //find out flux in -X direction
+                dHeight = thisHeight - (this.baseHeights[idx - 1] + this.heights[idx - 1]);
+                this.fluxL[idx] *= this.dampingFactor;
+                this.fluxL[idx] += dHeight * heightToFluxFactor;
+                if (this.fluxL[idx] < 0) {
+                    this.fluxL[idx] = 0;
+                }
+
+                //find out flux in +Z direction
+                dHeight = thisHeight - (this.baseHeights[idx + this.res] + this.heights[idx + this.res]);
+                this.fluxB[idx] *= this.dampingFactor;
+                this.fluxB[idx] += dHeight * heightToFluxFactor;
+                if (this.fluxB[idx] < 0) {
+                    this.fluxB[idx] = 0;
+                }
+
+                //find out flux in -Z direction
+                dHeight = thisHeight - (this.baseHeights[idx - this.res] + this.heights[idx - this.res]);
+                this.fluxT[idx] *= this.dampingFactor;
+                this.fluxT[idx] += dHeight * heightToFluxFactor;
+                if (this.fluxT[idx] < 0) {
+                    this.fluxT[idx] = 0;
+                }
             }
+        }
+        //set flux to boundaries to zero
+        //LEFT
+        j = 0;
+        for (i = 1; i < this.res; i++) {
+            idx = i * this.res + j;
+            this.fluxL[idx + 1] = 0;
+        }
+        //RIGHT
+        j = this.res - 1;
+        for (i = 1; i < this.res; i++) {
+            idx = i * this.res + j;
+            this.fluxR[idx - 1] = 0;
+        }
+        //TOP
+        i = 0;
+        for (j = 1; j < this.res; j++) {
+            idx = i * this.res + j;
+            this.fluxT[idx + this.res] = 0;
+        }
+        //BOTTOM
+        i = this.res - 1;
+        for (j = 1; j < this.res; j++) {
+            idx = i * this.res + j;
+            this.fluxB[idx - this.res] = 0;
         }
 
         //stop flow velocity if pipe flows to an obstacle
-        //TODO: try to redirect the flow to the opposite pipe to get reflection
         if (this.obstaclesActive) {
             var obstacle, obstacleId;
             for (obstacleId in this.obstacles) {
                 if (this.obstacles.hasOwnProperty(obstacleId)) {
                     obstacle = this.obstacles[obstacleId];
-                    obstacle.updateFlowObstacleFields(this);
+                    obstacle.updateFlux(this);
                 }
             }
         }
 
-        //find new heights
-        var velFlowSum, dV;
+        //scale down outflow if it is more than available volume in the column
+        var currVol, outVol, scaleAmt;
         for (i = 1; i < resMinusOne; i++) {
             for (j = 1; j < resMinusOne; j++) {
 
                 idx = i * this.res + j;
 
-                velFlowSum = 0;
-
-                //(i+1, j)
-                velFlowSum += (this.flowVelsX[idx] + this.flowVelsXPrev[idx]) * 0.5;
-
-                //(i-1, j)
-                velFlowSum += -(this.flowVelsX[idx - 1] + this.flowVelsXPrev[idx - 1]) * 0.5;
-
-                //(i, j+1)
-                velFlowSum += (this.flowVelsZ[idx] + this.flowVelsZPrev[idx]) * 0.5;
-
-                //(i, j-1)
-                velFlowSum += -(this.flowVelsZ[idx - this.res] + this.flowVelsZPrev[idx - this.res]) * 0.5;
-
-                // this.heights[idx] += dt * velFlowSum / (this.pipeLength * this.pipeLength);
-                dV = velFlowSum * dt;
-                //TODO: remove negative volumes
-                if (dV < 0) {
-                    if (-dV / (this.segmentSize * this.segmentSize) >= this.heights[idx]) {
-                        //removal of volume that is more than what's available
-                        // dV = 0;
-                    }
+                currVol = this.heights[idx] * this.segmentSizeSquared;
+                outVol = dt * (this.fluxR[idx] + this.fluxL[idx] + this.fluxB[idx] + this.fluxT[idx]);
+                if (outVol > currVol) {
+                    scaleAmt = currVol / outVol;
+                    this.fluxR[idx] *= scaleAmt;
+                    this.fluxL[idx] *= scaleAmt;
+                    this.fluxB[idx] *= scaleAmt;
+                    this.fluxT[idx] *= scaleAmt;
                 }
+            }
+        }
+
+        //find new heights
+        var fluxIn, fluxOut, dV, avgWaterHeight;
+        for (i = 1; i < resMinusOne; i++) {
+            for (j = 1; j < resMinusOne; j++) {
+
+                idx = i * this.res + j;
+
+                fluxOut = this.fluxR[idx] + this.fluxL[idx] + this.fluxB[idx] + this.fluxT[idx];
+                fluxIn = this.fluxR[idx - 1] + this.fluxL[idx + 1] + this.fluxB[idx - this.res] + this.fluxT[idx + this.res];
+                dV = (fluxIn - fluxOut) * dt;
 
                 this.dHeights[idx] = dV / (this.segmentSize * this.segmentSize);
+                avgWaterHeight = this.heights[idx];
                 this.heights[idx] += this.dHeights[idx];
+                avgWaterHeight = 0.5 * (avgWaterHeight + this.heights[idx]);
+
+                //update velocities
+
+                //horizontal velocity comes amount of water passing through per unit time
+                if (avgWaterHeight === 0) {  //prevent division by 0
+                    this.vel[idx].x = 0;
+                    this.vel[idx].z = 0;
+                } else {
+                    this.vel[idx].x = 0.5 * (this.fluxR[idx - 1] - this.fluxL[idx] + this.fluxR[idx] - this.fluxL[idx + 1]) / (this.segmentSize * avgWaterHeight);
+                    this.vel[idx].z = 0.5 * (this.fluxB[idx - this.res] - this.fluxT[idx] + this.fluxB[idx] - this.fluxT[idx + this.res]) / (this.segmentSize * avgWaterHeight);
+                }
+
+                //vertical velocity to come from change in height
+                this.vel[idx].y = this.dHeights[idx];
             }
         }
     }
@@ -1280,22 +1371,6 @@ PipeModelWater.prototype.sim = function (dt) {
     }
     this.__matchEdges();
 
-    //update velocities
-    for (i = 1; i < resMinusOne; i++) {
-        for (j = 1; j < resMinusOne; j++) {
-            idx = i * this.res + j;
-
-            //TODO: check sign of flows
-
-            //horizontal velocities to come from flow vel
-            this.vel[idx].x = -0.5 * (this.flowVelsX[idx] + this.flowVelsX[idx - 1]);
-            this.vel[idx].z = -0.5 * (this.flowVelsZ[idx] + this.flowVelsZ[idx - this.res]);
-
-            //vertical velocity to come from change in height
-            this.vel[idx].y = -this.dHeights[idx];
-        }
-    }
-
     //update mesh
     this.__updateMesh();
 };
@@ -1306,21 +1381,25 @@ PipeModelWater.prototype.__matchEdges = function () {
     var resMinusOne = this.res - 1;
 
     //match the sides
+    //LEFT
     j = 0;
     for (i = 1; i < resMinusOne; i++) {
         idx = i * this.res + j;
         v[idx].y = v[idx + 1].y;
     }
+    //RIGHT
     j = this.res - 1;
     for (i = 1; i < resMinusOne; i++) {
         idx = i * this.res + j;
         v[idx].y = v[idx - 1].y;
     }
+    //TOP
     i = 0;
     for (j = 1; j < resMinusOne; j++) {
         idx = i * this.res + j;
         v[idx].y = v[idx + this.res].y;
     }
+    //BOTTOM
     i = this.res - 1;
     for (j = 1; j < resMinusOne; j++) {
         idx = i * this.res + j;

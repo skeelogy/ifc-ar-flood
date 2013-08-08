@@ -30,7 +30,7 @@
 	<script>
 
 	var WATER_SIZE = 10;
-	var WATER_RES = 64;
+	var WATER_RES = 40;
 	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
 	var DAMPING_FACTOR = 0.8;
 	var DISTURB_AMOUNT = 0.015;
@@ -386,7 +386,7 @@
 		'Muller GDC2008 HelloWorld': 'muellerGdc2008HwWater',
 	};
 	var waterSimTypeSettings = {
-	    'pipeModelWater': { 'disturbAmount':0.5, 'dampingFactor':0.99 },
+	    'pipeModelWater': { 'disturbAmount':0.5, 'dampingFactor':0.998 },
 	    'xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
 		'iWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
 		'muellerGdc2008Water': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
