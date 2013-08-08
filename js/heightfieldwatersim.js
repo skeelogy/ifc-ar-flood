@@ -1273,6 +1273,7 @@ PipeModelWater.prototype.sim = function (dt) {
             v[idx].y = this.baseHeights[idx] + this.heights[idx];
         }
     }
+    this.__matchEdges();
 
     //update velocities
     for (i = 1; i < resMinusOne; i++) {
@@ -1293,7 +1294,44 @@ PipeModelWater.prototype.sim = function (dt) {
     //update mesh
     this.__updateMesh();
 };
+PipeModelWater.prototype.__matchEdges = function () {
 
+    var i, j, idx;
+    var v = this.geometry.vertices;
+    var resMinusOne = this.res - 1;
+
+    //match the sides
+    j = 0;
+    for (i = 1; i < resMinusOne; i++) {
+        idx = i * this.res + j;
+        v[idx].y = v[idx + 1].y;
+    }
+    j = this.res - 1;
+    for (i = 1; i < resMinusOne; i++) {
+        idx = i * this.res + j;
+        v[idx].y = v[idx - 1].y;
+    }
+    i = 0;
+    for (j = 1; j < resMinusOne; j++) {
+        idx = i * this.res + j;
+        v[idx].y = v[idx + this.res].y;
+    }
+    i = this.res - 1;
+    for (j = 1; j < resMinusOne; j++) {
+        idx = i * this.res + j;
+        v[idx].y = v[idx - this.res].y;
+    }
+
+    //match corners
+    idx = 0;
+    v[idx].y = 0.5 * (v[idx + 1].y + v[idx + this.res].y);
+    idx = this.res - 1;
+    v[idx].y = 0.5 * (v[idx - 1].y + v[idx + this.res].y);
+    idx = this.res * (this.res - 1);
+    v[idx].y = 0.5 * (v[idx + 1].y + v[idx - this.res].y);
+    idx = this.res * this.res - 1;
+    v[idx].y = 0.5 * (v[idx - 1].y + v[idx - this.res].y);
+};
 
 function PipeFlowChanger(rate) {
     this.rate = rate;
