@@ -336,8 +336,9 @@ function HeightFieldWater(options) {
 
     this.obstacles = {};
 
-    this.velocityField = [];
     this.sourceField = [];
+    this.velocityField = [];
+    this.disturbField = [];
     this.obstacleField = [];
 
     // DepthMapObstacleManager.depthMapSize = this.size;
@@ -362,8 +363,9 @@ HeightFieldWater.prototype.init = function () {
     //init fields first
     var i;
     for (i = 0; i < this.numVertices; i++) {
-        this.velocityField[i] = 0; //TODO: rename this vertVel
         this.sourceField[i] = 0;
+        this.velocityField[i] = 0; //TODO: rename this vertVel
+        this.disturbField[i] = 0;
         this.obstacleField[i] = 1;
     }
 
@@ -473,12 +475,11 @@ HeightFieldWater.prototype.disturb = function (position, amount) {
 
     //calculate idx
     var idx = this.__calcVertexId(this.__localPos.x, this.__localPos.z);
-
     this.disturbById(idx, amount);
 };
 
 HeightFieldWater.prototype.disturbById = function (id, amount) {
-    this.sourceField[id] = amount;
+    this.disturbField[id] = amount;
 };
 
 HeightFieldWater.prototype.disturbNeighbours = function (position, amount) {
@@ -522,6 +523,32 @@ HeightFieldWater.prototype.disturbNeighboursById = function (id, amount) {
     }
 };
 
+HeightFieldWater.prototype.source = function (position, amount, radius) {
+
+    //convert back to local space first
+    this.__worldMatInv.getInverse(this.mesh.matrixWorld);
+    this.__localPos.copy(position).applyMatrix4(this.__worldMatInv);
+
+    //calculate idx
+    var idx;
+    var dist;
+    var x, z;
+    for (x = -radius; x <= radius; x += this.segmentSize) {
+        for (z = -radius; z <= radius; z += this.segmentSize) {
+            dist = Math.sqrt(x * x + z * z);
+            if (dist < radius) { //within the circle
+                //get vertex id for this (x, z) point
+                idx = this.__calcVertexId(this.__localPos.x + x, this.__localPos.z + z);
+                this.sourceById(idx, amount);
+            }
+        }
+    }
+};
+
+HeightFieldWater.prototype.sourceById = function (id, amount) {
+    this.sourceField[id] = amount;
+};
+
 HeightFieldWater.prototype.addObstacle = function (obstacle, name) {
     // DepthMapObstacleManager.addObstacle(mesh);
     if (!(obstacle instanceof Obstacle)) {
@@ -557,6 +584,7 @@ HeightFieldWater.prototype.__clearFields = function () {
     var i;
     for (i = 0; i < this.numVertices; i++) {
         this.sourceField[i] = 0;
+        this.disturbField[i] = 0;
         this.obstacleField[i] = 1;
     }
 };
@@ -590,7 +618,7 @@ MuellerGdc2008HwWater.prototype.sim = function (dt) {
     for (i = 1; i < resMinusOne; i++) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
-            v[idx].y += this.sourceField[idx];
+            v[idx].y += this.disturbField[idx];
             //mask using obstacle field, relative to the mean height
             v[idx].y = (v[idx].y - this.__meanHeight) * this.obstacleField[idx] + this.__meanHeight;
         }
@@ -648,7 +676,7 @@ MuellerGdc2008Water.prototype.sim = function (dt) {
     for (i = 1; i < resMinusOne; i++) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
-            v[idx].y += this.sourceField[idx];
+            v[idx].y += this.disturbField[idx];
             //mask using obstacle field, relative to the mean height
             v[idx].y = (v[idx].y - this.__meanHeight) * this.obstacleField[idx] + this.__meanHeight;
         }
@@ -768,7 +796,7 @@ XWater.prototype.sim = function (dt) {
     for (i = 1; i < resMinusOne; i++) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
-            this.field1[idx] += this.sourceField[idx];
+            this.field1[idx] += this.disturbField[idx];
             //mask using obstacle field, relative to the mean height
             this.field1[idx] = (this.field1[idx] - this.__meanHeight) * this.obstacleField[idx] + this.__meanHeight;
         }
@@ -885,7 +913,7 @@ TessendorfIWaveWater.prototype.sim = function (dt) {
         for (i = 1; i < resMinusOne; i++) {
             for (j = 1; j < resMinusOne; j++) {
                 idx = i * this.res + j;
-                v[idx].y += this.sourceField[idx];
+                v[idx].y += this.disturbField[idx];
                 //mask using obstacle field, relative to the mean height
                 // v[idx].y *= this.obstacleField[idx];
                 v[idx].y = (v[idx].y - this.__meanHeight) * this.obstacleField[idx] + this.__meanHeight;
@@ -1168,7 +1196,7 @@ PipeModelWater.prototype.init = function () {
     var i, len;
     for (i = 0, len = this.numVertices; i < len; i++) {
         this.baseHeights[i] = 0;
-        this.heights[i] = 0;
+        this.heights[i] = 0.1;
         this.extPressures[i] = 0;
         this.fluxR[i] = 0;
         this.fluxB[i] = 0;
@@ -1220,11 +1248,12 @@ PipeModelWater.prototype.sim = function (dt) {
 
             //first of all, do not disturb things within obstacles,
             //so mask the source field with obstacle field
-            this.sourceField[idx] *= this.obstacleField[idx];
+            this.disturbField[idx] *= this.obstacleField[idx];
             //then add source field to heights to disturb it
-            this.heights[idx] += this.sourceField[idx];
+            this.heights[idx] += this.disturbField[idx];
 
-            //TODO: add generic sources here
+            //next we can just add sources and sinks without masking
+            this.heights[idx] += this.sourceField[idx];
         }
     }
 
@@ -1239,6 +1268,15 @@ PipeModelWater.prototype.sim = function (dt) {
 
                 idx = i * this.res + j;
                 thisHeight = this.baseHeights[idx] + this.heights[idx];
+
+                //if water height is 0, it cannot have outwards flux at all
+                if (this.heights[idx] < 0.001) {
+                    this.fluxL[idx] = 0;
+                    this.fluxR[idx] = 0;
+                    this.fluxT[idx] = 0;
+                    this.fluxB[idx] = 0;
+                    continue;
+                }
 
                 //find out flux in +X direction
                 dHeight = thisHeight - (this.baseHeights[idx + 1] + this.heights[idx + 1]);
@@ -1299,16 +1337,16 @@ PipeModelWater.prototype.sim = function (dt) {
             this.fluxB[idx - this.res] = 0;
         }
 
-        //stop flow velocity if pipe flows to an obstacle
-        if (this.obstaclesActive) {
-            var obstacle, obstacleId;
-            for (obstacleId in this.obstacles) {
-                if (this.obstacles.hasOwnProperty(obstacleId)) {
-                    obstacle = this.obstacles[obstacleId];
-                    obstacle.updateFlux(this);
-                }
-            }
-        }
+        // //stop flow velocity if pipe flows to an obstacle
+        // if (this.obstaclesActive) {
+            // var obstacle, obstacleId;
+            // for (obstacleId in this.obstacles) {
+                // if (this.obstacles.hasOwnProperty(obstacleId)) {
+                    // obstacle = this.obstacles[obstacleId];
+                    // obstacle.updateFlux(this);
+                // }
+            // }
+        // }
 
         //scale down outflow if it is more than available volume in the column
         var currVol, outVol, scaleAmt;
@@ -1319,8 +1357,8 @@ PipeModelWater.prototype.sim = function (dt) {
 
                 currVol = this.heights[idx] * this.segmentSizeSquared;
                 outVol = dt * (this.fluxR[idx] + this.fluxL[idx] + this.fluxB[idx] + this.fluxT[idx]);
-                if (outVol > currVol) {
-                    scaleAmt = currVol / outVol;
+                scaleAmt = Math.min(1, currVol / outVol);
+                if (isFinite(scaleAmt)) {
                     this.fluxR[idx] *= scaleAmt;
                     this.fluxL[idx] *= scaleAmt;
                     this.fluxB[idx] *= scaleAmt;
@@ -1343,11 +1381,13 @@ PipeModelWater.prototype.sim = function (dt) {
                 this.dHeights[idx] = dV / (this.segmentSize * this.segmentSize);
                 avgWaterHeight = this.heights[idx];
                 this.heights[idx] += this.dHeights[idx];
+                if (this.heights[idx] < 0) {  //this will still happen, in very small amounts
+                    this.heights[idx] = 0;
+                }
                 avgWaterHeight = 0.5 * (avgWaterHeight + this.heights[idx]);
 
                 //update velocities
-
-                //horizontal velocity comes amount of water passing through per unit time
+                //horizontal velocity comes from amount of water passing through per unit time
                 if (avgWaterHeight === 0) {  //prevent division by 0
                     this.vel[idx].x = 0;
                     this.vel[idx].z = 0;
@@ -1355,7 +1395,6 @@ PipeModelWater.prototype.sim = function (dt) {
                     this.vel[idx].x = 0.5 * (this.fluxR[idx - 1] - this.fluxL[idx] + this.fluxR[idx] - this.fluxL[idx + 1]) / (this.segmentSize * avgWaterHeight);
                     this.vel[idx].z = 0.5 * (this.fluxB[idx - this.res] - this.fluxT[idx] + this.fluxB[idx] - this.fluxT[idx + this.res]) / (this.segmentSize * avgWaterHeight);
                 }
-
                 //vertical velocity to come from change in height
                 this.vel[idx].y = this.dHeights[idx];
             }
@@ -1363,10 +1402,15 @@ PipeModelWater.prototype.sim = function (dt) {
     }
 
     //update vertex heights
+    var EPSILON = 0.01;  //need to have a slight offset to prevent Z-fighting flickering
     for (i = 1; i < resMinusOne; i++) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
-            v[idx].y = this.baseHeights[idx] + this.heights[idx];
+            if (this.heights[idx] < EPSILON) {
+                v[idx].y = this.baseHeights[idx] - EPSILON;
+            } else {
+                v[idx].y = this.baseHeights[idx] + this.heights[idx];
+            }
         }
     }
     this.__matchEdges();
