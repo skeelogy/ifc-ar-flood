@@ -35,12 +35,14 @@
 	Physijs.scripts.ammo = '/js/lib/physics/ammo.js';
 
 	var WATER_SIZE = 10;
-	var WATER_RES = 80;
+	var WATER_RES = 40;
 	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
 	var WATER_SIZE_HALF = WATER_SIZE / 2.0;
 	var WATER_VOXEL_VOL = WATER_GRID_SIZE * WATER_GRID_SIZE * WATER_GRID_SIZE;
-	var DAMPING_FACTOR = 0.8;
-	var DISTURB_AMOUNT = 0.015;
+	var WATER_DAMPING_FACTOR = 0.8;
+	var WATER_DISTURB_AMOUNT = 0.015;
+	var WATER_SOURCE_AMOUNT = 0.1;
+	var WATER_SINK_AMOUNT = 0.5;
 	var MEAN_WATER_HEIGHT = 0;
 
 	var SHADOW_MAP_RES = 1024;
@@ -48,6 +50,7 @@
 	var EPSILON = 0.001;
 
 	var clock = new THREE.Clock();
+	var currWaterHeight = MEAN_WATER_HEIGHT;
 
 	function checkWebGl()
 	{
@@ -140,7 +143,7 @@
 	var RANDOM_SEED = 1;
 	Math.seedrandom(RANDOM_SEED);
 	var waterMesh;
-	var heightFieldWaterSim, heightFieldWaterSim_iWave, heightFieldWaterSim_mullerGdc2008, heightFieldWaterSim_mullerGdc2008_helloWorld, heightFieldWaterSim_xWater;
+	var hfWater, iWaveWater, muellerGdc2008Water, muellerGdc2008HwWater, xWater;
 	function setupWaterScene()
 	{
 		//create a height-field water sim from the plane
@@ -154,38 +157,46 @@
 		scene.add(waterMesh);
 
 		//create the different water sims
-		heightFieldWaterSim_iWave = new HeightFieldWaterSim_Tessendorf_iWave({
+		iWaveWater = new TessendorfIWaveWater({
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: DAMPING_FACTOR,
+			dampingFactor: WATER_DAMPING_FACTOR,
 			kernelRadius: 4,
 			substeps: 3,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
-		heightFieldWaterSim_mullerGdc2008 = new HeightFieldWaterSim_Muller_GDC2008({
+		muellerGdc2008Water = new MuellerGdc2008Water({
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: DAMPING_FACTOR,
+			dampingFactor: WATER_DAMPING_FACTOR,
 			horizontalSpeed: 5.0,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
-		heightFieldWaterSim_mullerGdc2008_helloWorld = new HeightFieldWaterSim_Muller_GDC2008_HelloWorld({
+		muellerGdc2008HwWater = new MuellerGdc2008HwWater({
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: DAMPING_FACTOR,
+			dampingFactor: WATER_DAMPING_FACTOR,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
-		heightFieldWaterSim_xWater = new HeightFieldWaterSim_xWater({
+		xWater = new XWater({
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: DAMPING_FACTOR,
+			dampingFactor: WATER_DAMPING_FACTOR,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
-		heightFieldWaterSim = heightFieldWaterSim_iWave;
+		pipeModelWater = new PipeModelWater({
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: WATER_DAMPING_FACTOR,
+			meanHeight: MEAN_WATER_HEIGHT,  //TODO: figure out if this is needed for pipe model
+			scene: scene
+		});
+		hfWater = pipeModelWater;
 	}
 
 	var iSegments = 3;
@@ -270,10 +281,11 @@
 
 				//create Obstacle
 				var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
-				heightFieldWaterSim_iWave.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				heightFieldWaterSim_mullerGdc2008.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				heightFieldWaterSim_mullerGdc2008_helloWorld.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				heightFieldWaterSim_xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				iWaveWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				muellerGdc2008Water.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				muellerGdc2008HwWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				pipeModelWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				obstacle.updateAlways = false;
 				// obstacle.update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
 
@@ -325,8 +337,9 @@
 	}
 
 	//TODO: this should go into the height field water class
-	displacedVoxelCountPrev = {};
-	displacedVoxelCount = {};
+	var displacedVoxelCountPrev = {};
+	var displacedVoxelCount = {};
+	var force = new THREE.Vector3();
 	function handleTwoWayCoupling(dt)
 	{
 		//find out how much water the objects are displacing
@@ -351,7 +364,7 @@
 			var startZ = Math.ceil(voxelizer.__min.z / WATER_GRID_SIZE) * WATER_GRID_SIZE;
 			var endZ = Math.ceil(voxelizer.__max.z / WATER_GRID_SIZE) * WATER_GRID_SIZE;
 			var x, z;
-			var vertices = heightFieldWaterSim.geometry.vertices;
+			var vertices = hfWater.geometry.vertices;
 			var minIntersectHeight, maxIntersectHeight, waterHeight;
 			for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
 			{
@@ -390,6 +403,7 @@
 
 			//sum up all displaced amounts for the object and apply buoyancy force
 			var totalDisplacedVoxels = 0;
+			var acceleration = new THREE.Vector3();
 			for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
 			{
 				for (z = startZ; z <= endZ + EPSILON; z += WATER_GRID_SIZE)
@@ -398,6 +412,10 @@
 					if (displacedVoxelCount[vertexId])
 					{
 						totalDisplacedVoxels += displacedVoxelCount[vertexId];
+						if (hfWater instanceof HeightFieldWaterWithVel)
+						{
+						    acceleration.add(hfWater.vel[vertexId]);
+						}
 					}
 				}
 			}
@@ -406,7 +424,10 @@
 			var waterDensity = 1000;  //1000 kg per cubic metres
 			var buoyancyForce = - totalDisplacedVol * waterDensity * gravitationalAcc;
 			//TODO: this force has to be applied per column?
-			dynMesh.applyCentralForce(new THREE.Vector3(0, buoyancyForce, 0));
+
+			acceleration.multiplyScalar(1.0 / dt);  //divide by dt to get acceleration
+            force.set(acceleration.x, buoyancyForce, acceleration.z);
+			dynMesh.applyCentralForce(force);
 
 			//spread out displaced volume
 			for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
@@ -424,7 +445,7 @@
 						var spreadHeight = diff / 4.0 * WATER_GRID_SIZE;
 
 						//disturb neighbours
-						heightFieldWaterSim.disturbNeighboursById(vertexId, spreadHeight)
+						hfWater.disturbNeighboursById(vertexId, spreadHeight)
 
 						//store this value as prev
 						displacedVoxelCountPrev[vertexId] = displacedVoxelCount[vertexId];
@@ -440,7 +461,7 @@
 					var vertexId = calcVertexId(x, z);
 					if (displacedVoxelCount[vertexId] > 0)
 					{
-						heightFieldWaterSim.disturbById(vertexId, 0);
+						hfWater.disturbById(vertexId, 0);
 					}
 				}
 			}
@@ -451,6 +472,8 @@
 	function setupEvents()
 	{
 		window.addEventListener('resize', window_onResize, false);
+		window.addEventListener('keydown', window_onKeyDown, false);
+		window.addEventListener('keyup', window_onKeyUp, false);
 		window.addEventListener('mousedown', window_onMouseDown, false);
 		window.addEventListener('mousemove', window_onMouseMove, false);
 		window.addEventListener('mouseup', window_onMouseUp, false);
@@ -466,22 +489,27 @@
 		renderer.setSize(window.innerWidth, window.innerHeight-5);
 	}
 
+	var activateDisturb = false;
+	function window_onKeyDown(event)
+	{
+		if (event.keyCode === 32)  //space
+		{
+			activateDisturb = true;
+		}
+	}
+
+	function window_onKeyUp(event)
+	{
+		if (event.keyCode === 32)  //space
+		{
+			activateDisturb = false;
+		}
+	}
+
 	var isDisturbing = false;
 	function window_onMouseDown(event)
 	{
-		if (event.ctrlKey)
-		{
-			if (event.button === 0)  //LMB
-			{
-				intersectPoint = detectIntersection();
-				if (intersectPoint)
-				{
-					isDisturbing = true;
-					heightFieldWaterSim.disturb(intersectPoint, DISTURB_AMOUNT);
-				}
-			}
-		}
-		else if (event.shiftKey)
+		if (event.shiftKey)
 		{
 			if (event.button === 0)  //LMB
 			{
@@ -492,20 +520,79 @@
 				}
 			}
 		}
+		else
+		{
+		    if (activateDisturb) {
+                if (event.button === 0)  //LMB
+                {
+                    isDisturbing = true;
+
+                    //detect intersection
+                    intersectPoint = detectIntersection();
+                    if (intersectPoint)
+                    {
+                        hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
+                    }
+                }
+                else if (event.button === 1)  //MMB
+                {
+                    isDisturbing = true;
+
+                    //detect intersection
+                    intersectPoint = detectIntersection();
+                    if (intersectPoint)
+                    {
+                        hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
+                    }
+                }
+                else if (event.button === 2)  //RMB
+                {
+                    isDisturbing = true;
+
+                    //detect intersection
+                    intersectPoint = detectIntersection();
+                    if (intersectPoint)
+                    {
+                        hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
+                    }
+                }
+            }
+		}
 	}
 
 	function window_onMouseMove(event)
 	{
 		event.preventDefault();
 
-		if (event.ctrlKey && isDisturbing)
-		{
-			intersectPoint = detectIntersection();
-			if (intersectPoint)
-			{
-				heightFieldWaterSim.disturb(intersectPoint, DISTURB_AMOUNT);
-			}
-		}
+		if (activateDisturb && isDisturbing) {
+            if (event.button === 0)  //LMB
+            {
+                //detect intersection
+                intersectPoint = detectIntersection();
+                if (intersectPoint)
+                {
+                    hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
+                }
+            }
+            else if (event.button === 1)  //MMB
+            {
+                //detect intersection
+                intersectPoint = detectIntersection();
+                if (intersectPoint)
+                {
+                    hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
+                }
+            }
+            else if (event.button === 2)  //LMB
+            {
+                //detect intersection
+                intersectPoint = detectIntersection();
+                if (intersectPoint)
+                {
+                    hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
+                }
+            }
+        }
 	}
 
 	function window_onMouseUp(event)
@@ -583,19 +670,22 @@
 	var gui;
 	var waterSimFolder, obstaclesFolder, renderingFolder, displayFolder;
 	var waterSimTypes = {
-		'Tessendorf iWave': 'heightFieldWaterSim_iWave',
-		'Muller GDC2008': 'heightFieldWaterSim_mullerGdc2008',
-		'Muller GDC2008 HelloWorld': 'heightFieldWaterSim_mullerGdc2008_helloWorld',
-		'X Water': 'heightFieldWaterSim_xWater'
+		'Pipe Model': 'pipeModelWater',
+	    'X Water': 'xWater',
+		'Tessendorf iWave': 'iWaveWater',
+		'Muller GDC2008': 'muellerGdc2008Water',
+		'Muller GDC2008 HelloWorld': 'muellerGdc2008HwWater'
 	};
 	var waterSimTypeSettings = {
-		'heightFieldWaterSim_iWave': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
-		'heightFieldWaterSim_mullerGdc2008': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
-		'heightFieldWaterSim_mullerGdc2008_helloWorld': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
-		'heightFieldWaterSim_xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
+		'pipeModelWater': { 'disturbAmount':0.15, 'dampingFactor':0.998 },
+	    'xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
+		'iWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
+		'muellerGdc2008Water': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
+		'muellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[3]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
+		waterSimFloodRate: 20.0,
 		obstaclesActive: true,
 		obstaclesSeed: 1,
 		obstaclesShowObstacles: true,
@@ -603,6 +693,8 @@
 		renderingShadows: true,  //FIXME: this has to be init to true
 		displayWireframe: false,
 		displayLocalAxis: false,
+		displayVelMag: false,
+		displayVelDir: false
 	};
 	function setupGui() {
 
@@ -611,27 +703,32 @@
 
 		//Water Sim folder
 		waterSimFolder = gui.addFolder('Water Sim');
-		// waterSimFolder.open();
+		waterSimFolder.open();
 
 		var control = waterSimFolder.add(options, 'waterSimType', waterSimTypes).name('Type');
 		function changeWaterSimType(value)
 		{
-			//reset current sim first
-			heightFieldWaterSim.reset();
-
 			//swap the sim
-			heightFieldWaterSim = eval(value);
+			hfWater = eval(value);
+
+			//set mean height
+			hfWater.setMeanHeight(currWaterHeight);
+
+			//reset sim
+			hfWater.reset();
 
 			//load some presets so that that sim works well
-			DISTURB_AMOUNT = waterSimTypeSettings[value].disturbAmount;
-			DAMPING_FACTOR = waterSimTypeSettings[value].dampingFactor;
-			heightFieldWaterSim.dampingFactor = DAMPING_FACTOR;
+			WATER_DISTURB_AMOUNT = waterSimTypeSettings[value].disturbAmount;
+			WATER_DAMPING_FACTOR = waterSimTypeSettings[value].dampingFactor;
+			hfWater.dampingFactor = WATER_DAMPING_FACTOR;
 
 			//make sure to inherit the active value from the GUI too
-			heightFieldWaterSim.setObstaclesActive(options.obstaclesActive);
+			hfWater.setObstaclesActive(options.obstaclesActive);
 		}
 		control.onChange(changeWaterSimType);
 		changeWaterSimType(options.waterSimType);
+
+		control = waterSimFolder.add(options, 'waterSimFloodRate', -200, 200).step(0.01).name('Flood Rate');
 
 		//Obstacles folder
 		obstaclesFolder = gui.addFolder('Obstacles');
@@ -640,7 +737,7 @@
 		control = obstaclesFolder.add(options, 'obstaclesActive').name('Active');
 		function changeObstaclesActive(value)
 		{
-			heightFieldWaterSim.setObstaclesActive(value);
+			hfWater.setObstaclesActive(value);
 		}
 		control.onChange(changeObstaclesActive);
 		changeObstaclesActive(options.obstaclesActive);
@@ -697,6 +794,7 @@
 
 		//Display folder
 		displayFolder = gui.addFolder('Display');
+		displayFolder.open();
 
 		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
@@ -716,6 +814,28 @@
 		}
 		control.onChange(toggleLocalAxis);
 		toggleLocalAxis(options.displayLocalAxis);
+
+		control = displayFolder.add(options, 'displayVelMag').name('Velocity Mag');
+		function toggleVelMag(value)
+		{
+		    if (hfWater instanceof HeightFieldWaterWithVel)
+		    {
+			    hfWater.visualizeVelColors(value);
+			}
+		}
+		control.onChange(toggleVelMag);
+		toggleVelMag(options.displayVelMag);
+
+		control = displayFolder.add(options, 'displayVelDir').name('Velocity Dir');
+		function displayVelDir(value)
+		{
+			if (hfWater instanceof HeightFieldWaterWithVel)
+		    {
+		        hfWater.visualizeVelLines(value);
+		    }
+		}
+		control.onChange(displayVelDir);
+		displayVelDir(options.displayVelDir);
 	}
 
 	$(document).ready(function()
@@ -761,7 +881,7 @@
 			//handle two-way coupling
 			handleTwoWayCoupling(dt);
 
-			heightFieldWaterSim.update(dt);
+			hfWater.update(dt);
 
 			stats.update();
 
@@ -775,6 +895,11 @@
 				shouldUpdateObstacles = false;
 			}
 
+			//animating mean height to increase flood levels
+			// currWaterHeight += options.waterSimFloodRate * dt;
+			// hfWater.setMeanHeight(currWaterHeight);
+			hfWater.flood(options.waterSimFloodRate * dt);
+
 			requestAnimationFrame(loop);
 		}
 		loop();
@@ -786,7 +911,7 @@
 	<div id="threejs-container"></div>
 	<div class="translucent" id="info-container">
 		<div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
-		<div>Sim: [ Ctrl+LMB: disturb water ] [ Shift+LMB: push objects ] </div>
+        <div>Water: [ Spc+LMB: disturb ] [ Spc+RMB: source ] [ Spc+MMB: sink ]</div>
 	</div>
 </body>
 </html>
