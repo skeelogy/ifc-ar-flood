@@ -82,14 +82,14 @@
 		'X Water': 'xWater',
 		'Tessendorf iWave': 'iWaveWater',
 		'Muller GDC2008': 'muellerGdc2008Water',
-		'Muller GDC2008 HelloWorld': 'mullerGdc2008HwWater'
+		'Muller GDC2008 HelloWorld': 'muellerGdc2008HwWater'
 	};
 	var waterSimTypeSettings = {
 	    'pipeModelWater': { 'disturbAmount':0.1, 'dampingFactor':0.995 },
 		'xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
 		'iWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
 		'muellerGdc2008Water': { 'disturbAmount':0.5, 'dampingFactor':0.95 },
-		'mullerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
+		'muellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
 		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
@@ -307,7 +307,7 @@
 	var RANDOM_SEED = 1;
 	Math.seedrandom(RANDOM_SEED);
 	var waterMesh;
-	var hfWater, iWaveWater, muellerGdc2008Water, mullerGdc2008HwWater, xWater;
+	var hfWater, iWaveWater, muellerGdc2008Water, muellerGdc2008HwWater, xWater;
 	var terrainObstacle;
 	var iSegments = 3;
 	var jSegments = 3;
@@ -346,7 +346,7 @@
 			horizontalSpeed: 5.0,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
-		mullerGdc2008HwWater = new MuellerGdc2008HwWater({
+		muellerGdc2008HwWater = new MuellerGdc2008HwWater({
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
@@ -395,7 +395,7 @@
 				// var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE, globalTransform.matrixWorld);
 				// iWaveWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// muellerGdc2008Water.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				// mullerGdc2008HwWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				// muellerGdc2008HwWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// pipeModelWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// obstacle.updateAlways = false;
@@ -416,7 +416,7 @@
 		terrainObstacle = new TerrainObstacle(terrainMesh);
 		iWaveWater.addObstacle(terrainObstacle, 'terrainObstacle');
 		muellerGdc2008Water.addObstacle(terrainObstacle, 'terrainObstacle');
-		mullerGdc2008HwWater.addObstacle(terrainObstacle, 'terrainObstacle');
+		muellerGdc2008HwWater.addObstacle(terrainObstacle, 'terrainObstacle');
 		xWater.addObstacle(terrainObstacle, 'terrainObstacle');
 		pipeModelWater.addObstacle(terrainObstacle, 'terrainObstacle');
 		terrainObstacle.updateAlways = true;
@@ -426,7 +426,7 @@
 	var waterSimFolder, terrainFolder, sculptFolder, renderingFolder, displayFolder;
 	function setupGui() {
 
-		gui = new dat.GUI();
+		gui = new dat.GUI({width: 350});
 		//gui.close();  //close GUI by default
 
 		//Water Sim folder
