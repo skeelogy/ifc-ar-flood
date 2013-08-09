@@ -32,8 +32,10 @@
 	var WATER_SIZE = 10;
 	var WATER_RES = 40;
 	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
-	var DAMPING_FACTOR = 0.8;
-	var DISTURB_AMOUNT = 0.015;
+	var WATER_DAMPING_FACTOR = 0.8;
+	var WATER_DISTURB_AMOUNT = 0.015;
+	var WATER_SOURCE_AMOUNT = 0.1;
+	var WATER_SINK_AMOUNT = 0.5;
 	var MEAN_WATER_HEIGHT = 0;
 
 	var SHADOW_MAP_RES = 1024;
@@ -171,7 +173,7 @@
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: DAMPING_FACTOR,
+			dampingFactor: WATER_DAMPING_FACTOR,
 			kernelRadius: 4,
 			substeps: 3,
 			meanHeight: MEAN_WATER_HEIGHT
@@ -180,7 +182,7 @@
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: DAMPING_FACTOR,
+			dampingFactor: WATER_DAMPING_FACTOR,
 			horizontalSpeed: 5.0,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
@@ -188,21 +190,21 @@
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: DAMPING_FACTOR,
+			dampingFactor: WATER_DAMPING_FACTOR,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
 		xWater = new XWater({
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: DAMPING_FACTOR,
+			dampingFactor: WATER_DAMPING_FACTOR,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
 		pipeModelWater = new PipeModelWater({
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: DAMPING_FACTOR,
+			dampingFactor: WATER_DAMPING_FACTOR,
 			meanHeight: MEAN_WATER_HEIGHT,  //TODO: figure out if this is needed for pipe model
 			scene: scene
 		});
@@ -313,15 +315,39 @@
 	var isDisturbing = false;
 	function window_onMouseDown(event)
 	{
-        if (activateDisturb && event.button === 0)  //LMB
-        {
-            isDisturbing = true;
-
-            //detect intersection
-            intersectPoint = detectIntersection();
-            if (intersectPoint)
+        if (activateDisturb) {
+            if (event.button === 0)  //LMB
             {
-                hfWater.disturb(intersectPoint, DISTURB_AMOUNT);
+                isDisturbing = true;
+
+                //detect intersection
+                intersectPoint = detectIntersection();
+                if (intersectPoint)
+                {
+                    hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
+                }
+            }
+            else if (event.button === 1)  //MMB
+            {
+                isDisturbing = true;
+
+                //detect intersection
+                intersectPoint = detectIntersection();
+                if (intersectPoint)
+                {
+                    hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
+                }
+            }
+            else if (event.button === 2)  //RMB
+            {
+                isDisturbing = true;
+
+                //detect intersection
+                intersectPoint = detectIntersection();
+                if (intersectPoint)
+                {
+                    hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
+                }
             }
         }
 	}
@@ -330,13 +356,33 @@
 	{
 		event.preventDefault();
 
-		if (activateDisturb && isDisturbing)  //LMB
-        {
-            //detect intersection
-            intersectPoint = detectIntersection();
-            if (intersectPoint)
+		if (activateDisturb && isDisturbing) {
+            if (event.button === 0)  //LMB
             {
-                hfWater.disturb(intersectPoint, DISTURB_AMOUNT);
+                //detect intersection
+                intersectPoint = detectIntersection();
+                if (intersectPoint)
+                {
+                    hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
+                }
+            }
+            else if (event.button === 1)  //MMB
+            {
+                //detect intersection
+                intersectPoint = detectIntersection();
+                if (intersectPoint)
+                {
+                    hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
+                }
+            }
+            else if (event.button === 2)  //LMB
+            {
+                //detect intersection
+                intersectPoint = detectIntersection();
+                if (intersectPoint)
+                {
+                    hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
+                }
             }
         }
 	}
@@ -427,9 +473,9 @@
 			hfWater.reset();
 
 			//load some presets so that that sim works well
-			DISTURB_AMOUNT = waterSimTypeSettings[value].disturbAmount;
-			DAMPING_FACTOR = waterSimTypeSettings[value].dampingFactor;
-			hfWater.dampingFactor = DAMPING_FACTOR;
+			WATER_DISTURB_AMOUNT = waterSimTypeSettings[value].disturbAmount;
+			WATER_DAMPING_FACTOR = waterSimTypeSettings[value].dampingFactor;
+			hfWater.dampingFactor = WATER_DAMPING_FACTOR;
 
 			//make sure to inherit the active value from the GUI too
 			hfWater.setObstaclesActive(options.obstaclesActive);
@@ -605,7 +651,7 @@
 	<div id="threejs-container"></div>
 	<div class="translucent" id="info-container">
 		<div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
-		<div>Water Sim: [ Space+LMB: disturb water ]</div>
+		<div>Water: [ Spc+LMB: disturb ] [ Spc+RMB: source ] [ Spc+MMB: sink ]</div>
 	</div>
 </body>
 </html>

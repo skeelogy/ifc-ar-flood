@@ -176,45 +176,45 @@ TerrainObstacle.prototype.updateObstacleField = function (waterSim) {
 };
 TerrainObstacle.prototype.updateFlux = function (waterSim) {
 
-    if (this.updateAlways) {
-        this.update();
-    }
+    //NOTE: looks like there's no need for the terrain to be an obstacle itself for updating flux
 
-    var resMinusOne = waterSim.res - 1;
+    // if (this.updateAlways) {
+        // this.update();
+    // }
 
-    //stop flow velocity if adjacent terrain height is more than this water height
-    //TODO: fix water sticking on terrain on one side
-    var EPSILON = 0.0;
-    var i, j, idx;
-    for (i = 1; i < resMinusOne; i++) {
-        for (j = 1; j < resMinusOne; j++) {
-            idx = i * waterSim.res + j;
+    // var resMinusOne = waterSim.res - 1;
 
-            //+X
-            if (waterSim.baseHeights[idx + 1] > waterSim.baseHeights[idx] + waterSim.heights[idx] + EPSILON) {
-                waterSim.fluxR[idx] = 0;
-                // waterSim.fluxRPrev[idx] = 0;
-            }
+    // //stop flow velocity if adjacent terrain height is more than this water height
+    // var i, j, idx;
+    // for (i = 1; i < resMinusOne; i++) {
+        // for (j = 1; j < resMinusOne; j++) {
+            // idx = i * waterSim.res + j;
 
-            //-X
-            if (waterSim.baseHeights[idx - 1] > waterSim.baseHeights[idx] + waterSim.heights[idx] + EPSILON) {
-                waterSim.fluxL[idx] = 0;
-                // waterSim.fluxRPrev[idx] = 0;
-            }
+            // //+X
+            // if (waterSim.baseHeights[idx + 1] > waterSim.baseHeights[idx] + waterSim.heights[idx]) {
+                // waterSim.fluxR[idx] = 0;
+                // // waterSim.fluxRPrev[idx] = 0;
+            // }
 
-            //+Z
-            if (waterSim.baseHeights[idx + waterSim.res] > waterSim.baseHeights[idx] + waterSim.heights[idx] + EPSILON) {
-                waterSim.fluxB[idx] = 0;
-                // waterSim.fluxBPrev[idx] = 0;
-            }
+            // //-X
+            // if (waterSim.baseHeights[idx - 1] > waterSim.baseHeights[idx] + waterSim.heights[idx]) {
+                // waterSim.fluxL[idx] = 0;
+                // // waterSim.fluxRPrev[idx] = 0;
+            // }
 
-            //-Z
-            if (waterSim.baseHeights[idx - waterSim.res] > waterSim.baseHeights[idx] + waterSim.heights[idx] + EPSILON) {
-                waterSim.fluxB[idx] = 0;
-                // waterSim.fluxBPrev[idx] = 0;
-            }
-        }
-    }
+            // //+Z
+            // if (waterSim.baseHeights[idx + waterSim.res] > waterSim.baseHeights[idx] + waterSim.heights[idx]) {
+                // waterSim.fluxB[idx] = 0;
+                // // waterSim.fluxBPrev[idx] = 0;
+            // }
+
+            // //-Z
+            // if (waterSim.baseHeights[idx - waterSim.res] > waterSim.baseHeights[idx] + waterSim.heights[idx]) {
+                // waterSim.fluxB[idx] = 0;
+                // // waterSim.fluxBPrev[idx] = 0;
+            // }
+        // }
+    // }
 };
 
 //TODO: obsolete, should be removed
@@ -1111,7 +1111,6 @@ HeightFieldWaterWithVel.prototype.updateVelColors = function () {
             //normalize vel magnitude and clamp
             velMag = this.vel[vertexIndex].length() / (this.maxVisVel - this.minVisVel) + this.minVisVel;
             velMag = THREE.Math.clamp(velMag, 0, 1);
-            // if (isNaN(velMag)) debugger;
 
             //linear interpolate between the base and water color using velMag
             f.vertexColors[j] = this.velColors[vertexIndex].set(this.waterColor).lerp(this.foamColor, velMag);
@@ -1339,16 +1338,16 @@ PipeModelWater.prototype.sim = function (dt) {
             this.fluxB[idx - this.res] = 0;
         }
 
-        // //stop flow velocity if pipe flows to an obstacle
-        // if (this.obstaclesActive) {
-            // var obstacle, obstacleId;
-            // for (obstacleId in this.obstacles) {
-                // if (this.obstacles.hasOwnProperty(obstacleId)) {
-                    // obstacle = this.obstacles[obstacleId];
-                    // obstacle.updateFlux(this);
-                // }
-            // }
-        // }
+        //stop flow velocity if pipe flows to an obstacle
+        if (this.obstaclesActive) {
+            var obstacle, obstacleId;
+            for (obstacleId in this.obstacles) {
+                if (this.obstacles.hasOwnProperty(obstacleId)) {
+                    obstacle = this.obstacles[obstacleId];
+                    obstacle.updateFlux(this);
+                }
+            }
+        }
 
         //scale down outflow if it is more than available volume in the column
         var currVol, outVol, scaleAmt;
