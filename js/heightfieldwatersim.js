@@ -399,13 +399,12 @@ HeightFieldWater.prototype.update = function (dt) {
 
     //update obstacle field
     if (this.obstaclesActive) {
-        var waterHeight = this.__meanHeight;
-        var obstacle, obstacleId;
-        for (obstacleId in this.obstacles) {
-            if (this.obstacles.hasOwnProperty(obstacleId)) {
-                obstacle = this.obstacles[obstacleId];
-                obstacle.updateObstacleField(this);
-            }
+        var obstacleIds = Object.keys(this.obstacles);
+        var obstacle;
+        var i, len = obstacleIds.length;
+        for (i = 0; i < len; i++) {
+            obstacle = this.obstacles[obstacleIds[i]];
+            obstacle.updateObstacleField(this);
         }
     }
 
@@ -1340,12 +1339,12 @@ PipeModelWater.prototype.sim = function (dt) {
 
         //stop flow velocity if pipe flows to an obstacle
         if (this.obstaclesActive) {
-            var obstacle, obstacleId;
-            for (obstacleId in this.obstacles) {
-                if (this.obstacles.hasOwnProperty(obstacleId)) {
-                    obstacle = this.obstacles[obstacleId];
-                    obstacle.updateFlux(this);
-                }
+            var obstacleIds = Object.keys(this.obstacles);
+            var obstacle;
+            var len = obstacleIds.length;
+            for (i = 0; i < len; i++) {
+                obstacle = this.obstacles[obstacleIds[i]];
+                obstacle.updateFlux(this);
             }
         }
 
