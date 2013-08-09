@@ -3,7 +3,7 @@
 <head>
 	<title>IFC - Two-Way Coupling Test</title>
 	<meta charset="UTF-8"/>
-	
+
 	<link rel="stylesheet" href="/css/style.css">
 	<style type="text/css">
 		#stats { position: absolute; top:0; left: 0 }
@@ -11,10 +11,10 @@
 		#stats #fps #fpsText { color: #aaa !important }
 		#stats #fps #fpsGraph { display: block }
 	</style>
-	
+
 	<!--load helper libraries-->
 	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-	
+
 	<!--load AR and 3D libraries-->
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
@@ -24,10 +24,10 @@
 
 	<script type="text/javascript" src="/js/lib/seedrandom.js"></script>
 
-	<script type="text/javascript" src="/js/heightfieldwatersim.js"></script>
+	<script type="text/javascript" src="/js/skheightfieldwater.js"></script>
 	<script type="text/javascript" src="/js/skvoxelizer.js"></script>
 	<script type="text/javascript" src="/js/lib/physics/physi.js"></script>
-	
+
 	<script>
 
 	//config Physijs
@@ -221,7 +221,7 @@
 		scene.add(sphereDynMesh);
 		dynMeshes.push(sphereDynMesh);
 		sphereDynMesh.voxelizer = new SkVoxelizer(sphereDynMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
-		
+
 		//create 4 walls to prevent dynamic object from flying off
 		var thickness = 1;
 		var halfThickness = thickness / 2.0;
@@ -527,7 +527,7 @@
 		projector.unprojectVector(worldPos, camera);
 		raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
 		var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
-		
+
 		//get intersection point and vertexId
 		if (intersectInfo && intersectInfo[0])
 		{
@@ -545,7 +545,7 @@
 		projector.unprojectVector(worldPos, camera);
 		raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
 		var intersectInfo = raycaster.intersectObjects(dynMeshes);
-		
+
 		//get intersection point and vertexId
 		if (intersectInfo && intersectInfo[0])
 		{
@@ -697,7 +697,7 @@
 
 		//Display folder
 		displayFolder = gui.addFolder('Display');
-		
+
 		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
 		{
@@ -708,7 +708,7 @@
 		}
 		control.onChange(toggleWireframe);
 		toggleWireframe(options.displayWireframe);
-		
+
 		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
@@ -724,7 +724,7 @@
 		checkWebGl();
 
 		console.log('Document is ready.');
-		
+
 		//setup scene
 		setupThreejsScene();
 
@@ -739,10 +739,10 @@
 
 		//setup stats monitor
 		setupStats();
-		
+
 		//setup GUI
 		setupGui();
-		
+
 		//main loop
 		function loop()
 		{

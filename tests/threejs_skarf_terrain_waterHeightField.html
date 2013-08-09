@@ -3,7 +3,7 @@
 <head>
 	<title>IFC - Augmented Reality Flood</title>
 	<meta charset="UTF-8"/>
-	
+
 	<link rel="stylesheet" href="/css/style.css">
 	<style type="text/css">
 		#stats { position: absolute; top:0; left: 0 }
@@ -11,14 +11,14 @@
 		#stats #fps #fpsText { color: #aaa !important }
 		#stats #fps #fpsGraph { display: block }
 	</style>
-	
+
 	<!--load helper libraries-->
 	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
 
 	<!--load webcam streaming libraries-->
 	<script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
 	<script type="text/javascript" src="/js/streamvideo.js"></script>
-	
+
 	<!--load AR and 3D libraries-->
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
 	<script type="text/javascript" src="/js/lib/JSARToolKit.js"></script>
@@ -27,16 +27,16 @@
 	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
 	<script type="text/javascript" src="/js/lib/skarf.js"></script>
 
-	<script type="text/javascript" src="/js/lib/SimplexNoise.js"></script>	
+	<script type="text/javascript" src="/js/lib/SimplexNoise.js"></script>
 	<script type="text/javascript" src="/js/lib/StackBlur.js"></script>
 	<script type="text/javascript" src="/js/lib/seedrandom.js"></script>
 
 	<script type="text/javascript" src="/js/lib/skulpt.js"></script>
-	<script type="text/javascript" src="/js/heightfieldwatersim.js"></script>
+	<script type="text/javascript" src="/js/skheightfieldwater.js"></script>
 	<script type="text/javascript" src="/js/skvoxelizer.js"></script>
-	
+
 	<script>
-	
+
 	var GLOBAL_SCALE = 30;
 
 	var TRACKING_THRESHOLD = 30;
@@ -121,7 +121,7 @@
 		//stream to video element
 		video = $('#mainVideo')[0];
 		streamVideo(video);
-		source = video;	
+		source = video;
 	}
 
 	var skarf, jsArToolKitArLib, threeJsRenderer, $threejsContainerElem;
@@ -134,11 +134,11 @@
 			threshold: TRACKING_THRESHOLD,
 			debug: JSAR_DEBUG
 		});
-		
+
 		//get the camera projection matrix from jsArToolKitArLib
 		var camProjMatrixArray = new Float32Array(16);
 		jsArToolKitArLib.flarParam.copyCameraMatrix(camProjMatrixArray, 10, 10000);
-		
+
 		//create a renderer
 		$threejsContainerElem = $('#threejs-container');
 		threeJsRenderer = new ThreeJsRenderer({
@@ -154,7 +154,7 @@
 			modelsJsonFile: '/resources/models/models_floodTest.json',
 			useDefaultLights: false
 		});
-		
+
 		//create a skarf framework
 		skarf = new SkArF({
 			canvasElem: canvas,
@@ -195,7 +195,7 @@
 		$imageCanvasElem[0].height = TERRAIN_RES;
 		$imageCanvasElem.css({'position':'fixed', 'top':'55px', 'left':0});
 		$('body').append($imageCanvasElem);
-		
+
 		//get canvas context
         imageCanvasElemContext = $imageCanvasElem[0].getContext('2d');
 
@@ -205,7 +205,7 @@
 		$scaledImageObj[0].onload = function()
 		{
 			//this function is triggered from $origImageObj setting this src
-			
+
 			//start filtering and changing heights
 			filterTerrainImageAndGenerateHeight();
 		};
@@ -537,7 +537,7 @@
 			}
 			else
 			{
-				$imageCanvasElem.css({'display':'none'});	
+				$imageCanvasElem.css({'display':'none'});
 			}
 		}
 		control.onChange(changeTerrainShowImage);
@@ -548,7 +548,7 @@
 		{
 			terrainMidGreyIsLowest = value;
 			baseLayer.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
-			
+
 			//update the terrain obstacle
 			terrainObstacle.update();
 		}
@@ -625,7 +625,7 @@
 
 		//Display folder
 		displayFolder = gui.addFolder('Display');
-		
+
 		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
 		{
@@ -638,7 +638,7 @@
 		}
 		control.onChange(toggleWireframe);
 		toggleWireframe(options.displayWireframe);
-		
+
 		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
@@ -712,7 +712,7 @@
 				isSculpting = true;
 				sculptTerrain('remove');
 			}
-			
+
 		}
 		else if (event.shiftKey)
 		{
@@ -816,7 +816,7 @@
 		projector.unprojectVector(worldPos, threeJsRenderer.camera);
 		raycaster.set(threeJsRenderer.camera.position, worldPos.sub(threeJsRenderer.camera.position).normalize());
 		var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
-		
+
 		//get intersection point
 		if (intersectInfo && intersectInfo[0])
 		{
@@ -880,7 +880,7 @@
 			//geometry.computeCentroids();
 			//geometry.computeBoundingBox();
 			//geometry.computeBoundingSphere();
-			
+
 			geometry.normalsNeedUpdate = true;
 		}
 	}
@@ -905,7 +905,7 @@
 
 		//create a Skulpt first
 		skulpt = new Skulpt(globalTransform);
-		
+
 		//create a SkulptMesh, add a layer
 		skulptTerrainMesh = new SkulptTerrainMesh(terrainMesh, TERRAIN_SIZE, TERRAIN_RES);
 		baseLayer = skulptTerrainMesh.addLayer('baseLayer');
@@ -919,7 +919,7 @@
 	var canvas;
 	var hasSetupScene = false;
 	$(document).ready(function()
-	{ 
+	{
 		//check for WebGL
 		checkWebGl();
 
@@ -929,19 +929,19 @@
 
 		//setup video stream
 		setupVideoStream();
-		
+
 		//setup skarf
 		setupSkarf();
 
 		//setup stats monitor
 		setupStats();
-		
+
 		//main loop
 		function loop()
 		{
 			var dt = clock.getDelta();  //have to call this before getElapsedTime()
 			var time = clock.getElapsedTime();
-			
+
 			if (heightFieldWaterSim)
 			{
 				heightFieldWaterSim.update(dt);
@@ -1008,7 +1008,7 @@
 			requestAnimationFrame(loop);
 		}
 		loop();
-		
+
 	});
 	</script>
 </head>
