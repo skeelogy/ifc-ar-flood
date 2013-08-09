@@ -52,7 +52,7 @@ VoxelizedObstacle.prototype.updateObstacleField = function (waterSim) {
         this.update();
     }
 
-    var v = waterSim.mesh.geometry.vertices;
+    var vertexPos = waterSim.mesh.geometry.vertices;
 
     var minIntersectHeight, maxIntersectHeight, intersectionHeights;
     var x, z, idx;
@@ -66,7 +66,7 @@ VoxelizedObstacle.prototype.updateObstacleField = function (waterSim) {
 
                 //update obstacle field, compare obstacle intersection heights current water height
                 idx = waterSim.__calcVertexId(x, z);
-                if (v[idx] &&  minIntersectHeight < v[idx].y && maxIntersectHeight > v[idx].y) {
+                if (vertexPos[idx] &&  minIntersectHeight < vertexPos[idx].y && maxIntersectHeight > vertexPos[idx].y) {
                     waterSim.obstacleField[idx] = 0;
                 }
             }
@@ -155,7 +155,7 @@ TerrainObstacle.prototype.updateObstacleField = function (waterSim) {
 
     //FIXME: water sticks on one side of the terrain
 
-    var v = waterSim.mesh.geometry.vertices;
+    var vertexPos = waterSim.mesh.geometry.vertices;
 
     //compare intersection heights in local space.
     //For terrain obstacle, heights are in local space too, so can just compare directly without transformations.
@@ -168,7 +168,7 @@ TerrainObstacle.prototype.updateObstacleField = function (waterSim) {
             maxIntersectHeight = this.intersectionHeights[i][1];  //TODO: this assumes only two heights
 
             //update obstacle field, compare obstacle intersection heights with water mean height
-            if (minIntersectHeight < v[i].y && maxIntersectHeight > v[i].y) {
+            if (minIntersectHeight < vertexPos[i].y && maxIntersectHeight > vertexPos[i].y) {
                 waterSim.obstacleField[i] = 0;
             }
         }
@@ -337,9 +337,9 @@ function HeightFieldWater(options) {
     this.obstacles = {};
 
     this.sourceField = [];
-    this.velocityField = [];
     this.disturbField = [];
     this.obstacleField = [];
+    this.verticalVelField = [];
 
     // DepthMapObstacleManager.depthMapSize = this.size;
     // DepthMapObstacleManager.depthMapRes = this.res;
@@ -364,9 +364,9 @@ HeightFieldWater.prototype.init = function () {
     var i;
     for (i = 0; i < this.numVertices; i++) {
         this.sourceField[i] = 0;
-        this.velocityField[i] = 0; //TODO: rename this vertVel
         this.disturbField[i] = 0;
         this.obstacleField[i] = 1;
+        this.verticalVelField[i] = 0;
     }
 
     //init DepthMapObstacleManager
@@ -420,7 +420,7 @@ HeightFieldWater.prototype.setMeanHeight = function (meanHeight) {
 
     this.__meanHeight = meanHeight;
 
-    var v = this.geometry.vertices;
+    var vertexPos = this.geometry.vertices;
     var resMinusOne = this.res - 1;
 
     //set edge vertices to mean height
@@ -430,28 +430,28 @@ HeightFieldWater.prototype.setMeanHeight = function (meanHeight) {
         idx = i * this.res + j;
         // this.field1[idx] = this.__meanHeight;
         // this.field2[idx] = this.__meanHeight;
-        v[idx].y = this.__meanHeight;
+        vertexPos[idx].y = this.__meanHeight;
     }
     j = resMinusOne;
     for (i = 0; i < this.res; i++) {
         idx = i * this.res + j;
         // this.field1[idx] = this.__meanHeight;
         // this.field2[idx] = this.__meanHeight;
-        v[idx].y = this.__meanHeight;
+        vertexPos[idx].y = this.__meanHeight;
     }
     i = 0;
     for (j = 1; j < resMinusOne; j++) {
         idx = i * this.res + j;
         // this.field1[idx] = this.__meanHeight;
         // this.field2[idx] = this.__meanHeight;
-        v[idx].y = this.__meanHeight;
+        vertexPos[idx].y = this.__meanHeight;
     }
     i = resMinusOne;
     for (j = 1; j < resMinusOne; j++) {
         idx = i * this.res + j;
         // this.field1[idx] = this.__meanHeight;
         // this.field2[idx] = this.__meanHeight;
-        v[idx].y = this.__meanHeight;
+        vertexPos[idx].y = this.__meanHeight;
     }
 };
 
@@ -582,9 +582,9 @@ HeightFieldWater.prototype.reset = function () {
 
     //set mesh back to 0
     var i;
-    var v = this.geometry.vertices;
+    var vertexPos = this.geometry.vertices;
     for (i = 0; i < this.numVertices; i++) {
-        v[i].y = this.__meanHeight;
+        vertexPos[i].y = this.__meanHeight;
     }
 
     //clear fields
@@ -622,16 +622,16 @@ MuellerGdc2008HwWater.prototype.constructor = MuellerGdc2008HwWater;
 MuellerGdc2008HwWater.prototype.sim = function (dt) {
 
     var i, j, idx;
-    var v = this.geometry.vertices;
+    var vertexPos = this.geometry.vertices;
     var resMinusOne = this.res - 1;
 
     //apply source and obstacles first
     for (i = 1; i < resMinusOne; i++) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
-            v[idx].y += this.disturbField[idx];
+            vertexPos[idx].y += this.disturbField[idx];
             //mask using obstacle field, relative to the mean height
-            v[idx].y = (v[idx].y - this.__meanHeight) * this.obstacleField[idx] + this.__meanHeight;
+            vertexPos[idx].y = (vertexPos[idx].y - this.__meanHeight) * this.obstacleField[idx] + this.__meanHeight;
         }
     }
 
@@ -639,8 +639,8 @@ MuellerGdc2008HwWater.prototype.sim = function (dt) {
     for (i = 1; i < resMinusOne; i++) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
-            this.velocityField[idx] += (v[(i - 1) * this.res + j].y + v[(i + 1) * this.res + j].y + v[i * this.res + (j - 1)].y + v[i * this.res + (j + 1)].y) / 4.0 - v[idx].y;
-            this.velocityField[idx] *= this.dampingFactor;
+            this.verticalVelField[idx] += (vertexPos[(i - 1) * this.res + j].y + vertexPos[(i + 1) * this.res + j].y + vertexPos[i * this.res + (j - 1)].y + vertexPos[i * this.res + (j + 1)].y) / 4.0 - vertexPos[idx].y;
+            this.verticalVelField[idx] *= this.dampingFactor;
         }
     }
 
@@ -648,7 +648,7 @@ MuellerGdc2008HwWater.prototype.sim = function (dt) {
     for (i = 1; i < resMinusOne; i++) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
-            v[idx].y += this.velocityField[idx];
+            vertexPos[idx].y += this.verticalVelField[idx];
         }
     }
 
@@ -680,16 +680,16 @@ MuellerGdc2008Water.prototype.sim = function (dt) {
     dt = 1.0 / 60.0;
 
     var i, j, idx;
-    var v = this.geometry.vertices;
+    var vertexPos = this.geometry.vertices;
     var resMinusOne = this.res - 1;
 
     //add source and obstacles first
     for (i = 1; i < resMinusOne; i++) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
-            v[idx].y += this.disturbField[idx];
+            vertexPos[idx].y += this.disturbField[idx];
             //mask using obstacle field, relative to the mean height
-            v[idx].y = (v[idx].y - this.__meanHeight) * this.obstacleField[idx] + this.__meanHeight;
+            vertexPos[idx].y = (vertexPos[idx].y - this.__meanHeight) * this.obstacleField[idx] + this.__meanHeight;
         }
     }
 
@@ -699,23 +699,23 @@ MuellerGdc2008Water.prototype.sim = function (dt) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
             acc = this.horizontalSpeedSquared * (
-                v[idx + this.res].y    //height[i+1,j]
-                + v[idx - this.res].y  //height[i-1,j]
-                + v[idx + 1].y         //height[i,j+1]
-                + v[idx - 1].y         //height[i,j-1]
-                - 4 * v[idx].y       //4 * height[i,j]
+                vertexPos[idx + this.res].y    //height[i+1,j]
+                + vertexPos[idx - this.res].y  //height[i-1,j]
+                + vertexPos[idx + 1].y         //height[i,j+1]
+                + vertexPos[idx - 1].y         //height[i,j-1]
+                - 4 * vertexPos[idx].y       //4 * height[i,j]
             ) / this.segmentSizeSquared;
-            this.velocityField[idx] += acc * dt;  //TODO: use a better integrator
-            this.velocityField[idx] *= this.dampingFactor;
+            this.verticalVelField[idx] += acc * dt;  //TODO: use a better integrator
+            this.verticalVelField[idx] *= this.dampingFactor;
         }
     }
 
     //update vertex heights
-    var len = v.length;
+    var len = vertexPos.length;
     for (i = 1; i < resMinusOne; i++) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
-            v[idx].y += this.velocityField[idx] * dt;  //TODO: use a better integrator
+            vertexPos[idx].y += this.verticalVelField[idx] * dt;  //TODO: use a better integrator
         }
     }
 
@@ -763,7 +763,7 @@ XWater.prototype.setMeanHeight = function (meanHeight) {
 
     this.__meanHeight = meanHeight;
 
-    var v = this.geometry.vertices;
+    var vertexPos = this.geometry.vertices;
     var resMinusOne = this.res - 1;
 
     //set edge vertices to mean height
@@ -798,7 +798,7 @@ XWater.prototype.setMeanHeight = function (meanHeight) {
 XWater.prototype.sim = function (dt) {
 
     var i, j, idx;
-    var v = this.geometry.vertices;
+    var vertexPos = this.geometry.vertices;
     var resMinusOne = this.res - 1;
 
     dt = 1.0 / 60.0;  //fix dt
@@ -827,7 +827,7 @@ XWater.prototype.sim = function (dt) {
     for (i = 1; i < resMinusOne; i++) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
-            v[idx].y = this.field2[idx];
+            vertexPos[idx].y = this.field2[idx];
         }
     }
 
@@ -917,20 +917,20 @@ TessendorfIWaveWater.prototype.sim = function (dt) {
     for (s = 0; s < this.substeps; s++) {
 
         var i, j, idx;
-        var v = this.geometry.vertices;
+        var vertexPos = this.geometry.vertices;
         var resMinusOne = this.res - 1;
 
         //add source and obstacles first
         for (i = 1; i < resMinusOne; i++) {
             for (j = 1; j < resMinusOne; j++) {
                 idx = i * this.res + j;
-                v[idx].y += this.disturbField[idx];
+                vertexPos[idx].y += this.disturbField[idx];
                 //mask using obstacle field, relative to the mean height
-                // v[idx].y *= this.obstacleField[idx];
-                v[idx].y = (v[idx].y - this.__meanHeight) * this.obstacleField[idx] + this.__meanHeight;
+                // vertexPos[idx].y *= this.obstacleField[idx];
+                vertexPos[idx].y = (vertexPos[idx].y - this.__meanHeight) * this.obstacleField[idx] + this.__meanHeight;
 
                 //also remove mean height so that everything is back to 0-height
-                v[idx].y -= this.__meanHeight;
+                vertexPos[idx].y -= this.__meanHeight;
             }
         }
 
@@ -947,14 +947,14 @@ TessendorfIWaveWater.prototype.sim = function (dt) {
                 idx = i * this.res + j;
 
                 //do the algo
-                temp = v[idx].y;
-                v[idx].y = (v[idx].y * twoMinusDampTimesDt
+                temp = vertexPos[idx].y;
+                vertexPos[idx].y = (vertexPos[idx].y * twoMinusDampTimesDt
                             - this.prevHeight[idx]
                             - this.vertDeriv[idx] * gravityTimesDtTimesDt) / onePlusDampTimesDt;
                 this.prevHeight[idx] = temp;
 
                 //move back to mean height
-                v[idx].y += this.__meanHeight;
+                vertexPos[idx].y += this.__meanHeight;
             }
         }
     }
@@ -966,7 +966,7 @@ TessendorfIWaveWater.prototype.sim = function (dt) {
 TessendorfIWaveWater.prototype.__symmetricalConvolve = function () {
 
     var i, j, k, l, iMax, jMax, idx;
-    var v = this.geometry.vertices;
+    var vertexPos = this.geometry.vertices;
     for (i = this.kernelRadius, iMax = this.res - this.kernelRadius; i < iMax; i++) {
         for (j = this.kernelRadius, jMax = this.res - this.kernelRadius; j < jMax; j++) {
 
@@ -978,18 +978,18 @@ TessendorfIWaveWater.prototype.__symmetricalConvolve = function () {
             //I'm doing it the following way to cover all positions of the kernel:
 
             //add [0,0] first
-            this.vertDeriv[idx] = v[idx].y;
+            this.vertDeriv[idx] = vertexPos[idx].y;
 
             //when k = 0, swap k and l in a specific manner while changing signs
             k = 0;
             for (l = 1; l <= this.kernelRadius; l++) { //article says to start from k+1, but I think it should start from 1 instead
-                this.vertDeriv[idx] += this.G[k][l] * (v[(i + k) * this.res + (j + l)].y + v[(i + k) * this.res + (j - l)].y + v[(i + l) * this.res + (j + k)].y + v[(i - l) * this.res + (j + k)].y);
+                this.vertDeriv[idx] += this.G[k][l] * (vertexPos[(i + k) * this.res + (j + l)].y + vertexPos[(i + k) * this.res + (j - l)].y + vertexPos[(i + l) * this.res + (j + k)].y + vertexPos[(i - l) * this.res + (j + k)].y);
             }
 
             //for k larger than 0, k and l do not swap at all, only change signs
             for (k = 1; k <= this.kernelRadius; k++) {
                 for (l = 1; l <= this.kernelRadius; l++) {  //article says to start from k+1, but I think it should start from 1 instead
-                    this.vertDeriv[idx] += this.G[k][l] * (v[(i + k) * this.res + (j + l)].y + v[(i - k) * this.res + (j - l)].y + v[(i + k) * this.res + (j - l)].y + v[(i - k) * this.res + (j + l)].y);
+                    this.vertDeriv[idx] += this.G[k][l] * (vertexPos[(i + k) * this.res + (j + l)].y + vertexPos[(i - k) * this.res + (j - l)].y + vertexPos[(i + k) * this.res + (j - l)].y + vertexPos[(i - k) * this.res + (j + l)].y);
                 }
             }
 
@@ -999,7 +999,7 @@ TessendorfIWaveWater.prototype.__symmetricalConvolve = function () {
 TessendorfIWaveWater.prototype.__convolve = function () {
     //NOTE: this is not used. I left it here for debugging if necessary.
     var i, j, k, l, iMax, jMax, idx;
-    var v = this.geometry.vertices;
+    var vertexPos = this.geometry.vertices;
     for (i = this.kernelRadius, iMax = this.res - this.kernelRadius; i < iMax; i++) {
         for (j = this.kernelRadius, jMax = this.res - this.kernelRadius; j < jMax; j++) {
 
@@ -1009,7 +1009,7 @@ TessendorfIWaveWater.prototype.__convolve = function () {
             this.vertDeriv[idx] = 0;
             for (k = -this.kernelRadius; k <= this.kernelRadius; k++) {
                 for (l = -this.kernelRadius; l <= this.kernelRadius; l++) {
-                    this.vertDeriv[idx] += this.G[k][l] * v[(i + k) * this.res + (j + l)].y;
+                    this.vertDeriv[idx] += this.G[k][l] * vertexPos[(i + k) * this.res + (j + l)].y;
                 }
             }
 
@@ -1133,7 +1133,7 @@ HeightFieldWaterWithVel.prototype.updateVelLines = function () {
 
     //TODO: transform into another space
 
-    var v = this.velLinesMesh.geometry.vertices;
+    var vertexPos = this.velLinesMesh.geometry.vertices;
 
     var start = new THREE.Vector3();
     var offset = new THREE.Vector3();
@@ -1157,8 +1157,8 @@ HeightFieldWaterWithVel.prototype.updateVelLines = function () {
         }
 
         //update line vertex positions
-        v[2 * i].copy(start);
-        v[2 * i + 1].copy(start).add(offset);
+        vertexPos[2 * i].copy(start);
+        vertexPos[2 * i + 1].copy(start).add(offset);
     }
 
     this.velLinesMesh.geometry.verticesNeedUpdate = true;
@@ -1233,10 +1233,10 @@ PipeModelWater.prototype.update = function (dt) {
     //TODO: update only the changed base heights during sculpting
     //update baseHeights using terrainMesh data
     if (this.terrainMesh) {
-        var v = this.terrainMesh.geometry.vertices;
+        var vertexPos = this.terrainMesh.geometry.vertices;
         var i, len;
         for (i = 0, len = this.numVertices; i < len; i++) {
-            this.baseHeights[i] = v[i].y;
+            this.baseHeights[i] = vertexPos[i].y;
         }
     }
 
@@ -1245,7 +1245,7 @@ PipeModelWater.prototype.update = function (dt) {
 PipeModelWater.prototype.sim = function (dt) {
 
     var i, j, idx;
-    var v = this.geometry.vertices;
+    var vertexPos = this.geometry.vertices;
     var resMinusOne = this.res - 1;
 
     //fix dt
@@ -1419,7 +1419,7 @@ PipeModelWater.prototype.sim = function (dt) {
     for (i = 1; i < resMinusOne; i++) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
-            v[idx].y = this.baseHeights[idx] + this.heights[idx];
+            vertexPos[idx].y = this.baseHeights[idx] + this.heights[idx];
         }
     }
     this.__matchEdges();
@@ -1430,7 +1430,7 @@ PipeModelWater.prototype.sim = function (dt) {
 PipeModelWater.prototype.__matchEdges = function () {
 
     var i, j, idx;
-    var v = this.geometry.vertices;
+    var vertexPos = this.geometry.vertices;
     var resMinusOne = this.res - 1;
 
     //match the sides
@@ -1438,36 +1438,36 @@ PipeModelWater.prototype.__matchEdges = function () {
     j = 0;
     for (i = 1; i < resMinusOne; i++) {
         idx = i * this.res + j;
-        v[idx].y = v[idx + 1].y;
+        vertexPos[idx].y = vertexPos[idx + 1].y;
     }
     //RIGHT
     j = this.res - 1;
     for (i = 1; i < resMinusOne; i++) {
         idx = i * this.res + j;
-        v[idx].y = v[idx - 1].y;
+        vertexPos[idx].y = vertexPos[idx - 1].y;
     }
     //TOP
     i = 0;
     for (j = 1; j < resMinusOne; j++) {
         idx = i * this.res + j;
-        v[idx].y = v[idx + this.res].y;
+        vertexPos[idx].y = vertexPos[idx + this.res].y;
     }
     //BOTTOM
     i = this.res - 1;
     for (j = 1; j < resMinusOne; j++) {
         idx = i * this.res + j;
-        v[idx].y = v[idx - this.res].y;
+        vertexPos[idx].y = vertexPos[idx - this.res].y;
     }
 
     //match corners
     idx = 0;
-    v[idx].y = 0.5 * (v[idx + 1].y + v[idx + this.res].y);
+    vertexPos[idx].y = 0.5 * (vertexPos[idx + 1].y + vertexPos[idx + this.res].y);
     idx = this.res - 1;
-    v[idx].y = 0.5 * (v[idx - 1].y + v[idx + this.res].y);
+    vertexPos[idx].y = 0.5 * (vertexPos[idx - 1].y + vertexPos[idx + this.res].y);
     idx = this.res * (this.res - 1);
-    v[idx].y = 0.5 * (v[idx + 1].y + v[idx - this.res].y);
+    vertexPos[idx].y = 0.5 * (vertexPos[idx + 1].y + vertexPos[idx - this.res].y);
     idx = this.res * this.res - 1;
-    v[idx].y = 0.5 * (v[idx - 1].y + v[idx - this.res].y);
+    vertexPos[idx].y = 0.5 * (vertexPos[idx - 1].y + vertexPos[idx - this.res].y);
 };
 
 function PipeFlowChanger(rate) {
