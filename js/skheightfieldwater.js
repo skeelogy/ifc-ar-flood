@@ -1180,7 +1180,7 @@ function PipeModelWater(options) {
     this.fluxL = [];
     this.fluxT = [];
 
-    this.minWaterHeight = -0.1;  //have to be slightly below zero to prevent z-fighting flickering
+    this.minWaterHeight = -0.05;  //have to be slightly below zero to prevent z-fighting flickering
     this.dHeights = [];
 
     //TODO: this should really be in the superclass
