@@ -1170,6 +1170,7 @@ function PipeModelWater(options) {
     this.fluxL = [];
     this.fluxT = [];
 
+    this.minWaterHeight = -0.1;  //have to be slightly below zero to prevent z-fighting flickering
     this.dHeights = [];
 
     //TODO: this should really be in the superclass
@@ -1241,7 +1242,7 @@ PipeModelWater.prototype.sim = function (dt) {
     var substeps = 5;  //TODO: maybe this should be dynamically set based on CFL
     dt = 1.0 / 60.0 / substeps;
 
-    //add source and obstacles first
+    //add sources and obstacles first
     for (i = 1; i < resMinusOne; i++) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
@@ -1267,16 +1268,17 @@ PipeModelWater.prototype.sim = function (dt) {
             for (j = 1; j < resMinusOne; j++) {
 
                 idx = i * this.res + j;
-                thisHeight = this.baseHeights[idx] + this.heights[idx];
 
-                //if water height is 0, it cannot have outwards flux at all
-                if (this.heights[idx] < 0.001) {
+                //if water height is below min, it cannot have outwards flux at all
+                if (this.heights[idx] <= this.minWaterHeight) {
                     this.fluxL[idx] = 0;
                     this.fluxR[idx] = 0;
                     this.fluxT[idx] = 0;
                     this.fluxB[idx] = 0;
                     continue;
                 }
+
+                thisHeight = this.baseHeights[idx] + this.heights[idx];
 
                 //find out flux in +X direction
                 dHeight = thisHeight - (this.baseHeights[idx + 1] + this.heights[idx + 1]);
@@ -1355,19 +1357,21 @@ PipeModelWater.prototype.sim = function (dt) {
 
                 idx = i * this.res + j;
 
-                currVol = this.heights[idx] * this.segmentSizeSquared;
+                currVol = (this.heights[idx] - this.minWaterHeight) * this.segmentSizeSquared;
                 outVol = dt * (this.fluxR[idx] + this.fluxL[idx] + this.fluxB[idx] + this.fluxT[idx]);
-                scaleAmt = Math.min(1, currVol / outVol);
-                if (isFinite(scaleAmt)) {
-                    this.fluxR[idx] *= scaleAmt;
-                    this.fluxL[idx] *= scaleAmt;
-                    this.fluxB[idx] *= scaleAmt;
-                    this.fluxT[idx] *= scaleAmt;
+                if (outVol > currVol) {
+                    scaleAmt = currVol / outVol;
+                    if (isFinite(scaleAmt)) {
+                        this.fluxL[idx] *= scaleAmt;
+                        this.fluxR[idx] *= scaleAmt;
+                        this.fluxB[idx] *= scaleAmt;
+                        this.fluxT[idx] *= scaleAmt;
+                    }
                 }
             }
         }
 
-        //find new heights
+        //find new heights and velocity
         var fluxIn, fluxOut, dV, avgWaterHeight;
         for (i = 1; i < resMinusOne; i++) {
             for (j = 1; j < resMinusOne; j++) {
@@ -1381,8 +1385,8 @@ PipeModelWater.prototype.sim = function (dt) {
                 this.dHeights[idx] = dV / (this.segmentSize * this.segmentSize);
                 avgWaterHeight = this.heights[idx];
                 this.heights[idx] += this.dHeights[idx];
-                if (this.heights[idx] < 0) {  //this will still happen, in very small amounts
-                    this.heights[idx] = 0;
+                if (this.heights[idx] < this.minWaterHeight) {  //this will still happen, in very small amounts
+                    this.heights[idx] = this.minWaterHeight;
                 }
                 avgWaterHeight = 0.5 * (avgWaterHeight + this.heights[idx]);
 
@@ -1402,15 +1406,10 @@ PipeModelWater.prototype.sim = function (dt) {
     }
 
     //update vertex heights
-    var EPSILON = 0.01;  //need to have a slight offset to prevent Z-fighting flickering
     for (i = 1; i < resMinusOne; i++) {
         for (j = 1; j < resMinusOne; j++) {
             idx = i * this.res + j;
-            if (this.heights[idx] < EPSILON) {
-                v[idx].y = this.baseHeights[idx] - EPSILON;
-            } else {
-                v[idx].y = this.baseHeights[idx] + this.heights[idx];
-            }
+            v[idx].y = this.baseHeights[idx] + this.heights[idx];
         }
     }
     this.__matchEdges();
