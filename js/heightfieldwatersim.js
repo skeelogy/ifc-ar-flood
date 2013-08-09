@@ -548,6 +548,18 @@ HeightFieldWater.prototype.sourceById = function (id, amount) {
     this.sourceField[id] = amount;
 };
 
+HeightFieldWater.prototype.flood = function (volume) {
+    var i, j;
+    for (i = 0; i < this.res; i++) {
+        for (j = 0; j < this.res; j++) {
+            idx = i * this.res + j;
+            //add to disturb field because this is masked by obstacles
+            this.disturbField[idx] += volume / (this.res * this.res);
+            //TODO: add masked out volume back to unmasked volume, if we really want to be accurate...
+        }
+    }
+};
+
 HeightFieldWater.prototype.addObstacle = function (obstacle, name) {
     // DepthMapObstacleManager.addObstacle(mesh);
     if (!(obstacle instanceof Obstacle)) {

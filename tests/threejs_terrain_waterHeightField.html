@@ -93,7 +93,7 @@
 	};
 	var options = {
 		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
-		waterSimFloodRate: 0.0,
+		waterSimFloodRate: 20.0,
 		terrainImage: terrainImages[Object.keys(terrainImages)[0]],
 		terrainShowImage: false,
 		terrainMidGreyIsLowest: true,
@@ -449,7 +449,7 @@
 		control.onChange(changeWaterSimType);
 		changeWaterSimType(options.waterSimType);
 
-		control = waterSimFolder.add(options, 'waterSimFloodRate', -0.1, 0.1).step(0.01).name('Flood Rate');
+		control = waterSimFolder.add(options, 'waterSimFloodRate', -200, 200).step(0.01).name('Flood Rate');
 
 		//Terrain folder
 		terrainFolder = gui.addFolder('Terrain');
@@ -992,6 +992,7 @@
 			//animating mean height to increase flood levels
 			currWaterHeight += options.waterSimFloodRate * dt;
 			hfWater.setMeanHeight(currWaterHeight);
+			hfWater.flood(options.waterSimFloodRate * dt);
 
 			requestAnimationFrame(loop);
 		}
