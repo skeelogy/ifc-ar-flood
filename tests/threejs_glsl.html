@@ -26,10 +26,10 @@
 	</script>
 
 	<script type="x-shader/x-vertex" id="fragmentShader">
-	    varying vec3 vNormal;
+	    uniform vec3 pointLight1Pos;
+	    varying vec3 vNormal;  //assume normalized
 	    void main() {
-	        vec3 light = normalize(vec3(1.0, 1.0, 1.0));  //hardcode a single point light position for now
-	        vec3 color = vec3(dot(vNormal, light));
+	        vec3 color = vec3(dot(vNormal, normalize(pointLight1Pos)));
 	        gl_FragColor = vec4(color, 1.0);
 	    }
 	</script>
@@ -131,7 +131,8 @@
 		    uniforms: {
 		        time: { type: 'f', value: 0.0 },
 		        freq: { type: 'f', value: 1.0 },
-		        amp: { type: 'f', value: 0.5 }
+		        amp: { type: 'f', value: 0.5 },
+		        pointLight1Pos: { type: 'v3', value: new THREE.Vector3(1, 1, 1) }
 		    },
 		    vertexShader: $('#vertexShader').text(),
 		    fragmentShader: $('#fragmentShader').text()
