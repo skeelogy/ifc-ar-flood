@@ -12,28 +12,6 @@
 		#stats #fps #fpsGraph { display: block }
 	</style>
 
-	<script type="x-shader/x-vertex" id="vertexShader">
-	    uniform float time;
-	    uniform float freq;
-	    uniform float amp;
-	    varying vec3 vNormal;
-	    void main() {
-	        float angle = freq * (time + position.x);
-	        float y = amp * sin(angle);
-	        vNormal = normalize(normalMatrix * vec3(-amp * cos(angle), 1.0, 0.0));  //analytical normal based on sin curve
-	        gl_Position = projectionMatrix * modelViewMatrix * vec4(position.x, y, position.z, 1.0);
-	    }
-	</script>
-
-	<script type="x-shader/x-vertex" id="fragmentShader">
-	    uniform vec3 pointLight1Pos;
-	    varying vec3 vNormal;  //assume normalized
-	    void main() {
-	        vec3 color = vec3(dot(vNormal, normalize(pointLight1Pos)));
-	        gl_FragColor = vec4(color, 1.0);
-	    }
-	</script>
-
 	<!--load helper libraries-->
 	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
 
@@ -43,6 +21,8 @@
 	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
 	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
 	<script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
+
+	<script type="text/javascript" src="/js/ShaderManager.js"></script>
 
 	<script>
 
@@ -61,6 +41,12 @@
 			Detector.addGetWebGLMessage();
 			throw new Error('Your browser does not seem to support WebGL');
 		}
+	}
+
+	function setupShaders()
+	{
+	    THREE.ShaderManager.addShader('/glsl/sine.vert');
+		THREE.ShaderManager.addShader('/glsl/lambert.frag');
 	}
 
 	var renderer, scene, camera, controls;
@@ -127,15 +113,16 @@
 		// planeGeom.computeFaceNormals();
 	    // planeGeom.computeVertexNormals();
 	    // planeGeom.normalsNeedUpdate = true;
-		planeMaterial = new THREE.ShaderMaterial({
+	    planeMaterial = new THREE.ShaderMaterial({
 		    uniforms: {
 		        time: { type: 'f', value: 0.0 },
 		        freq: { type: 'f', value: 1.0 },
 		        amp: { type: 'f', value: 0.5 },
+		        baseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
 		        pointLight1Pos: { type: 'v3', value: new THREE.Vector3(1, 1, 1) }
 		    },
-		    vertexShader: $('#vertexShader').text(),
-		    fragmentShader: $('#fragmentShader').text()
+		    vertexShader: THREE.ShaderManager.getShaderContents('/glsl/sine.vert'),
+		    fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambert.frag')
 		});
 		materials.push(planeMaterial);
 		planeMesh = new THREE.Mesh(planeGeom, planeMaterial);
@@ -241,6 +228,9 @@
 		checkWebGl();
 
 		console.log('Document is ready.');
+
+		//get shader contents
+		setupShaders();
 
 		//setup scene
 		setupThreejsScene();
