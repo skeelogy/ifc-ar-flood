@@ -12,7 +12,7 @@ varying vec2 vUv;
 
 float getDisturbHeight(vec2 uv) {
     float disturb = 0.0;
-    if (uIsDisturbing) {
+    if (uIsDisturbing == 1) {
         float len = length(uv - vec2(uDisturbPos.x, 1.0 - uDisturbPos.y));
         disturb = uDisturbAmount * (1.0 - smoothstep(0.0, uDisturbRadius, len));
     }
