@@ -159,7 +159,7 @@
 	    rttQuadGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE);
 	    rttQuadMaterial = new THREE.ShaderMaterial({
 	        uniforms: {
-	            uTexture: { type: 't', value: THREE.ImageUtils.loadTexture('/resources/images/clouds_512.png') }
+	            uTexture: { type: 't', value: THREE.ImageUtils.loadTexture('/resources/images/terrain/clouds_256.png') }
 	        },
 	        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
 	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_xWater.frag')

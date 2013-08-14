@@ -27,7 +27,7 @@
 	<script>
 
 	var PLANE_SIZE = 10;
-	var PLANE_RES = 512;
+	var PLANE_RES = 256;
 	var SHADOW_MAP_RES = 1024;
 
 	var clock = new THREE.Clock();
@@ -119,7 +119,13 @@
 		        freq: { type: 'f', value: 1.0 },
 		        amp: { type: 'f', value: 0.5 },
 		        baseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
-		        pointLight1Pos: { type: 'v3', value: new THREE.Vector3(1, 1, 1) }
+		        ambientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
+		        ambientLightIntensity: { type: 'f', value: 0.1 },
+		        pointLight1Pos: { type: 'v3', value: new THREE.Vector3(2, 2, 2) },
+		        pointLight1Color: { type: 'v3', value: new THREE.Vector3(1, 0, 0) },
+		        pointLight1Intensity: { type: 'f', value: 3.0 },
+		        pointLight1FalloffStart: { type: 'f', value: 1.0 },
+		        pointLight1FalloffEnd: { type: 'f', value: 10.0 }
 		    },
 		    vertexShader: THREE.ShaderManager.getShaderContents('/glsl/sine.vert'),
 		    fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambert.frag')
@@ -251,6 +257,8 @@
 			var time = clock.getElapsedTime();
 
 			planeMaterial.uniforms['time'].value += dt;
+			planeMaterial.uniforms['pointLight1Pos'].value.x = 2 * Math.sin(time);
+			planeMaterial.uniforms['pointLight1Pos'].value.z = 2 * Math.cos(time);
 
 			controls.update();
 
