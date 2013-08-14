@@ -113,21 +113,21 @@
 		planeGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 	    planeMaterial = new THREE.ShaderMaterial({
 		    uniforms: {
-		        time: { type: 'f', value: 0.0 },
-		        freq: { type: 'f', value: 1.0 },
-		        amp: { type: 'f', value: 0.5 },
+		        uTime: { type: 'f', value: 0.0 },
+		        uFreq: { type: 'f', value: 1.0 },
+		        uAmp: { type: 'f', value: 0.5 },
 		        uTexture: { type: 't', value: THREE.ImageUtils.loadTexture('/resources/images/terrain/clouds_256.png') },
 		        uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / PLANE_RES, 1.0 / PLANE_RES) },
 		        uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(PLANE_SIZE / PLANE_RES, PLANE_SIZE / PLANE_RES) },
-		        heightMultiplier: { type: 'f', value: 2.5 },
-		        baseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
-		        ambientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
-		        ambientLightIntensity: { type: 'f', value: 0.1 },
-		        pointLight1Pos: { type: 'v3', value: new THREE.Vector3(2, 2, 2) },
-		        pointLight1Color: { type: 'v3', value: new THREE.Vector3(1, 0, 0) },
-		        pointLight1Intensity: { type: 'f', value: 3.0 },
-		        pointLight1FalloffStart: { type: 'f', value: 1.0 },
-		        pointLight1FalloffEnd: { type: 'f', value: 10.0 }
+		        uHeightMultiplier: { type: 'f', value: 2.5 },
+		        uBaseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
+		        uAmbientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
+		        uAmbientLightIntensity: { type: 'f', value: 0.1 },
+		        uPointLight1Pos: { type: 'v3', value: new THREE.Vector3(2, 2, 2) },
+		        uPointLight1Color: { type: 'v3', value: new THREE.Vector3(1, 0, 0) },
+		        uPointLight1Intensity: { type: 'f', value: 3.0 },
+		        uPointLight1FalloffStart: { type: 'f', value: 1.0 },
+		        uPointLight1FalloffEnd: { type: 'f', value: 10.0 }
 		    },
 		    vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMap.vert'),
 		    fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambert.frag')
@@ -265,10 +265,10 @@
 			var dt = clock.getDelta();  //have to call this before getElapsedTime()
 			var time = clock.getElapsedTime();
 
-			planeMaterial.uniforms['time'].value += dt;
-			planeMaterial.uniforms['pointLight1Pos'].value.x = 2 * Math.sin(time);
-			planeMaterial.uniforms['pointLight1Pos'].value.z = 2 * Math.cos(time);
-			lightMesh.position.copy(planeMaterial.uniforms['pointLight1Pos'].value);
+			planeMaterial.uniforms['uTime'].value += dt;
+			planeMaterial.uniforms['uPointLight1Pos'].value.x = 2 * Math.sin(time);
+			planeMaterial.uniforms['uPointLight1Pos'].value.z = 2 * Math.cos(time);
+			lightMesh.position.copy(planeMaterial.uniforms['uPointLight1Pos'].value);
 
 			controls.update();
 
