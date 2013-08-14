@@ -201,7 +201,7 @@
 	    rttQuadGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE);
 	    rttQuadMaterial = new THREE.ShaderMaterial({
 	        uniforms: {
-	            uTexture: { type: 't', value: THREE.ImageUtils.loadTexture('/resources/images/terrain/clouds_256.png') },
+	            uTexture: { type: 't', value: null },
 	            uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / PLANE_RES, 1.0 / PLANE_RES) },
 		        uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(PLANE_SIZE / PLANE_RES, PLANE_SIZE / PLANE_RES) },
 		        uIsDisturbing: { type: 'i', value: 0 },

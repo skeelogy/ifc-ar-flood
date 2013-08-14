@@ -1,8 +1,7 @@
-//GPU version of Mueller GDC2008 Hello World
+//GPU version of HelloWorld code of "Fast Water Simulation for Games Using Height Fields" (Matthias Mueller-Fisher, GDC2008)
 //author: Skeel Lee <skeel@skeelogy.com>
 
 uniform sampler2D uTexture;
-uniform sampler2D uTexture2;
 uniform vec2 uTexelSize;
 uniform int uIsDisturbing;
 uniform float uDisturbAmount;
@@ -13,7 +12,7 @@ varying vec2 vUv;
 
 float getDisturbHeight(vec2 uv) {
     float disturb = 0.0;
-    if (uIsDisturbing == 1) {
+    if (uIsDisturbing) {
         float len = length(uv - vec2(uDisturbPos.x, 1.0 - uDisturbPos.y));
         disturb = uDisturbAmount * (1.0 - smoothstep(0.0, uDisturbRadius, len));
     }

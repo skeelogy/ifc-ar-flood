@@ -1,4 +1,5 @@
 //a very basic lambert shader with one point light, just for testing
+//author: Skeel Lee <skeel@skeelogy.com>
 
 uniform vec3 uBaseColor;
 uniform vec3 uAmbientLightColor;
