@@ -45,7 +45,7 @@
 
 	function setupShaders()
 	{
-	    THREE.ShaderManager.addShader('/glsl/sine.vert');
+	    THREE.ShaderManager.addShader('/glsl/heightMap.vert');
 		THREE.ShaderManager.addShader('/glsl/lambert.frag');
 	}
 
@@ -53,6 +53,7 @@
 	var materials = [];
 	var localAxis;
 	var planeGeom, planeMaterial, planeMesh;
+	var lightGeom, lightMaterial, lightMesh;
 	function setupThreejsScene()
 	{
 		//create renderer
@@ -110,14 +111,15 @@
 		//create a plane
 		planeGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, PLANE_RES - 1, PLANE_RES - 1);
 		planeGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-		// planeGeom.computeFaceNormals();
-	    // planeGeom.computeVertexNormals();
-	    // planeGeom.normalsNeedUpdate = true;
 	    planeMaterial = new THREE.ShaderMaterial({
 		    uniforms: {
 		        time: { type: 'f', value: 0.0 },
 		        freq: { type: 'f', value: 1.0 },
 		        amp: { type: 'f', value: 0.5 },
+		        uTexture: { type: 't', value: THREE.ImageUtils.loadTexture('/resources/images/terrain/clouds_256.png') },
+		        uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / PLANE_RES, 1.0 / PLANE_RES) },
+		        uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(PLANE_SIZE / PLANE_RES, PLANE_SIZE / PLANE_RES) },
+		        heightMultiplier: { type: 'f', value: 2.5 },
 		        baseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
 		        ambientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
 		        ambientLightIntensity: { type: 'f', value: 0.1 },
@@ -127,7 +129,7 @@
 		        pointLight1FalloffStart: { type: 'f', value: 1.0 },
 		        pointLight1FalloffEnd: { type: 'f', value: 10.0 }
 		    },
-		    vertexShader: THREE.ShaderManager.getShaderContents('/glsl/sine.vert'),
+		    vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMap.vert'),
 		    fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambert.frag')
 		});
 		materials.push(planeMaterial);
@@ -135,6 +137,13 @@
 		planeMesh.castShadow = true;
 		planeMesh.receiveShadow = true;
 		scene.add(planeMesh);
+
+		//create a sphere that represents the point light
+		lightGeom = new THREE.SphereGeometry(0.1, 8, 8);
+		lightMaterial = new THREE.MeshBasicMaterial({color: 0xff0000});
+		materials.push(lightMaterial);
+		lightMesh = new THREE.Mesh(lightGeom, lightMaterial);
+		scene.add(lightMesh);
 	}
 
 	function setupEvents()
@@ -259,6 +268,7 @@
 			planeMaterial.uniforms['time'].value += dt;
 			planeMaterial.uniforms['pointLight1Pos'].value.x = 2 * Math.sin(time);
 			planeMaterial.uniforms['pointLight1Pos'].value.z = 2 * Math.cos(time);
+			lightMesh.position.copy(planeMaterial.uniforms['pointLight1Pos'].value);
 
 			controls.update();
 

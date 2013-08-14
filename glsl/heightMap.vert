@@ -19,7 +19,7 @@ void main() {
 
     //find normal
     vec4 tu = texture2D(uTexture, vUv + vec2(uTexelSize.r, 0)) * heightMultiplier;
-    vec4 tv = texture2D(uTexture, vUv + vec2(0, uTexelSize.g)) * heightMultiplier;
+    vec4 tv = texture2D(uTexture, vUv - vec2(0, uTexelSize.g)) * heightMultiplier;
     vec3 tangent = normalize(vec3(vPosition.x+uTexelWorldSize.r, tu.r, vPosition.z) - vPosition);
     vec3 bitangent = normalize(vec3(vPosition.x, tv.r, vPosition.z+uTexelWorldSize.g) - vPosition);
     vNormal = normalize(cross(bitangent, tangent));
