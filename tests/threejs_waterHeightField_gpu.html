@@ -201,7 +201,7 @@
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			// dampingFactor: WATER_DAMPING_FACTOR,
+			dampingFactor: WATER_DAMPING_FACTOR,
 			// meanHeight: MEAN_WATER_HEIGHT
 		});
 		xWater = new XWater({
@@ -478,7 +478,7 @@
 			//load some presets so that that sim works well
 			WATER_DISTURB_AMOUNT = waterSimTypeSettings[value].disturbAmount;
 			WATER_DAMPING_FACTOR = waterSimTypeSettings[value].dampingFactor;
-			// hfWater.dampingFactor = WATER_DAMPING_FACTOR;
+			hfWater.setDampingFactor(WATER_DAMPING_FACTOR);
 
 			//make sure to inherit the active value from the GUI too
 			// hfWater.setObstaclesActive(options.obstaclesActive);

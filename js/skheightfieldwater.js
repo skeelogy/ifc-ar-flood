@@ -549,7 +549,7 @@ HeightFieldWater.prototype.sourceById = function (id, amount) {
 };
 
 HeightFieldWater.prototype.flood = function (volume) {
-    var i, j;
+    var i, j, idx;
     for (i = 0; i < this.res; i++) {
         for (j = 0; j < this.res; j++) {
             idx = i * this.res + j;
@@ -1513,11 +1513,19 @@ function GpuHeightFieldWater(options) {
     }
     this.res = options.res;
     this.gridSize = this.size / this.res;
+    if (typeof options.dampingFactor === 'undefined') {
+        throw new Error('dampingFactor not specified');
+    }
+    this.__dampingFactor = options.dampingFactor;
 
     this.isDisturbing = false;
     this.disturbUvPos = new THREE.Vector2();
 
     this.init();
+}
+GpuHeightFieldWater.prototype.setDampingFactor = function (dampingFactor) {
+    this.__dampingFactor = dampingFactor;
+    this.rttQuadMaterial.uniforms.uDampingFactor.value = dampingFactor;
 }
 /**
  * Initializes the sim
@@ -1556,7 +1564,8 @@ GpuHeightFieldWater.prototype.__setupRttScene = function () {
             uIsDisturbing: { type: 'i', value: 0 },
             uDisturbPos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
             uDisturbAmount: { type: 'f', value: 0.05 },
-            uDisturbRadius: { type: 'f', value: 0.0025 * this.size }
+            uDisturbRadius: { type: 'f', value: 0.0025 * this.size },
+            uDampingFactor: { type: 'f', value: this.__dampingFactor }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_muellerGdc2008Hw.frag')
@@ -1623,8 +1632,8 @@ GpuHeightFieldWater.prototype.disturb = function (position, amount) {
 GpuHeightFieldWater.prototype.update = function () {
 
     //update RTT uniforms
-    this.rttQuadMaterial.uniforms['uIsDisturbing'].value = this.isDisturbing;
-    this.rttQuadMaterial.uniforms['uDisturbPos'].value.copy(this.disturbUvPos);
+    this.rttQuadMaterial.uniforms.uIsDisturbing.value = this.isDisturbing;
+    this.rttQuadMaterial.uniforms.uDisturbPos.value.copy(this.disturbUvPos);
 
     //turn off disturbing
     this.isDisturbing = false;
@@ -1662,7 +1671,7 @@ GpuMuellerGdc2008HwWater.prototype.swapRenderTargets = function () {
     var temp = this.rttRenderTarget1;
     this.rttRenderTarget1 = this.rttRenderTarget2;
     this.rttRenderTarget2 = temp;
-    this.rttQuadMaterial.uniforms['uTexture'].value = this.rttRenderTarget2;
+    this.rttQuadMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
 };
 
 function GpuXWater(options) {

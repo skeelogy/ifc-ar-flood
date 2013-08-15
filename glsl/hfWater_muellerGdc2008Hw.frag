@@ -7,6 +7,7 @@ uniform int uIsDisturbing;
 uniform float uDisturbAmount;
 uniform float uDisturbRadius;
 uniform vec2 uDisturbPos;
+uniform float uDampingFactor;
 
 varying vec2 vUv;
 
@@ -43,7 +44,7 @@ void main() {
                    + texture2D(uTexture,vUv-du).r + getDisturbHeight(vUv-du)
                    + texture2D(uTexture,vUv+dv).r + getDisturbHeight(vUv+dv)
                    + texture2D(uTexture,vUv-dv).r + getDisturbHeight(vUv-dv)) - t.r;
-    t.g *= 0.99;
+    t.g *= uDampingFactor;
 
     //update
     t.r += t.g;

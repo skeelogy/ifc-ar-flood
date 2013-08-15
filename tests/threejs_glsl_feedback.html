@@ -207,7 +207,8 @@
 		        uIsDisturbing: { type: 'i', value: 0 },
 		        uDisturbPos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
 		        uDisturbAmount: { type: 'f', value: 0.05 },
-		        uDisturbRadius: { type: 'f', value: 0.0025 * PLANE_SIZE }
+		        uDisturbRadius: { type: 'f', value: 0.0025 * PLANE_SIZE },
+		        uDampingFactor: { type: 'f', value: 0.95 }
 	        },
 	        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
 	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_muellerGdc2008Hw.frag')
