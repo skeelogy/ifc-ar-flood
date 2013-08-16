@@ -22,11 +22,11 @@ float getDisturbHeight(vec2 uv) {
 
 void main() {
 
-    //NOTE: There are actually three steps below, each of which needs synchronization.
+    //NOTE: There are actually multiple steps below, each of which needs synchronization.
     //However, since we are recalculating the disturb height over and over for each neighbour,
     //and that we are reading the old texture for previous frame data (i.e. neighbour data remains the same),
     //the steps below gives the intended results without synchronization.
-    //Should test whether three render passes is faster or not.
+    //Should test whether multiple render passes is faster or not.
 
     //r channel: height
     //g channel: vertDeriv

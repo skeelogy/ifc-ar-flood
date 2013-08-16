@@ -150,7 +150,8 @@
 	var RANDOM_SEED = 1;
 	Math.seedrandom(RANDOM_SEED);
 	var waterGeom, waterMesh;
-	var hfWater, iWaveWater, muellerGdc2008Water, gpuMuellerGdc2008HwWater, xWater;
+	var visGeom, visMaterial, visMesh;
+	var hfWater, iWaveWater, muellerGdc2008Water, gpuMuellerGdc2008HwWater, gpuXWater;
 	var iSegments = 3;
 	var jSegments = 3;
 	var iSegmentSize = WATER_SIZE / iSegments;
@@ -204,14 +205,15 @@
 			dampingFactor: WATER_DAMPING_FACTOR,
 			// meanHeight: MEAN_WATER_HEIGHT
 		});
-		xWater = new XWater({
+		gpuXWater = new GpuXWater({
+		    renderer: renderer,
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: WATER_DAMPING_FACTOR,
-			meanHeight: MEAN_WATER_HEIGHT
+			// meanHeight: MEAN_WATER_HEIGHT
 		});
-		hfWater = gpuMuellerGdc2008HwWater;
+		hfWater = gpuXWater;
 
 		// //create some obstacles for the water sim
 		// var i, j;
@@ -238,7 +240,7 @@
 				// iWaveWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// muellerGdc2008Water.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// gpuMuellerGdc2008HwWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				// xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				// gpuXWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// pipeModelWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// obstacle.updateAlways = false;
 				// // obstacle.update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
@@ -254,6 +256,17 @@
 //
 		// //using a flag to let obstacles update once after mesh updates
 		// shouldUpdateObstacles = true;
+
+		//create a RTT visualization plane
+		visGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
+		visGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+	    visMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: hfWater.rttRenderTarget1 } );
+		materials.push(visMaterial);
+		visMesh = new THREE.Mesh(visGeom, visMaterial);
+		visMesh.position.y = 3;
+		visMesh.castShadow = true;
+		visMesh.receiveShadow = true;
+		scene.add(visMesh);
 	}
 
 	// var shouldUpdateObstacles;
@@ -429,20 +442,20 @@
 	var waterSimFolder, obstaclesFolder, renderingFolder, displayFolder;
 	var waterSimTypes = {
 	    'Pipe Model': 'pipeModelWater',
-	    'X Water': 'xWater',
+	    'X Water': 'gpuXWater',
 		'Tessendorf iWave': 'iWaveWater',
 		'Muller GDC2008': 'muellerGdc2008Water',
 		'Muller GDC2008 HelloWorld': 'gpuMuellerGdc2008HwWater'
 	};
 	var waterSimTypeSettings = {
 	    'pipeModelWater': { 'disturbAmount':0.15, 'dampingFactor':0.998 },
-	    'xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
+	    'gpuXWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
 		'iWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
 		'muellerGdc2008Water': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
 		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[4]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[1]],
 		waterSimFloodRate: 20.0,
 		obstaclesActive: true,
 		obstaclesSeed: 1,

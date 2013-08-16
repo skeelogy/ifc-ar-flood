@@ -9,6 +9,10 @@ THREE.ShaderManager = {
     shaderContents: {},
 
     addShader: function (url, async) {
+        if (Object.keys(this.shaderContents).indexOf(url) !== -1) {
+            console.warn('shader already added: ' + url);
+            return;
+        }
         async = typeof async === 'undefined' ? false : async;
         if (typeof async !== 'boolean') {
             throw new Error('parameter "async" must be a boolean');
