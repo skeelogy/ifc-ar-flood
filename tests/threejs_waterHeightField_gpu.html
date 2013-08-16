@@ -151,7 +151,7 @@
 	Math.seedrandom(RANDOM_SEED);
 	var waterGeom, waterMesh;
 	var visGeom, visMaterial, visMesh;
-	var hfWater, iWaveWater, muellerGdc2008Water, gpuMuellerGdc2008HwWater, gpuXWater;
+	var hfWater, iWaveWater, gpuMuellerGdc2008Water, gpuMuellerGdc2008HwWater, gpuXWater;
 	var iSegments = 3;
 	var jSegments = 3;
 	var iSegmentSize = WATER_SIZE / iSegments;
@@ -189,13 +189,14 @@
 			substeps: 3,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
-		muellerGdc2008Water = new MuellerGdc2008Water({
+		gpuMuellerGdc2008Water = new GpuMuellerGdc2008Water({
+		    renderer: renderer,
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: WATER_DAMPING_FACTOR,
-			horizontalSpeed: 5.0,
-			meanHeight: MEAN_WATER_HEIGHT
+			horizontalSpeed: 3.0,
+			// meanHeight: MEAN_WATER_HEIGHT
 		});
 		gpuMuellerGdc2008HwWater = new GpuMuellerGdc2008HwWater({
 		    renderer: renderer,
@@ -238,7 +239,7 @@
 				// //create Obstacle
 				// var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE, globalTransform.matrixWorld);
 				// iWaveWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				// muellerGdc2008Water.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				// gpuMuellerGdc2008Water.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// gpuMuellerGdc2008HwWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// gpuXWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// pipeModelWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
@@ -444,18 +445,18 @@
 	    'Pipe Model': 'pipeModelWater',
 	    'X Water': 'gpuXWater',
 		'Tessendorf iWave': 'iWaveWater',
-		'Muller GDC2008': 'muellerGdc2008Water',
+		'Muller GDC2008': 'gpuMuellerGdc2008Water',
 		'Muller GDC2008 HelloWorld': 'gpuMuellerGdc2008HwWater'
 	};
 	var waterSimTypeSettings = {
 	    'pipeModelWater': { 'disturbAmount':0.15, 'dampingFactor':0.998 },
 	    'gpuXWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
 		'iWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
-		'muellerGdc2008Water': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
+		'gpuMuellerGdc2008Water': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
 		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[4]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[3]],
 		waterSimFloodRate: 20.0,
 		obstaclesActive: true,
 		obstaclesSeed: 1,

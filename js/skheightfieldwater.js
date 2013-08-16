@@ -1666,6 +1666,30 @@ GpuHeightFieldWater.prototype.swapRenderTargets = function () {
 };
 
 /**
+ * GPU height field water simulation based on "Fast Water Simulation for Games Using Height Fields" (Matthias Mueller-Fisher, GDC2008)
+ * @constructor
+ * @extends {GpuHeightFieldWater}
+ */
+function GpuMuellerGdc2008Water(options) {
+    if (typeof options.horizontalSpeed === 'undefined') {
+        throw new Error('horizontalSpeed not specified');
+    }
+    this.horizontalSpeed = options.horizontalSpeed;
+    GpuHeightFieldWater.call(this, options);
+}
+//inherit
+GpuMuellerGdc2008Water.prototype = Object.create(GpuHeightFieldWater.prototype);
+GpuMuellerGdc2008Water.prototype.constructor = GpuMuellerGdc2008Water;
+//override
+GpuMuellerGdc2008Water.prototype.getWaterFragmentShaderUrl = function () {
+    return '/glsl/hfWater_muellerGdc2008.frag';
+};
+GpuMuellerGdc2008Water.prototype.__setupRttScene = function () {
+    GpuHeightFieldWater.prototype.__setupRttScene.call(this);
+    this.rttQuadMaterial.uniforms.uHorizontalSpeed = { type: 'f', value: this.horizontalSpeed };
+}
+
+/**
  * GPU height field water simulation based on HelloWorld code of "Fast Water Simulation for Games Using Height Fields" (Matthias Mueller-Fisher, GDC2008)
  * @constructor
  * @extends {GpuHeightFieldWater}
