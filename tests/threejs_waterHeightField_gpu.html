@@ -213,7 +213,7 @@
 			dampingFactor: WATER_DAMPING_FACTOR,
 			// meanHeight: MEAN_WATER_HEIGHT
 		});
-		hfWater = gpuXWater;
+		hfWater = gpuMuellerGdc2008HwWater;
 
 		// //create some obstacles for the water sim
 		// var i, j;
@@ -455,7 +455,7 @@
 		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[1]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[4]],
 		waterSimFloodRate: 20.0,
 		obstaclesActive: true,
 		obstaclesSeed: 1,

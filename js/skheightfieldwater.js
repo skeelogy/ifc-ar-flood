@@ -1536,12 +1536,12 @@ GpuHeightFieldWater.prototype.init = function () {
     this.__setupRttScene();
     this.__setupVtf();
 };
-GpuHeightFieldWater.prototype.getWaterShaderUrl = function () {
+GpuHeightFieldWater.prototype.getWaterFragmentShaderUrl = function () {
     throw new Error('Abstract method not implemented');
 };
 GpuHeightFieldWater.prototype.__setupShaders = function () {
     THREE.ShaderManager.addShader('/glsl/passUv.vert');
-    THREE.ShaderManager.addShader(this.getWaterShaderUrl());
+    THREE.ShaderManager.addShader(this.getWaterFragmentShaderUrl());
     THREE.ShaderManager.addShader('/glsl/heightMap.vert');
     THREE.ShaderManager.addShader('/glsl/lambert.frag');
 };
@@ -1549,7 +1549,7 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
  * Sets up the render-to-texture scene (2 render targets by default)
  */
 GpuHeightFieldWater.prototype.__setupRttScene = function () {
-    console.log('setup scene');
+
     //TODO: some of these belong in superclass
 
     //create a RTT scene
@@ -1574,7 +1574,7 @@ GpuHeightFieldWater.prototype.__setupRttScene = function () {
             uDampingFactor: { type: 'f', value: this.__dampingFactor }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
-        fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterShaderUrl())
+        fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
     });
     this.rttQuadMesh = new THREE.Mesh(this.rttQuadGeom, this.rttQuadMaterial);
     this.rttScene.add(this.rttQuadMesh);
@@ -1598,7 +1598,7 @@ GpuHeightFieldWater.prototype.__setupRttScene = function () {
  * Sets up the vertex-texture-fetch for the given mesh
  */
 GpuHeightFieldWater.prototype.__setupVtf = function () {
-    this.vtfMaterial = new THREE.ShaderMaterial({
+    this.mesh.material = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: this.rttRenderTarget1 },
             uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / this.res, 1.0 / this.res) },
@@ -1616,7 +1616,6 @@ GpuHeightFieldWater.prototype.__setupVtf = function () {
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMap.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambert.frag')
     });
-    this.mesh.material = this.vtfMaterial;
 };
 /**
  * Checks for WebGL extensions. Checks for OES_texture_float_linear and vertex texture fetch capability by default.
@@ -1641,6 +1640,12 @@ GpuHeightFieldWater.prototype.update = function () {
     this.rttQuadMaterial.uniforms.uIsDisturbing.value = this.isDisturbing;
     this.rttQuadMaterial.uniforms.uDisturbPos.value.copy(this.disturbUvPos);
 
+    //need to rebind rttRenderTarget1 to uTexture
+    this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
+    // this.mesh.geometry.buffersNeedUpdate = true;
+    // this.mesh.geometry.uvsNeedUpdate = true;
+    // this.mesh.material.needsUpdate = true;
+
     //turn off disturbing
     this.isDisturbing = false;
 
@@ -1661,31 +1666,21 @@ GpuHeightFieldWater.prototype.swapRenderTargets = function () {
  * @extends {GpuHeightFieldWater}
  */
 function GpuMuellerGdc2008HwWater(options) {
-    //FIXME: unable to call superclass init multiple times. Something wrong with VTF.
-    // GpuHeightFieldWater.call(this, options);
+    GpuHeightFieldWater.call(this, options);
 }
 //inherit
 GpuMuellerGdc2008HwWater.prototype = Object.create(GpuHeightFieldWater.prototype);
 GpuMuellerGdc2008HwWater.prototype.constructor = GpuMuellerGdc2008HwWater;
 //override
-GpuMuellerGdc2008HwWater.prototype.getWaterShaderUrl = function () {
-    console.log('mueller hw');
+GpuMuellerGdc2008HwWater.prototype.getWaterFragmentShaderUrl = function () {
     return '/glsl/hfWater_muellerGdc2008Hw.frag';
 };
-GpuMuellerGdc2008HwWater.prototype.update = function () {
 
-    //update RTT uniforms
-    this.rttQuadMaterial.uniforms.uIsDisturbing.value = this.isDisturbing;
-    this.rttQuadMaterial.uniforms.uDisturbPos.value.copy(this.disturbUvPos);
-
-    //turn off disturbing
-    this.isDisturbing = false;
-
-    //do the RTT and then swap targets
-    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
-    this.swapRenderTargets();
-};
-
+/**
+ * GPU height field water simulation based on http://freespace.virgin.net/hugo.elias/graphics/x_water.htm
+ * @constructor
+ * @extends {GpuHeightFieldWater}
+ */
 function GpuXWater(options) {
     GpuHeightFieldWater.call(this, options);
 }
@@ -1693,7 +1688,6 @@ function GpuXWater(options) {
 GpuXWater.prototype = Object.create(GpuHeightFieldWater.prototype);
 GpuXWater.prototype.constructor = GpuXWater;
 //override
-GpuXWater.prototype.getWaterShaderUrl = function () {
-    console.log('xwater');
+GpuXWater.prototype.getWaterFragmentShaderUrl = function () {
     return '/glsl/hfWater_xWater.frag';
 };
