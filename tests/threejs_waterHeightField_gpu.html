@@ -491,7 +491,7 @@
 			//load some presets so that that sim works well
 			WATER_DISTURB_AMOUNT = waterSimTypeSettings[value].disturbAmount;
 			WATER_DAMPING_FACTOR = waterSimTypeSettings[value].dampingFactor;
-			hfWater.setDampingFactor(WATER_DAMPING_FACTOR);
+			hfWater.dampingFactor = WATER_DAMPING_FACTOR;
 
 			//make sure to inherit the active value from the GUI too
 			// hfWater.setObstaclesActive(options.obstaclesActive);

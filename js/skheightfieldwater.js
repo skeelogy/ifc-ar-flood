@@ -1517,15 +1517,18 @@ function GpuHeightFieldWater(options) {
         throw new Error('dampingFactor not specified');
     }
     this.__dampingFactor = options.dampingFactor;
+    this.__defineGetter__('dampingFactor', function () {
+        return this.__dampingFactor;
+    });
+    this.__defineSetter__('dampingFactor', function (value) {
+        this.__dampingFactor = value;
+        this.rttQuadMaterial.uniforms.uDampingFactor.value = value;
+    });
 
     this.isDisturbing = false;
     this.disturbUvPos = new THREE.Vector2();
 
     this.init();
-}
-GpuHeightFieldWater.prototype.setDampingFactor = function (dampingFactor) {
-    this.__dampingFactor = dampingFactor;
-    this.rttQuadMaterial.uniforms.uDampingFactor.value = dampingFactor;
 }
 /**
  * Initializes the sim
@@ -1571,7 +1574,8 @@ GpuHeightFieldWater.prototype.__setupRttScene = function () {
             uDisturbPos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
             uDisturbAmount: { type: 'f', value: 0.05 },
             uDisturbRadius: { type: 'f', value: 0.0025 * this.size },
-            uDampingFactor: { type: 'f', value: this.__dampingFactor }
+            uDampingFactor: { type: 'f', value: this.__dampingFactor },
+            uDt: { type: 'f', value: 0.0 }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
@@ -1634,11 +1638,12 @@ GpuHeightFieldWater.prototype.disturb = function (position, amount) {
     this.disturbUvPos.x = (position.x + this.halfSize) / this.size;
     this.disturbUvPos.y = (position.z + this.halfSize) / this.size;
 };
-GpuHeightFieldWater.prototype.update = function () {
+GpuHeightFieldWater.prototype.update = function (dt) {
 
     //update RTT uniforms
     this.rttQuadMaterial.uniforms.uIsDisturbing.value = this.isDisturbing;
     this.rttQuadMaterial.uniforms.uDisturbPos.value.copy(this.disturbUvPos);
+    this.rttQuadMaterial.uniforms.uDt.value = dt;
 
     //need to rebind rttRenderTarget1 to uTexture
     this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
