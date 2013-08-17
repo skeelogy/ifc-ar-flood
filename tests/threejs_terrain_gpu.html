@@ -25,7 +25,7 @@
 	<script type="text/javascript" src="/js/lib/SimplexNoise.js"></script>
 	<script type="text/javascript" src="/js/lib/StackBlur.js"></script>
 
-	<script type="text/javascript" src="/js/lib/skulpt.js"></script>
+	<script type="text/javascript" src="/js/skulptgpu.js"></script>
 
 	<script type="text/javascript" src="/js/ShaderManager.js"></script>
 
@@ -93,14 +93,6 @@
 		}
 	}
 
-	function setupShaders()
-	{
-	    THREE.ShaderManager.addShader('/glsl/passUv.vert');
-		THREE.ShaderManager.addShader('/glsl/skulpt.frag');
-		THREE.ShaderManager.addShader('/glsl/heightMapLayered.vert');
-		THREE.ShaderManager.addShader('/glsl/lambert.frag');
-	}
-
 	var terrainImageData, terrainImageProcessedData;
 	function filterTerrainImageAndGenerateHeight()
 	{
@@ -114,51 +106,8 @@
         //get filtered image data
         terrainImageData = imageCanvasElemContext.getImageData(0, 0, TERRAIN_RES, TERRAIN_RES).data;
 
-		//update base layer
-		// baseLayer.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
-
-		loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
-	}
-
-	var terrainImageDataTexture;
-	function loadFromImageData(data, amount, midGreyIsLowest)
-	{
-	    //convert data from Uint8ClampedArray to Uint8Array so that DataTexture can use
-        if (!terrainImageProcessedData)
-        {
-            terrainImageProcessedData = new Float32Array(4 * TERRAIN_RES * TERRAIN_RES);
-        }
-        var normalizedHeight;
-        var min = 99999;
-        var i, len;
-		for (i = 0, len = terrainImageData.length; i < len; i++)
-		{
-		    if (midGreyIsLowest) {
-                normalizedHeight = Math.abs(data[i] / 255.0 - 0.5);
-            } else {
-                normalizedHeight = data[i] / 255.0;
-            }
-            terrainImageProcessedData[i] = normalizedHeight * amount;
-
-            //store min
-            if (terrainImageProcessedData[i] < min) {
-                min = terrainImageProcessedData[i];
-            }
-		}
-
-		//shift down so that min is at 0
-        for (i = 0, len = terrainImageData.length; i < len; i++) {
-            this.terrainImageProcessedData[i] -= min;
-        }
-
-	    //assign data to DataTexture
-	    if (!terrainImageDataTexture) {
-	        terrainImageDataTexture = new THREE.DataTexture(terrainImageProcessedData, TERRAIN_RES, TERRAIN_RES, THREE.RGBAFormat, THREE.FloatType);
-	    }
-		terrainImageDataTexture.image.data = terrainImageProcessedData;
-		terrainImageDataTexture.needsUpdate = true;
-		rttQuadMaterial.uniforms['uBaseTexture'].value = terrainImageDataTexture;
-		terrainMaterial.uniforms['uBaseTexture'].value = terrainImageDataTexture;
+		//update skulpt
+		gpuSkulpt.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
 	}
 
 	var $imageCanvasElem, imageCanvasElemContext;
@@ -209,25 +158,8 @@
 
 	function sculptClearSculpts()
 	{
-		// skulpt.getMesh('terrainMesh').clearCurrLayer();
-
-		//create RTT render targets (we need two to do feedback)
-	    var linearFloatParams = {
-            minFilter: THREE.LinearFilter,
-            magFilter: THREE.LinearFilter,
-            wrapS: THREE.ClampToEdgeWrapping,
-            wrapT: THREE.ClampToEdgeWrapping,
-            format: THREE.RGBFormat,
-            stencilBuffer: false,
-            depthBuffer: false,
-            type: THREE.FloatType
-        };
-	    rttRenderTarget1 = new THREE.WebGLRenderTarget(TERRAIN_RES, TERRAIN_RES, linearFloatParams);
-	    rttRenderTarget1.generateMipmaps = false;
-	    rttRenderTarget2 = rttRenderTarget1.clone();
-
-	    rttQuadMaterial.uniforms['uSculptTexture1'].value = rttRenderTarget1;
-	    terrainMaterial.uniforms['uTexture1'].value = rttRenderTarget1;
+		// gpuSkulpt.getMesh('terrainMesh').clearCurrLayer();
+		gpuSkulpt.clear();
 	}
 
 	var renderer, scene, camera, globalTransform;
@@ -247,7 +179,6 @@
 		renderer.shadowMapEnabled = true;
 		renderer.shadowMapType = THREE.PCFShadowMap;
 		renderer.shadowMapSoft = true;
-		checkExtensions(renderer);
 		var $container = $('#threejs-container');
 		$container.append(renderer.domElement);
 
@@ -342,76 +273,6 @@
 		globalTransform.add(fillLight);
 	}
 
-	function checkExtensions(renderer)
-	{
-	    var context = renderer.context;
-        if (!context.getExtension('OES_texture_float_linear')) {
-            throw new Error('Extension not available: OES_texture_float_linear');
-        }
-        if (!context.getParameter(context.MAX_VERTEX_TEXTURE_IMAGE_UNITS)) {
-            throw new Error('Vertex textures not supported on your graphics card');
-        }
-	}
-
-	var rttScene, rttEmptyScene, rttCamera, rttRenderTarget1, rttRenderTarget2;
-	var rttQuadGeom, rttQuadMaterial, rttQuadMesh;
-	function setupRttScene()
-	{
-	    //create a RTT scene
-	    rttScene = new THREE.Scene();
-	    rttEmptyScene = new THREE.Scene();
-
-	    //create an orthographic RTT camera
-	    var halfSize = TERRAIN_SIZE / 2.0;
-	    var far = 10000;
-	    var near = -far;
-	    rttCamera = new THREE.OrthographicCamera(-halfSize, halfSize, halfSize, -halfSize, near, far);
-
-	    //create a quad which we will use to invoke the shaders
-	    rttQuadGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE);
-	    rttQuadMaterial = new THREE.ShaderMaterial({
-	        uniforms: {
-		        uBaseTexture: { type: 't', value: null },
-		        uSculptTexture1: { type: 't', value: null },
-	            uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / TERRAIN_RES, 1.0 / TERRAIN_RES) },
-		        uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(TERRAIN_SIZE / TERRAIN_RES, TERRAIN_SIZE / TERRAIN_RES) },
-		        uIsSculpting: { type: 'i', value: 0 },
-		        uSculptType: { type: 'i', value: 0 },
-		        uSculptPos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
-		        uSculptAmount: { type: 'f', value: 0.05 },
-		        uSculptRadius: { type: 'f', value: 0.0025 * TERRAIN_SIZE },
-		        uDampingFactor: { type: 'f', value: 0.95 }
-	        },
-	        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
-	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/skulpt.frag')
-	    });
-	    rttQuadMesh = new THREE.Mesh(rttQuadGeom, rttQuadMaterial);
-	    rttScene.add(rttQuadMesh);
-
-	    //create RTT render targets (we need two to do feedback)
-	    var linearFloatParams = {
-            minFilter: THREE.LinearFilter,
-            magFilter: THREE.LinearFilter,
-            wrapS: THREE.ClampToEdgeWrapping,
-            wrapT: THREE.ClampToEdgeWrapping,
-            format: THREE.RGBFormat,
-            stencilBuffer: false,
-            depthBuffer: false,
-            type: THREE.FloatType
-        };
-	    rttRenderTarget1 = new THREE.WebGLRenderTarget(TERRAIN_RES, TERRAIN_RES, linearFloatParams);
-	    rttRenderTarget1.generateMipmaps = false;
-	    rttRenderTarget2 = rttRenderTarget1.clone();
-	}
-
-	function swapRenderTargets()
-	{
-	    var temp = rttRenderTarget1;
-	    rttRenderTarget1 = rttRenderTarget2;
-	    rttRenderTarget2 = temp;
-	    rttQuadMaterial.uniforms['uSculptTexture1'].value = rttRenderTarget2;
-	}
-
 	var gui;
 	var terrainFolder, sculptFolder, renderingFolder, displayFolder;
 	function setupGui() {
@@ -462,8 +323,7 @@
 		function changeTerrainMidGreyIsLowest(value)
 		{
 			terrainMidGreyIsLowest = value;
-			// baseLayer.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
-			loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
+			gpuSkulpt.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
 		}
 		control.onChange(changeTerrainMidGreyIsLowest);
 		//changeTerrainMidGreyIsLowest(options.terrainMidGreyIsLowest);
@@ -481,8 +341,7 @@
 		function changeTerrainHeight(value)
 		{
 			terrainHeight = value;
-			// baseLayer.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
-			loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
+			gpuSkulpt.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
 		}
 		control.onChange(changeTerrainHeight);
 		//changeTerrainHeight(options.terrainHeight);
@@ -494,8 +353,7 @@
 		control = sculptFolder.add(options, 'sculptSize', 0.1, 10.0).name('Size');
 		function changeSculptSize(value)
 		{
-			// skulpt.setBrushSize(value);
-			rttQuadMaterial.uniforms['uSculptRadius'].value = value / (TERRAIN_SIZE * 2.0);
+			gpuSkulpt.setBrushSize(value);
 		}
 		control.onChange(changeSculptSize);
 		changeSculptSize(options.sculptSize);
@@ -503,8 +361,7 @@
 		control = sculptFolder.add(options, 'sculptAmount', 0.01, 1.0).name('Amount');
 		function changeSculptAmount(value)
 		{
-			// skulpt.setBrushAmount(value);
-			rttQuadMaterial.uniforms['uSculptAmount'].value = value;
+			gpuSkulpt.setBrushAmount(value);
 		}
 		control.onChange(changeSculptAmount);
 		changeSculptAmount(options.sculptAmount);
@@ -598,18 +455,12 @@
 			if (event.button === 0)  //LMB
 			{
 				isSculpting = true;
-				rttQuadMaterial.uniforms['uSculptType'].value = 1;
-				sculptUvPos.x = (intersectPoint.x + TERRAIN_SIZE / 2.0) / TERRAIN_SIZE;
-                sculptUvPos.y = (intersectPoint.z + TERRAIN_SIZE / 2.0) / TERRAIN_SIZE;
-				// sculptTerrain('add');
+				sculptTerrain(GpuSkulpt.ADD);
 			}
 			else if (event.button === 2)  //RMB
 			{
 				isSculpting = true;
-				// sculptTerrain('remove');
-				rttQuadMaterial.uniforms['uSculptType'].value = 2;
-                sculptUvPos.x = (intersectPoint.x + TERRAIN_SIZE / 2.0) / TERRAIN_SIZE;
-                sculptUvPos.y = (intersectPoint.z + TERRAIN_SIZE / 2.0) / TERRAIN_SIZE;
+				sculptTerrain(GpuSkulpt.REMOVE);
 			}
 
 		}
@@ -631,7 +482,7 @@
 	{
 		event.preventDefault();
 
-		// skulpt.hideCursor();
+		// gpuSkulpt.hideCursor();
 
 		if (event.ctrlKey)
 		{
@@ -643,17 +494,11 @@
 			{
 				if (event.button === 0)  //LMB
 				{
-					// sculptTerrain('add');
-					rttQuadMaterial.uniforms['uSculptType'].value = 1;
-					sculptUvPos.x = (intersectPoint.x + TERRAIN_SIZE / 2.0) / TERRAIN_SIZE;
-					sculptUvPos.y = (intersectPoint.z + TERRAIN_SIZE / 2.0) / TERRAIN_SIZE;
+					sculptTerrain(GpuSkulpt.ADD);
 				}
 				else if (event.button === 2)  //RMB
 				{
-					// sculptTerrain('remove');
-					rttQuadMaterial.uniforms['uSculptType'].value = 2;
-					sculptUvPos.x = (intersectPoint.x + TERRAIN_SIZE / 2.0) / TERRAIN_SIZE;
-					sculptUvPos.y = (intersectPoint.z + TERRAIN_SIZE / 2.0) / TERRAIN_SIZE;
+					sculptTerrain(GpuSkulpt.REMOVE);
 				}
 			}
 		}
@@ -710,21 +555,21 @@
 		intersectPoint = detectIntersection();
 		if (intersectPoint)
 		{
-			// skulpt.updateCursor(intersectPoint, skulptTerrainMesh);
-			// skulpt.showCursor();
+			// gpuSkulpt.updateCursor(intersectPoint, skulptTerrainMesh);
+			// gpuSkulpt.showCursor();
 		}
 		else
 		{
-			// skulpt.hideCursor();
+			// gpuSkulpt.hideCursor();
 		}
 	}
 
 	function sculptTerrain(operation)
 	{
-		// skulpt.hideCursor();
-		// skulpt.setBrush(operation);
-		// skulpt.showCursor();
-		// skulpt.sculpt(intersectPoint);
+		// gpuSkulpt.hideCursor();
+		// gpuSkulpt.setBrush(operation);
+		// gpuSkulpt.showCursor();
+		gpuSkulpt.sculpt(operation, intersectPoint, options.amount);
 	}
 
 	function updateGeometry(geometry, fullUpdate)
@@ -745,7 +590,7 @@
 	}
 
 	var terrainGeom, terrainMaterial, terrainMesh, skulptTerrainMesh;
-	var skulpt;
+	var gpuSkulpt;
 	var baseLayer, sculptLayer;
 	function setupSkulpt()
 	{
@@ -755,42 +600,20 @@
 		terrainGeom.computeFaceNormals();
 	    terrainGeom.computeVertexNormals();
 	    terrainGeom.normalsNeedUpdate = true;
-		terrainMaterial = new THREE.ShaderMaterial({
-		    uniforms: {
-		        uBaseTexture: { type: 't', value: null },
-		        uTexture1: { type: 't', value: rttRenderTarget1 },
-		        uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / TERRAIN_RES, 1.0 / TERRAIN_RES) },
-		        uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(TERRAIN_GRID_SIZE, TERRAIN_GRID_SIZE) },
-		        uHeightMultiplier: { type: 'f', value: 1.0 },
-		        uBaseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
-		        uAmbientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
-		        uAmbientLightIntensity: { type: 'f', value: 0.1 },
-		        uPointLight1Pos: { type: 'v3', value: new THREE.Vector3(2, 2, 2) },
-		        uPointLight1Color: { type: 'v3', value: new THREE.Vector3(1, 0, 0) },
-		        uPointLight1Intensity: { type: 'f', value: 3.0 },
-		        uPointLight1FalloffStart: { type: 'f', value: 1.0 },
-		        uPointLight1FalloffEnd: { type: 'f', value: 10.0 }
-		    },
-		    vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMapLayered.vert'),
-		    fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambert.frag')
-		});
+		terrainMaterial = new THREE.MeshPhongMaterial();
 		materials.push(terrainMaterial);
 		terrainMesh = new THREE.Mesh(terrainGeom, terrainMaterial);
 		terrainMesh.castShadow = true;
 		terrainMesh.receiveShadow = true;
 		globalTransform.add(terrainMesh);
 
-		// //create a Skulpt first
-		// skulpt = new Skulpt(globalTransform);
-//
-		// //create a SkulptMesh, add a layer
-		// skulptTerrainMesh = new SkulptTerrainMesh(terrainMesh, TERRAIN_SIZE, TERRAIN_RES);
-		// baseLayer = skulptTerrainMesh.addLayer('baseLayer');
-		// // baseLayer.addNoise(1, 0.5, 0.5, 0.5, 0, 0, 0);
-		// sculptLayer = skulptTerrainMesh.addLayer('sculptLayer1');
-//
-		// //add mesh to Skulpt
-		// skulpt.addMesh(skulptTerrainMesh, 'terrainMesh');
+		//create a GpuSkulpt
+		gpuSkulpt = new GpuSkulpt({
+		    renderer: renderer,
+			mesh: terrainMesh,
+			size: TERRAIN_SIZE,
+			res: TERRAIN_RES,
+		});
 	}
 
 	$(document).ready(function()
@@ -799,12 +622,6 @@
 		checkWebGl();
 
 		console.log('Document is ready.');
-
-		//setup shaders
-		setupShaders();
-
-		//setup RTT scene
-		setupRttScene();
 
 		//setup scene
 		setupThreejsScene();
@@ -840,14 +657,9 @@
 				sphereMesh.position.y = 1.5 + 0.25 * Math.sin(time*3+0.5);
 			}
 
-			//update RTT uniforms
-			rttQuadMaterial.uniforms['uIsSculpting'].value = isSculpting;
-			rttQuadMaterial.uniforms['uSculptPos'].value.copy(sculptUvPos);
-
 			renderer.autoClear = false;
 			renderer.clear();
-			renderer.render(rttScene, rttCamera, rttRenderTarget1, false);
-			swapRenderTargets();
+			gpuSkulpt.update();  //TODO: don't need to call every frame
 			renderer.render(scene, camera);
 
 			controls.update();
