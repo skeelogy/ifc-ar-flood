@@ -457,7 +457,7 @@
 		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[3]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[1]],
 		waterSimFloodRate: 20.0,
 		obstaclesActive: true,
 		obstaclesSeed: 1,
@@ -642,6 +642,8 @@
 			var time = clock.getElapsedTime();
 
 			controls.update();
+
+			visMaterial.map = hfWater.rttRenderTarget1;
 
 			renderer.autoClear = false;
 			renderer.clear();

@@ -37,7 +37,7 @@ function GpuHeightFieldWater(options) {
     });
     this.__defineSetter__('dampingFactor', function (value) {
         this.__dampingFactor = value;
-        this.rttQuadMaterial.uniforms.uDampingFactor.value = value;
+        this.rttQuadMesh.material.uniforms.uDampingFactor.value = value;
     });
 
     this.isDisturbing = false;
@@ -49,7 +49,7 @@ function GpuHeightFieldWater(options) {
  * Initializes the sim
  */
 GpuHeightFieldWater.prototype.init = function () {
-    this.checkExtensions();
+    this.__checkExtensions();
     this.__setupShaders();
     this.__setupRttScene();
     this.__setupVtf();
@@ -59,9 +59,34 @@ GpuHeightFieldWater.prototype.getWaterFragmentShaderUrl = function () {
 };
 GpuHeightFieldWater.prototype.__setupShaders = function () {
     THREE.ShaderManager.addShader('/glsl/passUv.vert');
+    THREE.ShaderManager.addShader('/glsl/hfWater_disturb.frag');
     THREE.ShaderManager.addShader(this.getWaterFragmentShaderUrl());
     THREE.ShaderManager.addShader('/glsl/heightMap.vert');
     THREE.ShaderManager.addShader('/glsl/lambert.frag');
+
+    this.disturbMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTexture: { type: 't', value: null },
+            uIsDisturbing: { type: 'i', value: 0 },
+            uDisturbPos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
+            uDisturbAmount: { type: 'f', value: 0.05 },
+            uDisturbRadius: { type: 'f', value: 0.0025 * this.size }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_disturb.frag')
+    });
+
+    this.waterSimMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTexture: { type: 't', value: null },
+            uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / this.res, 1.0 / this.res) },
+            uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.size / this.res, this.size / this.res) },
+            uDampingFactor: { type: 'f', value: this.__dampingFactor },
+            uDt: { type: 'f', value: 0.0 }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
+    });
 };
 /**
  * Sets up the render-to-texture scene (2 render targets by default)
@@ -80,22 +105,7 @@ GpuHeightFieldWater.prototype.__setupRttScene = function () {
 
     //create a quad which we will use to invoke the shaders
     this.rttQuadGeom = new THREE.PlaneGeometry(this.size, this.size);
-    this.rttQuadMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-            uTexture: { type: 't', value: null },
-            uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / this.res, 1.0 / this.res) },
-            uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.size / this.res, this.size / this.res) },
-            uIsDisturbing: { type: 'i', value: 0 },
-            uDisturbPos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
-            uDisturbAmount: { type: 'f', value: 0.05 },
-            uDisturbRadius: { type: 'f', value: 0.0025 * this.size },
-            uDampingFactor: { type: 'f', value: this.__dampingFactor },
-            uDt: { type: 'f', value: 0.0 }
-        },
-        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
-        fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
-    });
-    this.rttQuadMesh = new THREE.Mesh(this.rttQuadGeom, this.rttQuadMaterial);
+    this.rttQuadMesh = new THREE.Mesh(this.rttQuadGeom, this.waterSimMaterial);
     this.rttScene.add(this.rttQuadMesh);
 
     //create RTT render targets (we need two to do feedback)
@@ -139,7 +149,7 @@ GpuHeightFieldWater.prototype.__setupVtf = function () {
 /**
  * Checks for WebGL extensions. Checks for OES_texture_float_linear and vertex texture fetch capability by default.
  */
-GpuHeightFieldWater.prototype.checkExtensions = function (renderer) {
+GpuHeightFieldWater.prototype.__checkExtensions = function (renderer) {
     var context = this.renderer.context;
     if (!context.getExtension('OES_texture_float_linear')) {
         throw new Error('Extension not available: OES_texture_float_linear');
@@ -155,30 +165,30 @@ GpuHeightFieldWater.prototype.disturb = function (position, amount) {
 };
 GpuHeightFieldWater.prototype.update = function (dt) {
 
-    //update RTT uniforms
-    this.rttQuadMaterial.uniforms.uIsDisturbing.value = this.isDisturbing;
-    this.rttQuadMaterial.uniforms.uDisturbPos.value.copy(this.disturbUvPos);
-    this.rttQuadMaterial.uniforms.uDt.value = dt;
-
-    //need to rebind rttRenderTarget1 to uTexture
-    this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
-    // this.mesh.geometry.buffersNeedUpdate = true;
-    // this.mesh.geometry.uvsNeedUpdate = true;
-    // this.mesh.material.needsUpdate = true;
-
-    //turn off disturbing
-    this.isDisturbing = false;
-
-    //do the RTT and then swap targets
-    this.renderer.clear();
+    //PASS 1: disturb
+    this.rttQuadMesh.material = this.disturbMaterial;
+    this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTarget2;
+    this.rttQuadMesh.material.uniforms.uIsDisturbing.value = this.isDisturbing;
+    this.rttQuadMesh.material.uniforms.uDisturbPos.value.copy(this.disturbUvPos);
     this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
     this.swapRenderTargets();
+    this.isDisturbing = false;
+
+    //PASS 2: water sim
+    this.rttQuadMesh.material = this.waterSimMaterial;
+    this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTarget2;
+    this.rttQuadMesh.material.uniforms.uDt.value = dt;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
+    this.swapRenderTargets();
+
+    //rebind render target to water mesh to ensure vertex shader gets the right texture
+    this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
 };
 GpuHeightFieldWater.prototype.swapRenderTargets = function () {
     var temp = this.rttRenderTarget1;
     this.rttRenderTarget1 = this.rttRenderTarget2;
     this.rttRenderTarget2 = temp;
-    this.rttQuadMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
+    this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTarget2;
 };
 
 /**
@@ -202,7 +212,7 @@ GpuMuellerGdc2008Water.prototype.getWaterFragmentShaderUrl = function () {
 };
 GpuMuellerGdc2008Water.prototype.__setupRttScene = function () {
     GpuHeightFieldWater.prototype.__setupRttScene.call(this);
-    this.rttQuadMaterial.uniforms.uHorizontalSpeed = { type: 'f', value: this.horizontalSpeed };
+    this.rttQuadMesh.material.uniforms.uHorizontalSpeed = { type: 'f', value: this.horizontalSpeed };
 };
 
 /**
