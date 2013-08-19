@@ -33,7 +33,7 @@
 	<script>
 
 	var WATER_SIZE = 10;
-	var WATER_RES = 50;
+	var WATER_RES = 256;
 	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
 	var WATER_DAMPING_FACTOR = 0.8;
 	var WATER_DISTURB_AMOUNT = 0.015;
@@ -197,7 +197,7 @@
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: WATER_DAMPING_FACTOR,
-			horizontalSpeed: 3.0,
+			horizontalSpeed: 2.0,
 			// meanHeight: MEAN_WATER_HEIGHT
 		});
 		gpuMuellerGdc2008HwWater = new GpuMuellerGdc2008HwWater({
@@ -458,7 +458,7 @@
 		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[3]],
 		waterSimFloodRate: 20.0,
 		obstaclesActive: true,
 		obstaclesSeed: 1,

@@ -167,7 +167,7 @@ GpuHeightFieldWater.prototype.disturb = function (position, amount) {
     this.disturbUvPos.x = (position.x + this.halfSize) / this.size;
     this.disturbUvPos.y = (position.z + this.halfSize) / this.size;
 };
-GpuHeightFieldWater.prototype.disturbPass = function (dt) {
+GpuHeightFieldWater.prototype.disturbPass = function () {
     if (this.isDisturbing) {
         this.rttQuadMesh.material = this.disturbMaterial;
         this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTarget2;
@@ -188,7 +188,7 @@ GpuHeightFieldWater.prototype.waterSimPass = function (dt) {
 GpuHeightFieldWater.prototype.update = function (dt) {
 
     //PASS 1: disturb
-    this.disturbPass(dt);
+    this.disturbPass();
 
     //PASS 2: water sim
     this.waterSimPass(dt);
@@ -209,11 +209,15 @@ GpuHeightFieldWater.prototype.swapRenderTargets = function () {
  * @extends {GpuHeightFieldWater}
  */
 function GpuMuellerGdc2008Water(options) {
+
     if (typeof options.horizontalSpeed === 'undefined') {
         throw new Error('horizontalSpeed not specified');
     }
     this.horizontalSpeed = options.horizontalSpeed;
+
     GpuHeightFieldWater.call(this, options);
+
+    this.maxDt = this.segmentSize / this.horizontalSpeed;  //based on CFL condition
 }
 //inherit
 GpuMuellerGdc2008Water.prototype = Object.create(GpuHeightFieldWater.prototype);
@@ -225,6 +229,27 @@ GpuMuellerGdc2008Water.prototype.getWaterFragmentShaderUrl = function () {
 GpuMuellerGdc2008Water.prototype.__setupRttScene = function () {
     GpuHeightFieldWater.prototype.__setupRttScene.call(this);
     this.rttQuadMesh.material.uniforms.uHorizontalSpeed = { type: 'f', value: this.horizontalSpeed };
+};
+GpuMuellerGdc2008Water.prototype.update = function (dt) {
+
+    //fix dt for the moment because I am using the simplest integrator
+    //better to be slower than to explode
+    dt = 1.0 / 60.0;
+
+    var substeps = Math.ceil(1.5 * dt / this.maxDt);  //not always stable without a multiplier (using 1.5 now)
+    var substepDt = dt / substeps;
+
+    //PASS 1: disturb
+    this.disturbPass();
+
+    //PASS 2: water sim
+    var i;
+    for (i = 0; i < substeps; i++) {
+        this.waterSimPass(substepDt);
+    }
+
+    //rebind render target to water mesh to ensure vertex shader gets the right texture
+    this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
 };
 
 /**
@@ -333,7 +358,7 @@ GpuPipeModelWater.prototype.update = function (dt) {
     dt /= 5.0;
 
     //PASS 1: disturb
-    this.disturbPass(dt);
+    this.disturbPass();
 
     //PASS 2: calculate flux
     this.rttQuadMesh.material = this.waterSimMaterial;

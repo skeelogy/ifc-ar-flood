@@ -15,8 +15,6 @@ void main() {
     //r channel: height
     //g channel: vertical vel
 
-    float dt = 1.0 / 60.0;  //temp: setting fixed dt for now...
-
     //read texture from previous step
     vec4 t = texture2D(uTexture, vUv);
 
@@ -29,11 +27,11 @@ void main() {
                    + texture2D(uTexture,vUv+dv).r
                    + texture2D(uTexture,vUv-dv).r
                    - 4.0 * t.r) / (uTexelWorldSize.x * uTexelWorldSize.x);
-    t.g += acc * dt;  //TODO: use a better integrator
+    t.g += acc * uDt;  //TODO: use a better integrator
     t.g *= uDampingFactor;
 
     //update
-    t.r += t.g * dt;  //TODO: use a better integrator
+    t.r += t.g * uDt;  //TODO: use a better integrator
 
     //write out to texture for next step
     gl_FragColor = vec4(t.rgb, 1.0);
