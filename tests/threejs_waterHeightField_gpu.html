@@ -451,14 +451,14 @@
 		'Muller GDC2008 HelloWorld': 'gpuMuellerGdc2008HwWater'
 	};
 	var waterSimTypeSettings = {
-	    'gpuPipeModelWater': { 'disturbAmount':0.15, 'dampingFactor':0.998 },
+	    'gpuPipeModelWater': { 'disturbAmount':0.15, 'dampingFactor':0.9965 },
 	    'gpuXWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
 		'iWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
 		'gpuMuellerGdc2008Water': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
 		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[3]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
 		waterSimFloodRate: 20.0,
 		obstaclesActive: true,
 		obstaclesSeed: 1,

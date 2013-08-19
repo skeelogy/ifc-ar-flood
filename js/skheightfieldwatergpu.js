@@ -232,8 +232,7 @@ GpuMuellerGdc2008Water.prototype.__setupRttScene = function () {
 };
 GpuMuellerGdc2008Water.prototype.update = function (dt) {
 
-    //fix dt for the moment because I am using the simplest integrator
-    //better to be slower than to explode
+    //fix dt for the moment (better to be in slow-mo in extreme cases than to explode)
     dt = 1.0 / 60.0;
 
     var substeps = Math.ceil(1.5 * dt / this.maxDt);  //not always stable without a multiplier (using 1.5 now)
@@ -242,9 +241,9 @@ GpuMuellerGdc2008Water.prototype.update = function (dt) {
     //PASS 1: disturb
     this.disturbPass();
 
-    //PASS 2: water sim
     var i;
     for (i = 0; i < substeps; i++) {
+        //PASS 2: water sim
         this.waterSimPass(substepDt);
     }
 
@@ -301,6 +300,9 @@ function GpuPipeModelWater(options) {
     this.pipeLength = this.segmentSize;
     this.pipeCrossSectionArea = this.pipeLength * this.pipeLength;  //square cross-section area
     this.heightToFluxFactorNoDt = this.pipeCrossSectionArea * this.gravity / this.pipeLength;
+
+    this.maxHorizontalSpeed = 10.0;  //just an arbitrary upper-bound estimate
+    this.maxDt = this.segmentSize / this.maxHorizontalSpeed;  //based on CFL condition
 }
 //inherit
 GpuPipeModelWater.prototype = Object.create(GpuHeightFieldWater.prototype);
@@ -354,31 +356,37 @@ GpuPipeModelWater.prototype.__setupRttScene = function () {
 };
 GpuPipeModelWater.prototype.update = function (dt) {
 
-    dt = 1.0 / 60.0; //TODO: do substeps based on CFL
-    dt /= 5.0;
+    //fix dt for the moment (better to be in slow-mo in extreme cases than to explode)
+    dt = 1.0 / 60.0;
+
+    var substeps = Math.ceil(5.0 * dt / this.maxDt);  //not always stable without a multiplier
+    var substepDt = dt / substeps;
 
     //PASS 1: disturb
     this.disturbPass();
 
-    //PASS 2: calculate flux
-    this.rttQuadMesh.material = this.waterSimMaterial;
-    //TODO: get the correct render targets
-    // this.rttQuadMesh.material.uniforms.uBaseHeightTexture.value = this.rttRenderTarget2;
-    this.rttQuadMesh.material.uniforms.uHeightTexture.value = this.rttRenderTarget2;
-    this.rttQuadMesh.material.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
-    this.rttQuadMesh.material.uniforms.uHeightToFluxFactor.value = this.heightToFluxFactorNoDt * dt;
-    this.rttQuadMesh.material.uniforms.uDt.value = dt;
-    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTargetFlux1, false);
-    this.swapFluxRenderTargets();
+    var i;
+    for (i = 0; i < substeps; i++) {
 
-    //PASS 3: water sim
-    this.rttQuadMesh.material = this.waterSimMaterial2;
-    //TODO: get the correct render targets
-    this.rttQuadMesh.material.uniforms.uHeightTexture.value = this.rttRenderTarget2;
-    this.rttQuadMesh.material.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
-    this.rttQuadMesh.material.uniforms.uDt.value = dt;
-    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
-    this.swapRenderTargets();
+        //PASS 2: calculate flux
+        this.rttQuadMesh.material = this.waterSimMaterial;
+        // this.rttQuadMesh.material.uniforms.uBaseHeightTexture.value = this.rttRenderTarget2;
+        this.rttQuadMesh.material.uniforms.uHeightTexture.value = this.rttRenderTarget2;
+        this.rttQuadMesh.material.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
+        this.rttQuadMesh.material.uniforms.uHeightToFluxFactor.value = this.heightToFluxFactorNoDt * substepDt;
+        this.rttQuadMesh.material.uniforms.uDt.value = substepDt;
+        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTargetFlux1, false);
+        this.swapFluxRenderTargets();
+
+        //PASS 3: water sim
+        this.rttQuadMesh.material = this.waterSimMaterial2;
+        this.rttQuadMesh.material.uniforms.uHeightTexture.value = this.rttRenderTarget2;
+        this.rttQuadMesh.material.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
+        this.rttQuadMesh.material.uniforms.uDt.value = substepDt;
+        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
+        this.swapRenderTargets();
+
+    }
 
     //rebind render target to water mesh to ensure vertex shader gets the right texture
     this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
