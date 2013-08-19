@@ -45,6 +45,12 @@ function GpuHeightFieldWater(options) {
 
     this.isDisturbing = false;
     this.disturbUvPos = new THREE.Vector2();
+    this.disturbAmount = 0;
+    this.disturbRadius = 0.0025 * this.size;
+    this.isSourcing = false;
+    this.sourceUvPos = new THREE.Vector2();
+    this.sourceAmount = 0;
+    this.sourceRadius = 0.0025 * this.size;
 
     this.linearFloatParams = {
         minFilter: THREE.LinearFilter,
@@ -78,13 +84,17 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
     THREE.ShaderManager.addShader('/glsl/heightMap.vert');
     THREE.ShaderManager.addShader('/glsl/lambert.frag');
 
-    this.disturbMaterial = new THREE.ShaderMaterial({
+    this.disturbAndSourceMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: null },
             uIsDisturbing: { type: 'i', value: 0 },
             uDisturbPos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
-            uDisturbAmount: { type: 'f', value: 0.05 },
-            uDisturbRadius: { type: 'f', value: 0.0025 * this.size }
+            uDisturbAmount: { type: 'f', value: this.disturbAmount },
+            uDisturbRadius: { type: 'f', value: this.disturbRadius },
+            uIsSourcing: { type: 'i', value: 0 },
+            uSourcePos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
+            uSourceAmount: { type: 'f', value: this.sourceAmount },
+            uSourceRadius: { type: 'f', value: this.sourceRadius }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_disturb.frag')
@@ -166,16 +176,42 @@ GpuHeightFieldWater.prototype.disturb = function (position, amount) {
     this.isDisturbing = true;
     this.disturbUvPos.x = (position.x + this.halfSize) / this.size;
     this.disturbUvPos.y = (position.z + this.halfSize) / this.size;
+    this.disturbAmount = amount;
 };
-GpuHeightFieldWater.prototype.disturbPass = function () {
+GpuHeightFieldWater.prototype.source = function (position, amount, radius) {
+    this.isSourcing = true;
+    this.sourceUvPos.x = (position.x + this.halfSize) / this.size;
+    this.sourceUvPos.y = (position.z + this.halfSize) / this.size;
+    this.sourceAmount = amount;
+    this.sourceRadius = radius / this.size;
+};
+GpuHeightFieldWater.prototype.disturbAndSourcePass = function () {
+    var shouldRender = false;
     if (this.isDisturbing) {
-        this.rttQuadMesh.material = this.disturbMaterial;
+        this.rttQuadMesh.material = this.disturbAndSourceMaterial;
         this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTarget2;
         this.rttQuadMesh.material.uniforms.uIsDisturbing.value = this.isDisturbing;
         this.rttQuadMesh.material.uniforms.uDisturbPos.value.copy(this.disturbUvPos);
+        this.rttQuadMesh.material.uniforms.uDisturbAmount.value = this.disturbAmount;
+        shouldRender = true;
+    }
+    if (this.isSourcing) {
+        this.rttQuadMesh.material = this.disturbAndSourceMaterial;
+        this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTarget2;
+        this.rttQuadMesh.material.uniforms.uIsSourcing.value = this.isSourcing;
+        this.rttQuadMesh.material.uniforms.uSourcePos.value.copy(this.sourceUvPos);
+        this.rttQuadMesh.material.uniforms.uSourceAmount.value = this.sourceAmount;
+        this.rttQuadMesh.material.uniforms.uSourceRadius.value = this.sourceRadius;
+        shouldRender = true;
+    }
+    if (shouldRender) {
         this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
         this.swapRenderTargets();
+
         this.isDisturbing = false;
+        this.rttQuadMesh.material.uniforms.uIsDisturbing.value = false;
+        this.isSourcing = false;
+        this.rttQuadMesh.material.uniforms.uIsSourcing.value = false;
     }
 };
 GpuHeightFieldWater.prototype.waterSimPass = function (dt) {
@@ -184,11 +220,11 @@ GpuHeightFieldWater.prototype.waterSimPass = function (dt) {
     this.rttQuadMesh.material.uniforms.uDt.value = dt;
     this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
     this.swapRenderTargets();
-}
+};
 GpuHeightFieldWater.prototype.update = function (dt) {
 
     //PASS 1: disturb
-    this.disturbPass();
+    this.disturbAndSourcePass();
 
     //PASS 2: water sim
     this.waterSimPass(dt);
@@ -239,7 +275,7 @@ GpuMuellerGdc2008Water.prototype.update = function (dt) {
     var substepDt = dt / substeps;
 
     //PASS 1: disturb
-    this.disturbPass();
+    this.disturbAndSourcePass();
 
     var i;
     for (i = 0; i < substeps; i++) {
@@ -343,7 +379,6 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
         fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
     });
 
-
 };
 GpuPipeModelWater.prototype.__setupRttScene = function () {
 
@@ -363,7 +398,7 @@ GpuPipeModelWater.prototype.update = function (dt) {
     var substepDt = dt / substeps;
 
     //PASS 1: disturb
-    this.disturbPass();
+    this.disturbAndSourcePass();
 
     var i;
     for (i = 0; i < substeps; i++) {
