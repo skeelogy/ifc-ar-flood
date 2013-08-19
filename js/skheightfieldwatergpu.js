@@ -22,12 +22,10 @@ function GpuHeightFieldWater(options) {
         throw new Error('size not specified');
     }
     this.size = options.size;
-    this.halfSize = this.size / 2.0;
     if (typeof options.res === 'undefined') {
         throw new Error('res not specified');
     }
     this.res = options.res;
-    this.gridSize = this.size / this.res;
     if (typeof options.dampingFactor === 'undefined') {
         throw new Error('dampingFactor not specified');
     }
@@ -37,11 +35,27 @@ function GpuHeightFieldWater(options) {
     });
     this.__defineSetter__('dampingFactor', function (value) {
         this.__dampingFactor = value;
-        this.rttQuadMesh.material.uniforms.uDampingFactor.value = value;
+        this.waterSimMaterial.uniforms.uDampingFactor.value = value;
     });
+
+    this.halfSize = this.size / 2.0;
+    this.segmentSize = this.size / this.res;
+    this.segmentSizeSquared = this.segmentSize * this.segmentSize;
+    this.texelSize = 1.0 / this.res;
 
     this.isDisturbing = false;
     this.disturbUvPos = new THREE.Vector2();
+
+    this.linearFloatParams = {
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        wrapS: THREE.ClampToEdgeWrapping,
+        wrapT: THREE.ClampToEdgeWrapping,
+        format: THREE.RGBAFormat,
+        stencilBuffer: false,
+        depthBuffer: false,
+        type: THREE.FloatType
+    };
 
     this.init();
 }
@@ -79,7 +93,7 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
     this.waterSimMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: null },
-            uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / this.res, 1.0 / this.res) },
+            uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
             uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.size / this.res, this.size / this.res) },
             uDampingFactor: { type: 'f', value: this.__dampingFactor },
             uDt: { type: 'f', value: 0.0 }
@@ -109,17 +123,7 @@ GpuHeightFieldWater.prototype.__setupRttScene = function () {
     this.rttScene.add(this.rttQuadMesh);
 
     //create RTT render targets (we need two to do feedback)
-    var linearFloatParams = {
-        minFilter: THREE.LinearFilter,
-        magFilter: THREE.LinearFilter,
-        wrapS: THREE.ClampToEdgeWrapping,
-        wrapT: THREE.ClampToEdgeWrapping,
-        format: THREE.RGBFormat,
-        stencilBuffer: false,
-        depthBuffer: false,
-        type: THREE.FloatType
-    };
-    this.rttRenderTarget1 = new THREE.WebGLRenderTarget(this.res, this.res, linearFloatParams);
+    this.rttRenderTarget1 = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatParams);
     this.rttRenderTarget1.generateMipmaps = false;
     this.rttRenderTarget2 = this.rttRenderTarget1.clone();
 };
@@ -130,8 +134,8 @@ GpuHeightFieldWater.prototype.__setupVtf = function () {
     this.mesh.material = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: this.rttRenderTarget1 },
-            uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / this.res, 1.0 / this.res) },
-            uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.gridSize, this.gridSize) },
+            uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
+            uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.segmentSize, this.segmentSize) },
             uHeightMultiplier: { type: 'f', value: 1.0 },
             uBaseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
             uAmbientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
@@ -163,23 +167,31 @@ GpuHeightFieldWater.prototype.disturb = function (position, amount) {
     this.disturbUvPos.x = (position.x + this.halfSize) / this.size;
     this.disturbUvPos.y = (position.z + this.halfSize) / this.size;
 };
-GpuHeightFieldWater.prototype.update = function (dt) {
-
-    //PASS 1: disturb
-    this.rttQuadMesh.material = this.disturbMaterial;
-    this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTarget2;
-    this.rttQuadMesh.material.uniforms.uIsDisturbing.value = this.isDisturbing;
-    this.rttQuadMesh.material.uniforms.uDisturbPos.value.copy(this.disturbUvPos);
-    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
-    this.swapRenderTargets();
-    this.isDisturbing = false;
-
-    //PASS 2: water sim
+GpuHeightFieldWater.prototype.disturbPass = function (dt) {
+    if (this.isDisturbing) {
+        this.rttQuadMesh.material = this.disturbMaterial;
+        this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTarget2;
+        this.rttQuadMesh.material.uniforms.uIsDisturbing.value = this.isDisturbing;
+        this.rttQuadMesh.material.uniforms.uDisturbPos.value.copy(this.disturbUvPos);
+        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
+        this.swapRenderTargets();
+        this.isDisturbing = false;
+    }
+};
+GpuHeightFieldWater.prototype.waterSimPass = function (dt) {
     this.rttQuadMesh.material = this.waterSimMaterial;
     this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTarget2;
     this.rttQuadMesh.material.uniforms.uDt.value = dt;
     this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
     this.swapRenderTargets();
+}
+GpuHeightFieldWater.prototype.update = function (dt) {
+
+    //PASS 1: disturb
+    this.disturbPass(dt);
+
+    //PASS 2: water sim
+    this.waterSimPass(dt);
 
     //rebind render target to water mesh to ensure vertex shader gets the right texture
     this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
@@ -188,7 +200,7 @@ GpuHeightFieldWater.prototype.swapRenderTargets = function () {
     var temp = this.rttRenderTarget1;
     this.rttRenderTarget1 = this.rttRenderTarget2;
     this.rttRenderTarget2 = temp;
-    this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTarget2;
+    // this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTarget2;
 };
 
 /**
@@ -245,4 +257,110 @@ GpuXWater.prototype.constructor = GpuXWater;
 //override
 GpuXWater.prototype.getWaterFragmentShaderUrl = function () {
     return '/glsl/hfWater_xWater.frag';
+};
+
+
+
+/**
+ * GPU height field water based on the hydrostatic pipe model
+ * @constructor
+ * @extends {GpuHeightFieldWater}
+ */
+function GpuPipeModelWater(options) {
+    GpuHeightFieldWater.call(this, options);
+
+    //some constants
+    this.gravity = 9.81;
+    this.density = 1;
+    this.atmosPressure = 0;  //assume one constant atmos pressure throughout
+    this.pipeLength = this.segmentSize;
+    this.pipeCrossSectionArea = this.pipeLength * this.pipeLength;  //square cross-section area
+    this.heightToFluxFactorNoDt = this.pipeCrossSectionArea * this.gravity / this.pipeLength;
+}
+//inherit
+GpuPipeModelWater.prototype = Object.create(GpuHeightFieldWater.prototype);
+GpuPipeModelWater.prototype.constructor = GpuPipeModelWater;
+//override
+GpuPipeModelWater.prototype.getWaterFragmentShaderUrl = function () {
+    return '/glsl/hfWater_pipeModel.frag';
+};
+GpuPipeModelWater.prototype.__setupShaders = function () {
+
+    GpuHeightFieldWater.prototype.__setupShaders.call(this);
+
+    THREE.ShaderManager.addShader('/glsl/hfWater_pipeModel_calcFlux.frag');
+    this.waterSimMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uBaseHeightTexture: { type: 't', value: null },
+            uHeightTexture: { type: 't', value: null },
+            uFluxTexture: { type: 't', value: null },
+            uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
+            uDampingFactor: { type: 'f', value: this.__dampingFactor },
+            uHeightToFluxFactor: { type: 'f', value: 0.0 },
+            uSegmentSizeSquared: { type: 'f', value: this.segmentSizeSquared },
+            uDt: { type: 'f', value: 0.0 }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_pipeModel_calcFlux.frag')
+    });
+
+    this.waterSimMaterial2 = new THREE.ShaderMaterial({
+        uniforms: {
+            uHeightTexture: { type: 't', value: null },
+            uFluxTexture: { type: 't', value: null },
+            uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
+            uSegmentSizeSquared: { type: 'f', value: this.segmentSizeSquared },
+            uDt: { type: 'f', value: 0.0 }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
+    });
+
+
+};
+GpuPipeModelWater.prototype.__setupRttScene = function () {
+
+    GpuHeightFieldWater.prototype.__setupRttScene.call(this);
+
+    //create RTT render targets for flux (we need two to do feedback)
+    this.rttRenderTargetFlux1 = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatParams);
+    this.rttRenderTargetFlux1.generateMipmaps = false;
+    this.rttRenderTargetFlux2 = this.rttRenderTargetFlux1.clone();
+};
+GpuPipeModelWater.prototype.update = function (dt) {
+
+    dt = 1.0 / 60.0; //TODO: do substeps based on CFL
+    dt /= 5.0;
+
+    //PASS 1: disturb
+    this.disturbPass(dt);
+
+    //PASS 2: calculate flux
+    this.rttQuadMesh.material = this.waterSimMaterial;
+    //TODO: get the correct render targets
+    // this.rttQuadMesh.material.uniforms.uBaseHeightTexture.value = this.rttRenderTarget2;
+    this.rttQuadMesh.material.uniforms.uHeightTexture.value = this.rttRenderTarget2;
+    this.rttQuadMesh.material.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
+    this.rttQuadMesh.material.uniforms.uHeightToFluxFactor.value = this.heightToFluxFactorNoDt * dt;
+    this.rttQuadMesh.material.uniforms.uDt.value = dt;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTargetFlux1, false);
+    this.swapFluxRenderTargets();
+
+    //PASS 3: water sim
+    this.rttQuadMesh.material = this.waterSimMaterial2;
+    //TODO: get the correct render targets
+    this.rttQuadMesh.material.uniforms.uHeightTexture.value = this.rttRenderTarget2;
+    this.rttQuadMesh.material.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
+    this.rttQuadMesh.material.uniforms.uDt.value = dt;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
+    this.swapRenderTargets();
+
+    //rebind render target to water mesh to ensure vertex shader gets the right texture
+    this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
+};
+GpuPipeModelWater.prototype.swapFluxRenderTargets = function () {
+    var temp = this.rttRenderTargetFlux1;
+    this.rttRenderTargetFlux1 = this.rttRenderTargetFlux2;
+    this.rttRenderTargetFlux2 = temp;
+    // this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTargetFlux2;
 };
