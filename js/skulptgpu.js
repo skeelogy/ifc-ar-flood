@@ -35,6 +35,17 @@ function GpuSkulpt(options) {
     this.isSculpting = false;
     this.sculptUvPos = new THREE.Vector2();
 
+    this.linearFloatParams = {
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        wrapS: THREE.ClampToEdgeWrapping,
+        wrapT: THREE.ClampToEdgeWrapping,
+        format: THREE.RGBFormat,
+        stencilBuffer: false,
+        depthBuffer: false,
+        type: THREE.FloatType
+    };
+
     this.init();
 }
 GpuSkulpt.prototype.init = function () {
@@ -53,10 +64,37 @@ GpuSkulpt.prototype.__checkExtensions = function (renderer) {
     }
 };
 GpuSkulpt.prototype.__setupShaders = function () {
+
     THREE.ShaderManager.addShader('/glsl/passUv.vert');
     THREE.ShaderManager.addShader('/glsl/skulpt.frag');
-    THREE.ShaderManager.addShader('/glsl/heightMapLayered.vert');
+    THREE.ShaderManager.addShader('/glsl/heightMap.vert');
     THREE.ShaderManager.addShader('/glsl/lambert.frag');
+    THREE.ShaderManager.addShader('/glsl/combineTextures.frag');
+
+    this.skulptMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uBaseTexture: { type: 't', value: null },
+            uSculptTexture1: { type: 't', value: null },
+            uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / this.res, 1.0 / this.res) },
+            uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(TERRAIN_SIZE / this.res, TERRAIN_SIZE / this.res) },
+            uIsSculpting: { type: 'i', value: 0 },
+            uSculptType: { type: 'i', value: 0 },
+            uSculptPos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
+            uSculptAmount: { type: 'f', value: 0.05 },
+            uSculptRadius: { type: 'f', value: 0.0025 * TERRAIN_SIZE }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/skulpt.frag')
+    });
+
+    this.combineTexturesMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTexture1: { type: 't', value: null },
+            uTexture2: { type: 't', value: null }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTextures.frag')
+    });
 };
 /**
  * Sets up the render-to-texture scene (2 render targets for accumulative feedback)
@@ -73,38 +111,16 @@ GpuSkulpt.prototype.__setupRttScene = function () {
 
     //create a quad which we will use to invoke the shaders
     this.rttQuadGeom = new THREE.PlaneGeometry(this.size, this.size);
-    this.rttQuadMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-            uBaseTexture: { type: 't', value: null },
-            uSculptTexture1: { type: 't', value: null },
-            uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / this.res, 1.0 / this.res) },
-            uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(TERRAIN_SIZE / this.res, TERRAIN_SIZE / this.res) },
-            uIsSculpting: { type: 'i', value: 0 },
-            uSculptType: { type: 'i', value: 0 },
-            uSculptPos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
-            uSculptAmount: { type: 'f', value: 0.05 },
-            uSculptRadius: { type: 'f', value: 0.0025 * TERRAIN_SIZE }
-        },
-        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
-        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/skulpt.frag')
-    });
-    this.rttQuadMesh = new THREE.Mesh(this.rttQuadGeom, this.rttQuadMaterial);
+    this.rttQuadMesh = new THREE.Mesh(this.rttQuadGeom, this.skulptMaterial);
     this.rttScene.add(this.rttQuadMesh);
 
     //create RTT render targets (we need two to do feedback)
-    var linearFloatParams = {
-        minFilter: THREE.LinearFilter,
-        magFilter: THREE.LinearFilter,
-        wrapS: THREE.ClampToEdgeWrapping,
-        wrapT: THREE.ClampToEdgeWrapping,
-        format: THREE.RGBFormat,
-        stencilBuffer: false,
-        depthBuffer: false,
-        type: THREE.FloatType
-    };
-    this.rttRenderTarget1 = new THREE.WebGLRenderTarget(this.res, this.res, linearFloatParams);
+    this.rttRenderTarget1 = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatParams);
     this.rttRenderTarget1.generateMipmaps = false;
     this.rttRenderTarget2 = this.rttRenderTarget1.clone();
+
+    //create a RTT render target for storing the combine results of all layers
+    this.rttCombinedLayer = this.rttRenderTarget1.clone();
 };
 /**
  * Sets up the vertex-texture-fetch for the given mesh
@@ -112,8 +128,7 @@ GpuSkulpt.prototype.__setupRttScene = function () {
 GpuSkulpt.prototype.__setupVtf = function () {
     this.mesh.material = new THREE.ShaderMaterial({
         uniforms: {
-            uBaseTexture: { type: 't', value: null },
-            uTexture1: { type: 't', value: null },
+            uTexture: { type: 't', value: null },
             uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / this.res, 1.0 / this.res) },
             uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.gridSize, this.gridSize) },
             uHeightMultiplier: { type: 'f', value: 1.0 },
@@ -126,38 +141,39 @@ GpuSkulpt.prototype.__setupVtf = function () {
             uPointLight1FalloffStart: { type: 'f', value: 1.0 },
             uPointLight1FalloffEnd: { type: 'f', value: 10.0 }
         },
-        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMapLayered.vert'),
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMap.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambert.frag')
     });
 };
 GpuSkulpt.prototype.update = function () {
 
-    //update RTT uniforms
-    this.rttQuadMaterial.uniforms.uIsSculpting.value = this.isSculpting;
-    this.rttQuadMaterial.uniforms.uSculptPos.value.copy(this.sculptUvPos);
-
-    //need to rebind rttRenderTarget1 to uTexture
-    this.mesh.material.uniforms.uTexture1.value = this.rttRenderTarget1;
-
-    //turn off sculpting
+    //do the main sculpting
+    this.rttQuadMesh.material = this.skulptMaterial;
+    this.skulptMaterial.uniforms.uIsSculpting.value = this.isSculpting;
+    this.skulptMaterial.uniforms.uSculptPos.value.copy(this.sculptUvPos);
     this.isSculpting = false;
-
-    //do the RTT and then swap targets
-    this.renderer.clear();
     this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
     this.swapRenderTargets();
+
+    //combine layers into one
+    this.rttQuadMesh.material = this.combineTexturesMaterial;
+    this.combineTexturesMaterial.uniforms.uTexture2.value = this.rttRenderTarget1;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttCombinedLayer, false);
+
+    //need to rebind rttCombinedLayer to uTexture
+    this.mesh.material.uniforms.uTexture.value = this.rttCombinedLayer;
 };
 GpuSkulpt.prototype.swapRenderTargets = function () {
     var temp = this.rttRenderTarget1;
     this.rttRenderTarget1 = this.rttRenderTarget2;
     this.rttRenderTarget2 = temp;
-    this.rttQuadMaterial.uniforms.uSculptTexture1.value = this.rttRenderTarget2;
+    this.skulptMaterial.uniforms.uSculptTexture1.value = this.rttRenderTarget2;
 };
 GpuSkulpt.prototype.setBrushSize = function (size) {
-    this.rttQuadMaterial.uniforms['uSculptRadius'].value = size / (this.size * 2.0);
+    this.skulptMaterial.uniforms['uSculptRadius'].value = size / (this.size * 2.0);
 };
 GpuSkulpt.prototype.setBrushAmount = function (amount) {
-    this.rttQuadMaterial.uniforms['uSculptAmount'].value = amount;
+    this.skulptMaterial.uniforms['uSculptAmount'].value = amount;
 };
 GpuSkulpt.prototype.loadFromImageData = function (data, amount, midGreyIsLowest)
 {
@@ -187,33 +203,28 @@ GpuSkulpt.prototype.loadFromImageData = function (data, amount, midGreyIsLowest)
     //assign data to DataTexture
     this.imageDataTexture.image.data = this.imageProcessedData;
     this.imageDataTexture.needsUpdate = true;
-    this.rttQuadMaterial.uniforms['uBaseTexture'].value = this.imageDataTexture;
-    this.mesh.material.uniforms['uBaseTexture'].value = this.imageDataTexture;
+    this.skulptMaterial.uniforms['uBaseTexture'].value = this.imageDataTexture;
+    this.combineTexturesMaterial.uniforms['uTexture1'].value = this.imageDataTexture;
+    // this.mesh.material.uniforms['uBaseTexture'].value = this.imageDataTexture;
 }
 GpuSkulpt.prototype.sculpt = function (type, position, amount) {
-    this.rttQuadMaterial.uniforms['uSculptType'].value = type;
+    this.skulptMaterial.uniforms['uSculptType'].value = type;
     this.isSculpting = true;
     this.sculptUvPos.x = (position.x + this.halfSize) / this.size;
     this.sculptUvPos.y = (position.z + this.halfSize) / this.size;
 };
 GpuSkulpt.prototype.clear = function () {
+
     //create RTT render targets (we need two to do feedback)
-    var linearFloatParams = {
-        minFilter: THREE.LinearFilter,
-        magFilter: THREE.LinearFilter,
-        wrapS: THREE.ClampToEdgeWrapping,
-        wrapT: THREE.ClampToEdgeWrapping,
-        format: THREE.RGBFormat,
-        stencilBuffer: false,
-        depthBuffer: false,
-        type: THREE.FloatType
-    };
-    this.rttRenderTarget1 = new THREE.WebGLRenderTarget(this.res, this.res, linearFloatParams);
+    this.rttRenderTarget1 = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatParams);
     this.rttRenderTarget1.generateMipmaps = false;
     this.rttRenderTarget2 = this.rttRenderTarget1.clone();
 
-    this.rttQuadMaterial.uniforms['uSculptTexture1'].value = this.rttRenderTarget1;
-    this.mesh.material.uniforms['uTexture1'].value = this.rttRenderTarget1;
+    //create a RTT render target for storing the combine results of all layers
+    this.rttCombinedLayer = this.rttRenderTarget1.clone();
+    console.log('aa');
+    this.skulptMaterial.uniforms['uSculptTexture1'].value = this.rttRenderTarget1;
+    this.mesh.material.uniforms['uTexture'].value = this.rttRenderTarget1;
 };
 
 GpuSkulpt.ADD = 1;
