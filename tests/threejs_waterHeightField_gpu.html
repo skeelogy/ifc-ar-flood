@@ -451,7 +451,7 @@
 		'Muller GDC2008 HelloWorld': 'gpuMuellerGdc2008HwWater'
 	};
 	var waterSimTypeSettings = {
-	    'gpuPipeModelWater': { 'disturbAmount':0.15, 'dampingFactor':0.9965 },
+	    'gpuPipeModelWater': { 'disturbAmount':0.15, 'dampingFactor':0.995 },
 	    'gpuXWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
 		'iWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
 		'gpuMuellerGdc2008Water': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
@@ -645,11 +645,13 @@
 			controls.update();
 
 			visMaterial.map = hfWater.rttRenderTarget1;
+			// visMaterial.map = hfWater.rttRenderTargetFlux1;
 
 			renderer.autoClear = false;
 			renderer.clear();
 			hfWater.update(dt);  //have to do this after clear but before render
 			renderer.render(scene, camera);
+			renderer.setClearColor('0x111111', 1);
 
 			stats.update();
 
