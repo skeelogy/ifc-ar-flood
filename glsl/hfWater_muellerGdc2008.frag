@@ -34,5 +34,5 @@ void main() {
     t.r += t.g * uDt;  //TODO: use a better integrator
 
     //write out to texture for next step
-    gl_FragColor = vec4(t.rgb, 1.0);
+    gl_FragColor = t;
 }

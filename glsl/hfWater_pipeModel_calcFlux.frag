@@ -9,7 +9,7 @@ uniform float uDampingFactor;
 uniform float uHeightToFluxFactor;
 uniform float uSegmentSizeSquared;
 uniform float uDt;
-uniform float uMinHeight;
+uniform float uMinWaterHeight;
 
 varying vec2 vUv;
 
@@ -82,10 +82,10 @@ void main() {
     //TODO: stop flow velocity if pipe flows to an obstacle
 
     //scale down outflow if it is more than available volume in the column
-    float currVol = (waterHeight - uMinHeight) * uSegmentSizeSquared;
+    float currVol = (waterHeight - uMinWaterHeight) * uSegmentSizeSquared;
     float outVol = uDt * (tFlux.r + tFlux.g + tFlux.b + tFlux.a);
     tFlux *= min(1.0, currVol / outVol);
 
     //write out to texture for next step
-    gl_FragColor = vec4(tFlux.rgba);
+    gl_FragColor = tFlux;
 }

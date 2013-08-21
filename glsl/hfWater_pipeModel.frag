@@ -7,7 +7,7 @@ uniform sampler2D uFluxTexture;
 uniform vec2 uTexelSize;
 uniform float uSegmentSizeSquared;
 uniform float uDt;
-uniform float uMinHeight;
+uniform float uMinWaterHeight;
 
 varying vec2 vUv;
 
@@ -42,7 +42,7 @@ void main() {
                     + texture2D(uFluxTexture, vUv-dv).a;
     float dV = (fluxIn - fluxOut) * uDt;
     waterHeight += dV / (uSegmentSizeSquared);
-    waterHeight = max(uMinHeight, waterHeight);
+    waterHeight = max(uMinWaterHeight, waterHeight);
 
     //TODO: calculate horizontal velocities
 
@@ -50,5 +50,5 @@ void main() {
     tWater.r = tTerrain.r + waterHeight;
 
     //write out to texture for next step
-    gl_FragColor = vec4(tWater.rgb, 1.0);
+    gl_FragColor = tWater;
 }

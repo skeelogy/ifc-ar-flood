@@ -28,5 +28,5 @@ void main() {
     t.r += t.g;
 
     //write out to texture for next step
-    gl_FragColor = vec4(t.rgb, 1.0);
+    gl_FragColor = t;
 }
