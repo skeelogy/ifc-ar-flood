@@ -222,7 +222,6 @@ GpuSkulpt.prototype.clear = function () {
 
     //create a RTT render target for storing the combine results of all layers
     this.rttCombinedLayer = this.rttRenderTarget1.clone();
-    console.log('aa');
     this.skulptMaterial.uniforms['uSculptTexture1'].value = this.rttRenderTarget1;
     this.mesh.material.uniforms['uTexture'].value = this.rttRenderTarget1;
 };
