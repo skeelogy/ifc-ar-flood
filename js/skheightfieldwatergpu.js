@@ -330,11 +330,16 @@ GpuXWater.prototype.getWaterFragmentShaderUrl = function () {
 function GpuPipeModelWater(options) {
 
     this.initialWaterHeight = options.initialWaterHeight || 0.0;
+    if (options.terrainTexture) {
+        this.terrainTexture = options.terrainTexture;
+    } else {
+        //need an empty texture
+        this.terrainTexture = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatParams);
+        this.terrainTexture.generateMipmaps = false;
+    }
     this.minHeight = -0.05;
 
     GpuHeightFieldWater.call(this, options);
-
-    this.baseHeightTexture = options.baseHeightTexture || this.rttRenderTargetFlux1.clone();  //need an empty texture
 
     //some constants
     this.gravity = 9.81;
@@ -346,6 +351,8 @@ function GpuPipeModelWater(options) {
 
     this.maxHorizontalSpeed = 10.0;  //just an arbitrary upper-bound estimate
     this.maxDt = this.segmentSize / this.maxHorizontalSpeed;  //based on CFL condition
+
+    this.__initCounter = 5;
 }
 //inherit
 GpuPipeModelWater.prototype = Object.create(GpuHeightFieldWater.prototype);
@@ -369,7 +376,7 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
             uHeightToFluxFactor: { type: 'f', value: 0.0 },
             uSegmentSizeSquared: { type: 'f', value: this.segmentSizeSquared },
             uDt: { type: 'f', value: 0.0 },
-            uMinHeight: { type: 'f', value: this.minHeight }
+            uMinWaterHeight: { type: 'f', value: this.minHeight }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_pipeModel_calcFlux.frag')
@@ -383,21 +390,26 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
             uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
             uSegmentSizeSquared: { type: 'f', value: this.segmentSizeSquared },
             uDt: { type: 'f', value: 0.0 },
-            uMinHeight: { type: 'f', value: this.minHeight }
+            uMinWaterHeight: { type: 'f', value: this.minHeight }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
     });
+
+    THREE.ShaderManager.addShader('/glsl/combineTextureFloat.frag');
+    this.combineTextureFloatMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTexture: { type: 't', value: null },
+            uOffset: { type: 'f', value: this.initialWaterHeight }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTextureFloat.frag')
+    });
+
 };
 GpuPipeModelWater.prototype.__setupRttScene = function () {
 
     GpuHeightFieldWater.prototype.__setupRttScene.call(this);
-
-    //init rttRenderTarget2 to initial height value by clearing it
-    //TODO: unable to clear values more than 1
-    this.renderer.setClearColor(new THREE.Color().setRGB(this.initialWaterHeight, this.initialWaterHeight, this.initialWaterHeight), 1);
-    this.renderer.clearTarget(this.rttRenderTarget2);
-    // this.renderer.setClearColor('0x000000', 1);  //FIXME: this statement seems to override the first, even though it is called after clearTarget()
 
     //create RTT render targets for flux (we need two to do feedback)
     this.rttRenderTargetFlux1 = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatParams);
@@ -406,10 +418,23 @@ GpuPipeModelWater.prototype.__setupRttScene = function () {
 };
 GpuPipeModelWater.prototype.update = function (dt) {
 
+    //NOTE: unable to figure out why this.terrainTexture has no data until a few updates later,
+    //so using this dirty hack to init for the first few frames
+    if (this.__initCounter > 0) {
+        //init rttRenderTarget2 to initial height value + terrain height
+        this.rttQuadMesh.material = this.combineTextureFloatMaterial;
+        this.combineTextureFloatMaterial.uniforms.uTexture.value = this.terrainTexture;
+        this.combineTextureFloatMaterial.uniforms.uOffset.value = this.initialWaterHeight;
+        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget2, false);
+        this.__initCounter -= 1;
+        return;
+    }
+
     //fix dt for the moment (better to be in slow-mo in extreme cases than to explode)
     dt = 1.0 / 60.0;
 
-    var substeps = Math.ceil(5.0 * dt / this.maxDt);  //not always stable without a multiplier
+    //TODO: change back
+    var substeps = 5; //Math.ceil(5.0 * dt / this.maxDt);  //not always stable without a multiplier
     var substepDt = dt / substeps;
 
     //PASS 1: disturb
@@ -420,7 +445,7 @@ GpuPipeModelWater.prototype.update = function (dt) {
 
         //PASS 2: calculate flux
         this.rttQuadMesh.material = this.waterSimMaterial;
-        this.rttQuadMesh.material.uniforms.uTerrainTexture.value = this.baseHeightTexture;
+        this.rttQuadMesh.material.uniforms.uTerrainTexture.value = this.terrainTexture;
         this.rttQuadMesh.material.uniforms.uWaterTexture.value = this.rttRenderTarget2;
         this.rttQuadMesh.material.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
         this.rttQuadMesh.material.uniforms.uHeightToFluxFactor.value = this.heightToFluxFactorNoDt * substepDt;
@@ -430,7 +455,7 @@ GpuPipeModelWater.prototype.update = function (dt) {
 
         //PASS 3: water sim
         this.rttQuadMesh.material = this.waterSimMaterial2;
-        this.rttQuadMesh.material.uniforms.uTerrainTexture.value = this.baseHeightTexture;
+        this.rttQuadMesh.material.uniforms.uTerrainTexture.value = this.terrainTexture;
         this.rttQuadMesh.material.uniforms.uWaterTexture.value = this.rttRenderTarget2;
         this.rttQuadMesh.material.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
         this.rttQuadMesh.material.uniforms.uDt.value = substepDt;
