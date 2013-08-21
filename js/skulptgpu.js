@@ -76,12 +76,12 @@ GpuSkulpt.prototype.__setupShaders = function () {
             uBaseTexture: { type: 't', value: null },
             uSculptTexture1: { type: 't', value: null },
             uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / this.res, 1.0 / this.res) },
-            uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(TERRAIN_SIZE / this.res, TERRAIN_SIZE / this.res) },
+            uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.size / this.res, this.size / this.res) },
             uIsSculpting: { type: 'i', value: 0 },
             uSculptType: { type: 'i', value: 0 },
             uSculptPos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
             uSculptAmount: { type: 'f', value: 0.05 },
-            uSculptRadius: { type: 'f', value: 0.0025 * TERRAIN_SIZE }
+            uSculptRadius: { type: 'f', value: 0.0025 * this.size }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/skulpt.frag')
@@ -170,10 +170,10 @@ GpuSkulpt.prototype.swapRenderTargets = function () {
     this.skulptMaterial.uniforms.uSculptTexture1.value = this.rttRenderTarget2;
 };
 GpuSkulpt.prototype.setBrushSize = function (size) {
-    this.skulptMaterial.uniforms['uSculptRadius'].value = size / (this.size * 2.0);
+    this.skulptMaterial.uniforms.uSculptRadius.value = size / (this.size * 2.0);
 };
 GpuSkulpt.prototype.setBrushAmount = function (amount) {
-    this.skulptMaterial.uniforms['uSculptAmount'].value = amount;
+    this.skulptMaterial.uniforms.uSculptAmount.value = amount;
 };
 GpuSkulpt.prototype.loadFromImageData = function (data, amount, midGreyIsLowest)
 {
@@ -203,12 +203,12 @@ GpuSkulpt.prototype.loadFromImageData = function (data, amount, midGreyIsLowest)
     //assign data to DataTexture
     this.imageDataTexture.image.data = this.imageProcessedData;
     this.imageDataTexture.needsUpdate = true;
-    this.skulptMaterial.uniforms['uBaseTexture'].value = this.imageDataTexture;
-    this.combineTexturesMaterial.uniforms['uTexture1'].value = this.imageDataTexture;
-    // this.mesh.material.uniforms['uBaseTexture'].value = this.imageDataTexture;
-}
+    this.skulptMaterial.uniforms.uBaseTexture.value = this.imageDataTexture;
+    this.combineTexturesMaterial.uniforms.uTexture1.value = this.imageDataTexture;
+    // this.mesh.material.uniforms.uBaseTexture.value = this.imageDataTexture;
+};
 GpuSkulpt.prototype.sculpt = function (type, position, amount) {
-    this.skulptMaterial.uniforms['uSculptType'].value = type;
+    this.skulptMaterial.uniforms.uSculptType.value = type;
     this.isSculpting = true;
     this.sculptUvPos.x = (position.x + this.halfSize) / this.size;
     this.sculptUvPos.y = (position.z + this.halfSize) / this.size;
@@ -222,8 +222,8 @@ GpuSkulpt.prototype.clear = function () {
 
     //create a RTT render target for storing the combine results of all layers
     this.rttCombinedLayer = this.rttRenderTarget1.clone();
-    this.skulptMaterial.uniforms['uSculptTexture1'].value = this.rttRenderTarget1;
-    this.mesh.material.uniforms['uTexture'].value = this.rttRenderTarget1;
+    this.skulptMaterial.uniforms.uSculptTexture1.value = this.rttRenderTarget1;
+    this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
 };
 
 GpuSkulpt.ADD = 1;
