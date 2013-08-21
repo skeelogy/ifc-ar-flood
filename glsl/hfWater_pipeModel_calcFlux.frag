@@ -37,44 +37,19 @@ void main() {
     //a channel: fluxT
     vec4 tFlux = texture2D(uFluxTexture, vUv);
 
-    //damp all fluxes
-    tFlux *= uDampingFactor;
-
-    vec2 offsetUv;
-    float dHeight;
-
-    if (waterHeight <= uMinHeight) {
-
+    if (waterHeight <= uMinWaterHeight) {
         tFlux.r = 0.0;
         tFlux.g = 0.0;
         tFlux.b = 0.0;
         tFlux.a = 0.0;
-
     } else {
-
-        //calculate flux R
-        offsetUv = vUv + du;
-        dHeight = totalHeight - (texture2D(uWaterTexture, offsetUv).r);
-        tFlux.r += dHeight * uHeightToFluxFactor;
-        tFlux.r = max(0.0, tFlux.r);
-
-        //calculate flux L
-        offsetUv = vUv - du;
-        dHeight = totalHeight - (texture2D(uWaterTexture, offsetUv).r);
-        tFlux.g += dHeight * uHeightToFluxFactor;
-        tFlux.g = max(0.0, tFlux.g);
-
-        //calculate flux B
-        offsetUv = vUv - dv;
-        dHeight = totalHeight - (texture2D(uWaterTexture, offsetUv).r);
-        tFlux.b += dHeight * uHeightToFluxFactor;
-        tFlux.b = max(0.0, tFlux.b);
-
-        //calculate flux T
-        offsetUv = vUv + dv;
-        dHeight = totalHeight - (texture2D(uWaterTexture, offsetUv).r);
-        tFlux.a += dHeight * uHeightToFluxFactor;
-        tFlux.a = max(0.0, tFlux.a);
+        tFlux *= uDampingFactor;
+        vec4 neighbourTotalHeights = vec4(texture2D(uWaterTexture, vUv + du).r,
+                                          texture2D(uWaterTexture, vUv - du).r,
+                                          texture2D(uWaterTexture, vUv - dv).r,
+                                          texture2D(uWaterTexture, vUv + dv).r);
+        tFlux += (totalHeight - neighbourTotalHeights) * uHeightToFluxFactor;
+        tFlux = max(vec4(0.0), tFlux);
     }
 
     //TODO: set flux to boundaries to zero
