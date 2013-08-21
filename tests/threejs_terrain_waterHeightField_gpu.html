@@ -997,14 +997,16 @@
 			}
 
 			// visMaterial.map = gpuSkulpt.rttCombinedLayer;
-			visMaterial.map = hfWater.rttRenderTarget1;
+			// visMaterial.map = hfWater.rttRenderTarget1;
+			// visMaterial.map = hfWater.terrainTexture;
+			visMaterial.map = hfWater.rttCombinedHeight;
+			// visMaterial.map = hfWater.rttRenderTargetFlux1;
 
 			renderer.autoClear = false;
 			renderer.clear();
 			gpuSkulpt.update();
 			hfWater.update(dt);
 			renderer.render(scene, camera);
-			renderer.setClearColor('0x111111', 1);
 
 			controls.update();
 

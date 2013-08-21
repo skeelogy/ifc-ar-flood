@@ -19,16 +19,16 @@ void main() {
     vec2 dv = vec2(0.0, uTexelSize.g);
 
     //read terrain texture
-    //r channel: height
+    //r channel: terrain height
     vec4 tTerrain = texture2D(uTerrainTexture, vUv);
 
     //read water texture
-    //r channel: total height
+    //r channel: water height
     //g, b channels: vel
     vec4 tWater = texture2D(uWaterTexture, vUv);
 
-    float totalHeight = tWater.r;
-    float waterHeight = totalHeight - tTerrain.r;
+    float waterHeight = tWater.r;
+    float totalHeight = tTerrain.r + waterHeight;
 
     //read flux texture
     //r channel: fluxR
@@ -44,10 +44,10 @@ void main() {
         tFlux.a = 0.0;
     } else {
         tFlux *= uDampingFactor;
-        vec4 neighbourTotalHeights = vec4(texture2D(uWaterTexture, vUv + du).r,
-                                          texture2D(uWaterTexture, vUv - du).r,
-                                          texture2D(uWaterTexture, vUv - dv).r,
-                                          texture2D(uWaterTexture, vUv + dv).r);
+        vec4 neighbourTotalHeights = vec4(texture2D(uWaterTexture, vUv + du).r + texture2D(uTerrainTexture, vUv + du).r,
+                                          texture2D(uWaterTexture, vUv - du).r + texture2D(uTerrainTexture, vUv - du).r,
+                                          texture2D(uWaterTexture, vUv - dv).r + texture2D(uTerrainTexture, vUv - dv).r,
+                                          texture2D(uWaterTexture, vUv + dv).r + texture2D(uTerrainTexture, vUv + dv).r);
         tFlux += (totalHeight - neighbourTotalHeights) * uHeightToFluxFactor;
         tFlux = max(vec4(0.0), tFlux);
     }

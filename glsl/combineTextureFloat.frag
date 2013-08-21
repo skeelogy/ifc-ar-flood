@@ -7,5 +7,5 @@ uniform float uOffset;
 varying vec2 vUv;
 
 void main() {
-    gl_FragColor = texture2D(uTexture, vUv) + vec4(vec3(uOffset), 1.0);
+    gl_FragColor = texture2D(uTexture, vUv) + vec4(uOffset);
 }
