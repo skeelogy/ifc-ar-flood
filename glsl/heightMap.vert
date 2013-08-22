@@ -19,11 +19,21 @@ void main() {
     vec3 displacedPos = vec3(position.x, t.r, position.z);
 
     //find normal
-    vec4 tu = texture2D(uTexture, vUv + vec2(uTexelSize.r, 0)) * uHeightMultiplier;
-    vec4 tv = texture2D(uTexture, vUv - vec2(0, uTexelSize.g)) * uHeightMultiplier;
-    vec3 tangent = vec3(displacedPos.x+uTexelWorldSize.r, tu.r, displacedPos.z) - displacedPos;
-    vec3 bitangent = vec3(displacedPos.x, tv.r, displacedPos.z+uTexelWorldSize.g) - displacedPos;
-    vNormal = normalize(cross(bitangent, tangent));
+    vec2 du = vec2(uTexelSize.r, 0.0);
+    vec2 dv = vec2(0.0, uTexelSize.g);
+    vec3 vecPosU = vec3(displacedPos.x + uTexelWorldSize.r,
+                        texture2D(uTexture, vUv + du).r * uHeightMultiplier,
+                        displacedPos.z) - displacedPos;
+    vec3 vecNegU = vec3(displacedPos.x - uTexelWorldSize.r,
+                        texture2D(uTexture, vUv - du).r * uHeightMultiplier,
+                        displacedPos.z) - displacedPos;
+    vec3 vecPosV = vec3(displacedPos.x,
+                        texture2D(uTexture, vUv + dv).r * uHeightMultiplier,
+                        displacedPos.z - uTexelWorldSize.g) - displacedPos;
+    vec3 vecNegV = vec3(displacedPos.x,
+                        texture2D(uTexture, vUv - dv).r * uHeightMultiplier,
+                        displacedPos.z + uTexelWorldSize.g) - displacedPos;
+    vNormal = 0.25 * (normalize(cross(vecPosU, vecPosV)) + normalize(cross(vecPosV, vecNegU)) + normalize(cross(vecNegU, vecNegV)) + normalize(cross(vecNegV, vecPosU)));
 
     vec4 pos = vec4(displacedPos, 1.0);
     vWorldPos = (modelMatrix * pos).rgb;
