@@ -33,11 +33,11 @@
 	<script>
 
 	var WATER_SIZE = 10;
-	var WATER_RES = 256;
+	var WATER_RES = 128;
 	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
 	var WATER_DAMPING_FACTOR = 0.8;
 	var WATER_DISTURB_AMOUNT = 0.015;
-	var WATER_SOURCE_AMOUNT = 0.1;
+	var WATER_SOURCE_AMOUNT = 0.2;
 	var WATER_SINK_AMOUNT = 0.5;
 	var MEAN_WATER_HEIGHT = 0;
 
@@ -473,7 +473,7 @@
 	function setupGui() {
 
 		gui = new dat.GUI({width: 350});
-		// gui.close();  //close GUI by default
+		gui.close();  //close GUI by default
 
 		//Water Sim folder
 		waterSimFolder = gui.addFolder('Water Sim');
@@ -644,8 +644,9 @@
 
 			controls.update();
 
-			visMaterial.map = hfWater.rttRenderTarget1;
+			// visMaterial.map = hfWater.rttRenderTarget1;
 			// visMaterial.map = hfWater.rttRenderTargetFlux1;
+			visMaterial.map = hfWater.rttCombinedHeight;
 
 			renderer.autoClear = false;
 			renderer.clear();

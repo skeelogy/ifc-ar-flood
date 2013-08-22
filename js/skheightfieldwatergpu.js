@@ -63,6 +63,10 @@ function GpuHeightFieldWater(options) {
         type: THREE.FloatType
     };
 
+    //create a boundary texture
+    this.boundaryData = new Float32Array(4 * this.res * this.res);
+    this.boundaryTexture = new THREE.DataTexture(null, this.res, this.res, THREE.RGBAFormat, THREE.FloatType);
+
     //create an empty texture because the default value of textures does not seem to be 0?
     this.emptyTexture = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatParams);
     this.emptyTexture.generateMipmaps = false;
@@ -77,6 +81,7 @@ GpuHeightFieldWater.prototype.init = function () {
     this.__setupShaders();
     this.__setupRttScene();
     this.__setupVtf();
+    this.__initDataAndTextures();
 };
 GpuHeightFieldWater.prototype.getWaterFragmentShaderUrl = function () {
     throw new Error('Abstract method not implemented');
@@ -176,6 +181,53 @@ GpuHeightFieldWater.prototype.__checkExtensions = function (renderer) {
     if (!context.getParameter(context.MAX_VERTEX_TEXTURE_IMAGE_UNITS)) {
         throw new Error('Vertex textures not supported on your graphics card');
     }
+};
+GpuHeightFieldWater.prototype.__initDataAndTextures = function () {
+
+    var i, j, len, idx;
+
+    //init everything to 1 first
+    for (i = 0, len = this.boundaryData.length; i < len; i++) {
+        this.boundaryData[i] = 1.0;
+    }
+
+    //init all boundary values to 0
+    j = 0;
+    for (i = 0; i < this.res; i++) {
+        idx = 4 * (i + this.res * j);
+        this.boundaryData[idx] = 0.0;
+        this.boundaryData[idx + 1] = 0.0;
+        this.boundaryData[idx + 2] = 0.0;
+        this.boundaryData[idx + 3] = 0.0;
+    }
+    j = this.res - 1;
+    for (i = 0; i < this.res; i++) {
+        idx = 4 * (i + this.res * j);
+        this.boundaryData[idx] = 0.0;
+        this.boundaryData[idx + 1] = 0.0;
+        this.boundaryData[idx + 2] = 0.0;
+        this.boundaryData[idx + 3] = 0.0;
+    }
+    i = 0;
+    for (j = 0; j < this.res; j++) {
+        idx = 4 * (i + this.res * j);
+        this.boundaryData[idx] = 0.0;
+        this.boundaryData[idx + 1] = 0.0;
+        this.boundaryData[idx + 2] = 0.0;
+        this.boundaryData[idx + 3] = 0.0;
+    }
+    i = this.res - 1;
+    for (j = 0; j < this.res; j++) {
+        idx = 4 * (i + this.res * j);
+        this.boundaryData[idx] = 0.0;
+        this.boundaryData[idx + 1] = 0.0;
+        this.boundaryData[idx + 2] = 0.0;
+        this.boundaryData[idx + 3] = 0.0;
+    }
+
+    //finally assign data to texture
+    this.boundaryTexture.image.data = this.boundaryData;
+    this.boundaryTexture.needsUpdate = true;
 };
 GpuHeightFieldWater.prototype.disturb = function (position, amount) {
     this.isDisturbing = true;
@@ -373,6 +425,7 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
             uTerrainTexture: { type: 't', value: this.emptyTexture },
             uWaterTexture: { type: 't', value: this.emptyTexture },
             uFluxTexture: { type: 't', value: this.emptyTexture },
+            uBoundaryTexture: { type: 't', value: this.emptyTexture },
             uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
             uDampingFactor: { type: 'f', value: this.__dampingFactor },
             uHeightToFluxFactor: { type: 'f', value: 0.0 },
@@ -386,7 +439,6 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
 
     this.waterSimMaterial2 = new THREE.ShaderMaterial({
         uniforms: {
-            uTerrainTexture: { type: 't', value: this.emptyTexture },
             uWaterTexture: { type: 't', value: this.emptyTexture },
             uFluxTexture: { type: 't', value: this.emptyTexture },
             uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
@@ -407,14 +459,15 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/clear.frag')
     });
 
-    THREE.ShaderManager.addShader('/glsl/combineTextures.frag');
+    THREE.ShaderManager.addShader('/glsl/combineTexturesPostMult.frag');
     this.combineTexturesMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTexture1: { type: 't', value: this.emptyTexture },
-            uTexture2: { type: 't', value: this.emptyTexture }
+            uTexture2: { type: 't', value: this.emptyTexture },
+            uMultiplyTexture: { type: 't', value: this.emptyTexture }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
-        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTextures.frag')
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTexturesPostMult.frag')
     });
 
 };
@@ -460,6 +513,7 @@ GpuPipeModelWater.prototype.update = function (dt) {
         this.waterSimMaterial.uniforms.uTerrainTexture.value = this.terrainTexture;
         this.waterSimMaterial.uniforms.uWaterTexture.value = this.rttRenderTarget2;
         this.waterSimMaterial.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
+        this.waterSimMaterial.uniforms.uBoundaryTexture.value = this.boundaryTexture;
         this.waterSimMaterial.uniforms.uHeightToFluxFactor.value = this.heightToFluxFactorNoDt * substepDt;
         this.waterSimMaterial.uniforms.uDt.value = substepDt;
         this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTargetFlux1, false);
@@ -467,7 +521,6 @@ GpuPipeModelWater.prototype.update = function (dt) {
 
         //PASS 3: water sim
         this.rttQuadMesh.material = this.waterSimMaterial2;
-        this.waterSimMaterial2.uniforms.uTerrainTexture.value = this.terrainTexture;
         this.waterSimMaterial2.uniforms.uWaterTexture.value = this.rttRenderTarget2;
         this.waterSimMaterial2.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
         this.waterSimMaterial2.uniforms.uDt.value = substepDt;
@@ -480,6 +533,7 @@ GpuPipeModelWater.prototype.update = function (dt) {
     this.rttQuadMesh.material = this.combineTexturesMaterial;
     this.combineTexturesMaterial.uniforms.uTexture1.value = this.terrainTexture;
     this.combineTexturesMaterial.uniforms.uTexture2.value = this.rttRenderTarget2;
+    this.combineTexturesMaterial.uniforms.uMultiplyTexture.value = this.boundaryTexture;
     this.renderer.render(this.rttScene, this.rttCamera, this.rttCombinedHeight, false);
 
     //rebind render target to water mesh to ensure vertex shader gets the right texture

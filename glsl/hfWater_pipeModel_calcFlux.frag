@@ -4,6 +4,7 @@
 uniform sampler2D uTerrainTexture;
 uniform sampler2D uWaterTexture;
 uniform sampler2D uFluxTexture;
+uniform sampler2D uBoundaryTexture;
 uniform vec2 uTexelSize;
 uniform float uDampingFactor;
 uniform float uHeightToFluxFactor;
@@ -37,22 +38,24 @@ void main() {
     //a channel: fluxT
     vec4 tFlux = texture2D(uFluxTexture, vUv);
 
-    if (waterHeight <= uMinWaterHeight) {
-        tFlux.r = 0.0;
-        tFlux.g = 0.0;
-        tFlux.b = 0.0;
-        tFlux.a = 0.0;
-    } else {
-        tFlux *= uDampingFactor;
-        vec4 neighbourTotalHeights = vec4(texture2D(uWaterTexture, vUv + du).r + texture2D(uTerrainTexture, vUv + du).r,
-                                          texture2D(uWaterTexture, vUv - du).r + texture2D(uTerrainTexture, vUv - du).r,
-                                          texture2D(uWaterTexture, vUv - dv).r + texture2D(uTerrainTexture, vUv - dv).r,
-                                          texture2D(uWaterTexture, vUv + dv).r + texture2D(uTerrainTexture, vUv + dv).r);
-        tFlux += (totalHeight - neighbourTotalHeights) * uHeightToFluxFactor;
-        tFlux = max(vec4(0.0), tFlux);
-    }
+    //calculate new flux
+    tFlux *= uDampingFactor;
+    vec4 neighbourTotalHeights = vec4(texture2D(uWaterTexture, vUv + du).r + texture2D(uTerrainTexture, vUv + du).r,
+                                      texture2D(uWaterTexture, vUv - du).r + texture2D(uTerrainTexture, vUv - du).r,
+                                      texture2D(uWaterTexture, vUv - dv).r + texture2D(uTerrainTexture, vUv - dv).r,
+                                      texture2D(uWaterTexture, vUv + dv).r + texture2D(uTerrainTexture, vUv + dv).r);
+    tFlux += (totalHeight - neighbourTotalHeights) * uHeightToFluxFactor;
+    tFlux = max(vec4(0.0), tFlux);
 
-    //TODO: set flux to boundaries to zero
+    //read boundary texture
+    //r channel: fluxR
+    //g channel: fluxL
+    //b channel: fluxB
+    //a channel: fluxT
+    vec4 tBoundary = texture2D(uBoundaryTexture, vUv);
+
+    //multiply flux with boundary texture to mask out fluxes
+    tFlux *= tBoundary;
 
     //TODO: stop flow velocity if pipe flows to an obstacle
 
