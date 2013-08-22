@@ -160,7 +160,7 @@ GpuHeightFieldWater.prototype.__setupVtf = function () {
             uBaseColor: { type: 'v3', value: new THREE.Vector3(0.2, 0.8, 1) },
             uAmbientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
             uAmbientLightIntensity: { type: 'f', value: 0.1 },
-            uPointLight1Pos: { type: 'v3', value: new THREE.Vector3(2, 2, 2) },
+            uPointLight1WorldPos: { type: 'v3', value: new THREE.Vector3(2, 2, 2) },
             uPointLight1Color: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
             uPointLight1Intensity: { type: 'f', value: 0.5 },
             uPointLight1FalloffStart: { type: 'f', value: 1.0 },
@@ -387,9 +387,9 @@ GpuXWater.prototype.getWaterFragmentShaderUrl = function () {
  */
 function GpuPipeModelWater(options) {
 
+    this.minWaterHeight = -0.0;
     this.initialWaterHeight = options.initialWaterHeight || 0.0;
-
-    this.minWaterHeight = -0.05;
+    this.initialWaterHeight += this.minWaterHeight;
 
     GpuHeightFieldWater.call(this, options);
 
@@ -401,6 +401,7 @@ function GpuPipeModelWater(options) {
     this.atmosPressure = 0;  //assume one constant atmos pressure throughout
     this.pipeLength = this.segmentSize;
     this.pipeCrossSectionArea = this.pipeLength * this.pipeLength;  //square cross-section area
+    this.pipeCrossSectionArea *= this.res / 10;  //scale according to resolution
     this.heightToFluxFactorNoDt = this.pipeCrossSectionArea * this.gravity / this.pipeLength;
 
     this.maxHorizontalSpeed = 10.0;  //just an arbitrary upper-bound estimate //TODO: link this to cross-section area

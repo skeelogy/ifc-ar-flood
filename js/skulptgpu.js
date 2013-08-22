@@ -135,7 +135,7 @@ GpuSkulpt.prototype.__setupVtf = function () {
             uBaseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
             uAmbientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
             uAmbientLightIntensity: { type: 'f', value: 0.1 },
-            uPointLight1Pos: { type: 'v3', value: new THREE.Vector3(2, 2, 2) },
+            uPointLight1WorldPos: { type: 'v3', value: new THREE.Vector3(2, 2, 2) },
             uPointLight1Color: { type: 'v3', value: new THREE.Vector3(1, 0, 0) },
             uPointLight1Intensity: { type: 'f', value: 3.0 },
             uPointLight1FalloffStart: { type: 'f', value: 1.0 },

@@ -123,7 +123,7 @@
 		        uBaseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
 		        uAmbientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
 		        uAmbientLightIntensity: { type: 'f', value: 0.1 },
-		        uPointLight1Pos: { type: 'v3', value: new THREE.Vector3(2, 2, 2) },
+		        uPointLight1WorldPos: { type: 'v3', value: new THREE.Vector3(2, 2, 2) },
 		        uPointLight1Color: { type: 'v3', value: new THREE.Vector3(1, 0, 0) },
 		        uPointLight1Intensity: { type: 'f', value: 3.0 },
 		        uPointLight1FalloffStart: { type: 'f', value: 1.0 },
@@ -136,6 +136,9 @@
 		planeMesh = new THREE.Mesh(planeGeom, planeMaterial);
 		planeMesh.castShadow = true;
 		planeMesh.receiveShadow = true;
+		// planeMesh.position.set(6.0, -2.0, 2.0);
+		// planeMesh.position.set(1.0, -2.0, 2.0);
+		// planeMesh.rotation.set(15.0, 15.0, 15.0);
 		scene.add(planeMesh);
 
 		//create a sphere that represents the point light
@@ -266,9 +269,9 @@
 			var time = clock.getElapsedTime();
 
 			planeMaterial.uniforms['uTime'].value += dt;
-			planeMaterial.uniforms['uPointLight1Pos'].value.x = 2 * Math.sin(time);
-			planeMaterial.uniforms['uPointLight1Pos'].value.z = 2 * Math.cos(time);
-			lightMesh.position.copy(planeMaterial.uniforms['uPointLight1Pos'].value);
+			planeMaterial.uniforms['uPointLight1WorldPos'].value.x = 2 * Math.sin(time);
+			planeMaterial.uniforms['uPointLight1WorldPos'].value.z = 2 * Math.cos(time);
+			lightMesh.position.copy(planeMaterial.uniforms['uPointLight1WorldPos'].value);
 
 			controls.update();
 

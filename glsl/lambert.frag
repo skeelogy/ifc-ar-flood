@@ -4,20 +4,20 @@
 uniform vec3 uBaseColor;
 uniform vec3 uAmbientLightColor;
 uniform float uAmbientLightIntensity;
-uniform vec3 uPointLight1Pos;
+uniform vec3 uPointLight1WorldPos;
 uniform vec3 uPointLight1Color;
 uniform float uPointLight1Intensity;
 uniform float uPointLight1FalloffStart;
 uniform float uPointLight1FalloffEnd;
 
-varying vec3 vWorldPos;
-varying vec3 vNormal;  //assume normalized
+varying vec3 vViewPos;
+varying vec3 vViewNormal;
 
 void main() {
 
-    vec3 currPosToLightVector = uPointLight1Pos - vWorldPos;
-    float normalModulator = dot(vNormal, normalize(currPosToLightVector));
-    float distanceModulator = 1.0 - smoothstep(uPointLight1FalloffStart, uPointLight1FalloffEnd, length(currPosToLightVector));
+    vec3 viewPosToViewLightVector = (viewMatrix * vec4(uPointLight1WorldPos, 1.0)).rgb - vViewPos;
+    float normalModulator = dot(normalize(vViewNormal), normalize(viewPosToViewLightVector));
+    float distanceModulator = 1.0 - smoothstep(uPointLight1FalloffStart, uPointLight1FalloffEnd, length(viewPosToViewLightVector));
 
     vec3 ambient = uAmbientLightColor * uAmbientLightIntensity;
     vec3 diffuse = distanceModulator * normalModulator * uPointLight1Color * uPointLight1Intensity;

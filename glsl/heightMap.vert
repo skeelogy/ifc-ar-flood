@@ -6,8 +6,8 @@ uniform vec2 uTexelSize;
 uniform vec2 uTexelWorldSize;
 uniform float uHeightMultiplier;
 
-varying vec3 vWorldPos;
-varying vec3 vNormal;
+varying vec3 vViewPos;
+varying vec3 vViewNormal;
 varying vec2 vUv;
 
 void main() {
@@ -33,10 +33,10 @@ void main() {
     vec3 vecNegV = vec3(displacedPos.x,
                         texture2D(uTexture, vUv - dv).r * uHeightMultiplier,
                         displacedPos.z + uTexelWorldSize.g) - displacedPos;
-    vNormal = 0.25 * (normalize(cross(vecPosU, vecPosV)) + normalize(cross(vecPosV, vecNegU)) + normalize(cross(vecNegU, vecNegV)) + normalize(cross(vecNegV, vecPosU)));
+    vViewNormal = normalize(normalMatrix * 0.25 * (cross(vecPosU, vecPosV) + cross(vecPosV, vecNegU) + cross(vecNegU, vecNegV) + cross(vecNegV, vecPosU)));
 
-    vec4 pos = vec4(displacedPos, 1.0);
-    vWorldPos = (modelMatrix * pos).rgb;
+    vec4 viewPos = modelViewMatrix * vec4(displacedPos, 1.0);
+    vViewPos = viewPos.rgb;
 
-    gl_Position = projectionMatrix * modelViewMatrix * pos;
+    gl_Position = projectionMatrix * viewPos;
 }
