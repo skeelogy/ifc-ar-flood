@@ -10,12 +10,12 @@ uniform float uPointLight1Intensity;
 uniform float uPointLight1FalloffStart;
 uniform float uPointLight1FalloffEnd;
 
-varying vec3 vPosition;
+varying vec3 vWorldPos;
 varying vec3 vNormal;  //assume normalized
 
 void main() {
 
-    vec3 currPosToLightVector = uPointLight1Pos - vPosition;
+    vec3 currPosToLightVector = uPointLight1Pos - vWorldPos;
     float normalModulator = dot(vNormal, normalize(currPosToLightVector));
     float distanceModulator = 1.0 - smoothstep(uPointLight1FalloffStart, uPointLight1FalloffEnd, length(currPosToLightVector));
 
