@@ -387,7 +387,7 @@ GpuXWater.prototype.getWaterFragmentShaderUrl = function () {
  */
 function GpuPipeModelWater(options) {
 
-    this.minWaterHeight = -0.0;
+    this.minWaterHeight = -0.05;
     this.initialWaterHeight = options.initialWaterHeight || 0.0;
     this.initialWaterHeight += this.minWaterHeight;
 
@@ -465,7 +465,8 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
         uniforms: {
             uTexture1: { type: 't', value: this.emptyTexture },
             uTexture2: { type: 't', value: this.emptyTexture },
-            uMultiplyTexture: { type: 't', value: this.emptyTexture }
+            uMultiplyTexture: { type: 't', value: this.emptyTexture },
+            uMaskOffset: { type: 'f', value: this.minWaterHeight },
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTexturesPostMult.frag')
