@@ -870,9 +870,15 @@ function TessendorfIWaveWater(options) {
     this.gravity = -9.81;
 
     //load this.G from json file
+    var url = '/python/iWave_kernels_' + this.kernelRadius + '.json';
     var that = this;
-    $.getJSON('/python/iWave_kernels_' + this.kernelRadius + '.json', function (data) {
+    $.ajax({
+        url: url,
+        async: false
+    }).done(function (data) {
         that.G = data;
+    }).error(function (xhr, textStatus, error) {
+        throw new Error('error loading ' + url + ': ' + error);
     });
 }
 //inherit from HeightFieldWater
@@ -904,11 +910,6 @@ TessendorfIWaveWater.prototype.sim = function (dt) {
 
     //fixing dt: better to be in slow motion than to explode
     dt = 1.0 / 60.0;
-
-    //TODO: start using events, rather than having this check on every frame
-    if (!this.G) {
-        return;
-    }
 
     //FIXME: fix weird boundaries when using mean height
 
