@@ -490,9 +490,16 @@ GpuPipeModelWater.prototype.update = function (dt) {
     //NOTE: unable to figure out why this.terrainTexture has no data until a few updates later,
     //so using this dirty hack to init for the first few frames
     if (this.__initCounter > 0) {
+
         //init rttRenderTarget2 to initial height value
         this.rttQuadMesh.material = this.clearMaterial;
+        this.clearMaterial.uniforms.uColor.value.set(this.initialWaterHeight, this.initialWaterHeight, this.initialWaterHeight, this.initialWaterHeight);
         this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget2, false);
+
+        //init all channels of flux texture to 0.0
+        this.clearMaterial.uniforms.uColor.value.set(0.0, 0.0, 0.0, 0.0);
+        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTargetFlux2, false);
+
         this.__initCounter -= 1;
         return;
     }
