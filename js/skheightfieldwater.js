@@ -869,8 +869,8 @@ function TessendorfIWaveWater(options) {
 
     this.gravity = -9.81;
 
-    //load this.G from json file
-    var url = '/python/iWave_kernels_' + this.kernelRadius + '.json';
+    //load this.G from json file (loading the compact version here but the non-compact version would do as well)
+    var url = '/python/iWave_kernels_' + this.kernelRadius + '_compact.json';
     var that = this;
     $.ajax({
         url: url,
