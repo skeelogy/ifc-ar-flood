@@ -35,8 +35,12 @@ function GpuHeightFieldWater(options) {
     });
     this.__defineSetter__('dampingFactor', function (value) {
         this.__dampingFactor = value;
-        this.waterSimMaterial.uniforms.uDampingFactor.value = value;
+        if (this.waterSimMaterial.uniforms.uDampingFactor) {
+            this.waterSimMaterial.uniforms.uDampingFactor.value = value;
+        }
     });
+
+    this.gravity = 9.81;
 
     this.halfSize = this.size / 2.0;
     this.segmentSize = this.size / this.res;
@@ -378,6 +382,120 @@ GpuXWater.prototype.getWaterFragmentShaderUrl = function () {
     return '/glsl/hfWater_xWater.frag';
 };
 
+/**
+ * GPU height field water simulation based on "Interactive Water Surfaces" (Jerry Tessendorf, Game Programming Gems 4)
+ * @constructor
+ * @extends {GpuHeightFieldWater}
+ */
+function GpuTessendorfIWaveWater(options) {
+
+    this.kernelRadius = 6;  //not giving user the choice of kernel size, best to stick with 6 for now
+
+    GpuHeightFieldWater.call(this, options);
+
+    this.__loadKernelTexture();
+}
+//inherit
+GpuTessendorfIWaveWater.prototype = Object.create(GpuHeightFieldWater.prototype);
+GpuTessendorfIWaveWater.prototype.constructor = GpuTessendorfIWaveWater;
+//override
+GpuTessendorfIWaveWater.prototype.getWaterFragmentShaderUrl = function () {
+    return '/glsl/hfWater_tessendorfIWave.frag';
+};
+GpuTessendorfIWaveWater.prototype.__setupShaders = function () {
+
+    GpuHeightFieldWater.prototype.__setupShaders.call(this);
+
+    THREE.ShaderManager.addShader('/glsl/hfWater_tessendorfIWave_convolve.frag');
+    this.convolveMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uWaterTexture: { type: 't', value: this.emptyTexture },
+            uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
+            uKernel: { type: "fv1", value: this.kernelData }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_tessendorfIWave_convolve.frag')
+    });
+
+    this.waterSimMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uWaterTexture: { type: 't', value: this.emptyTexture },
+            uTwoMinusDampTimesDt: { type: 'f', value: 0.0 },
+            uOnePlusDampTimesDt: { type: 'f', value: 0.0 },
+            uGravityTimesDtTimesDt: { type: 'f', value: 0.0 }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
+    });
+};
+GpuTessendorfIWaveWater.prototype.update = function (dt) {
+
+    //fix dt for the moment (better to be in slow-mo in extreme cases than to explode)
+    dt = 1.0 / 60.0;
+
+    //not sure why everything is in slow motion for iWave, so doing substeps here to speed things up
+    var substeps = 3;  //arbitrary
+    var substepDt = dt;
+
+    //PASS 1: disturb
+    this.disturbAndSourcePass();
+
+    var i;
+    for (i = 0; i < substeps; i++) {
+
+        //PASS 2: convolve
+        this.rttQuadMesh.material = this.convolveMaterial;
+        this.convolveMaterial.uniforms.uWaterTexture.value = this.rttRenderTarget2;
+        this.convolveMaterial.uniforms.uKernel.value = this.kernelData;
+        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
+        this.swapRenderTargets();
+
+        //PASS 3: water sim
+        this.rttQuadMesh.material = this.waterSimMaterial;
+        this.waterSimMaterial.uniforms.uWaterTexture.value = this.rttRenderTarget2;
+        this.waterSimMaterial.uniforms.uTwoMinusDampTimesDt.value = 2.0 - this.dampingFactor * substepDt;
+        this.waterSimMaterial.uniforms.uOnePlusDampTimesDt.value = 1.0 + this.dampingFactor * substepDt;
+        this.waterSimMaterial.uniforms.uGravityTimesDtTimesDt.value = -this.gravity * substepDt * substepDt;
+        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
+        this.swapRenderTargets();
+    }
+
+    //rebind render target to water mesh to ensure vertex shader gets the right texture
+    this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
+};
+//methods
+GpuTessendorfIWaveWater.prototype.__loadKernelTexture = function () {
+
+    //load this.G from json file
+    var url = '/python/iWave_kernels_' + this.kernelRadius + '.json';
+    var that = this;
+    $.ajax({
+        url: url,
+        async: false
+    }).done(function (data) {
+        that.G = data;
+    }).error(function (xhr, textStatus, error) {
+        throw new Error('error loading ' + url + ': ' + error);
+    });
+
+    //create a data texture from G
+    var twoTimesKernelPlusOne = 2 * this.kernelRadius + 1;
+    this.kernelData = new Float32Array(twoTimesKernelPlusOne * twoTimesKernelPlusOne);
+    var idxX, idxY, idx, value, y;
+    for (idxY in this.G) {
+        if (this.G.hasOwnProperty(idxY)) {
+            y = this.G[idxY];
+            for (idxX in this.G[idxY]) {
+                if (y.hasOwnProperty(idxX)) {
+                    value = y[idxX];
+                    idx = (parseInt(idxY) + this.kernelRadius) * twoTimesKernelPlusOne + (parseInt(idxX) + this.kernelRadius);
+                    this.kernelData[idx] = value;
+                }
+            }
+        }
+    }
+
+};
 
 
 /**
@@ -396,7 +514,6 @@ function GpuPipeModelWater(options) {
     this.terrainTexture = options.terrainTexture || this.emptyTexture;
 
     //some constants
-    this.gravity = 9.81;
     this.density = 1;
     this.atmosPressure = 0;  //assume one constant atmos pressure throughout
     this.pipeLength = this.segmentSize;

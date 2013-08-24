@@ -152,7 +152,7 @@
 	Math.seedrandom(RANDOM_SEED);
 	var waterGeom, waterMesh;
 	var visGeom, visMaterial, visMesh;
-	var hfWater, iWaveWater, gpuMuellerGdc2008Water, gpuMuellerGdc2008HwWater, gpuXWater;
+	var hfWater, gpuIWaveWater, gpuMuellerGdc2008Water, gpuMuellerGdc2008HwWater, gpuXWater;
 	var iSegments = 3;
 	var jSegments = 3;
 	var iSegmentSize = WATER_SIZE / iSegments;
@@ -182,14 +182,13 @@
 			// meanHeight: MEAN_WATER_HEIGHT,  //TODO: figure out if this is needed for pipe model
 			// scene: scene
 		});
-		iWaveWater = new TessendorfIWaveWater({
+		gpuIWaveWater = new GpuTessendorfIWaveWater({
+		    renderer: renderer,
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: WATER_DAMPING_FACTOR,
-			kernelRadius: 4,
-			substeps: 3,
-			meanHeight: MEAN_WATER_HEIGHT
+			// meanHeight: MEAN_WATER_HEIGHT
 		});
 		gpuMuellerGdc2008Water = new GpuMuellerGdc2008Water({
 		    renderer: renderer,
@@ -240,7 +239,7 @@
 //
 				// //create Obstacle
 				// var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE, globalTransform.matrixWorld);
-				// iWaveWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				// gpuIWaveWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// gpuMuellerGdc2008Water.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// gpuMuellerGdc2008HwWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// gpuXWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
@@ -446,19 +445,19 @@
 	var waterSimTypes = {
 	    'Pipe Model': 'gpuPipeModelWater',
 	    'X Water': 'gpuXWater',
-		'Tessendorf iWave': 'iWaveWater',
+		'Tessendorf iWave': 'gpuIWaveWater',
 		'Muller GDC2008': 'gpuMuellerGdc2008Water',
 		'Muller GDC2008 HelloWorld': 'gpuMuellerGdc2008HwWater'
 	};
 	var waterSimTypeSettings = {
 	    'gpuPipeModelWater': { 'disturbAmount':0.15, 'dampingFactor':0.995 },
 	    'gpuXWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
-		'iWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
+		'gpuIWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
 		'gpuMuellerGdc2008Water': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
 		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[2]],
 		waterSimFloodRate: 20.0,
 		obstaclesActive: true,
 		obstaclesSeed: 1,
@@ -644,9 +643,9 @@
 
 			controls.update();
 
-			// visMaterial.map = hfWater.rttRenderTarget1;
+			visMaterial.map = hfWater.rttRenderTarget1;
 			// visMaterial.map = hfWater.rttRenderTargetFlux1;
-			visMaterial.map = hfWater.rttCombinedHeight;
+			// visMaterial.map = hfWater.rttCombinedHeight;
 
 			renderer.autoClear = false;
 			renderer.clear();
