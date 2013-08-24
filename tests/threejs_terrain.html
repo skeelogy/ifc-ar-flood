@@ -3,7 +3,7 @@
 <head>
 	<title>IFC - Terrain</title>
 	<meta charset="UTF-8"/>
-	
+
 	<link rel="stylesheet" href="/css/style.css">
 	<style type="text/css">
 		#stats { position: absolute; top:0; left: 0 }
@@ -11,10 +11,10 @@
 		#stats #fps #fpsText { color: #aaa !important }
 		#stats #fps #fpsGraph { display: block }
 	</style>
-	
+
 	<!--load helper libraries-->
 	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-	
+
 	<!--load AR and 3D libraries-->
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
@@ -22,17 +22,19 @@
 	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
 	<script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
 
-	<script type="text/javascript" src="/js/lib/SimplexNoise.js"></script>	
+	<script type="text/javascript" src="/js/lib/SimplexNoise.js"></script>
 	<script type="text/javascript" src="/js/lib/StackBlur.js"></script>
 
 	<script type="text/javascript" src="/js/skulpt.js"></script>
-	
+
 	<script>
 
 	var SHADOW_MAP_RES = 1024;
 	var TERRAIN_RES = 256;
 	var TERRAIN_SIZE = 10;
 	var USE_TERRAIN_IMAGE = true;
+	var TERRAIN_SCULPT_SIZE = 1.0;
+	var TERRAIN_SCULPT_AMOUNT = 0.1;
 
 	var GLOBAL_POS = new THREE.Vector3(0.5, 1, 1);
 	var GLOBAL_ROT = new THREE.Vector3(THREE.Math.degToRad(10),-THREE.Math.degToRad(10),THREE.Math.degToRad(10));
@@ -70,8 +72,8 @@
 		terrainMidGreyIsLowest: true,
 		terrainPreBlur: terrainImageSettings[Object.keys(terrainImageSettings)[0]].preblur,
 		terrainHeight: terrainImageSettings[Object.keys(terrainImageSettings)[0]].height,
-		sculptSize: 1.0,
-		sculptAmount: 0.1,
+		sculptSize: TERRAIN_SCULPT_SIZE,
+		sculptAmount: TERRAIN_SCULPT_AMOUNT,
 		sculptClearSculpts: sculptClearSculpts,
 		renderingShadows: true,
 		renderingShadowCasters: false,
@@ -118,7 +120,7 @@
 		$imageCanvasElem[0].height = TERRAIN_RES;
 		$imageCanvasElem.css({'position':'fixed', 'top':'55px', 'left':0});
 		$('body').append($imageCanvasElem);
-		
+
 		//get canvas context
         imageCanvasElemContext = $imageCanvasElem[0].getContext('2d');
 
@@ -128,7 +130,7 @@
 		$scaledImageObj[0].onload = function()
 		{
 			//this function is triggered from $origImageObj setting this src
-			
+
 			//start filtering and changing heights
 			filterTerrainImageAndGenerateHeight();
 		};
@@ -309,7 +311,7 @@
 			}
 			else
 			{
-				$imageCanvasElem.css({'display':'none'});	
+				$imageCanvasElem.css({'display':'none'});
 			}
 		}
 		control.onChange(changeTerrainShowImage);
@@ -391,7 +393,7 @@
 
 		//Display folder
 		displayFolder = gui.addFolder('Display');
-		
+
 		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
 		{
@@ -402,7 +404,7 @@
 		}
 		control.onChange(toggleWireframe);
 		toggleWireframe(options.displayWireframe);
-		
+
 		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
@@ -457,7 +459,7 @@
 				isSculpting = true;
 				sculptTerrain('remove');
 			}
-			
+
 		}
 		else if (event.shiftKey)
 		{
@@ -532,7 +534,7 @@
 		projector.unprojectVector(worldPos, camera);
 		raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
 		var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
-		
+
 		//get intersection point
 		if (intersectInfo && intersectInfo[0])
 		{
@@ -579,7 +581,7 @@
 			//geometry.computeCentroids();
 			//geometry.computeBoundingBox();
 			//geometry.computeBoundingSphere();
-			
+
 			geometry.normalsNeedUpdate = true;
 		}
 	}
@@ -604,7 +606,7 @@
 
 		//create a Skulpt first
 		skulpt = new Skulpt(globalTransform);
-		
+
 		//create a SkulptMesh, add a layer
 		skulptTerrainMesh = new SkulptTerrainMesh(terrainMesh, TERRAIN_SIZE, TERRAIN_RES);
 		baseLayer = skulptTerrainMesh.addLayer('baseLayer');
@@ -621,7 +623,7 @@
 		checkWebGl();
 
 		console.log('Document is ready.');
-		
+
 		//setup scene
 		setupThreejsScene();
 
@@ -640,10 +642,10 @@
 
 		//setup stats monitor
 		setupStats();
-		
+
 		//setup GUI
 		setupGui();
-		
+
 		//main loop
 		function loop()
 		{
@@ -667,7 +669,7 @@
 			requestAnimationFrame(loop);
 		}
 		loop();
-		
+
 	});
 	</script>
 </head>

@@ -39,7 +39,10 @@
 	var TERRAIN_RES = 256;
 	var TERRAIN_SIZE = 10;
 	var USE_TERRAIN_IMAGE = true;
+	var TERRAIN_SCULPT_SIZE = 1.0;
+	var TERRAIN_SCULPT_AMOUNT = 0.1;
 	var MEAN_WATER_HEIGHT = 0;
+	var WATER_FLOOD_RATE = 20.0;
 
 	var WATER_SIZE = 10;
 	var WATER_RES = 256;
@@ -99,14 +102,14 @@
 	};
 	var options = {
 		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
-		waterSimFloodRate: 20.0,
+		waterSimFloodRate: WATER_FLOOD_RATE,
 		terrainImage: terrainImages[Object.keys(terrainImages)[0]],
 		terrainShowImage: false,
 		terrainMidGreyIsLowest: true,
 		terrainPreBlur: terrainImageSettings[Object.keys(terrainImageSettings)[0]].preblur,
 		terrainHeight: terrainImageSettings[Object.keys(terrainImageSettings)[0]].height,
-		sculptSize: 1.0,
-		sculptAmount: 0.1,
+		sculptSize: TERRAIN_SCULPT_SIZE,
+		sculptAmount: TERRAIN_SCULPT_AMOUNT,
 		sculptClearSculpts: sculptClearSculpts,
 		renderingShadows: true,
 		renderingShadowCasters: false,

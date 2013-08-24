@@ -36,6 +36,7 @@
 	var WATER_RES = 256;
 	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
 	var MEAN_WATER_HEIGHT = 0;
+	var WATER_FLOOD_RATE = 20.0;
     var WATER_SOURCE_AMOUNT = 0.2;
     var WATER_SOURCE_RADIUS = 0.7;
 	var WATER_SINK_AMOUNT = 0.5;
@@ -462,7 +463,7 @@
 	};
 	var options = {
 		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
-		waterSimFloodRate: 20.0,
+		waterSimFloodRate: WATER_FLOOD_RATE,
 		obstaclesActive: true,
 		obstaclesSeed: 1,
 		obstaclesShowObstacles: true,
