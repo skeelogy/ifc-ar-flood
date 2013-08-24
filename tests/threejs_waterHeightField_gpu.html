@@ -33,13 +33,13 @@
 	<script>
 
 	var WATER_SIZE = 10;
-	var WATER_RES = 128;
+	var WATER_RES = 256;
 	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
-	var WATER_DAMPING_FACTOR = 0.8;
-	var WATER_DISTURB_AMOUNT = 0.015;
-	var WATER_SOURCE_AMOUNT = 0.2;
-	var WATER_SINK_AMOUNT = 0.5;
 	var MEAN_WATER_HEIGHT = 0;
+    var WATER_SOURCE_AMOUNT = 0.2;
+    var WATER_SOURCE_RADIUS = 0.7;
+	var WATER_SINK_AMOUNT = 0.5;
+	var WATER_SINK_RADIUS = 0.7;
 
 	var SHADOW_MAP_RES = 1024;
 
@@ -55,7 +55,11 @@
 	// GLOBAL_MAT.multiply(new THREE.Matrix4().makeScale(GLOBAL_SCALE.x, GLOBAL_SCALE.y, GLOBAL_SCALE.z));
 
 	var clock = new THREE.Clock();
+
 	var currWaterHeight = MEAN_WATER_HEIGHT;
+	var waterDampingFactor = 0.0;
+	var waterDisturbAmount = 0.0;
+	var waterDisturbRadius = 0.0;
 
 	function checkWebGl()
 	{
@@ -178,7 +182,7 @@
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
+			dampingFactor: waterDampingFactor,
 			// meanHeight: MEAN_WATER_HEIGHT,  //TODO: figure out if this is needed for pipe model
 			// scene: scene
 		});
@@ -187,7 +191,7 @@
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
+			dampingFactor: waterDampingFactor,
 			// meanHeight: MEAN_WATER_HEIGHT
 		});
 		gpuMuellerGdc2008Water = new GpuMuellerGdc2008Water({
@@ -195,7 +199,7 @@
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
+			dampingFactor: waterDampingFactor,
 			horizontalSpeed: 2.0,
 			// meanHeight: MEAN_WATER_HEIGHT
 		});
@@ -204,7 +208,7 @@
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
+			dampingFactor: waterDampingFactor,
 			// meanHeight: MEAN_WATER_HEIGHT
 		});
 		gpuXWater = new GpuXWater({
@@ -212,7 +216,7 @@
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
+			dampingFactor: waterDampingFactor,
 			// meanHeight: MEAN_WATER_HEIGHT
 		});
 		hfWater = gpuMuellerGdc2008HwWater;
@@ -342,7 +346,7 @@
                 intersectPoint = detectIntersection();
                 if (intersectPoint)
                 {
-                    hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
+                    hfWater.disturb(intersectPoint, waterDisturbAmount, waterDisturbRadius);
                 }
             }
             else if (event.button === 1)  //MMB
@@ -353,7 +357,7 @@
                 intersectPoint = detectIntersection();
                 if (intersectPoint)
                 {
-                    hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.7);
+                    hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
                 }
             }
             else if (event.button === 2)  //RMB
@@ -364,7 +368,7 @@
                 intersectPoint = detectIntersection();
                 if (intersectPoint)
                 {
-                    hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.7);
+                    hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
                 }
             }
         }
@@ -381,7 +385,7 @@
                 intersectPoint = detectIntersection();
                 if (intersectPoint)
                 {
-                    hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
+                    hfWater.disturb(intersectPoint, waterDisturbAmount, waterDisturbRadius);
                 }
             }
             else if (event.button === 1)  //MMB
@@ -390,7 +394,7 @@
                 intersectPoint = detectIntersection();
                 if (intersectPoint)
                 {
-                    hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.7);
+                    hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
                 }
             }
             else if (event.button === 2)  //LMB
@@ -399,7 +403,7 @@
                 intersectPoint = detectIntersection();
                 if (intersectPoint)
                 {
-                    hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.7);
+                    hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
                 }
             }
         }
@@ -450,14 +454,14 @@
 		'Muller GDC2008 HelloWorld': 'gpuMuellerGdc2008HwWater'
 	};
 	var waterSimTypeSettings = {
-	    'gpuPipeModelWater': { 'disturbAmount':0.15, 'dampingFactor':0.995 },
-	    'gpuXWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
-		'gpuIWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
-		'gpuMuellerGdc2008Water': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
-		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
+	    'gpuPipeModelWater': { 'disturbAmount':0.15, 'disturbRadius':0.25, 'dampingFactor':0.995 },
+	    'gpuXWater': { 'disturbAmount':0.035, 'disturbRadius':0.25, 'dampingFactor':0.95 },
+		'gpuIWaveWater': { 'disturbAmount':0.02, 'disturbRadius':0.25, 'dampingFactor':0.7 },
+		'gpuMuellerGdc2008Water': { 'disturbAmount':0.2, 'disturbRadius':0.25, 'dampingFactor':0.95 },
+		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.2, 'disturbRadius':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[2]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
 		waterSimFloodRate: 20.0,
 		obstaclesActive: true,
 		obstaclesSeed: 1,
@@ -491,9 +495,10 @@
 			// hfWater.reset();
 
 			//load some presets so that that sim works well
-			WATER_DISTURB_AMOUNT = waterSimTypeSettings[value].disturbAmount;
-			WATER_DAMPING_FACTOR = waterSimTypeSettings[value].dampingFactor;
-			hfWater.dampingFactor = WATER_DAMPING_FACTOR;
+			waterDisturbAmount = waterSimTypeSettings[value].disturbAmount;
+			waterDisturbRadius = waterSimTypeSettings[value].disturbRadius;
+			waterDampingFactor = waterSimTypeSettings[value].dampingFactor;
+			hfWater.dampingFactor = waterDampingFactor;
 
 			//make sure to inherit the active value from the GUI too
 			// hfWater.setObstaclesActive(options.obstaclesActive);

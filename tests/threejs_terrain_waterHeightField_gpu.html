@@ -36,18 +36,18 @@
 	<script>
 
 	var SHADOW_MAP_RES = 1024;
-	var TERRAIN_RES = 128;
+	var TERRAIN_RES = 256;
 	var TERRAIN_SIZE = 10;
 	var USE_TERRAIN_IMAGE = true;
 	var MEAN_WATER_HEIGHT = 0;
 
 	var WATER_SIZE = 10;
-	var WATER_RES = 128;
+	var WATER_RES = 256;
 	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
-	var WATER_DAMPING_FACTOR = 0.8;
-	var WATER_DISTURB_AMOUNT = 0.015;
-	var WATER_SOURCE_AMOUNT = 0.5;
-	var WATER_SINK_AMOUNT = 0.5;
+	var WATER_SOURCE_AMOUNT = 0.2;
+	var WATER_SOURCE_RADIUS = 0.7;
+	var WATER_SINK_AMOUNT = 0.2;
+	var WATER_SINK_RADIUS = 0.7;
 
 	var GLOBAL_POS = new THREE.Vector3(0.5, 1, 1);
 	var GLOBAL_ROT = new THREE.Vector3(THREE.Math.degToRad(10),-THREE.Math.degToRad(10),THREE.Math.degToRad(10));
@@ -62,6 +62,9 @@
 
 	var clock = new THREE.Clock();
 	var currWaterHeight = MEAN_WATER_HEIGHT;
+	var waterDampingFactor = 0.0;
+	var waterDisturbAmount = 0.0;
+	var waterDisturbRadius = 0.0;
 
 	var terrainImages = {
 		'IGMS1':'/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg',
@@ -88,11 +91,11 @@
 		'Muller GDC2008 HelloWorld': 'gpuMuellerGdc2008HwWater'
 	};
 	var waterSimTypeSettings = {
-	    'gpuPipeModelWater': { 'disturbAmount':0.1, 'dampingFactor':0.995 },
-		'xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
-		'iWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
-		'muellerGdc2008Water': { 'disturbAmount':0.5, 'dampingFactor':0.95 },
-		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
+	    'gpuPipeModelWater': { 'disturbAmount':0.15, 'disturbRadius':0.25, 'dampingFactor':0.995 },
+	    'gpuXWater': { 'disturbAmount':0.035, 'disturbRadius':0.25, 'dampingFactor':0.95 },
+		'gpuIWaveWater': { 'disturbAmount':0.02, 'disturbRadius':0.25, 'dampingFactor':0.7 },
+		'gpuMuellerGdc2008Water': { 'disturbAmount':0.2, 'disturbRadius':0.25, 'dampingFactor':0.95 },
+		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.2, 'disturbRadius':0.25, 'dampingFactor':0 }
 	};
 	var options = {
 		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
@@ -339,7 +342,7 @@
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
+			dampingFactor: waterDampingFactor,
 			kernelRadius: 4,
 			substeps: 3,
 			meanHeight: MEAN_WATER_HEIGHT
@@ -348,7 +351,7 @@
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
+			dampingFactor: waterDampingFactor,
 			horizontalSpeed: 5.0,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
@@ -357,14 +360,14 @@
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
+			dampingFactor: waterDampingFactor,
 			// meanHeight: MEAN_WATER_HEIGHT
 		});
 		xWater = new XWater({
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
+			dampingFactor: waterDampingFactor,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
 		gpuPipeModelWater = new GpuPipeModelWater({
@@ -372,7 +375,7 @@
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
+			dampingFactor: waterDampingFactor,
 			// meanHeight: MEAN_WATER_HEIGHT,  //TODO: figure out if this is needed for pipe model
 			// scene: scene,
 			initialWaterHeight: 0.1,
@@ -466,9 +469,10 @@
 			// hfWater.reset();
 
 			//load some presets so that that sim works well
-			WATER_DISTURB_AMOUNT = waterSimTypeSettings[value].disturbAmount;
-			WATER_DAMPING_FACTOR = waterSimTypeSettings[value].dampingFactor;
-			hfWater.dampingFactor = WATER_DAMPING_FACTOR;
+			waterDisturbAmount = waterSimTypeSettings[value].disturbAmount;
+            waterDisturbRadius = waterSimTypeSettings[value].disturbRadius;
+			waterDampingFactor = waterSimTypeSettings[value].dampingFactor;
+			hfWater.dampingFactor = waterDampingFactor;
 		}
 		control.onChange(changeWaterSimType);
 		changeWaterSimType(options.waterSimType);
@@ -731,7 +735,7 @@
                     intersectPoint = detectIntersection();
                     if (intersectPoint)
                     {
-                        hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
+                        hfWater.disturb(intersectPoint, waterDisturbAmount, waterDisturbRadius);
                     }
                 }
                 else if (event.button === 1)  //MMB
@@ -742,7 +746,7 @@
                     intersectPoint = detectIntersection();
                     if (intersectPoint)
                     {
-                        hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
+                        hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
                     }
                 }
                 else if (event.button === 2)  //RMB
@@ -753,7 +757,7 @@
                     intersectPoint = detectIntersection();
                     if (intersectPoint)
                     {
-                        hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
+                        hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
                     }
                 }
             }
@@ -808,7 +812,7 @@
                     intersectPoint = detectIntersection();
                     if (intersectPoint)
                     {
-                        hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
+                        hfWater.disturb(intersectPoint, waterDisturbAmount, waterDisturbRadius);
                     }
                 }
                 else if (event.button === 1)  //MMB
@@ -817,7 +821,7 @@
                     intersectPoint = detectIntersection();
                     if (intersectPoint)
                     {
-                        hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
+                        hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
                     }
                 }
                 else if (event.button === 2)  //LMB
@@ -826,7 +830,7 @@
                     intersectPoint = detectIntersection();
                     if (intersectPoint)
                     {
-                        hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
+                        hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
                     }
                 }
             }

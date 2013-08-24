@@ -233,18 +233,19 @@ GpuHeightFieldWater.prototype.__initDataAndTextures = function () {
     this.boundaryTexture.image.data = this.boundaryData;
     this.boundaryTexture.needsUpdate = true;
 };
-GpuHeightFieldWater.prototype.disturb = function (position, amount) {
+GpuHeightFieldWater.prototype.disturb = function (position, amount, radius) {
     this.isDisturbing = true;
     this.disturbUvPos.x = (position.x + this.halfSize) / this.size;
     this.disturbUvPos.y = (position.z + this.halfSize) / this.size;
     this.disturbAmount = amount;
+    this.disturbRadius = radius;
 };
 GpuHeightFieldWater.prototype.source = function (position, amount, radius) {
     this.isSourcing = true;
     this.sourceUvPos.x = (position.x + this.halfSize) / this.size;
     this.sourceUvPos.y = (position.z + this.halfSize) / this.size;
     this.sourceAmount = amount;
-    this.sourceRadius = radius / this.size;
+    this.sourceRadius = radius;
 };
 GpuHeightFieldWater.prototype.disturbAndSourcePass = function () {
     var shouldRender = false;
@@ -254,6 +255,7 @@ GpuHeightFieldWater.prototype.disturbAndSourcePass = function () {
         this.disturbAndSourceMaterial.uniforms.uIsDisturbing.value = this.isDisturbing;
         this.disturbAndSourceMaterial.uniforms.uDisturbPos.value.copy(this.disturbUvPos);
         this.disturbAndSourceMaterial.uniforms.uDisturbAmount.value = this.disturbAmount;
+        this.disturbAndSourceMaterial.uniforms.uDisturbRadius.value = this.disturbRadius / this.size;
         shouldRender = true;
     }
     if (this.isSourcing) {
@@ -262,7 +264,7 @@ GpuHeightFieldWater.prototype.disturbAndSourcePass = function () {
         this.disturbAndSourceMaterial.uniforms.uIsSourcing.value = this.isSourcing;
         this.disturbAndSourceMaterial.uniforms.uSourcePos.value.copy(this.sourceUvPos);
         this.disturbAndSourceMaterial.uniforms.uSourceAmount.value = this.sourceAmount;
-        this.disturbAndSourceMaterial.uniforms.uSourceRadius.value = this.sourceRadius;
+        this.disturbAndSourceMaterial.uniforms.uSourceRadius.value = this.sourceRadius / this.size;
         shouldRender = true;
     }
     if (shouldRender) {
