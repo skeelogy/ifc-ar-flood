@@ -490,7 +490,7 @@ GpuTessendorfIWaveWater.prototype.__loadKernelTexture = function () {
             for (idxX in this.G[idxY]) {
                 if (y.hasOwnProperty(idxX)) {
                     value = y[idxX];
-                    idx = (parseInt(idxY) + this.kernelRadius) * twoTimesKernelPlusOne + (parseInt(idxX) + this.kernelRadius);
+                    idx = (parseInt(idxY, 10) + this.kernelRadius) * twoTimesKernelPlusOne + (parseInt(idxX, 10) + this.kernelRadius);
                     this.kernelData[idx] = value;
                 }
             }
@@ -585,7 +585,7 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
             uTexture1: { type: 't', value: this.emptyTexture },
             uTexture2: { type: 't', value: this.emptyTexture },
             uMultiplyTexture: { type: 't', value: this.emptyTexture },
-            uMaskOffset: { type: 'f', value: this.minWaterHeight },
+            uMaskOffset: { type: 'f', value: this.minWaterHeight }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTexturesPostMult.frag')
