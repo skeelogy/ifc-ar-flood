@@ -5,7 +5,7 @@
 //have to use #define here to get compile-time constant values,
 //otherwise there are problems in the double-for-loop and indexing into array.
 //remember to change this radius value after changing that in the GpuTessendorfIWaveWater class.
-#define KERNEL_RADIUS 6
+#define KERNEL_RADIUS 2
 #define KERNEL_WIDTH (2 * (KERNEL_RADIUS) + 1)
 
 uniform sampler2D uWaterTexture;

@@ -184,6 +184,7 @@
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: waterDampingFactor,
+			multisteps: 1
 			// meanHeight: MEAN_WATER_HEIGHT,  //TODO: figure out if this is needed for pipe model
 			// scene: scene
 		});
@@ -193,6 +194,7 @@
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: waterDampingFactor,
+			multisteps: 3
 			// meanHeight: MEAN_WATER_HEIGHT
 		});
 		gpuMuellerGdc2008Water = new GpuMuellerGdc2008Water({
@@ -201,7 +203,8 @@
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: waterDampingFactor,
-			horizontalSpeed: 2.0,
+			horizontalSpeed: 4.0,
+			multisteps: 1
 			// meanHeight: MEAN_WATER_HEIGHT
 		});
 		gpuMuellerGdc2008HwWater = new GpuMuellerGdc2008HwWater({
@@ -210,6 +213,7 @@
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: waterDampingFactor,
+			multisteps: 3
 			// meanHeight: MEAN_WATER_HEIGHT
 		});
 		gpuXWater = new GpuXWater({
@@ -218,6 +222,7 @@
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: waterDampingFactor,
+			multisteps: 2
 			// meanHeight: MEAN_WATER_HEIGHT
 		});
 		hfWater = gpuMuellerGdc2008HwWater;
@@ -457,12 +462,12 @@
 	var waterSimTypeSettings = {
 	    'gpuPipeModelWater': { 'disturbAmount':0.15, 'disturbRadius':0.25, 'dampingFactor':0.995 },
 	    'gpuXWater': { 'disturbAmount':0.035, 'disturbRadius':0.25, 'dampingFactor':0.95 },
-		'gpuIWaveWater': { 'disturbAmount':0.02, 'disturbRadius':0.25, 'dampingFactor':0.7 },
+		'gpuIWaveWater': { 'disturbAmount':0.004, 'disturbRadius':0.25, 'dampingFactor':0.7 },
 		'gpuMuellerGdc2008Water': { 'disturbAmount':0.2, 'disturbRadius':0.25, 'dampingFactor':0.95 },
 		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.2, 'disturbRadius':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[2]],
 		waterSimFloodRate: WATER_FLOOD_RATE,
 		obstaclesActive: true,
 		obstaclesSeed: 1,
@@ -649,9 +654,9 @@
 
 			controls.update();
 
-			visMaterial.map = hfWater.rttRenderTarget1;
+			// visMaterial.map = hfWater.rttRenderTarget1;
 			// visMaterial.map = hfWater.rttRenderTargetFlux1;
-			// visMaterial.map = hfWater.rttCombinedHeight;
+			visMaterial.map = hfWater.rttCombinedHeight;
 
 			renderer.autoClear = false;
 			renderer.clear();

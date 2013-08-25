@@ -1,5 +1,5 @@
 /**
- * @fileOverview GPU JavaScript/GLSL height field water simulations for Three.js flat planes
+ * @fileOverview GPU height field water simulations for Three.js flat planes
  * @author Skeel Lee <skeel@skeelogy.com>
  * @version 0.1.0
  */
@@ -39,6 +39,10 @@ function GpuHeightFieldWater(options) {
             this.waterSimMaterial.uniforms.uDampingFactor.value = value;
         }
     });
+
+    //number of full steps to take per frame, to speed up some of algorithms that are slow to propagate at high mesh resolutions.
+    //this is different from substeps which are reduces dt per step for stability.
+    this.multisteps = options.multisteps || 1;
 
     this.gravity = 9.81;
 
@@ -284,13 +288,36 @@ GpuHeightFieldWater.prototype.waterSimPass = function (dt) {
     this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
     this.swapRenderTargets();
 };
+GpuHeightFieldWater.prototype.calculateSubsteps = function (dt) {
+    return 1;
+};
 GpuHeightFieldWater.prototype.update = function (dt) {
+
+    //fix dt for the moment (better to be in slow-mo in extreme cases than to explode)
+    dt = 1.0 / 60.0;
+
+    //do multiple full steps per frame to speed up some of algorithms that are slow to propagate at high mesh resolutions
+    var i;
+    for (i = 0; i < this.multisteps; i++) {
+        this.step(dt);
+    }
+}
+GpuHeightFieldWater.prototype.step = function (dt) {
+
+    //calculate the number of substeps needed
+    var substeps = this.calculateSubsteps(dt);
+    var substepDt = dt / substeps;
 
     //PASS 1: disturb
     this.disturbAndSourcePass();
 
-    //PASS 2: water sim
-    this.waterSimPass(dt);
+    var i;
+    for (i = 0; i < substeps; i++) {
+
+        //PASS 2: water sim
+        this.waterSimPass(substepDt);
+
+    }
 
     //rebind render target to water mesh to ensure vertex shader gets the right texture
     this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
@@ -331,25 +358,8 @@ GpuMuellerGdc2008Water.prototype.__setupRttScene = function () {
     //add uHorizontalSpeed into the uniforms
     this.waterSimMaterial.uniforms.uHorizontalSpeed = { type: 'f', value: this.horizontalSpeed };
 };
-GpuMuellerGdc2008Water.prototype.update = function (dt) {
-
-    //fix dt for the moment (better to be in slow-mo in extreme cases than to explode)
-    dt = 1.0 / 60.0;
-
-    var substeps = Math.ceil(1.5 * dt / this.maxDt);  //not always stable without a multiplier (using 1.5 now)
-    var substepDt = dt / substeps;
-
-    //PASS 1: disturb
-    this.disturbAndSourcePass();
-
-    var i;
-    for (i = 0; i < substeps; i++) {
-        //PASS 2: water sim
-        this.waterSimPass(substepDt);
-    }
-
-    //rebind render target to water mesh to ensure vertex shader gets the right texture
-    this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
+GpuMuellerGdc2008Water.prototype.calculateSubsteps = function (dt) {
+    return Math.ceil(1.5 * dt / this.maxDt);  //not always stable without a multiplier (using 1.5 now)
 };
 
 /**
@@ -391,7 +401,10 @@ GpuXWater.prototype.getWaterFragmentShaderUrl = function () {
  */
 function GpuTessendorfIWaveWater(options) {
 
-    this.kernelRadius = 6;  //not giving user the choice of kernel size, best to stick with 6 for now
+    //not giving user the choice of kernel size.
+    //wanted to use 6 as recommended, but that doesn't work well with mesh res of 256 (ripples look like they go inwards rather than outwards).
+    //radius of 2 seems to work well for mesh 256.
+    this.kernelRadius = 2;
 
     GpuHeightFieldWater.call(this, options);
 
@@ -430,14 +443,11 @@ GpuTessendorfIWaveWater.prototype.__setupShaders = function () {
         fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
     });
 };
-GpuTessendorfIWaveWater.prototype.update = function (dt) {
+GpuTessendorfIWaveWater.prototype.step = function (dt) {
 
-    //fix dt for the moment (better to be in slow-mo in extreme cases than to explode)
-    dt = 1.0 / 60.0;
-
-    //not sure why everything is in slow motion for iWave, so doing substeps here to speed things up
-    var substeps = 3;  //arbitrary
-    var substepDt = dt;
+    //calculate the number of substeps needed
+    var substeps = this.calculateSubsteps(dt);
+    var substepDt = dt / substeps;
 
     //PASS 1: disturb
     this.disturbAndSourcePass();
@@ -604,6 +614,9 @@ GpuPipeModelWater.prototype.__setupRttScene = function () {
     //create another RTT render target for storing the combined terrain + water heights
     this.rttCombinedHeight = this.rttRenderTarget1.clone();
 };
+GpuPipeModelWater.prototype.calculateSubsteps = function (dt) {
+    return Math.ceil(5.0 * dt / this.maxDt);  //not always stable without a multiplier
+};
 GpuPipeModelWater.prototype.update = function (dt) {
 
     //NOTE: unable to figure out why this.terrainTexture has no data until a few updates later,
@@ -623,11 +636,12 @@ GpuPipeModelWater.prototype.update = function (dt) {
         return;
     }
 
-    //fix dt for the moment (better to be in slow-mo in extreme cases than to explode)
-    dt = 1.0 / 60.0;
+    GpuHeightFieldWater.prototype.update.call(this, dt);
+}
+GpuPipeModelWater.prototype.step = function (dt) {
 
-    //TODO: change back
-    var substeps = 5; //Math.ceil(5.0 * dt / this.maxDt);  //not always stable without a multiplier
+    //calculate the number of substeps needed
+    var substeps = this.calculateSubsteps(dt);
     var substepDt = dt / substeps;
 
     //PASS 1: disturb
