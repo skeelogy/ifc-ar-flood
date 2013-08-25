@@ -730,37 +730,27 @@
 		{
 			//for water
 			if (activateDisturb) {
-                if (event.button === 0)  //LMB
+
+			    //detect intersection
+                intersectPoint = detectIntersection();
+                if (intersectPoint)
                 {
                     isDisturbing = true;
-
-                    //detect intersection
-                    intersectPoint = detectIntersection();
-                    if (intersectPoint)
+                    if (event.button === 0)  //LMB
                     {
                         hfWater.disturb(intersectPoint, waterDisturbAmount, waterDisturbRadius);
                     }
-                }
-                else if (event.button === 1)  //MMB
-                {
-                    isDisturbing = true;
-
-                    //detect intersection
-                    intersectPoint = detectIntersection();
-                    if (intersectPoint)
+                    else if (event.button === 1)  //MMB
                     {
-                        hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
+                        if (hfWater instanceof GpuPipeModelWater) {  //only pipe model water can source
+                            hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
+                        }
                     }
-                }
-                else if (event.button === 2)  //RMB
-                {
-                    isDisturbing = true;
-
-                    //detect intersection
-                    intersectPoint = detectIntersection();
-                    if (intersectPoint)
+                    else if (event.button === 2)  //RMB
                     {
-                        hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
+                        if (hfWater instanceof GpuPipeModelWater) {  //only pipe model water can source
+                            hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
+                        }
                     }
                 }
             }
@@ -809,31 +799,26 @@
 		{
 			//for water
 			if (activateDisturb && isDisturbing) {
-			    if (event.button === 0)  //LMB
+
+			    //detect intersection
+                intersectPoint = detectIntersection();
+                if (intersectPoint)
                 {
-                    //detect intersection
-                    intersectPoint = detectIntersection();
-                    if (intersectPoint)
+                    if (event.button === 0)  //LMB
                     {
                         hfWater.disturb(intersectPoint, waterDisturbAmount, waterDisturbRadius);
                     }
-                }
-                else if (event.button === 1)  //MMB
-                {
-                    //detect intersection
-                    intersectPoint = detectIntersection();
-                    if (intersectPoint)
+                    else if (event.button === 1)  //MMB
                     {
-                        hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
+                        if (hfWater instanceof GpuPipeModelWater) {  //only pipe model water can source
+                            hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
+                        }
                     }
-                }
-                else if (event.button === 2)  //LMB
-                {
-                    //detect intersection
-                    intersectPoint = detectIntersection();
-                    if (intersectPoint)
+                    else if (event.button === 2)  //LMB
                     {
-                        hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
+                        if (hfWater instanceof GpuPipeModelWater) {  //only pipe model water can source
+                            hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
+                        }
                     }
                 }
             }
