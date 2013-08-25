@@ -281,10 +281,10 @@ GpuHeightFieldWater.prototype.disturbAndSourcePass = function () {
         this.rttQuadMesh.material.uniforms.uIsSourcing.value = false;
     }
 };
-GpuHeightFieldWater.prototype.waterSimPass = function (dt) {
+GpuHeightFieldWater.prototype.waterSimPass = function (substepDt) {
     this.rttQuadMesh.material = this.waterSimMaterial;
     this.waterSimMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
-    this.waterSimMaterial.uniforms.uDt.value = dt;
+    this.waterSimMaterial.uniforms.uDt.value = substepDt;
     this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
     this.swapRenderTargets();
 };
@@ -301,24 +301,26 @@ GpuHeightFieldWater.prototype.update = function (dt) {
     for (i = 0; i < this.multisteps; i++) {
         this.step(dt);
     }
-}
+};
 GpuHeightFieldWater.prototype.step = function (dt) {
 
     //calculate the number of substeps needed
     var substeps = this.calculateSubsteps(dt);
     var substepDt = dt / substeps;
 
-    //PASS 1: disturb
+    //disturb
     this.disturbAndSourcePass();
 
+    //water sim
     var i;
     for (i = 0; i < substeps; i++) {
-
-        //PASS 2: water sim
         this.waterSimPass(substepDt);
-
     }
 
+    //post step
+    this.postStep();
+};
+GpuHeightFieldWater.prototype.postStep = function () {
     //rebind render target to water mesh to ensure vertex shader gets the right texture
     this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
 };
@@ -443,37 +445,24 @@ GpuTessendorfIWaveWater.prototype.__setupShaders = function () {
         fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
     });
 };
-GpuTessendorfIWaveWater.prototype.step = function (dt) {
+GpuTessendorfIWaveWater.prototype.waterSimPass = function (substepDt) {
 
-    //calculate the number of substeps needed
-    var substeps = this.calculateSubsteps(dt);
-    var substepDt = dt / substeps;
+    //convolve
+    this.rttQuadMesh.material = this.convolveMaterial;
+    this.convolveMaterial.uniforms.uWaterTexture.value = this.rttRenderTarget2;
+    this.convolveMaterial.uniforms.uKernel.value = this.kernelData;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
+    this.swapRenderTargets();
 
-    //PASS 1: disturb
-    this.disturbAndSourcePass();
+    //water sim
+    this.rttQuadMesh.material = this.waterSimMaterial;
+    this.waterSimMaterial.uniforms.uWaterTexture.value = this.rttRenderTarget2;
+    this.waterSimMaterial.uniforms.uTwoMinusDampTimesDt.value = 2.0 - this.dampingFactor * substepDt;
+    this.waterSimMaterial.uniforms.uOnePlusDampTimesDt.value = 1.0 + this.dampingFactor * substepDt;
+    this.waterSimMaterial.uniforms.uGravityTimesDtTimesDt.value = -this.gravity * substepDt * substepDt;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
+    this.swapRenderTargets();
 
-    var i;
-    for (i = 0; i < substeps; i++) {
-
-        //PASS 2: convolve
-        this.rttQuadMesh.material = this.convolveMaterial;
-        this.convolveMaterial.uniforms.uWaterTexture.value = this.rttRenderTarget2;
-        this.convolveMaterial.uniforms.uKernel.value = this.kernelData;
-        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
-        this.swapRenderTargets();
-
-        //PASS 3: water sim
-        this.rttQuadMesh.material = this.waterSimMaterial;
-        this.waterSimMaterial.uniforms.uWaterTexture.value = this.rttRenderTarget2;
-        this.waterSimMaterial.uniforms.uTwoMinusDampTimesDt.value = 2.0 - this.dampingFactor * substepDt;
-        this.waterSimMaterial.uniforms.uOnePlusDampTimesDt.value = 1.0 + this.dampingFactor * substepDt;
-        this.waterSimMaterial.uniforms.uGravityTimesDtTimesDt.value = -this.gravity * substepDt * substepDt;
-        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
-        this.swapRenderTargets();
-    }
-
-    //rebind render target to water mesh to ensure vertex shader gets the right texture
-    this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
 };
 //methods
 GpuTessendorfIWaveWater.prototype.__loadKernelTexture = function () {
@@ -637,39 +626,30 @@ GpuPipeModelWater.prototype.update = function (dt) {
     }
 
     GpuHeightFieldWater.prototype.update.call(this, dt);
-}
-GpuPipeModelWater.prototype.step = function (dt) {
+};
+GpuPipeModelWater.prototype.waterSimPass = function (substepDt) {
 
-    //calculate the number of substeps needed
-    var substeps = this.calculateSubsteps(dt);
-    var substepDt = dt / substeps;
+    //calculate flux
+    this.rttQuadMesh.material = this.waterSimMaterial;
+    this.waterSimMaterial.uniforms.uTerrainTexture.value = this.terrainTexture;
+    this.waterSimMaterial.uniforms.uWaterTexture.value = this.rttRenderTarget2;
+    this.waterSimMaterial.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
+    this.waterSimMaterial.uniforms.uBoundaryTexture.value = this.boundaryTexture;
+    this.waterSimMaterial.uniforms.uHeightToFluxFactor.value = this.heightToFluxFactorNoDt * substepDt;
+    this.waterSimMaterial.uniforms.uDt.value = substepDt;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTargetFlux1, false);
+    this.swapFluxRenderTargets();
 
-    //PASS 1: disturb
-    this.disturbAndSourcePass();
+    //water sim
+    this.rttQuadMesh.material = this.waterSimMaterial2;
+    this.waterSimMaterial2.uniforms.uWaterTexture.value = this.rttRenderTarget2;
+    this.waterSimMaterial2.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
+    this.waterSimMaterial2.uniforms.uDt.value = substepDt;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
+    this.swapRenderTargets();
 
-    var i;
-    for (i = 0; i < substeps; i++) {
-
-        //PASS 2: calculate flux
-        this.rttQuadMesh.material = this.waterSimMaterial;
-        this.waterSimMaterial.uniforms.uTerrainTexture.value = this.terrainTexture;
-        this.waterSimMaterial.uniforms.uWaterTexture.value = this.rttRenderTarget2;
-        this.waterSimMaterial.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
-        this.waterSimMaterial.uniforms.uBoundaryTexture.value = this.boundaryTexture;
-        this.waterSimMaterial.uniforms.uHeightToFluxFactor.value = this.heightToFluxFactorNoDt * substepDt;
-        this.waterSimMaterial.uniforms.uDt.value = substepDt;
-        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTargetFlux1, false);
-        this.swapFluxRenderTargets();
-
-        //PASS 3: water sim
-        this.rttQuadMesh.material = this.waterSimMaterial2;
-        this.waterSimMaterial2.uniforms.uWaterTexture.value = this.rttRenderTarget2;
-        this.waterSimMaterial2.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
-        this.waterSimMaterial2.uniforms.uDt.value = substepDt;
-        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
-        this.swapRenderTargets();
-
-    }
+};
+GpuPipeModelWater.prototype.postStep = function () {
 
     //combine terrain and water heights
     this.rttQuadMesh.material = this.combineTexturesMaterial;
