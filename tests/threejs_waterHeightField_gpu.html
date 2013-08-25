@@ -467,7 +467,7 @@
 	function setupGui() {
 
 		gui = new dat.GUI({width: 350});
-		gui.close();  //close GUI by default
+		// gui.close();  //close GUI by default
 
 		//Water Sim folder
 		waterSimFolder = gui.addFolder('Water Sim');
@@ -483,7 +483,7 @@
 			// hfWater.setMeanHeight(currWaterHeight);
 
 			//reset sim
-			// hfWater.reset();
+			hfWater.reset();
 
 			//load some presets so that that sim works well
 			waterDisturbAmount = waterSimTypeSettings[value].disturbAmount;

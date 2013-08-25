@@ -79,6 +79,7 @@ function GpuHeightFieldWater(options) {
     this.emptyTexture = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatParams);
     this.emptyTexture.generateMipmaps = false;
 
+    this.__initCounter = 5;
     this.init();
 }
 /**
@@ -97,11 +98,8 @@ GpuHeightFieldWater.prototype.getWaterFragmentShaderUrl = function () {
 GpuHeightFieldWater.prototype.__setupShaders = function () {
 
     THREE.ShaderManager.addShader('/glsl/passUv.vert');
-    THREE.ShaderManager.addShader('/glsl/hfWater_disturb.frag');
-    THREE.ShaderManager.addShader(this.getWaterFragmentShaderUrl());
-    THREE.ShaderManager.addShader('/glsl/heightMap.vert');
-    THREE.ShaderManager.addShader('/glsl/lambert.frag');
 
+    THREE.ShaderManager.addShader('/glsl/hfWater_disturb.frag');
     this.disturbAndSourceMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: this.emptyTexture },
@@ -118,6 +116,7 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_disturb.frag')
     });
 
+    THREE.ShaderManager.addShader(this.getWaterFragmentShaderUrl());
     this.waterSimMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: this.emptyTexture },
@@ -129,6 +128,16 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
     });
+
+    THREE.ShaderManager.addShader('/glsl/clear.frag');
+    this.resetMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uColor: { type: 'v4', value: new THREE.Vector4() }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/clear.frag')
+    });
+
 };
 /**
  * Sets up the render-to-texture scene (2 render targets by default)
@@ -159,6 +168,8 @@ GpuHeightFieldWater.prototype.__setupRttScene = function () {
  * Sets up the vertex-texture-fetch for the given mesh
  */
 GpuHeightFieldWater.prototype.__setupVtf = function () {
+    THREE.ShaderManager.addShader('/glsl/heightMap.vert');
+    THREE.ShaderManager.addShader('/glsl/lambert.frag');
     this.mesh.material = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: this.rttRenderTarget1 },
@@ -237,6 +248,16 @@ GpuHeightFieldWater.prototype.__initDataAndTextures = function () {
     this.boundaryTexture.image.data = this.boundaryData;
     this.boundaryTexture.needsUpdate = true;
 };
+GpuHeightFieldWater.prototype.reset = function () {
+    this.__initCounter = 5;
+};
+GpuHeightFieldWater.prototype.resetPass = function () {
+    //reset height in main render target
+    this.rttQuadMesh.material = this.resetMaterial;
+    this.resetMaterial.uniforms.uColor.value.set(0.0, 0.0, 0.0, 1.0);
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget2, false);
+    this.swapRenderTargets();
+};
 GpuHeightFieldWater.prototype.disturb = function (position, amount, radius) {
     this.isDisturbing = true;
     this.disturbUvPos.x = (position.x + this.halfSize) / this.size;
@@ -272,6 +293,14 @@ GpuHeightFieldWater.prototype.calculateSubsteps = function (dt) {
 };
 GpuHeightFieldWater.prototype.update = function (dt) {
 
+    //NOTE: unable to figure out why this.terrainTexture has no data until a few updates later,
+    //so using this dirty hack to init for the first few frames
+    if (this.__initCounter > 0) {
+        this.resetPass();
+        this.__initCounter -= 1;
+        return;
+    }
+
     //fix dt for the moment (better to be in slow-mo in extreme cases than to explode)
     dt = 1.0 / 60.0;
 
@@ -280,6 +309,9 @@ GpuHeightFieldWater.prototype.update = function (dt) {
     for (i = 0; i < this.multisteps; i++) {
         this.step(dt);
     }
+
+    //post step
+    this.postStepPass();
 };
 GpuHeightFieldWater.prototype.step = function (dt) {
 
@@ -295,11 +327,8 @@ GpuHeightFieldWater.prototype.step = function (dt) {
     for (i = 0; i < substeps; i++) {
         this.waterSimPass(substepDt);
     }
-
-    //post step
-    this.postStep();
 };
-GpuHeightFieldWater.prototype.postStep = function () {
+GpuHeightFieldWater.prototype.postStepPass = function () {
     //rebind render target to water mesh to ensure vertex shader gets the right texture
     this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
 };
@@ -333,8 +362,8 @@ GpuMuellerGdc2008Water.prototype.constructor = GpuMuellerGdc2008Water;
 GpuMuellerGdc2008Water.prototype.getWaterFragmentShaderUrl = function () {
     return '/glsl/hfWater_muellerGdc2008.frag';
 };
-GpuMuellerGdc2008Water.prototype.__setupRttScene = function () {
-    GpuHeightFieldWater.prototype.__setupRttScene.call(this);
+GpuMuellerGdc2008Water.prototype.__setupShaders = function () {
+    GpuHeightFieldWater.prototype.__setupShaders.call(this);
 
     //add uHorizontalSpeed into the uniforms
     this.waterSimMaterial.uniforms.uHorizontalSpeed = { type: 'f', value: this.horizontalSpeed };
@@ -504,7 +533,6 @@ function GpuPipeModelWater(options) {
     this.maxHorizontalSpeed = 10.0;  //just an arbitrary upper-bound estimate //TODO: link this to cross-section area
     this.maxDt = this.segmentSize / this.maxHorizontalSpeed;  //based on CFL condition
 
-    this.__initCounter = 5;
 }
 //inherit
 GpuPipeModelWater.prototype = Object.create(GpuHeightFieldWater.prototype);
@@ -622,27 +650,16 @@ GpuPipeModelWater.prototype.disturbPass = function () {
 GpuPipeModelWater.prototype.calculateSubsteps = function (dt) {
     return Math.ceil(5.0 * dt / this.maxDt);  //not always stable without a multiplier
 };
-GpuPipeModelWater.prototype.update = function (dt) {
+GpuPipeModelWater.prototype.resetPass = function () {
+    //init rttRenderTarget2 to initial height value
+    this.rttQuadMesh.material = this.clearMaterial;
+    this.clearMaterial.uniforms.uColor.value.set(this.initialWaterHeight, this.initialWaterHeight, this.initialWaterHeight, this.initialWaterHeight);
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget2, false);
 
-    //NOTE: unable to figure out why this.terrainTexture has no data until a few updates later,
-    //so using this dirty hack to init for the first few frames
-    if (this.__initCounter > 0) {
-
-        //init rttRenderTarget2 to initial height value
-        this.rttQuadMesh.material = this.clearMaterial;
-        this.clearMaterial.uniforms.uColor.value.set(this.initialWaterHeight, this.initialWaterHeight, this.initialWaterHeight, this.initialWaterHeight);
-        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget2, false);
-
-        //init all channels of flux texture to 0.0
-        this.clearMaterial.uniforms.uColor.value.set(0.0, 0.0, 0.0, 0.0);
-        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTargetFlux2, false);
-
-        this.__initCounter -= 1;
-        return;
-    }
-
-    GpuHeightFieldWater.prototype.update.call(this, dt);
-};
+    //init all channels of flux texture to 0.0
+    this.clearMaterial.uniforms.uColor.value.set(0.0, 0.0, 0.0, 0.0);
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTargetFlux2, false);
+}
 GpuPipeModelWater.prototype.waterSimPass = function (substepDt) {
 
     //calculate flux
@@ -665,7 +682,7 @@ GpuPipeModelWater.prototype.waterSimPass = function (substepDt) {
     this.swapRenderTargets();
 
 };
-GpuPipeModelWater.prototype.postStep = function () {
+GpuPipeModelWater.prototype.postStepPass = function () {
 
     //combine terrain and water heights
     this.rttQuadMesh.material = this.combineTexturesMaterial;
