@@ -35,7 +35,7 @@
 	var WATER_SIZE = 10;
 	var WATER_RES = 256;
 	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
-	var MEAN_WATER_HEIGHT = 0;
+	var MEAN_WATER_HEIGHT = 0.5;
 	var WATER_FLOOD_RATE = 20.0;
     var WATER_SOURCE_AMOUNT = 0.2;
     var WATER_SOURCE_RADIUS = 0.7;
@@ -194,8 +194,8 @@
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: waterDampingFactor,
-			multisteps: 3
-			// meanHeight: MEAN_WATER_HEIGHT
+			multisteps: 3,
+			meanHeight: MEAN_WATER_HEIGHT
 		});
 		gpuMuellerGdc2008Water = new GpuMuellerGdc2008Water({
 		    renderer: renderer,
@@ -204,8 +204,8 @@
 			res: WATER_RES,
 			dampingFactor: waterDampingFactor,
 			horizontalSpeed: 4.0,
-			multisteps: 1
-			// meanHeight: MEAN_WATER_HEIGHT
+			multisteps: 1,
+			meanHeight: MEAN_WATER_HEIGHT
 		});
 		gpuMuellerGdc2008HwWater = new GpuMuellerGdc2008HwWater({
 		    renderer: renderer,
@@ -213,8 +213,8 @@
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: waterDampingFactor,
-			multisteps: 3
-			// meanHeight: MEAN_WATER_HEIGHT
+			multisteps: 3,
+			meanHeight: MEAN_WATER_HEIGHT
 		});
 		gpuXWater = new GpuXWater({
 		    renderer: renderer,
@@ -222,8 +222,8 @@
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: waterDampingFactor,
-			multisteps: 2
-			// meanHeight: MEAN_WATER_HEIGHT
+			multisteps: 2,
+			meanHeight: MEAN_WATER_HEIGHT
 		});
 		hfWater = gpuMuellerGdc2008HwWater;
 
@@ -452,7 +452,7 @@
 		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.2, 'disturbRadius':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[1]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[2]],
 		waterSimFloodRate: WATER_FLOOD_RATE,
 		obstaclesActive: true,
 		obstaclesSeed: 1,
@@ -480,7 +480,7 @@
 			hfWater = eval(value);
 
 			//set mean height
-			// hfWater.setMeanHeight(currWaterHeight);
+			hfWater.meanHeight = currWaterHeight;
 
 			//reset sim
 			hfWater.reset();
@@ -663,7 +663,7 @@
 			//animating mean height to increase flood levels
 			dV = options.waterSimFloodRate * dt;
 			currWaterHeight += dV / (WATER_SIZE * WATER_SIZE * 10);  //scale down 10 times more for the sims which uses mean height because it looks better
-			// hfWater.setMeanHeight(currWaterHeight);
+			hfWater.meanHeight = currWaterHeight;
 			// hfWater.flood(dV);
 
 			requestAnimationFrame(loop);

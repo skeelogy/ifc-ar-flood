@@ -20,16 +20,19 @@ void main() {
     //r channel: height
     //g channel: prev height
     //b channel: vertical derivative
+    //a channel: prev mean height
     vec4 tWater = texture2D(uWaterTexture, vUv);
 
     //propagate
     tWater.b = 0.0;
     float fk, fl;
+    vec4 tWaterNeighbour;
     for (int k = -KERNEL_RADIUS; k <= KERNEL_RADIUS; k++) {
         fk = float(k);
         for (int l = -KERNEL_RADIUS; l <= KERNEL_RADIUS; l++) {
             fl = float(l);
-            tWater.b += uKernel[(k + KERNEL_RADIUS) * KERNEL_WIDTH + (l + KERNEL_RADIUS)] * texture2D(uWaterTexture, vec2(vUv.r + fk * uTexelSize.r, vUv.g + fl * uTexelSize.g)).r;
+            tWaterNeighbour = texture2D(uWaterTexture, vec2(vUv.r + fk * uTexelSize.r, vUv.g + fl * uTexelSize.g));
+            tWater.b += uKernel[(k + KERNEL_RADIUS) * KERNEL_WIDTH + (l + KERNEL_RADIUS)] * (tWaterNeighbour.r - tWaterNeighbour.a);
         }
     }
 

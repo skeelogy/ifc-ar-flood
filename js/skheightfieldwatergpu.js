@@ -44,6 +44,8 @@ function GpuHeightFieldWater(options) {
     //this is different from substeps which are reduces dt per step for stability.
     this.multisteps = options.multisteps || 1;
 
+    this.meanHeight = options.meanHeight || 0;
+
     this.gravity = 9.81;
 
     this.halfSize = this.size / 2.0;
@@ -123,7 +125,8 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
             uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
             uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.size / this.res, this.size / this.res) },
             uDampingFactor: { type: 'f', value: this.__dampingFactor },
-            uDt: { type: 'f', value: 0.0 }
+            uDt: { type: 'f', value: 0.0 },
+            uMeanHeight: { type: 'f', value: this.meanHeight }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
@@ -254,7 +257,7 @@ GpuHeightFieldWater.prototype.reset = function () {
 GpuHeightFieldWater.prototype.resetPass = function () {
     //reset height in main render target
     this.rttQuadMesh.material = this.resetMaterial;
-    this.resetMaterial.uniforms.uColor.value.set(0.0, 0.0, 0.0, 1.0);
+    this.resetMaterial.uniforms.uColor.value.set(this.meanHeight, 0, 0, this.meanHeight);
     this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget2, false);
     this.swapRenderTargets();
 };
@@ -285,6 +288,7 @@ GpuHeightFieldWater.prototype.waterSimPass = function (substepDt) {
     this.rttQuadMesh.material = this.waterSimMaterial;
     this.waterSimMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
     this.waterSimMaterial.uniforms.uDt.value = substepDt;
+    this.waterSimMaterial.uniforms.uMeanHeight.value = this.meanHeight;
     this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
     this.swapRenderTargets();
 };
@@ -293,8 +297,8 @@ GpuHeightFieldWater.prototype.calculateSubsteps = function (dt) {
 };
 GpuHeightFieldWater.prototype.update = function (dt) {
 
-    //NOTE: unable to figure out why this.terrainTexture has no data until a few updates later,
-    //so using this dirty hack to init for the first few frames
+    //NOTE: unable to figure out why cannot clear until a few updates later,
+    //so using this dirty hack to init for a few frames
     if (this.__initCounter > 0) {
         this.resetPass();
         this.__initCounter -= 1;
@@ -413,7 +417,7 @@ function GpuTessendorfIWaveWater(options) {
 
     //not giving user the choice of kernel size.
     //wanted to use 6 as recommended, but that doesn't work well with mesh res of 256 (ripples look like they go inwards rather than outwards).
-    //radius of 2 seems to work well for mesh 256.
+    //radius of 2 seems to work ok for mesh 256.
     this.kernelRadius = 2;
 
     GpuHeightFieldWater.call(this, options);
@@ -447,7 +451,8 @@ GpuTessendorfIWaveWater.prototype.__setupShaders = function () {
             uWaterTexture: { type: 't', value: this.emptyTexture },
             uTwoMinusDampTimesDt: { type: 'f', value: 0.0 },
             uOnePlusDampTimesDt: { type: 'f', value: 0.0 },
-            uGravityTimesDtTimesDt: { type: 'f', value: 0.0 }
+            uGravityTimesDtTimesDt: { type: 'f', value: 0.0 },
+            uMeanHeight: { type: 'f', value: this.meanHeight }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
@@ -468,6 +473,7 @@ GpuTessendorfIWaveWater.prototype.waterSimPass = function (substepDt) {
     this.waterSimMaterial.uniforms.uTwoMinusDampTimesDt.value = 2.0 - this.dampingFactor * substepDt;
     this.waterSimMaterial.uniforms.uOnePlusDampTimesDt.value = 1.0 + this.dampingFactor * substepDt;
     this.waterSimMaterial.uniforms.uGravityTimesDtTimesDt.value = -this.gravity * substepDt * substepDt;
+    this.waterSimMaterial.uniforms.uMeanHeight.value = this.meanHeight;
     this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
     this.swapRenderTargets();
 
