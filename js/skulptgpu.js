@@ -147,21 +147,34 @@ GpuSkulpt.prototype.__setupVtf = function () {
 };
 GpuSkulpt.prototype.update = function () {
 
-    //do the main sculpting
-    this.rttQuadMesh.material = this.skulptMaterial;
-    this.skulptMaterial.uniforms.uIsSculpting.value = this.isSculpting;
-    this.skulptMaterial.uniforms.uSculptPos.value.copy(this.sculptUvPos);
-    this.isSculpting = false;
-    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
-    this.swapRenderTargets();
+    if (this.isSculpting) {
 
-    //combine layers into one
-    this.rttQuadMesh.material = this.combineTexturesMaterial;
-    this.combineTexturesMaterial.uniforms.uTexture2.value = this.rttRenderTarget1;
-    this.renderer.render(this.rttScene, this.rttCamera, this.rttCombinedLayer, false);
+        //do the main sculpting
+        this.rttQuadMesh.material = this.skulptMaterial;
+        this.skulptMaterial.uniforms.uBaseTexture.value = this.imageDataTexture;
+        this.skulptMaterial.uniforms.uSculptTexture1.value = this.rttRenderTarget2;
+        this.skulptMaterial.uniforms.uIsSculpting.value = this.isSculpting;
+        this.skulptMaterial.uniforms.uSculptPos.value.copy(this.sculptUvPos);
+        this.isSculpting = false;
+        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
+        this.swapRenderTargets();
 
-    //need to rebind rttCombinedLayer to uTexture
-    this.mesh.material.uniforms.uTexture.value = this.rttCombinedLayer;
+        this.updateCombinedLayers = true;
+    }
+
+    if (this.updateCombinedLayers) {  //this can be triggered somewhere else without sculpting
+
+        //combine layers into one
+        this.rttQuadMesh.material = this.combineTexturesMaterial;
+        this.combineTexturesMaterial.uniforms.uTexture1.value = this.imageDataTexture;
+        this.combineTexturesMaterial.uniforms.uTexture2.value = this.rttRenderTarget1;
+        this.renderer.render(this.rttScene, this.rttCamera, this.rttCombinedLayer, false);
+
+        //need to rebind rttCombinedLayer to uTexture
+        this.mesh.material.uniforms.uTexture.value = this.rttCombinedLayer;
+
+        this.updateCombinedLayers = false;
+    }
 };
 GpuSkulpt.prototype.swapRenderTargets = function () {
     var temp = this.rttRenderTarget1;
@@ -206,6 +219,7 @@ GpuSkulpt.prototype.loadFromImageData = function (data, amount, midGreyIsLowest)
     this.skulptMaterial.uniforms.uBaseTexture.value = this.imageDataTexture;
     this.combineTexturesMaterial.uniforms.uTexture1.value = this.imageDataTexture;
     // this.mesh.material.uniforms.uBaseTexture.value = this.imageDataTexture;
+    this.updateCombinedLayers = true;
 };
 GpuSkulpt.prototype.sculpt = function (type, position, amount) {
     this.skulptMaterial.uniforms.uSculptType.value = type;

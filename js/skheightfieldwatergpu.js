@@ -708,7 +708,7 @@ GpuPipeModelWater.prototype.resetPass = function () {
     //init all channels of flux texture to 0.0
     this.clearMaterial.uniforms.uColor.value.set(0.0, 0.0, 0.0, 0.0);
     this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTargetFlux2, false);
-}
+};
 GpuPipeModelWater.prototype.waterSimPass = function (substepDt) {
 
     //calculate flux
