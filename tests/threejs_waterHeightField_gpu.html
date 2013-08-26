@@ -185,6 +185,15 @@
 			dampingFactor: waterDampingFactor,
 			multisteps: 1
 		});
+		gpuXWater = new GpuXWater({
+		    renderer: renderer,
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: waterDampingFactor,
+			multisteps: 2,
+			meanHeight: MEAN_WATER_HEIGHT
+		});
 		gpuIWaveWater = new GpuTessendorfIWaveWater({
 		    renderer: renderer,
 			mesh: waterMesh,
@@ -211,15 +220,6 @@
 			res: WATER_RES,
 			dampingFactor: waterDampingFactor,
 			multisteps: 3,
-			meanHeight: MEAN_WATER_HEIGHT
-		});
-		gpuXWater = new GpuXWater({
-		    renderer: renderer,
-			mesh: waterMesh,
-			size: WATER_SIZE,
-			res: WATER_RES,
-			dampingFactor: waterDampingFactor,
-			multisteps: 2,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
 		hfWater = gpuMuellerGdc2008HwWater;

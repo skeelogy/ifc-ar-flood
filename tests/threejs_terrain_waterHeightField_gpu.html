@@ -41,8 +41,8 @@
 	var USE_TERRAIN_IMAGE = true;
 	var TERRAIN_SCULPT_SIZE = 1.0;
 	var TERRAIN_SCULPT_AMOUNT = 0.1;
-	var MEAN_WATER_HEIGHT = 0;
-	var WATER_FLOOD_RATE = 20.0;
+	var MEAN_WATER_HEIGHT = 0.0;
+	var WATER_FLOOD_RATE = 0.0;
 
 	var WATER_SIZE = 10;
 	var WATER_RES = 256;
@@ -64,7 +64,6 @@
 	// GLOBAL_MAT.multiply(new THREE.Matrix4().makeScale(GLOBAL_SCALE.x, GLOBAL_SCALE.y, GLOBAL_SCALE.z));
 
 	var clock = new THREE.Clock();
-	var currWaterHeight = MEAN_WATER_HEIGHT;
 	var waterDampingFactor = 0.0;
 	var waterDisturbAmount = 0.0;
 	var waterDisturbRadius = 0.0;
@@ -88,17 +87,17 @@
 	};
 	var waterSimTypes = {
 	    'Pipe Model': 'gpuPipeModelWater',
-		'X Water': 'xWater',
-		'Tessendorf iWave': 'iWaveWater',
-		'Muller GDC2008': 'muellerGdc2008Water',
+		'X Water': 'gpuXWater',
+		'Tessendorf iWave': 'gpuIWaveWater',
+		'Muller GDC2008': 'gpuMuellerGdc2008Water',
 		'Muller GDC2008 HelloWorld': 'gpuMuellerGdc2008HwWater'
 	};
 	var waterSimTypeSettings = {
 	    'gpuPipeModelWater': { 'disturbAmount':0.15, 'disturbRadius':0.25, 'dampingFactor':0.995 },
 	    'gpuXWater': { 'disturbAmount':0.035, 'disturbRadius':0.25, 'dampingFactor':0.95 },
-		'gpuIWaveWater': { 'disturbAmount':0.02, 'disturbRadius':0.25, 'dampingFactor':0.7 },
+		'gpuIWaveWater': { 'disturbAmount':0.004, 'disturbRadius':0.25, 'dampingFactor':0.7 },
 		'gpuMuellerGdc2008Water': { 'disturbAmount':0.2, 'disturbRadius':0.25, 'dampingFactor':0.95 },
-		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.2, 'disturbRadius':0.25, 'dampingFactor':0 }
+		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.2, 'disturbRadius':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
 		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
@@ -115,6 +114,7 @@
 		renderingShadowCasters: false,
 		displayWireframe: false,
 		displayLocalAxis: false,
+		displaySimTexture: false,
 		displayVelMag: false,
 		displayVelDir: false
 	};
@@ -319,7 +319,7 @@
 	Math.seedrandom(RANDOM_SEED);
 	var waterMesh;
 	var visGeom, visMaterial, visMesh;
-	var hfWater, iWaveWater, muellerGdc2008Water, gpuMuellerGdc2008HwWater, xWater;
+	var hfWater, gpuIWaveWater, gpuMuellerGdc2008Water, gpuMuellerGdc2008HwWater, gpuXWater;
 	var terrainObstacle;
 	var iSegments = 3;
 	var jSegments = 3;
@@ -341,21 +341,41 @@
 		globalTransform.add(waterMesh);
 
 		//create the different water sims
-		iWaveWater = new TessendorfIWaveWater({
+		gpuPipeModelWater = new GpuPipeModelWater({
+		    renderer: renderer,
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: waterDampingFactor,
-			kernelRadius: 4,
-			substeps: 3,
+			initialWaterHeight: 0.1,
+			terrainTexture: gpuSkulpt.rttCombinedLayer
+		});
+		gpuXWater = new GpuXWater({
+		    renderer: renderer,
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: waterDampingFactor,
+			multisteps: 2,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
-		muellerGdc2008Water = new MuellerGdc2008Water({
+		gpuIWaveWater = new GpuTessendorfIWaveWater({
+		    renderer: renderer,
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: waterDampingFactor,
-			horizontalSpeed: 5.0,
+			multisteps: 3,
+			meanHeight: MEAN_WATER_HEIGHT
+		});
+		gpuMuellerGdc2008Water = new GpuMuellerGdc2008Water({
+		    renderer: renderer,
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: waterDampingFactor,
+			horizontalSpeed: 4.0,
+			multisteps: 1,
 			meanHeight: MEAN_WATER_HEIGHT
 		});
 		gpuMuellerGdc2008HwWater = new GpuMuellerGdc2008HwWater({
@@ -364,25 +384,8 @@
 			size: WATER_SIZE,
 			res: WATER_RES,
 			dampingFactor: waterDampingFactor,
-			// meanHeight: MEAN_WATER_HEIGHT
-		});
-		xWater = new XWater({
-			mesh: waterMesh,
-			size: WATER_SIZE,
-			res: WATER_RES,
-			dampingFactor: waterDampingFactor,
+			multisteps: 3,
 			meanHeight: MEAN_WATER_HEIGHT
-		});
-		gpuPipeModelWater = new GpuPipeModelWater({
-		    renderer: renderer,
-			mesh: waterMesh,
-			size: WATER_SIZE,
-			res: WATER_RES,
-			dampingFactor: waterDampingFactor,
-			// meanHeight: MEAN_WATER_HEIGHT,  //TODO: figure out if this is needed for pipe model
-			// scene: scene,
-			initialWaterHeight: 0.1,
-			terrainTexture: gpuSkulpt.rttCombinedLayer
 		});
 		hfWater = gpuPipeModelWater;
 
@@ -408,10 +411,10 @@
 //
 				// //create Obstacle
 				// var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE, globalTransform.matrixWorld);
-				// iWaveWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				// muellerGdc2008Water.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				// gpuIWaveWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				// gpuMuellerGdc2008Water.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// gpuMuellerGdc2008HwWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				// xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+				// gpuXWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// gpuPipeModelWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
 				// obstacle.updateAlways = false;
 				// // obstacle.update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
@@ -429,10 +432,10 @@
 //
 		//add terrain as an obstacle
 		// terrainObstacle = new TerrainObstacle(terrainMesh);
-		// iWaveWater.addObstacle(terrainObstacle, 'terrainObstacle');
-		// muellerGdc2008Water.addObstacle(terrainObstacle, 'terrainObstacle');
+		// gpuIWaveWater.addObstacle(terrainObstacle, 'terrainObstacle');
+		// gpuMuellerGdc2008Water.addObstacle(terrainObstacle, 'terrainObstacle');
 		// gpuMuellerGdc2008HwWater.addObstacle(terrainObstacle, 'terrainObstacle');
-		// xWater.addObstacle(terrainObstacle, 'terrainObstacle');
+		// gpuXWater.addObstacle(terrainObstacle, 'terrainObstacle');
 		// gpuPipeModelWater.addObstacle(terrainObstacle, 'terrainObstacle');
 		// terrainObstacle.updateAlways = true;
 
@@ -462,14 +465,15 @@
 		var control = waterSimFolder.add(options, 'waterSimType', waterSimTypes).name('Type');
 		function changeWaterSimType(value)
 		{
+		    var prevHfWater = hfWater;
+
 			//swap the sim
 			hfWater = eval(value);
 
-			//set mean height
-			// hfWater.setMeanHeight(currWaterHeight);
-
-			//reset sim
-			// hfWater.reset();
+			//reset sim and restore some prev sim values
+			hfWater.reset();
+			hfWater.shouldDisplaySimTexture = prevHfWater.shouldDisplaySimTexture;
+			hfWater.meanHeight = prevHfWater.meanHeight;
 
 			//load some presets so that that sim works well
 			waterDisturbAmount = waterSimTypeSettings[value].disturbAmount;
@@ -480,7 +484,7 @@
 		control.onChange(changeWaterSimType);
 		changeWaterSimType(options.waterSimType);
 
-		control = waterSimFolder.add(options, 'waterSimFloodRate', -200, 200).step(0.01).name('Flood Rate');
+		control = waterSimFolder.add(options, 'waterSimFloodRate', -10000, 10000).step(10).name('Flood Rate');
 
 		//Terrain folder
 		terrainFolder = gui.addFolder('Terrain');
@@ -624,6 +628,15 @@
 		}
 		control.onChange(toggleLocalAxis);
 		toggleLocalAxis(options.displayLocalAxis);
+
+		control = displayFolder.add(options, 'displaySimTexture').name('Sim Texture');
+		function toggleSimTexture(value)
+		{
+            hfWater.shouldDisplaySimTexture = value;
+            visMesh.visible = value;
+		}
+		control.onChange(toggleSimTexture);
+		toggleSimTexture(options.displaySimTexture);
 
 		control = displayFolder.add(options, 'displayVelMag').name('Velocity Mag');
 		function toggleVelMag(value)
@@ -989,10 +1002,8 @@
 			}
 
 			// visMaterial.map = gpuSkulpt.rttCombinedLayer;
-			// visMaterial.map = hfWater.rttRenderTarget1;
-			// visMaterial.map = hfWater.terrainTexture;
-			visMaterial.map = hfWater.rttCombinedHeight;
-			// visMaterial.map = hfWater.rttRenderTargetFlux1;
+			hfWater.shouldDisplay = true;
+			visMaterial.map = hfWater.rttDisplay;
 
 			renderer.autoClear = false;
 			renderer.clear();
@@ -1015,11 +1026,9 @@
 				shouldUpdateObstacles = false;
 			}
 
-			//animating mean height to increase flood levels
+			//change water height based on flood levels
 			dV = options.waterSimFloodRate * dt
-			currWaterHeight += dV / (WATER_SIZE * WATER_SIZE * 10);  //scale down 10 times more for the sims which uses mean height because it looks better
-			// hfWater.setMeanHeight(currWaterHeight);
-			// hfWater.flood(dV);
+			hfWater.flood(dV);
 
 			requestAnimationFrame(loop);
 		}
