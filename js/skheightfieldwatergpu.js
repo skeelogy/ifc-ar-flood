@@ -39,12 +39,13 @@ function GpuHeightFieldWater(options) {
             this.waterSimMaterial.uniforms.uDampingFactor.value = value;
         }
     });
+    this.meanHeight = options.meanHeight || 0;
 
     //number of full steps to take per frame, to speed up some of algorithms that are slow to propagate at high mesh resolutions.
     //this is different from substeps which are reduces dt per step for stability.
     this.multisteps = options.multisteps || 1;
 
-    this.meanHeight = options.meanHeight || 0;
+    this.shouldDisplaySimTexture = false;
 
     this.gravity = 9.81;
 
@@ -141,6 +142,15 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/clear.frag')
     });
 
+    THREE.ShaderManager.addShader('/glsl/setSolidAlpha.frag');
+    this.setSolidAlphaMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTexture: { type: 't', value: this.emptyTexture }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/setSolidAlpha.frag')
+    });
+
 };
 /**
  * Sets up the render-to-texture scene (2 render targets by default)
@@ -166,6 +176,9 @@ GpuHeightFieldWater.prototype.__setupRttScene = function () {
     this.rttRenderTarget1 = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatParams);
     this.rttRenderTarget1.generateMipmaps = false;
     this.rttRenderTarget2 = this.rttRenderTarget1.clone();
+
+    //create a render target purely for display purposes
+    this.rttDisplay = this.rttRenderTarget1.clone();
 };
 /**
  * Sets up the vertex-texture-fetch for the given mesh
@@ -292,6 +305,14 @@ GpuHeightFieldWater.prototype.waterSimPass = function (substepDt) {
     this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
     this.swapRenderTargets();
 };
+GpuHeightFieldWater.prototype.displayPass = function () {
+    if (this.shouldDisplaySimTexture) {
+        this.rttQuadMesh.material = this.setSolidAlphaMaterial;
+        this.setSolidAlphaMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
+        this.renderer.render(this.rttScene, this.rttCamera, this.rttDisplay, false);
+        this.swapRenderTargets();
+    }
+};
 GpuHeightFieldWater.prototype.calculateSubsteps = function (dt) {
     return 1;
 };
@@ -316,6 +337,9 @@ GpuHeightFieldWater.prototype.update = function (dt) {
 
     //post step
     this.postStepPass();
+
+    //display pass
+    this.displayPass();
 };
 GpuHeightFieldWater.prototype.step = function (dt) {
 

@@ -35,8 +35,8 @@
 	var WATER_SIZE = 10;
 	var WATER_RES = 256;
 	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
-	var MEAN_WATER_HEIGHT = 0.5;
-	var WATER_FLOOD_RATE = 20.0;
+	var MEAN_WATER_HEIGHT = 0.0;
+	var WATER_FLOOD_RATE = 0.0;
     var WATER_SOURCE_AMOUNT = 0.2;
     var WATER_SOURCE_RADIUS = 0.7;
 	var WATER_SINK_AMOUNT = 0.5;
@@ -272,7 +272,7 @@
 		//create a RTT visualization plane
 		visGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
 		visGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-	    visMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: hfWater.rttRenderTarget1 } );
+	    visMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: hfWater.rttDisplay } );
 		materials.push(visMaterial);
 		visMesh = new THREE.Mesh(visGeom, visMaterial);
 		visMesh.position.y = 3;
@@ -461,6 +461,7 @@
 		renderingShadows: true,  //FIXME: this has to be init to true
 		displayWireframe: false,
 		displayLocalAxis: false,
+		displaySimTexture: false,
 		displayVelMag: false,
 		displayVelDir: false
 	};
@@ -476,8 +477,11 @@
 		var control = waterSimFolder.add(options, 'waterSimType', waterSimTypes).name('Type');
 		function changeWaterSimType(value)
 		{
+		    var prevHfWater = hfWater;
+
 			//swap the sim
 			hfWater = eval(value);
+			hfWater.shouldDisplaySimTexture = prevHfWater.shouldDisplaySimTexture;
 
 			//set mean height
 			hfWater.meanHeight = currWaterHeight;
@@ -585,6 +589,15 @@
 		control.onChange(toggleLocalAxis);
 		toggleLocalAxis(options.displayLocalAxis);
 
+		control = displayFolder.add(options, 'displaySimTexture').name('Sim Texture');
+		function toggleSimTexture(value)
+		{
+            hfWater.shouldDisplaySimTexture = value;
+            visMesh.visible = value;
+		}
+		control.onChange(toggleSimTexture);
+		toggleSimTexture(options.displaySimTexture);
+
 		control = displayFolder.add(options, 'displayVelMag').name('Velocity Mag');
 		function toggleVelMag(value)
 		{
@@ -639,9 +652,8 @@
 
 			controls.update();
 
-			// visMaterial.map = hfWater.rttRenderTarget1;
-			// visMaterial.map = hfWater.rttRenderTargetFlux1;
-			visMaterial.map = hfWater.rttCombinedHeight;
+			hfWater.shouldDisplay = true;
+			visMaterial.map = hfWater.rttDisplay;
 
 			renderer.autoClear = false;
 			renderer.clear();
