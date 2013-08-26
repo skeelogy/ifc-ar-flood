@@ -35,6 +35,8 @@ function GpuSkulpt(options) {
     this.isSculpting = false;
     this.sculptUvPos = new THREE.Vector2();
 
+    this.shouldClear = false;
+
     this.linearFloatParams = {
         minFilter: THREE.LinearFilter,
         magFilter: THREE.LinearFilter,
@@ -66,11 +68,8 @@ GpuSkulpt.prototype.__checkExtensions = function (renderer) {
 GpuSkulpt.prototype.__setupShaders = function () {
 
     THREE.ShaderManager.addShader('/glsl/passUv.vert');
-    THREE.ShaderManager.addShader('/glsl/skulpt.frag');
-    THREE.ShaderManager.addShader('/glsl/heightMap.vert');
-    THREE.ShaderManager.addShader('/glsl/lambert.frag');
-    THREE.ShaderManager.addShader('/glsl/combineTextures.frag');
 
+    THREE.ShaderManager.addShader('/glsl/skulpt.frag');
     this.skulptMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uBaseTexture: { type: 't', value: null },
@@ -79,14 +78,15 @@ GpuSkulpt.prototype.__setupShaders = function () {
             uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.size / this.res, this.size / this.res) },
             uIsSculpting: { type: 'i', value: 0 },
             uSculptType: { type: 'i', value: 0 },
-            uSculptPos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
+            uSculptPos: { type: 'v2', value: new THREE.Vector2() },
             uSculptAmount: { type: 'f', value: 0.05 },
-            uSculptRadius: { type: 'f', value: 0.0025 * this.size }
+            uSculptRadius: { type: 'f', value: 0.0 }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/skulpt.frag')
     });
 
+    THREE.ShaderManager.addShader('/glsl/combineTextures.frag');
     this.combineTexturesMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTexture1: { type: 't', value: null },
@@ -94,6 +94,15 @@ GpuSkulpt.prototype.__setupShaders = function () {
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTextures.frag')
+    });
+
+    THREE.ShaderManager.addShader('/glsl/clear.frag');
+    this.clearMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uColor: { type: 'v4', value: new THREE.Vector4() }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/clear.frag')
     });
 };
 /**
@@ -126,6 +135,8 @@ GpuSkulpt.prototype.__setupRttScene = function () {
  * Sets up the vertex-texture-fetch for the given mesh
  */
 GpuSkulpt.prototype.__setupVtf = function () {
+    THREE.ShaderManager.addShader('/glsl/heightMap.vert');
+    THREE.ShaderManager.addShader('/glsl/lambert.frag');
     this.mesh.material = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: null },
@@ -147,40 +158,49 @@ GpuSkulpt.prototype.__setupVtf = function () {
 };
 GpuSkulpt.prototype.update = function () {
 
-    if (this.isSculpting) {
+    //have to set flags from other places and then do all steps at once during update
 
-        //do the main sculpting
+    //clear sculpts if necessary
+    if (this.shouldClear) {
+        this.rttQuadMesh.material = this.clearMaterial;
+        this.clearMaterial.uniforms.uColor.value.set(0.0, 0.0, 0.0, 0.0);
+        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
+        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget2, false);
+        this.shouldClear = false;
+        this.updateCombinedLayers = true;
+    }
+
+    //do the main sculpting
+    if (this.isSculpting) {
         this.rttQuadMesh.material = this.skulptMaterial;
         this.skulptMaterial.uniforms.uBaseTexture.value = this.imageDataTexture;
         this.skulptMaterial.uniforms.uSculptTexture1.value = this.rttRenderTarget2;
         this.skulptMaterial.uniforms.uIsSculpting.value = this.isSculpting;
         this.skulptMaterial.uniforms.uSculptPos.value.copy(this.sculptUvPos);
-        this.isSculpting = false;
         this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
         this.swapRenderTargets();
-
+        this.isSculpting = false;
         this.updateCombinedLayers = true;
     }
 
+    //combine layers into one
     if (this.updateCombinedLayers) {  //this can be triggered somewhere else without sculpting
 
-        //combine layers into one
         this.rttQuadMesh.material = this.combineTexturesMaterial;
         this.combineTexturesMaterial.uniforms.uTexture1.value = this.imageDataTexture;
         this.combineTexturesMaterial.uniforms.uTexture2.value = this.rttRenderTarget1;
         this.renderer.render(this.rttScene, this.rttCamera, this.rttCombinedLayer, false);
+        this.updateCombinedLayers = false;
 
         //need to rebind rttCombinedLayer to uTexture
         this.mesh.material.uniforms.uTexture.value = this.rttCombinedLayer;
-
-        this.updateCombinedLayers = false;
     }
 };
 GpuSkulpt.prototype.swapRenderTargets = function () {
     var temp = this.rttRenderTarget1;
     this.rttRenderTarget1 = this.rttRenderTarget2;
     this.rttRenderTarget2 = temp;
-    this.skulptMaterial.uniforms.uSculptTexture1.value = this.rttRenderTarget2;
+    // this.skulptMaterial.uniforms.uSculptTexture1.value = this.rttRenderTarget2;
 };
 GpuSkulpt.prototype.setBrushSize = function (size) {
     this.skulptMaterial.uniforms.uSculptRadius.value = size / (this.size * 2.0);
@@ -228,16 +248,7 @@ GpuSkulpt.prototype.sculpt = function (type, position, amount) {
     this.sculptUvPos.y = (position.z + this.halfSize) / this.size;
 };
 GpuSkulpt.prototype.clear = function () {
-
-    //create RTT render targets (we need two to do feedback)
-    this.rttRenderTarget1 = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatParams);
-    this.rttRenderTarget1.generateMipmaps = false;
-    this.rttRenderTarget2 = this.rttRenderTarget1.clone();
-
-    //create a RTT render target for storing the combine results of all layers
-    this.rttCombinedLayer = this.rttRenderTarget1.clone();
-    this.skulptMaterial.uniforms.uSculptTexture1.value = this.rttRenderTarget1;
-    this.mesh.material.uniforms.uTexture.value = this.rttRenderTarget1;
+    this.shouldClear = true;
 };
 
 GpuSkulpt.ADD = 1;
