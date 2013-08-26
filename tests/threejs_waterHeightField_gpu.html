@@ -57,7 +57,6 @@
 
 	var clock = new THREE.Clock();
 
-	var currWaterHeight = MEAN_WATER_HEIGHT;
 	var waterDampingFactor = 0.0;
 	var waterDisturbAmount = 0.0;
 	var waterDisturbRadius = 0.0;
@@ -185,8 +184,6 @@
 			res: WATER_RES,
 			dampingFactor: waterDampingFactor,
 			multisteps: 1
-			// meanHeight: MEAN_WATER_HEIGHT,  //TODO: figure out if this is needed for pipe model
-			// scene: scene
 		});
 		gpuIWaveWater = new GpuTessendorfIWaveWater({
 		    renderer: renderer,
@@ -452,7 +449,7 @@
 		'gpuMuellerGdc2008HwWater': { 'disturbAmount':0.2, 'disturbRadius':0.25, 'dampingFactor':0.95 }
 	};
 	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[2]],
+		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
 		waterSimFloodRate: WATER_FLOOD_RATE,
 		obstaclesActive: true,
 		obstaclesSeed: 1,
@@ -481,13 +478,11 @@
 
 			//swap the sim
 			hfWater = eval(value);
-			hfWater.shouldDisplaySimTexture = prevHfWater.shouldDisplaySimTexture;
 
-			//set mean height
-			hfWater.meanHeight = currWaterHeight;
-
-			//reset sim
+			//reset sim and restore some prev sim values
 			hfWater.reset();
+			hfWater.shouldDisplaySimTexture = prevHfWater.shouldDisplaySimTexture;
+			hfWater.meanHeight = prevHfWater.meanHeight;
 
 			//load some presets so that that sim works well
 			waterDisturbAmount = waterSimTypeSettings[value].disturbAmount;
@@ -501,7 +496,7 @@
 		control.onChange(changeWaterSimType);
 		changeWaterSimType(options.waterSimType);
 
-		control = waterSimFolder.add(options, 'waterSimFloodRate', -200, 200).step(0.01).name('Flood Rate');
+		control = waterSimFolder.add(options, 'waterSimFloodRate', -10000, 10000).step(10).name('Flood Rate');
 
 		//Obstacles folder
 		obstaclesFolder = gui.addFolder('Obstacles');
@@ -672,11 +667,9 @@
 				// shouldUpdateObstacles = false;
 			// }
 
-			//animating mean height to increase flood levels
+			//change water height based on flood levels
 			dV = options.waterSimFloodRate * dt;
-			currWaterHeight += dV / (WATER_SIZE * WATER_SIZE * 10);  //scale down 10 times more for the sims which uses mean height because it looks better
-			hfWater.meanHeight = currWaterHeight;
-			// hfWater.flood(dV);
+			hfWater.flood(dV);
 
 			requestAnimationFrame(loop);
 		}

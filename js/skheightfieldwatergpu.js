@@ -281,6 +281,9 @@ GpuHeightFieldWater.prototype.disturb = function (position, amount, radius) {
     this.disturbAmount = amount;
     this.disturbRadius = radius;
 };
+GpuHeightFieldWater.prototype.flood = function (volume) {
+    this.meanHeight += volume / (this.res * this.res);
+};
 GpuHeightFieldWater.prototype.disturbPass = function () {
     if (this.isDisturbing) {
         this.rttQuadMesh.material = this.disturbAndSourceMaterial;
@@ -627,6 +630,9 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTexturesPostMult.frag')
     });
 
+    //add flood uniforms into disturb material
+    this.disturbAndSourceMaterial.uniforms.uIsFlooding = { type: 'i', value: 0 };
+    this.disturbAndSourceMaterial.uniforms.uFloodAmount = { type: 'f', value: this.floodAmount };
 };
 GpuPipeModelWater.prototype.__setupRttScene = function () {
 
@@ -646,6 +652,10 @@ GpuPipeModelWater.prototype.source = function (position, amount, radius) {
     this.sourceUvPos.y = (position.z + this.halfSize) / this.size;
     this.sourceAmount = amount;
     this.sourceRadius = radius;
+};
+GpuPipeModelWater.prototype.flood = function (volume) {
+    this.isFlooding = true;
+    this.floodAmount = volume / (this.res * this.res);
 };
 GpuPipeModelWater.prototype.disturbPass = function () {
     var shouldRender = false;
@@ -667,6 +677,13 @@ GpuPipeModelWater.prototype.disturbPass = function () {
         this.disturbAndSourceMaterial.uniforms.uSourceRadius.value = this.sourceRadius / this.size;
         shouldRender = true;
     }
+    if (this.isFlooding) {
+        this.rttQuadMesh.material = this.disturbAndSourceMaterial;
+        this.disturbAndSourceMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
+        this.disturbAndSourceMaterial.uniforms.uIsFlooding.value = this.isFlooding;
+        this.disturbAndSourceMaterial.uniforms.uFloodAmount.value = this.floodAmount;
+        shouldRender = true;
+    }
     if (shouldRender) {
         this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
         this.swapRenderTargets();
@@ -675,6 +692,8 @@ GpuPipeModelWater.prototype.disturbPass = function () {
         this.rttQuadMesh.material.uniforms.uIsDisturbing.value = false;
         this.isSourcing = false;
         this.rttQuadMesh.material.uniforms.uIsSourcing.value = false;
+        this.isFlooding = false;
+        this.rttQuadMesh.material.uniforms.uIsFlooding.value = false;
     }
 };
 GpuPipeModelWater.prototype.calculateSubsteps = function (dt) {
