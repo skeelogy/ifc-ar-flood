@@ -136,7 +136,7 @@ GpuSkulpt.prototype.__setupRttScene = function () {
  */
 GpuSkulpt.prototype.__setupVtf = function () {
     THREE.ShaderManager.addShader('/glsl/heightMap.vert');
-    THREE.ShaderManager.addShader('/glsl/lambert.frag');
+    THREE.ShaderManager.addShader('/glsl/lambertCursor.frag');
     this.mesh.material = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: null },
@@ -150,10 +150,14 @@ GpuSkulpt.prototype.__setupVtf = function () {
             uPointLight1Color: { type: 'v3', value: new THREE.Vector3(1, 0, 0) },
             uPointLight1Intensity: { type: 'f', value: 3.0 },
             uPointLight1FalloffStart: { type: 'f', value: 1.0 },
-            uPointLight1FalloffEnd: { type: 'f', value: 10.0 }
+            uPointLight1FalloffEnd: { type: 'f', value: 10.0 },
+            uShowCursor: { type: 'i', value: 0 },
+            uCursorPos: { type: 'v2', value: new THREE.Vector2() },
+            uCursorRadius: { type: 'f', value: 0.0 },
+            uCursorColor: { type: 'v3', value: new THREE.Vector3(1, 1, 0) },
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMap.vert'),
-        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambert.frag')
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambertCursor.frag')
     });
 };
 GpuSkulpt.prototype.update = function () {
@@ -203,7 +207,9 @@ GpuSkulpt.prototype.swapRenderTargets = function () {
     // this.skulptMaterial.uniforms.uSculptTexture1.value = this.rttRenderTarget2;
 };
 GpuSkulpt.prototype.setBrushSize = function (size) {
-    this.skulptMaterial.uniforms.uSculptRadius.value = size / (this.size * 2.0);
+    var normSize = size / (this.size * 2.0);
+    this.skulptMaterial.uniforms.uSculptRadius.value = normSize;
+    this.mesh.material.uniforms.uCursorRadius.value = normSize;
 };
 GpuSkulpt.prototype.setBrushAmount = function (amount) {
     this.skulptMaterial.uniforms.uSculptAmount.value = amount;
@@ -249,6 +255,17 @@ GpuSkulpt.prototype.sculpt = function (type, position, amount) {
 };
 GpuSkulpt.prototype.clear = function () {
     this.shouldClear = true;
+};
+GpuSkulpt.prototype.updateCursor = function (position) {
+    this.sculptUvPos.x = (position.x + this.halfSize) / this.size;
+    this.sculptUvPos.y = (position.z + this.halfSize) / this.size;
+    this.mesh.material.uniforms.uCursorPos.value.set(this.sculptUvPos.x, this.sculptUvPos.y);
+};
+GpuSkulpt.prototype.showCursor = function () {
+    this.mesh.material.uniforms.uShowCursor.value = 1;
+};
+GpuSkulpt.prototype.hideCursor = function () {
+    this.mesh.material.uniforms.uShowCursor.value = 0;
 };
 
 GpuSkulpt.ADD = 1;

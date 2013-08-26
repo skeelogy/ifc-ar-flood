@@ -422,6 +422,7 @@
 	function setupEvents()
 	{
 		window.addEventListener('resize', window_onResize, false);
+		window.addEventListener('keyup', window_onKeyUp, false);
 		window.addEventListener('mousedown', window_onMouseDown, false);
 		window.addEventListener('mousemove', window_onMouseMove, false);
 		window.addEventListener('mouseup', window_onMouseUp, false);
@@ -442,6 +443,15 @@
 
 		//update renderer size
 		renderer.setSize(window.innerWidth, window.innerHeight-5);
+	}
+
+	function window_onKeyUp(event)
+	{
+		if (event.keyCode === 17)  //ctrl
+		{
+			//hide cursor when ctrl key is up
+			gpuSkulpt.hideCursor();
+		}
 	}
 
 	var isSculpting = false;
@@ -483,8 +493,6 @@
 	function window_onMouseMove(event)
 	{
 		event.preventDefault();
-
-		// gpuSkulpt.hideCursor();
 
 		if (event.ctrlKey)
 		{
@@ -557,20 +565,19 @@
 		intersectPoint = detectIntersection();
 		if (intersectPoint)
 		{
-			// gpuSkulpt.updateCursor(intersectPoint, skulptTerrainMesh);
-			// gpuSkulpt.showCursor();
+			//show cursor at intersection point
+			gpuSkulpt.updateCursor(intersectPoint);
+			gpuSkulpt.showCursor();
 		}
 		else
 		{
-			// gpuSkulpt.hideCursor();
+			//cursor is out of terrain, so hide it, otherwise it will remain at the edge
+			gpuSkulpt.hideCursor();
 		}
 	}
 
 	function sculptTerrain(operation)
 	{
-		// gpuSkulpt.hideCursor();
-		// gpuSkulpt.setBrush(operation);
-		// gpuSkulpt.showCursor();
 		gpuSkulpt.sculpt(operation, intersectPoint, options.amount);
 	}
 
