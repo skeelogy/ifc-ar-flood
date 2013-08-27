@@ -96,13 +96,13 @@ GpuSkulpt.prototype.__setupShaders = function () {
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTextures.frag')
     });
 
-    THREE.ShaderManager.addShader('/glsl/clear.frag');
+    THREE.ShaderManager.addShader('/glsl/setColor.frag');
     this.clearMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uColor: { type: 'v4', value: new THREE.Vector4() }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
-        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/clear.frag')
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/setColor.frag')
     });
 };
 /**
@@ -154,7 +154,7 @@ GpuSkulpt.prototype.__setupVtf = function () {
             uShowCursor: { type: 'i', value: 0 },
             uCursorPos: { type: 'v2', value: new THREE.Vector2() },
             uCursorRadius: { type: 'f', value: 0.0 },
-            uCursorColor: { type: 'v3', value: new THREE.Vector3(1, 1, 0) },
+            uCursorColor: { type: 'v3', value: new THREE.Vector3(1, 1, 0) }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMap.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambertCursor.frag')

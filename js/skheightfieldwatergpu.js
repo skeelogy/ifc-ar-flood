@@ -133,13 +133,13 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
         fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
     });
 
-    THREE.ShaderManager.addShader('/glsl/clear.frag');
+    THREE.ShaderManager.addShader('/glsl/setColor.frag');
     this.resetMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uColor: { type: 'v4', value: new THREE.Vector4() }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
-        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/clear.frag')
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/setColor.frag')
     });
 
     THREE.ShaderManager.addShader('/glsl/setSolidAlpha.frag');
@@ -609,13 +609,13 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
         fragmentShader: THREE.ShaderManager.getShaderContents(this.getWaterFragmentShaderUrl())
     });
 
-    THREE.ShaderManager.addShader('/glsl/clear.frag');
+    THREE.ShaderManager.addShader('/glsl/setColor.frag');
     this.clearMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uColor: { type: 'v4', value: new THREE.Vector4(this.initialWaterHeight, this.initialWaterHeight, this.initialWaterHeight, this.initialWaterHeight) }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
-        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/clear.frag')
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/setColor.frag')
     });
 
     THREE.ShaderManager.addShader('/glsl/combineTexturesPostMult.frag');
