@@ -44,14 +44,6 @@
 		}
 	}
 
-	function setupShaders()
-	{
-	    THREE.ShaderManager.addShader('/glsl/passUv.vert');
-		THREE.ShaderManager.addShader('/glsl/hfWater_muellerGdc2008Hw.frag');
-		THREE.ShaderManager.addShader('/glsl/heightMap.vert');
-		THREE.ShaderManager.addShader('/glsl/lambert.frag');
-	}
-
 	var renderer, scene, camera, controls;
 	var materials = [];
 	var localAxis;
@@ -67,9 +59,6 @@
 		});
 		renderer.setSize(window.innerWidth, window.innerHeight-5);
 		renderer.setClearColor('#111111', 1);
-		renderer.shadowMapEnabled = true;
-		renderer.shadowMapType = THREE.PCFSoftShadowMap;
-		renderer.shadowMapSoft = true;
 		checkExtensions(renderer);
 		var $container = $('#threejs-container');
 		$container.append(renderer.domElement);
@@ -92,30 +81,9 @@
 		localAxis = new THREE.AxisHelper();
 		scene.add(localAxis);
 
-		//setup lights
-		//TODO: use these lights
-		scene.add(new THREE.AmbientLight(0x111111));
-
-		keyLight = new THREE.SpotLight(0xffff44, 0.6);
-		keyLight.position.set(5, 15, -15);
-		keyLight.target.position.set(0, 0, 0);
-		keyLight.castShadow = true;
-		keyLight.shadowCameraNear = 10;
-		keyLight.shadowCameraFar = 30;
-		keyLight.shadowCameraFov = 30;
-		//keyLight.shadowCameraVisible = true;
-		keyLight.shadowBias = 0.00001;
-		keyLight.shadowDarkness = 0.4;
-		keyLight.shadowMapWidth = SHADOW_MAP_RES;
-		keyLight.shadowMapHeight = SHADOW_MAP_RES;
-		scene.add(keyLight);
-
-		fillLight = new THREE.SpotLight(0xff0044, 0.4);
-		fillLight.position.set(5, 2, 15);
-		fillLight.target.position.set(0, 0, 0);
-		scene.add(fillLight);
-
 		//create a plane for the actual height displacement
+		THREE.ShaderManager.addShader('/glsl/heightMap.vert');
+		THREE.ShaderManager.addShader('/glsl/lambert.frag');
 		planeGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, PLANE_RES - 1, PLANE_RES - 1);
 		planeGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 	    planeMaterial = new THREE.ShaderMaterial({
@@ -127,32 +95,18 @@
 		        uBaseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
 		        uAmbientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
 		        uAmbientLightIntensity: { type: 'f', value: 0.1 },
-		        uPointLightWorldPos: { type: 'v3v', value: [ new THREE.Vector3(2, 2, 2) ] },
-		        uPointLightColor: { type: 'v3v', value: [ new THREE.Vector3(1, 0, 0) ] },
-		        uPointLightIntensity: { type: 'fv1', value: [ 3.0 ] },
-		        uPointLightFalloffStart: { type: 'fv1', value: [ 1.0 ] },
-		        uPointLightFalloffEnd: { type: 'fv1', value: [ 10.0 ] }
+		        uPointLightWorldPos: { type: 'v3v', value: [ new THREE.Vector3(2, 0.2, 2), new THREE.Vector3(0, 2, 0) ] },
+		        uPointLightColor: { type: 'v3v', value: [ new THREE.Vector3(1, 0, 0), new THREE.Vector3(1, 1, 1) ] },
+		        uPointLightIntensity: { type: 'fv1', value: [ 3.0, 0.2 ] },
+		        uPointLightFalloffStart: { type: 'fv1', value: [ 1.0, 1.0 ] },
+		        uPointLightFalloffEnd: { type: 'fv1', value: [ 10.0, 10.0 ] }
 		    },
 		    vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMap.vert'),
 		    fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambert.frag')
 		});
 		materials.push(planeMaterial);
 		planeMesh = new THREE.Mesh(planeGeom, planeMaterial);
-		planeMesh.castShadow = true;
-		planeMesh.receiveShadow = true;
 		scene.add(planeMesh);
-
-		//create plane for intersection test
-		groundPlaneGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, 1, 1);
-		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-		// groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeTranslation(0, MEAN_WATER_HEIGHT, 0));  //move groundPlaneGeom up by MEAN_WATER_HEIGHT to detect correct intersection later
-		var groundPlaneMaterial = new THREE.MeshPhongMaterial();
-		materials.push(groundPlaneMaterial);
-		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
-		groundPlaneMesh.castShadow = false;
-		groundPlaneMesh.receiveShadow = false;
-		groundPlaneMesh.visible = false;
-		scene.add(groundPlaneMesh);
 
 		//create a RTT visualization plane
 		visGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, 1, 1);
@@ -198,20 +152,18 @@
 	    rttCamera = new THREE.OrthographicCamera(-halfSize, halfSize, halfSize, -halfSize, near, far);
 
 	    //create a quad which we will use to invoke the shaders
+	    THREE.ShaderManager.addShader('/glsl/passUv.vert');
+		THREE.ShaderManager.addShader('/glsl/addBump.frag');
 	    rttQuadGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE);
 	    rttQuadMaterial = new THREE.ShaderMaterial({
 	        uniforms: {
 	            uTexture: { type: 't', value: null },
-	            uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / PLANE_RES, 1.0 / PLANE_RES) },
-		        uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(PLANE_SIZE / PLANE_RES, PLANE_SIZE / PLANE_RES) },
-		        uIsDisturbing: { type: 'i', value: 0 },
-		        uDisturbPos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
-		        uDisturbAmount: { type: 'f', value: 0.05 },
-		        uDisturbRadius: { type: 'f', value: 0.0025 * PLANE_SIZE },
-		        uDampingFactor: { type: 'f', value: 0.95 }
+		        uBumpPos: { type: 'v2', value: new THREE.Vector2() },
+		        uBumpAmount: { type: 'f', value: 0.0 },
+		        uBumpRadius: { type: 'f', value: 0.0 }
 	        },
 	        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
-	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_muellerGdc2008Hw.frag')
+	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/addBump.frag')
 	    });
 	    rttQuadMesh = new THREE.Mesh(rttQuadGeom, rttQuadMaterial);
 	    rttScene.add(rttQuadMesh);
@@ -237,17 +189,12 @@
 	    var temp = rttRenderTarget1;
 	    rttRenderTarget1 = rttRenderTarget2;
 	    rttRenderTarget2 = temp;
-	    rttQuadMaterial.uniforms['uTexture'].value = rttRenderTarget2;
+	    rttQuadMaterial.uniforms['uTexture'].value = rttRenderTarget2;  //feed current texture as the input for the next step
 	}
 
 	function setupEvents()
 	{
 		window.addEventListener('resize', window_onResize, false);
-		window.addEventListener('keydown', window_onKeyDown, false);
-		window.addEventListener('keyup', window_onKeyUp, false);
-		window.addEventListener('mousedown', window_onMouseDown, false);
-		window.addEventListener('mousemove', window_onMouseMove, false);
-		window.addEventListener('mouseup', window_onMouseUp, false);
 	}
 
 	function window_onResize(event)
@@ -260,88 +207,6 @@
 		renderer.setSize(window.innerWidth, window.innerHeight-5);
 	}
 
-	var activateDisturb = false;
-	function window_onKeyDown(event)
-	{
-		if (event.keyCode === 32)  //space
-		{
-			activateDisturb = true;
-		}
-	}
-
-	function window_onKeyUp(event)
-	{
-		if (event.keyCode === 32)  //space
-		{
-			activateDisturb = false;
-		}
-	}
-
-	var isDisturbing = false;
-	var disturbUvPos = new THREE.Vector2();
-	function window_onMouseDown(event)
-	{
-	    if (activateDisturb) {
-            if (event.button === 0)  //LMB
-            {
-                isDisturbing = true;
-
-                //detect intersection
-                intersectPoint = detectIntersection();
-                if (intersectPoint)
-                {
-                    disturbUvPos.x = (intersectPoint.x + PLANE_SIZE / 2.0) / PLANE_SIZE;
-                    disturbUvPos.y = (intersectPoint.z + PLANE_SIZE / 2.0) / PLANE_SIZE;
-                }
-            }
-        }
-	}
-
-	function window_onMouseMove(event)
-	{
-		event.preventDefault();
-
-		if (activateDisturb && isDisturbing) {
-            if (event.button === 0)  //LMB
-            {
-                //detect intersection
-                intersectPoint = detectIntersection();
-                if (intersectPoint)
-                {
-                    disturbUvPos.x = (intersectPoint.x + PLANE_SIZE / 2.0) / PLANE_SIZE;
-                    disturbUvPos.y = (intersectPoint.z + PLANE_SIZE / 2.0) / PLANE_SIZE;
-                }
-            }
-        }
-	}
-
-	function window_onMouseUp(event)
-	{
-	    isDisturbing = false;
-	}
-
-	var intersectPoint = new THREE.Vector3();
-	var mousePosNorm = new THREE.Vector2();
-	var projector = new THREE.Projector();
-	var raycaster = new THREE.Raycaster();
-	function detectIntersection()
-	{
-		mousePosNorm.x = (event.clientX / window.innerWidth) * 2 - 1;
-		mousePosNorm.y = - (event.clientY / window.innerHeight) * 2 + 1;
-
-		//cast a ray from camera into screen
-		var worldPos = new THREE.Vector3(mousePosNorm.x, mousePosNorm.y, 1);
-		projector.unprojectVector(worldPos, camera);
-		raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
-		var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
-
-		//get intersection point and vertexId
-		if (intersectInfo && intersectInfo[0])
-		{
-			return intersectInfo[0].point;
-		}
-	}
-
 	var stats;
 	function setupStats()
 	{
@@ -351,45 +216,19 @@
 	}
 
 	var gui;
-	var renderingFolder, displayFolder;
+	var displayFolder;
 	var options = {
-		renderingShadows: true,  //FIXME: this has to be init to true
-		displayWireframe: false,
 		displayLocalAxis: false,
+		displayFeedbackTexture: false
 	};
 	function setupGui() {
 
 		gui = new dat.GUI();
-		//gui.close();  //close GUI by default
-
-		//Rendering folder
-		renderingFolder = gui.addFolder('Rendering');
-
-		var control = renderingFolder.add(options, 'renderingShadows').name('Shadows');
-		function changeRenderingShadows(value)
-		{
-			renderer.shadowMapAutoUpdate = value;
-			if (!value)
-			{
-				renderer.clearTarget(keyLight.shadowMap);
-			}
-		}
-		control.onChange(changeRenderingShadows);
-		changeRenderingShadows(options.renderingShadows);
+		// gui.close();  //close GUI by default
 
 		//Display folder
 		displayFolder = gui.addFolder('Display');
-
-		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
-		function toggleWireframe(value)
-		{
-			for (materialId in materials)
-			{
-				materials[materialId].wireframe = value;
-			}
-		}
-		control.onChange(toggleWireframe);
-		toggleWireframe(options.displayWireframe);
+		displayFolder.open();
 
 		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
@@ -398,17 +237,24 @@
 		}
 		control.onChange(toggleLocalAxis);
 		toggleLocalAxis(options.displayLocalAxis);
+
+		control = displayFolder.add(options, 'displayFeedbackTexture').name('Feedback Texture');
+		function toggleFeedbackTexture(value)
+		{
+			visMesh.visible = value;
+		}
+		control.onChange(toggleFeedbackTexture);
+		toggleFeedbackTexture(options.displayFeedbackTexture);
 	}
 
+	var radius = 0.2;
+	var x, z;
 	$(document).ready(function()
 	{
 		//check for WebGL
 		checkWebGl();
 
 		console.log('Document is ready.');
-
-		//get shader contents
-		setupShaders();
 
 		//setup RTT scene
 		setupRttScene();
@@ -431,21 +277,28 @@
 			var dt = clock.getDelta();  //have to call this before getElapsedTime()
 			var time = clock.getElapsedTime();
 
+			radius += 0.1 * dt;
+			x = radius * Math.sin(3 * time);
+			z = radius * Math.cos(3 * time);
+
 			//update RTT uniforms
-			rttQuadMaterial.uniforms['uIsDisturbing'].value = isDisturbing;
-			rttQuadMaterial.uniforms['uDisturbPos'].value.copy(disturbUvPos);
+			rttQuadMaterial.uniforms['uBumpAmount'].value = 0.08;
+			rttQuadMaterial.uniforms['uBumpRadius'].value = 0.01;
+			rttQuadMaterial.uniforms['uBumpPos'].value.set((x + PLANE_SIZE / 2.0) / PLANE_SIZE, (z + PLANE_SIZE / 2.0) / PLANE_SIZE);
 
 			//update light uniforms
-			radius += 0.01 * dt;
-			planeMaterial.uniforms['uPointLightWorldPos'].value[0].x = 3 * Math.sin(time);
-			planeMaterial.uniforms['uPointLightWorldPos'].value[0].z = 3 * Math.cos(time);
+			planeMaterial.uniforms['uPointLightWorldPos'].value[0].x = x;
+			planeMaterial.uniforms['uPointLightWorldPos'].value[0].z = z;
 			lightMesh.position.copy(planeMaterial.uniforms['uPointLightWorldPos'].value[0]);
 
 			controls.update();
 
 			renderer.autoClear = false;
 			renderer.clear();
+
+			//do render-to-target
 			renderer.render(rttScene, rttCamera, rttRenderTarget1, false);
+			//swap render targets so that output of current frame is the input of the next
 			swapRenderTargets();
 
 			renderer.render(scene, camera);
@@ -463,7 +316,6 @@
 	<div id="threejs-container"></div>
 	<div class="translucent" id="info-container">
 		<div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
-		<div>Water: [ Spc+LMB: disturb ] [ Spc+RMB: source ] [ Spc+MMB: sink ]</div>
 	</div>
 </body>
 </html>
