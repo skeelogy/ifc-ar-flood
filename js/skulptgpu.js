@@ -197,7 +197,7 @@ GpuSkulpt.prototype.update = function () {
 
         this.rttQuadMesh.material = this.combineTexturesMaterial;
         this.combineTexturesMaterial.uniforms.uTexture1.value = this.imageDataTexture;
-        this.combineTexturesMaterial.uniforms.uTexture2.value = this.rttRenderTarget1;
+        this.combineTexturesMaterial.uniforms.uTexture2.value = this.rttRenderTarget2;
         this.renderer.render(this.rttScene, this.rttCamera, this.rttCombinedLayer, false);
         this.updateCombinedLayers = false;
 
