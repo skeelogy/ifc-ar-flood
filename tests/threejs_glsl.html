@@ -43,12 +43,6 @@
 		}
 	}
 
-	function setupShaders()
-	{
-	    THREE.ShaderManager.addShader('/glsl/heightMap.vert');
-		THREE.ShaderManager.addShader('/glsl/lambert.frag');
-	}
-
 	var renderer, scene, camera, controls;
 	var materials = [];
 	var localAxis;
@@ -62,9 +56,6 @@
 		});
 		renderer.setSize(window.innerWidth, window.innerHeight-5);
 		renderer.setClearColor('#111111', 1);
-		renderer.shadowMapEnabled = true;
-		renderer.shadowMapType = THREE.PCFSoftShadowMap;
-		renderer.shadowMapSoft = true;
 		var $container = $('#threejs-container');
 		$container.append(renderer.domElement);
 
@@ -86,29 +77,9 @@
 		localAxis = new THREE.AxisHelper();
 		scene.add(localAxis);
 
-		//setup lights
-		scene.add(new THREE.AmbientLight(0x111111));
-
-		keyLight = new THREE.SpotLight(0xffff44, 0.6);
-		keyLight.position.set(5, 15, -15);
-		keyLight.target.position.set(0, 0, 0);
-		keyLight.castShadow = true;
-		keyLight.shadowCameraNear = 10;
-		keyLight.shadowCameraFar = 30;
-		keyLight.shadowCameraFov = 30;
-		//keyLight.shadowCameraVisible = true;
-		keyLight.shadowBias = 0.00001;
-		keyLight.shadowDarkness = 0.4;
-		keyLight.shadowMapWidth = SHADOW_MAP_RES;
-		keyLight.shadowMapHeight = SHADOW_MAP_RES;
-		scene.add(keyLight);
-
-		fillLight = new THREE.SpotLight(0xff0044, 0.4);
-		fillLight.position.set(5, 2, 15);
-		fillLight.target.position.set(0, 0, 0);
-		scene.add(fillLight);
-
 		//create a plane
+		THREE.ShaderManager.addShader('/glsl/heightMap.vert');
+		THREE.ShaderManager.addShader('/glsl/lambert.frag');
 		planeGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, PLANE_RES - 1, PLANE_RES - 1);
 		planeGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 	    planeMaterial = new THREE.ShaderMaterial({
@@ -152,9 +123,6 @@
 	function setupEvents()
 	{
 		window.addEventListener('resize', window_onResize, false);
-		window.addEventListener('mousedown', window_onMouseDown, false);
-		window.addEventListener('mousemove', window_onMouseMove, false);
-		window.addEventListener('mouseup', window_onMouseUp, false);
 	}
 
 	function window_onResize(event)
@@ -167,21 +135,6 @@
 		renderer.setSize(window.innerWidth, window.innerHeight-5);
 	}
 
-	function window_onMouseDown(event)
-	{
-
-	}
-
-	function window_onMouseMove(event)
-	{
-		event.preventDefault();
-	}
-
-	function window_onMouseUp(event)
-	{
-
-	}
-
 	var stats;
 	function setupStats()
 	{
@@ -191,45 +144,17 @@
 	}
 
 	var gui;
-	var renderingFolder, displayFolder;
+	var displayFolder;
 	var options = {
-		renderingShadows: true,  //FIXME: this has to be init to true
-		displayWireframe: false,
-		displayLocalAxis: false,
+		displayLocalAxis: false
 	};
 	function setupGui() {
 
 		gui = new dat.GUI();
-		//gui.close();  //close GUI by default
-
-		//Rendering folder
-		renderingFolder = gui.addFolder('Rendering');
-
-		var control = renderingFolder.add(options, 'renderingShadows').name('Shadows');
-		function changeRenderingShadows(value)
-		{
-			renderer.shadowMapAutoUpdate = value;
-			if (!value)
-			{
-				renderer.clearTarget(keyLight.shadowMap);
-			}
-		}
-		control.onChange(changeRenderingShadows);
-		changeRenderingShadows(options.renderingShadows);
+		gui.close();  //close GUI by default
 
 		//Display folder
 		displayFolder = gui.addFolder('Display');
-
-		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
-		function toggleWireframe(value)
-		{
-			for (materialId in materials)
-			{
-				materials[materialId].wireframe = value;
-			}
-		}
-		control.onChange(toggleWireframe);
-		toggleWireframe(options.displayWireframe);
 
 		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
@@ -246,9 +171,6 @@
 		checkWebGl();
 
 		console.log('Document is ready.');
-
-		//get shader contents
-		setupShaders();
 
 		//setup scene
 		setupThreejsScene();

@@ -214,6 +214,7 @@
 		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
 		groundPlaneMesh.castShadow = true;
 		groundPlaneMesh.receiveShadow = true;
+		groundPlaneMesh.visible = false;
 		globalTransform.add(groundPlaneMesh);
 
 		// var torusKnotGeom = new THREE.TorusKnotGeometry(0.35, 0.1, 50, 8);
