@@ -447,9 +447,9 @@
 
 	function window_onKeyUp(event)
 	{
-		if (event.keyCode === 17)  //ctrl
+		if (event.keyCode === 16 || event.keyCode === 17)  //shift or ctrl
 		{
-			//hide cursor when ctrl key is up
+			//hide cursor when shift or ctrl key is up
 			gpuSkulpt.hideCursor();
 		}
 	}
@@ -462,31 +462,34 @@
 		{
 			//detect intersection and show cursor
 			detectIntersectionAndShowSculptCursor();
-
-			//do actual sculpting if clicked
-			if (event.button === 0)  //LMB
-			{
-				isSculpting = true;
-				sculptTerrain(GpuSkulpt.ADD);
-			}
-			else if (event.button === 2)  //RMB
-			{
-				isSculpting = true;
-				sculptTerrain(GpuSkulpt.REMOVE);
-			}
-
+            if (intersectPoint)
+            {
+                //do actual sculpting if clicked
+                if (event.button === 0)  //LMB
+                {
+                    isSculpting = true;
+                    gpuSkulpt.sculpt(GpuSkulpt.ADD, intersectPoint, options.amount);
+                }
+                else if (event.button === 2)  //RMB
+                {
+                    isSculpting = true;
+                    gpuSkulpt.sculpt(GpuSkulpt.REMOVE, intersectPoint, options.amount);
+                }
+            }
 		}
 		else if (event.shiftKey)
 		{
 			//detect intersection and show cursor
 			detectIntersectionAndShowSculptCursor();
-
-			//do actual sculpting if clicked
-			if (event.button === 0)  //LMB
-			{
-				// isSculpting = true;
-				// sculptTerrain('flatten');
-			}
+            if (intersectPoint)
+            {
+                //do actual sculpting if clicked
+                if (event.button === 0)  //LMB
+                {
+                    // isSculpting = true;
+                    // sculptTerrain('flatten');
+                }
+            }
 		}
 	}
 
@@ -498,33 +501,29 @@
 		{
 			//detect intersection and show cursor
 			detectIntersectionAndShowSculptCursor();
-
-			//do actual sculpting if clicked
-			if (isSculpting)
+			if (intersectPoint && isSculpting)
 			{
-				if (event.button === 0)  //LMB
-				{
-					sculptTerrain(GpuSkulpt.ADD);
-				}
-				else if (event.button === 2)  //RMB
-				{
-					sculptTerrain(GpuSkulpt.REMOVE);
-				}
-			}
+                if (event.button === 0)  //LMB
+                {
+                    gpuSkulpt.sculpt(GpuSkulpt.ADD, intersectPoint, options.amount);
+                }
+                else if (event.button === 2)  //RMB
+                {
+                    gpuSkulpt.sculpt(GpuSkulpt.REMOVE, intersectPoint, options.amount);
+                }
+            }
 		}
 		else if (event.shiftKey)
 		{
 			//detect intersection and show cursor
 			detectIntersectionAndShowSculptCursor();
-
-			//do actual sculpting if necessary
-			if (isSculpting)
+			if (intersectPoint && isSculpting)
 			{
-				if (event.button === 0)  //LMB
-				{
-					// sculptTerrain('flatten');
-				}
-			}
+                if (event.button === 0)  //LMB
+                {
+                    // sculptTerrain('flatten');
+                }
+            }
 		}
 	}
 
@@ -574,11 +573,6 @@
 			//cursor is out of terrain, so hide it, otherwise it will remain at the edge
 			gpuSkulpt.hideCursor();
 		}
-	}
-
-	function sculptTerrain(operation)
-	{
-		gpuSkulpt.sculpt(operation, intersectPoint, options.amount);
 	}
 
 	function updateGeometry(geometry, fullUpdate)
