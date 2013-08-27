@@ -127,11 +127,11 @@
 		        uBaseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
 		        uAmbientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
 		        uAmbientLightIntensity: { type: 'f', value: 0.1 },
-		        uPointLight1WorldPos: { type: 'v3', value: new THREE.Vector3(2, 2, 2) },
-		        uPointLight1Color: { type: 'v3', value: new THREE.Vector3(1, 0, 0) },
-		        uPointLight1Intensity: { type: 'f', value: 3.0 },
-		        uPointLight1FalloffStart: { type: 'f', value: 1.0 },
-		        uPointLight1FalloffEnd: { type: 'f', value: 10.0 }
+		        uPointLightWorldPos: { type: 'v3v', value: [ new THREE.Vector3(2, 2, 2) ] },
+		        uPointLightColor: { type: 'v3v', value: [ new THREE.Vector3(1, 0, 0) ] },
+		        uPointLightIntensity: { type: 'fv1', value: [ 3.0 ] },
+		        uPointLightFalloffStart: { type: 'fv1', value: [ 1.0 ] },
+		        uPointLightFalloffEnd: { type: 'fv1', value: [ 10.0 ] }
 		    },
 		    vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMap.vert'),
 		    fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambert.frag')
@@ -436,9 +436,10 @@
 			rttQuadMaterial.uniforms['uDisturbPos'].value.copy(disturbUvPos);
 
 			//update light uniforms
-			planeMaterial.uniforms['uPointLight1WorldPos'].value.x = 3 * Math.sin(time);
-			planeMaterial.uniforms['uPointLight1WorldPos'].value.z = 3 * Math.cos(time);
-			lightMesh.position.copy(planeMaterial.uniforms['uPointLight1WorldPos'].value);
+			radius += 0.01 * dt;
+			planeMaterial.uniforms['uPointLightWorldPos'].value[0].x = 3 * Math.sin(time);
+			planeMaterial.uniforms['uPointLightWorldPos'].value[0].z = 3 * Math.cos(time);
+			lightMesh.position.copy(planeMaterial.uniforms['uPointLightWorldPos'].value[0]);
 
 			controls.update();
 
