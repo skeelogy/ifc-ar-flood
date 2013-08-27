@@ -28,12 +28,17 @@ function GpuSkulpt(options) {
     }
     this.res = options.res;
     this.gridSize = this.size / this.res;
+    this.texelSize = 1.0 / this.res;
 
     this.imageProcessedData = new Float32Array(4 * this.res * this.res);
     this.imageDataTexture = new THREE.DataTexture(null, this.res, this.res, THREE.RGBAFormat, THREE.FloatType);
 
     this.isSculpting = false;
     this.sculptUvPos = new THREE.Vector2();
+
+    this.cursorHoverColor = new THREE.Vector3(0.4, 0.4, 0.4);
+    this.cursorAddColor = new THREE.Vector3(0.3, 0.5, 0.1);
+    this.cursorRemoveColor = new THREE.Vector3(0.5, 0.2, 0.1);
 
     this.shouldClear = false;
 
@@ -74,7 +79,7 @@ GpuSkulpt.prototype.__setupShaders = function () {
         uniforms: {
             uBaseTexture: { type: 't', value: null },
             uSculptTexture1: { type: 't', value: null },
-            uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / this.res, 1.0 / this.res) },
+            uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
             uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.size / this.res, this.size / this.res) },
             uIsSculpting: { type: 'i', value: 0 },
             uSculptType: { type: 'i', value: 0 },
@@ -143,18 +148,18 @@ GpuSkulpt.prototype.__setupVtf = function () {
             uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / this.res, 1.0 / this.res) },
             uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.gridSize, this.gridSize) },
             uHeightMultiplier: { type: 'f', value: 1.0 },
-            uBaseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
-            uAmbientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
+            uBaseColor: { type: 'v3', value: new THREE.Vector3(0.6, 0.8, 0.0) },
+            uAmbientLightColor: { type: 'v3', value: new THREE.Vector3(1.0, 1.0, 1.0) },
             uAmbientLightIntensity: { type: 'f', value: 0.1 },
-            uPointLight1WorldPos: { type: 'v3', value: new THREE.Vector3(2, 2, 2) },
-            uPointLight1Color: { type: 'v3', value: new THREE.Vector3(1, 0, 0) },
-            uPointLight1Intensity: { type: 'f', value: 3.0 },
-            uPointLight1FalloffStart: { type: 'f', value: 1.0 },
-            uPointLight1FalloffEnd: { type: 'f', value: 10.0 },
+            uPointLightWorldPos: { type: 'v3v', value: [ new THREE.Vector3(5, 15, -15), new THREE.Vector3(5, 2, 15) ] },
+            uPointLightColor: { type: 'v3v', value: [ new THREE.Vector3(1.0, 0.8, 0.8), new THREE.Vector3(0.0, 0.9, 1.0) ] },
+            uPointLightIntensity: { type: 'fv1', value: [ 0.5, 0.3 ] },
+            uPointLightFalloffStart: { type: 'fv1', value: [ 25.0, 25.0 ] },
+            uPointLightFalloffEnd: { type: 'fv1', value: [ 30.0, 30.0 ] },
             uShowCursor: { type: 'i', value: 0 },
             uCursorPos: { type: 'v2', value: new THREE.Vector2() },
             uCursorRadius: { type: 'f', value: 0.0 },
-            uCursorColor: { type: 'v3', value: new THREE.Vector3(1, 1, 0) }
+            uCursorColor: { type: 'v3', value: new THREE.Vector3() }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMap.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambertCursor.frag')
@@ -252,6 +257,11 @@ GpuSkulpt.prototype.sculpt = function (type, position, amount) {
     this.isSculpting = true;
     this.sculptUvPos.x = (position.x + this.halfSize) / this.size;
     this.sculptUvPos.y = (position.z + this.halfSize) / this.size;
+    if (type === 1) {
+        this.mesh.material.uniforms.uCursorColor.value.copy(this.cursorAddColor);
+    } else if (type === 2) {
+        this.mesh.material.uniforms.uCursorColor.value.copy(this.cursorRemoveColor);
+    }
 };
 GpuSkulpt.prototype.clear = function () {
     this.shouldClear = true;
@@ -260,6 +270,7 @@ GpuSkulpt.prototype.updateCursor = function (position) {
     this.sculptUvPos.x = (position.x + this.halfSize) / this.size;
     this.sculptUvPos.y = (position.z + this.halfSize) / this.size;
     this.mesh.material.uniforms.uCursorPos.value.set(this.sculptUvPos.x, this.sculptUvPos.y);
+    this.mesh.material.uniforms.uCursorColor.value.copy(this.cursorHoverColor);
 };
 GpuSkulpt.prototype.showCursor = function () {
     this.mesh.material.uniforms.uShowCursor.value = 1;
