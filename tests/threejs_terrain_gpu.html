@@ -82,6 +82,7 @@
 		renderingShadowCasters: false,
 		displayWireframe: false,
 		displayLocalAxis: false,
+		displaySimTexture: false
 	};
 
 	function checkWebGl()
@@ -215,36 +216,36 @@
 		groundPlaneMesh.receiveShadow = true;
 		globalTransform.add(groundPlaneMesh);
 
-		var torusKnotGeom = new THREE.TorusKnotGeometry(0.35, 0.1, 50, 8);
-		var torusKnotMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
-		torusKnotMaterial.shininess = 50;
-		materials.push(torusKnotMaterial);
-		torusKnotMesh = new THREE.Mesh(torusKnotGeom, torusKnotMaterial);
-		torusKnotMesh.position.x = -2;
-		torusKnotMesh.position.y = 1;
-		torusKnotMesh.castShadow = true;
-		torusKnotMesh.receiveShadow = false;
-		globalTransform.add(torusKnotMesh);
+		// var torusKnotGeom = new THREE.TorusKnotGeometry(0.35, 0.1, 50, 8);
+		// var torusKnotMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
+		// torusKnotMaterial.shininess = 50;
+		// materials.push(torusKnotMaterial);
+		// torusKnotMesh = new THREE.Mesh(torusKnotGeom, torusKnotMaterial);
+		// torusKnotMesh.position.x = -2;
+		// torusKnotMesh.position.y = 1;
+		// torusKnotMesh.castShadow = true;
+		// torusKnotMesh.receiveShadow = false;
+		// globalTransform.add(torusKnotMesh);
 
-		var boxGeom = new THREE.CubeGeometry(1, 1, 1);
-		var boxMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
-		materials.push(boxMaterial);
-		boxMesh = new THREE.Mesh(boxGeom, boxMaterial);
-		boxMesh.position.y = 1;
-		boxMesh.castShadow = true;
-		boxMesh.receiveShadow = false;
-		globalTransform.add(boxMesh);
+		// var boxGeom = new THREE.CubeGeometry(1, 1, 1);
+		// var boxMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
+		// materials.push(boxMaterial);
+		// boxMesh = new THREE.Mesh(boxGeom, boxMaterial);
+		// boxMesh.position.y = 1;
+		// boxMesh.castShadow = true;
+		// boxMesh.receiveShadow = false;
+		// globalTransform.add(boxMesh);
 
-		var sphereGeom = new THREE.SphereGeometry(0.65, 10, 10);
-		var sphereMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
-		sphereMaterial.shininess = 50;
-		materials.push(sphereMaterial);
-		sphereMesh = new THREE.Mesh(sphereGeom, sphereMaterial);
-		sphereMesh.position.x = 2;
-		sphereMesh.position.y = 1;
-		sphereMesh.castShadow = true;
-		sphereMesh.receiveShadow = false;
-		globalTransform.add(sphereMesh);
+		// var sphereGeom = new THREE.SphereGeometry(0.65, 10, 10);
+		// var sphereMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
+		// sphereMaterial.shininess = 50;
+		// materials.push(sphereMaterial);
+		// sphereMesh = new THREE.Mesh(sphereGeom, sphereMaterial);
+		// sphereMesh.position.x = 2;
+		// sphereMesh.position.y = 1;
+		// sphereMesh.castShadow = true;
+		// sphereMesh.receiveShadow = false;
+		// globalTransform.add(sphereMesh);
 
 		//create axis
 		worldAxis = new THREE.AxisHelper();
@@ -370,44 +371,45 @@
 
 		control = sculptFolder.add(options, 'sculptClearSculpts').name('Clear Sculpts');
 
-		//Rendering folder
-		renderingFolder = gui.addFolder('Rendering');
+		// //Rendering folder
+		// renderingFolder = gui.addFolder('Rendering');
 
-		control = renderingFolder.add(options, 'renderingShadows').name('Shadows');
-		function changeRenderingShadows(value)
-		{
-			renderer.shadowMapAutoUpdate = value;
-			if (!value)
-			{
-				renderer.clearTarget(keyLight.shadowMap);
-			}
-		}
-		control.onChange(changeRenderingShadows);
-		changeRenderingShadows(options.renderingShadows);
+		// control = renderingFolder.add(options, 'renderingShadows').name('Shadows');
+		// function changeRenderingShadows(value)
+		// {
+			// renderer.shadowMapAutoUpdate = value;
+			// if (!value)
+			// {
+				// renderer.clearTarget(keyLight.shadowMap);
+			// }
+		// }
+		// control.onChange(changeRenderingShadows);
+		// changeRenderingShadows(options.renderingShadows);
 
-		control = renderingFolder.add(options, 'renderingShadowCasters').name('Shadow Casters');
-		function changeRenderingShadowCasters(value)
-		{
-			torusKnotMesh.visible = value;
-			boxMesh.visible = value;
-			sphereMesh.visible = value;
-		}
-		control.onChange(changeRenderingShadowCasters);
-		changeRenderingShadowCasters(options.renderingShadowCasters);
+		// control = renderingFolder.add(options, 'renderingShadowCasters').name('Shadow Casters');
+		// function changeRenderingShadowCasters(value)
+		// {
+			// torusKnotMesh.visible = value;
+			// boxMesh.visible = value;
+			// sphereMesh.visible = value;
+		// }
+		// control.onChange(changeRenderingShadowCasters);
+		// changeRenderingShadowCasters(options.renderingShadowCasters);
 
 		//Display folder
 		displayFolder = gui.addFolder('Display');
+		displayFolder.open();
 
-		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
-		function toggleWireframe(value)
-		{
-			for (materialId in materials)
-			{
-				materials[materialId].wireframe = value;
-			}
-		}
-		control.onChange(toggleWireframe);
-		toggleWireframe(options.displayWireframe);
+		// control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
+		// function toggleWireframe(value)
+		// {
+			// for (materialId in materials)
+			// {
+				// materials[materialId].wireframe = value;
+			// }
+		// }
+		// control.onChange(toggleWireframe);
+		// toggleWireframe(options.displayWireframe);
 
 		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
@@ -417,6 +419,14 @@
 		}
 		control.onChange(toggleLocalAxis);
 		toggleLocalAxis(options.displayLocalAxis);
+
+		control = displayFolder.add(options, 'displaySimTexture').name('Sim Texture');
+		function toggleSimTexture(value)
+		{
+            visMesh.visible = value;
+		}
+		control.onChange(toggleSimTexture);
+		toggleSimTexture(options.displaySimTexture);
 	}
 
 	function setupEvents()
@@ -618,6 +628,9 @@
 			res: TERRAIN_RES,
 		});
 
+		//change some parameters
+		gpuSkulpt.mesh.material.uniforms.uPointLightIntensity.value[1] = 0.2;
+
 		//create a RTT visualization plane
 		visGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);
 		visGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
@@ -664,18 +677,18 @@
 		{
 			var time = clock.getElapsedTime();
 
-			if (options.renderingShadowCasters)
-			{
-				torusKnotMesh.position.y = 1.5 + 0.25 * Math.sin(time*3-0.5);
-				boxMesh.position.y = 1.5 + 0.25 * Math.sin(time*3);
-				sphereMesh.position.y = 1.5 + 0.25 * Math.sin(time*3+0.5);
-			}
+			// if (options.renderingShadowCasters)
+			// {
+				// torusKnotMesh.position.y = 1.5 + 0.25 * Math.sin(time*3-0.5);
+				// boxMesh.position.y = 1.5 + 0.25 * Math.sin(time*3);
+				// sphereMesh.position.y = 1.5 + 0.25 * Math.sin(time*3+0.5);
+			// }
 
 			visMaterial.map = gpuSkulpt.rttCombinedLayer;
 
 			renderer.autoClear = false;
 			renderer.clear();
-			gpuSkulpt.update();  //TODO: don't need to call every frame
+			gpuSkulpt.update();
 			renderer.render(scene, camera);
 
 			controls.update();

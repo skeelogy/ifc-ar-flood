@@ -498,37 +498,37 @@
 
 		control = waterSimFolder.add(options, 'waterSimFloodRate', -10000, 10000).step(10).name('Flood Rate');
 
-		//Obstacles folder
-		obstaclesFolder = gui.addFolder('Obstacles');
-		// obstaclesFolder.open();
+		// //Obstacles folder
+		// obstaclesFolder = gui.addFolder('Obstacles');
+		// // obstaclesFolder.open();
 
-		control = obstaclesFolder.add(options, 'obstaclesActive').name('Active');
-		function changeObstaclesActive(value)
-		{
-			// hfWater.setObstaclesActive(value);
-		}
-		control.onChange(changeObstaclesActive);
-		changeObstaclesActive(options.obstaclesActive);
+		// control = obstaclesFolder.add(options, 'obstaclesActive').name('Active');
+		// function changeObstaclesActive(value)
+		// {
+			// // hfWater.setObstaclesActive(value);
+		// }
+		// control.onChange(changeObstaclesActive);
+		// changeObstaclesActive(options.obstaclesActive);
 
-		control = obstaclesFolder.add(options, 'obstaclesSeed', 0, 50).step(1).name('Seed');
-		function changeObstaclesSeed(value)
-		{
-			RANDOM_SEED = Math.floor(value);
-			Math.seedrandom(RANDOM_SEED);
-			randomizeObstaclePositions();
-		}
-		control.onChange(changeObstaclesSeed);
+		// control = obstaclesFolder.add(options, 'obstaclesSeed', 0, 50).step(1).name('Seed');
+		// function changeObstaclesSeed(value)
+		// {
+			// RANDOM_SEED = Math.floor(value);
+			// Math.seedrandom(RANDOM_SEED);
+			// randomizeObstaclePositions();
+		// }
+		// control.onChange(changeObstaclesSeed);
 
-		control = obstaclesFolder.add(options, 'obstaclesShowObstacles').name('Show Obstacles');
-		function changeObstaclesShowObstacles(value)
-		{
-			for (obstacleId in obstacles)
-			{
-				obstacles[obstacleId].mesh.visible = value;
-			}
-		}
-		control.onChange(changeObstaclesShowObstacles);
-		changeObstaclesShowObstacles(options.obstaclesShowObstacles);
+		// control = obstaclesFolder.add(options, 'obstaclesShowObstacles').name('Show Obstacles');
+		// function changeObstaclesShowObstacles(value)
+		// {
+			// for (obstacleId in obstacles)
+			// {
+				// obstacles[obstacleId].mesh.visible = value;
+			// }
+		// }
+		// control.onChange(changeObstaclesShowObstacles);
+		// changeObstaclesShowObstacles(options.obstaclesShowObstacles);
 
 		// control = obstaclesFolder.add(options, 'obstaclesShowDepthMap').name('Show Depth Map');
 		// function changeObstaclesShowDepthMap(value)
@@ -545,35 +545,35 @@
 		// control.onChange(changeObstaclesShowDepthMap);
 		// changeObstaclesShowDepthMap(options.obstaclesShowDepthMap);
 
-		//Rendering folder
-		renderingFolder = gui.addFolder('Rendering');
+		// //Rendering folder
+		// renderingFolder = gui.addFolder('Rendering');
 
-		control = renderingFolder.add(options, 'renderingShadows').name('Shadows');
-		function changeRenderingShadows(value)
-		{
-			renderer.shadowMapAutoUpdate = value;
-			if (!value)
-			{
-				renderer.clearTarget(keyLight.shadowMap);
-			}
-		}
-		control.onChange(changeRenderingShadows);
-		changeRenderingShadows(options.renderingShadows);
+		// control = renderingFolder.add(options, 'renderingShadows').name('Shadows');
+		// function changeRenderingShadows(value)
+		// {
+			// renderer.shadowMapAutoUpdate = value;
+			// if (!value)
+			// {
+				// renderer.clearTarget(keyLight.shadowMap);
+			// }
+		// }
+		// control.onChange(changeRenderingShadows);
+		// changeRenderingShadows(options.renderingShadows);
 
 		//Display folder
 		displayFolder = gui.addFolder('Display');
 		displayFolder.open();
 
-		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
-		function toggleWireframe(value)
-		{
-			for (materialId in materials)
-			{
-				materials[materialId].wireframe = value;
-			}
-		}
-		control.onChange(toggleWireframe);
-		toggleWireframe(options.displayWireframe);
+		// control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
+		// function toggleWireframe(value)
+		// {
+			// for (materialId in materials)
+			// {
+				// materials[materialId].wireframe = value;
+			// }
+		// }
+		// control.onChange(toggleWireframe);
+		// toggleWireframe(options.displayWireframe);
 
 		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
@@ -593,27 +593,27 @@
 		control.onChange(toggleSimTexture);
 		toggleSimTexture(options.displaySimTexture);
 
-		control = displayFolder.add(options, 'displayVelMag').name('Velocity Mag');
-		function toggleVelMag(value)
-		{
-		    if (hfWater instanceof HeightFieldWaterWithVel)
-		    {
-			    hfWater.visualizeVelColors(value);
-			}
-		}
-		control.onChange(toggleVelMag);
-		toggleVelMag(options.displayVelMag);
+		// control = displayFolder.add(options, 'displayVelMag').name('Velocity Mag');
+		// function toggleVelMag(value)
+		// {
+		    // if (hfWater instanceof HeightFieldWaterWithVel)
+		    // {
+			    // hfWater.visualizeVelColors(value);
+			// }
+		// }
+		// control.onChange(toggleVelMag);
+		// toggleVelMag(options.displayVelMag);
 
-		control = displayFolder.add(options, 'displayVelDir').name('Velocity Dir');
-		function displayVelDir(value)
-		{
-		    if (hfWater instanceof HeightFieldWaterWithVel)
-		    {
-			    hfWater.visualizeVelLines(value);
-			}
-		}
-		control.onChange(displayVelDir);
-		displayVelDir(options.displayVelDir);
+		// control = displayFolder.add(options, 'displayVelDir').name('Velocity Dir');
+		// function displayVelDir(value)
+		// {
+		    // if (hfWater instanceof HeightFieldWaterWithVel)
+		    // {
+			    // hfWater.visualizeVelLines(value);
+			// }
+		// }
+		// control.onChange(displayVelDir);
+		// displayVelDir(options.displayVelDir);
 	}
 
 	var dV;
