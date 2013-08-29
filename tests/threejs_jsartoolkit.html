@@ -148,7 +148,7 @@
 		// Create scene and quad for the video.
 		// NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
 		var videoTex = new THREE.Texture(canvas);
-		var geometry = new THREE.PlaneGeometry(2, 2, 0);
+		var geometry = new THREE.PlaneGeometry(2, 2);
 		var material = new THREE.MeshBasicMaterial({
 			map : videoTex,
 			depthTest : false,

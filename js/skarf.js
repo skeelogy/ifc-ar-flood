@@ -455,7 +455,7 @@ ThreeJsRenderer.prototype.setupBackgroundVideo = function()
 {
 	//NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
 	this.videoTex = new THREE.Texture(this.streamCanvasElem);
-	this.videoPlane = new THREE.PlaneGeometry(2, 2, 0);
+	this.videoPlane = new THREE.PlaneGeometry(2, 2);
 	this.videoMaterial = new THREE.MeshBasicMaterial({
 		map: this.videoTex,
 		depthTest: false,
