@@ -1,4 +1,4 @@
-//GPU sculpting fragment shader
+//Fragment shader for sculpting
 //author: Skeel Lee <skeel@skeelogy.com>
 
 uniform sampler2D uBaseTexture;

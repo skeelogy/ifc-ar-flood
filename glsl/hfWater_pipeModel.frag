@@ -1,4 +1,5 @@
-//GPU version of pipe model water - pass to propagate water height after flux has been calculated
+//GPU version of pipe model water.
+//Need to run the flux calculation pre-pass first before running this.
 //author: Skeel Lee <skeel@skeelogy.com>
 
 uniform sampler2D uWaterTexture;
@@ -18,6 +19,7 @@ void main() {
     //read water texture
     //r channel: water height
     //g, b channels: vel
+    //a channel: UNUSED
     vec4 tWater = texture2D(uWaterTexture, vUv);
 
     //read flux texture

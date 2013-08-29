@@ -1,4 +1,4 @@
-//basic vertex shader that distorts a plane with a sine wave
+//Vertex shader that distorts a plane with a sine wave
 //author: Skeel Lee <skeel@skeelogy.com>
 
 uniform float uTime;

@@ -15,6 +15,7 @@ void main() {
 
     //r channel: height
     //g channel: vertDeriv
+    //b channel: UNUSED
     //a channel: prev mean height
 
     //read texture from previous step

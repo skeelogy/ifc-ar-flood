@@ -18,6 +18,7 @@ void main() {
 
     //r channel: height
     //g channel: vertical vel
+    //b channel: UNUSED
     //a channel: prev mean height
 
     //read texture from previous step

@@ -1,4 +1,4 @@
-//pass-through vertex shader that passes UVs to fragment shader
+//Pass-through vertex shader for passing interpolated UVs to fragment shader
 //author: Skeel Lee <skeel@skeelogy.com>
 
 varying vec2 vUv;

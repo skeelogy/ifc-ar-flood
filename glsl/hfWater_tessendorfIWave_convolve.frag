@@ -1,5 +1,5 @@
 //GPU version of "Interactive Water Surfaces" (Jerry Tessendorf, Game Programming Gems 4).
-//This is the convolution pass to find the vertical derivative.
+//This is the convolution pre-pass to find the vertical derivative.
 //author: Skeel Lee <skeel@skeelogy.com>
 
 //have to use #define here to get compile-time constant values,

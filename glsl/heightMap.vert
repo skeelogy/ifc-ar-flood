@@ -1,4 +1,4 @@
-//vertex shader that displaces vertices in Y based on a texture
+//Vertex shader that displaces vertices in local Y based on a texture
 //author: Skeel Lee <skeel@skeelogy.com>
 
 uniform sampler2D uTexture;

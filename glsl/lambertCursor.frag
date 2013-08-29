@@ -1,5 +1,5 @@
-//a very basic lambert shader with one point light, just for testing.
-//this is the version that overlays a circular cursor patch.
+//Fragment shader that does basic lambert shading.
+//This is the version that overlays a circular cursor patch.
 //author: Skeel Lee <skeel@skeelogy.com>
 
 //assume max 3-point lighting for now

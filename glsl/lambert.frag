@@ -1,4 +1,4 @@
-//a very basic lambert shader with one point light, just for testing
+//Fragment shader that does basic lambert shading
 //author: Skeel Lee <skeel@skeelogy.com>
 
 //assume max 3-point lighting for now

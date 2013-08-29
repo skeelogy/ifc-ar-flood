@@ -1,4 +1,4 @@
-//fragment shader that sets alpha to 1.0
+//Fragment shader that sets alpha for the given texture to 1.0
 //author: Skeel Lee <skeel@skeelogy.com>
 
 uniform sampler2D uTexture;

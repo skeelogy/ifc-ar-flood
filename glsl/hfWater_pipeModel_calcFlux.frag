@@ -1,4 +1,5 @@
-//GPU version of pipe model water - pass to calculate flux
+//GPU version of pipe model water.
+//This is the pre-pass to calculate flux.
 //author: Skeel Lee <skeel@skeelogy.com>
 
 uniform sampler2D uTerrainTexture;
@@ -26,6 +27,7 @@ void main() {
     //read water texture
     //r channel: water height
     //g, b channels: vel
+    //a channel: UNUSED
     vec4 tWater = texture2D(uWaterTexture, vUv);
 
     float waterHeight = tWater.r;

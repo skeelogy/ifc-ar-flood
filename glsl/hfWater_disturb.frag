@@ -1,4 +1,4 @@
-//GPU disturb water pass
+//Fragment shader for disturbing water simulations
 //author: Skeel Lee <skeel@skeelogy.com>
 
 uniform sampler2D uTexture;
