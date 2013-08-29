@@ -20,8 +20,10 @@
 	
 	<script>
 	
-	var DEBUG = true;  //for JSARToolKit built-in debugging info
+	var DEBUG = false;  //for JSARToolKit built-in debugging info
 	var threshold = 30;
+
+	var clock = new THREE.Clock();
 	
 	// I'm going to use a glMatrix-style matrix as an intermediary.
 	// So the first step is to create a function to convert a glMatrix matrix into a Three.js Matrix4.
@@ -77,7 +79,7 @@
 		var trackSceneRenderer = new THREE.WebGLRenderer({
 			antialias : true
 		});
-		trackSceneRenderer.setSize(canvasWidth, canvasHeight);
+		trackSceneRenderer.setSize(2*canvasWidth, 2*canvasHeight);
 		trackSceneRenderer.setClearColor('#888888', 1);
 		var $threejsTrackSceneContainerElem = $('#mainTracking3dScene');
 		$threejsTrackSceneContainerElem.append(trackSceneRenderer.domElement);
@@ -88,11 +90,11 @@
 		var trackSceneCamera = new THREE.PerspectiveCamera(35, 640/480, 0.1, 1000);
 		trackSceneCamera.position.set(0.25, 0.25, 0.25);
 		trackSceneCamera.lookAt(new THREE.Vector3(0,0,0));
-		controls = new THREE.OrbitControls(trackSceneCamera);
-		controls.modifierKey = 'alt';
-		controls.userPanSpeed = 0.04;
-		controls.pan(new THREE.Vector3(0, 1, 0));
-		controls.pan(new THREE.Vector3(0, 1, 0));
+		// controls = new THREE.OrbitControls(trackSceneCamera);
+		// controls.modifierKey = 'alt';
+		// controls.userPanSpeed = 0.04;
+		// controls.pan(new THREE.Vector3(0, 1, 0));
+		// controls.pan(new THREE.Vector3(0, 1, 0));
 
 		// trackSceneScene.add(new THREE.AxisHelper());
 
@@ -194,11 +196,24 @@
 		var emptyFloatArray = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 
 		var ctx = canvas.getContext('2d');
+
+		var camRotateRadius = 0.3;
+		var camRotateSpeed = 0.5;
+		var camTiltAmp = 0.5;
+		var camTiltOffset = 0.25;
 		
 		// On every frame do the following:
 		function loop()
 		{
-			controls.update();
+			var dt = clock.getDelta();  //have to call this before getElapsedTime()
+			var time = clock.getElapsedTime();
+
+			//update camera
+			// controls.update();
+			trackSceneCamera.position.x = camRotateRadius * Math.sin(camRotateSpeed * time);
+			trackSceneCamera.position.x = camTiltAmp * Math.sin(camRotateSpeed * time);
+			trackSceneCamera.position.z = camRotateRadius * Math.cos(camRotateSpeed * time);
+			trackSceneCamera.lookAt(new THREE.Vector3(0,0,0));
 
 			//update 
 			trackSceneRenderer.autoClear = false;
