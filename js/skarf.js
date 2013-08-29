@@ -39,18 +39,18 @@ You can do similar things to create your own renderer.
 
 function SkArF(options)
 {
-	if (!options.canvasElem) throw new Error('canvasElem not specified');
+	if (typeof options.canvasElem === 'undefined') throw new Error('canvasElem not specified');
 	this.canvasElem = options.canvasElem;
-	
-	if (!options.videoElem) throw new Error('videoElem not specified');
+
+	if (typeof options.videoElem === 'undefined') throw new Error('videoElem not specified');
 	this.videoElem = options.videoElem;
-	
-	if (!options.arLib) throw new Error('arLib not specified');
+
+	if (typeof options.arLib === 'undefined') throw new Error('arLib not specified');
 	this.arLib = options.arLib;
-	
-	if (!options.renderer) throw new Error('renderer not specified');
+
+	if (typeof options.renderer === 'undefined') throw new Error('renderer not specified');
 	this.renderer = options.renderer;
-	
+
 	this.init();
 }
 SkArF.prototype.init = function()
@@ -68,19 +68,19 @@ SkArF.prototype.update = function()
 		this.canvasElem.changed = true;
 
 		this.preUpdate();
-		
+
 		//call pre-updates
 		this.arLib.preUpdate();
 		this.renderer.preUpdate();
-		
+
 		//call updates
 		this.arLib.update();
 		this.renderer.update();
-		
+
 		//call post-updates
 		this.arLib.postUpdate();
 		this.renderer.postUpdate();
-		
+
 		this.postUpdate();
 	}
 }
@@ -93,7 +93,7 @@ SkArF.prototype.postUpdate = function(){}
 
 function ArLib(options)
 {
-	if (!options.canvasElem) throw new Error('canvasElem not specified');
+	if (typeof options.canvasElem === 'undefined') throw new Error('canvasElem not specified');
 	this.canvasElem = options.canvasElem;
 	this.threshold = options.threshold || 128;
 }
@@ -114,16 +114,16 @@ ArLib.prototype.postUpdate = function(){}
 function JsArToolKitArLib(options)
 {
 	ArLib.call(this, options);
-	
+
 	this.markerWidth = options.markerWidth || 120;
 	this.debug = (typeof(options.debug)==='undefined') ? false : options.debug;
-	
+
 	this.markers = {};
 
 	//store some temp variables
 	this.resultMat = new NyARTransMatResult();
 	this.tmp = {};
-	
+
 	this.init();
 }
 
@@ -162,11 +162,11 @@ JsArToolKitArLib.prototype.update = function()
 	//NOTE: THE CANVAS MUST BE THE SAME SIZE AS THE RASTER
 	//OTHERWISE WILL GET AN "Uncaught #<Object>" ERROR
 	var markerCount = this.detector.detectMarkerLite(this.raster, this.threshold);
-	
+
 	// Go through the detected markers and get their IDs and transformation matrices.
 	for (var i=0; i<markerCount; i++)
 	{
-	
+
 		// Get the ID marker data for the current marker.
 		// ID markers are special kind of markers that encode a number.
 		// The bytes for the number are in the ID marker data.
@@ -186,17 +186,17 @@ JsArToolKitArLib.prototype.update = function()
 
 		// If this is a new id, let's start tracking it.
 		if (this.markers[currId] == null) {
-		
+
 			//create new object for the marker
 			this.markers[currId] = {};
-			
+
 			//create a transform for this marker
 			var transform = this.renderer.createTransformForMarker(currId);
-			
+
 			//delay-load the model
 			this.renderer.loadModelForMarker(currId, transform);
 		}
-	
+
 		// Get the transformation matrix for the detected marker.
 		this.detector.getTransformMatrix(i, this.resultMat);
 
@@ -214,25 +214,25 @@ JsArToolKitArLib.prototype.update = function()
 
 function Renderer(options)
 {
-	if (!options.rendererContainerElem) throw new Error('rendererContainerElem not specified');
+	if (typeof options.rendererContainerElem === 'undefined') throw new Error('rendererContainerElem not specified');
 	this.rendererContainerElem = options.rendererContainerElem;
-	
-	if (!options.rendererCanvasWidth) throw new Error('rendererCanvasWidth not specified');
+
+	if (typeof options.rendererCanvasWidth === 'undefined') throw new Error('rendererCanvasWidth not specified');
 	this.rendererCanvasWidth = options.rendererCanvasWidth;
-	
-	if (!options.rendererCanvasHeight) throw new Error('rendererCanvasHeight not specified');
+
+	if (typeof options.rendererCanvasHeight === 'undefined') throw new Error('rendererCanvasHeight not specified');
 	this.rendererCanvasHeight = options.rendererCanvasHeight;
-	
-	if (!options.streamCanvasElem) throw new Error('streamCanvasElem not specified');
+
+	if (typeof options.streamCanvasElem === 'undefined') throw new Error('streamCanvasElem not specified');
 	this.streamCanvasElem = options.streamCanvasElem;
-	
-	if (!options.modelsJsonFile) throw new Error('modelsJsonFile not specified');
+
+	if (typeof options.modelsJsonFile === 'undefined') throw new Error('modelsJsonFile not specified');
 	this.modelsJsonFile = options.modelsJsonFile;
 
-	this.useDefaultLights = (typeof(options.useDefaultLights)==='undefined') ? true : options.useDefaultLights;
-	
-	this.isWireframeVisible = (typeof(options.displayWireframe)==='undefined') ? false : options.displayWireframe;
-	this.isLocalAxisVisible = (typeof(options.displayLocalAxis)==='undefined') ? false : options.displayLocalAxis;
+	this.useDefaultLights = (typeof options.useDefaultLights === 'undefined') ? true : options.useDefaultLights;
+
+	this.isWireframeVisible = (typeof options.displayWireframe === 'undefined') ? false : options.displayWireframe;
+	this.isLocalAxisVisible = (typeof options.displayLocalAxis === 'undefined') ? false : options.displayLocalAxis;
 
 	this.modelManager = new ModelManager(this.modelsJsonFile);
 
@@ -298,12 +298,12 @@ Renderer.prototype.setLocalAxisVisible = function(isVisible)
 
 function ThreeJsRenderer(options)
 {
-	if (!options.camProjMatrixArray) throw new Error('camProjMatrixArray not specified');
+	if (typeof options.camProjMatrixArray === 'undefined') throw new Error('camProjMatrixArray not specified');
 	this.camProjMatrixArray = options.camProjMatrixArray;
-	
+
 	this.markerTransforms = {};
 	this.emptyFloatArray = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-	
+
 	Renderer.call(this, options);
 }
 
@@ -351,12 +351,12 @@ ThreeJsRenderer.prototype.createTransformForMarker = function(markerId)
 
 	// Add the marker root to your scene.
 	this.scene.add(markerTransform);
-	
+
 	//add a axis helper to see the local axis
 	var localAxis = new THREE.AxisHelper(100);
 	localAxis.visible = this.isLocalAxisVisible;
 	markerTransform.add(localAxis);
-	
+
 	return markerTransform;
 }
 ThreeJsRenderer.prototype.loadModelForMarker = function(markerId, markerTransform)
@@ -366,7 +366,7 @@ ThreeJsRenderer.prototype.loadModelForMarker = function(markerId, markerTransfor
 ThreeJsRenderer.prototype.setMarkerTransform = function(markerId, transformMatrix)
 {
 	this.markerTransforms[markerId].matrix.setFromArray(transformMatrix);
-	
+
 	//TODO: bake these transforms into the AR conversion matrix
 	//FIXME: this assumes that we are using JSARToolKit...
 	var m = new THREE.Matrix4();
@@ -374,7 +374,7 @@ ThreeJsRenderer.prototype.setMarkerTransform = function(markerId, transformMatri
 	this.markerTransforms[markerId].matrix.multiply(m);
 	m.makeRotationX(THREE.Math.degToRad(90));  //rotate 90deg in X to get Y-up
 	this.markerTransforms[markerId].matrix.multiply(m);
-	
+
 	this.markerTransforms[markerId].matrixWorldNeedsUpdate = true;
 }
 ThreeJsRenderer.prototype.getAllMaterialsForTransform = function(transform)
@@ -399,7 +399,7 @@ ThreeJsRenderer.prototype.getAllMaterialsForTransform = function(transform)
 			{
 				materials.push(material);
 			}
-			
+
 		}
 	}
 	return materials;
@@ -477,16 +477,16 @@ ThreeJsRenderer.prototype.setupBackgroundVideo = function()
 function ModelManager(modelsJsonFile)
 {
 	this.modelsJsonFile = modelsJsonFile;
-	
+
 	this.modelData = null;
 	this.loaders = {};
-	
+
 	this.load();
 }
 ModelManager.prototype.load = function()
 {
 	console.log('Loading models json file: ' + this.modelsJsonFile);
-	
+
 	//load the JSON file
 	var that = this;
 	$.getJSON(this.modelsJsonFile)
@@ -576,7 +576,7 @@ ModelLoader.prototype.transformAndParent = function(model, object, markerTransfo
 	{
 		m.scale(new THREE.Vector3(model.scale[0], model.scale[1], model.scale[2]));
 	}
-	
+
 	//apply the transforms
 	if (object)
 	{
@@ -603,7 +603,7 @@ ModelLoaderFactory.register('empty', EmptyModelLoader);
 EmptyModelLoader.prototype.loadForMarker = function(model, markerId, markerTransform, isWireframeVisible)
 {
 	//TODO: time how long it takes to load
-	
+
 	//bake transformations into vertices
 	this.transformAndParent(model, null, markerTransform);
 
@@ -628,7 +628,7 @@ ModelLoaderFactory.register('json', JsonModelLoader);
 JsonModelLoader.prototype.loadForMarker = function(model, markerId, markerTransform, isWireframeVisible)
 {
 	//TODO: time how long it takes to load
-	
+
 	var that = this;
 	this.loader.load(model.url, function(geometry, materials){
 
@@ -640,7 +640,7 @@ JsonModelLoader.prototype.loadForMarker = function(model, markerId, markerTransf
 
 		//create mesh
 		var mesh = new THREE.Mesh(geometry, new THREE.MeshFaceMaterial(materials));
-		
+
 		//bake transformations into vertices
 		that.transformAndParent(model, mesh, markerTransform);
 
@@ -652,7 +652,7 @@ JsonModelLoader.prototype.loadForMarker = function(model, markerId, markerTransf
 function JsonBinaryModelLoader()
 {
 	ModelLoader.call(this);
-	if (!THREE.BinaryLoader)
+	if (typeof THREE.BinaryLoader === 'undefined')
 	{
 		throw new Error('THREE.BinaryLoader does not exist. Have you included BinaryLoader.js?');
 	}
@@ -671,7 +671,7 @@ ModelLoaderFactory.register('json_bin', JsonBinaryModelLoader);
 function ObjModelLoader()
 {
 	ModelLoader.call(this);
-	if (!THREE.OBJMTLLoader)
+	if (typeof THREE.OBJMTLLoader === 'undefined')
 	{
 		throw new Error('THREE.OBJMTLLoader does not exist. Have you included OBJMTLLoader.js and MTLLoader.js?');
 	}
@@ -713,7 +713,7 @@ ObjModelLoader.prototype.loadForMarker = function(model, markerId, markerTransfo
 
 		console.log('Loaded mesh ' + model.url + ' for marker id ' + markerId);
 	});
-	
+
 	var mtlFile = model.url.replace(/.obj/g, '.mtl');  //assume mtl file has same base name as .obj
 	this.loader.load(model.url, mtlFile);
 }
