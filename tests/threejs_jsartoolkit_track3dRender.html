@@ -17,7 +17,6 @@
 	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
 	<script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
 
-	
 	<script>
 	
 	var DEBUG = false;  //for JSARToolKit built-in debugging info
@@ -79,7 +78,7 @@
 		var trackSceneRenderer = new THREE.WebGLRenderer({
 			antialias : true
 		});
-		trackSceneRenderer.setSize(2*canvasWidth, 2*canvasHeight);
+		trackSceneRenderer.setSize(canvasWidth, canvasHeight);
 		trackSceneRenderer.setClearColor('#888888', 1);
 		var $threejsTrackSceneContainerElem = $('#mainTracking3dScene');
 		$threejsTrackSceneContainerElem.append(trackSceneRenderer.domElement);
@@ -87,7 +86,7 @@
 
 		var trackSceneScene = new THREE.Scene();
 
-		var trackSceneCamera = new THREE.PerspectiveCamera(35, 640/480, 0.1, 1000);
+		var trackSceneCamera = new THREE.PerspectiveCamera(35, canvasWidth/canvasHeight, 0.1, 1000);
 		trackSceneCamera.position.set(0.25, 0.25, 0.25);
 		trackSceneCamera.lookAt(new THREE.Vector3(0,0,0));
 		// controls = new THREE.OrbitControls(trackSceneCamera);
@@ -143,7 +142,7 @@
 		var renderer = new THREE.WebGLRenderer({
 			antialias : true
 		});
-		renderer.setSize(canvasWidth, canvasHeight);
+		renderer.setSize(640, 480);  //fix the output size, will not affect tracking resolution
 		var $threejsContainerElem = $('#threejs-container');
 		$threejsContainerElem.append(renderer.domElement);
 
@@ -198,7 +197,7 @@
 		var ctx = canvas.getContext('2d');
 
 		var camRotateRadius = 0.3;
-		var camRotateSpeed = 0.5;
+		var camRotateSpeed = 0.15;
 		var camTiltAmp = 0.5;
 		var camTiltOffset = 0.25;
 		
@@ -317,7 +316,7 @@
 	
 	<div class="container" id="canvas-container">
 		<div class="caption">&lt;canvas&gt;</div>
-		<canvas id="mainCanvas" width="640" height="480"></canvas>
+		<canvas id="mainCanvas" width="1280" height="720"></canvas>
 	</div>
 	<div class="caption" style="margin: 2em auto;">
 		Threshold (0-255):
@@ -325,7 +324,7 @@
 	</div>
 	<div class="container" id="debugCanvas-container">
 		<div class="caption">debug &lt;canvas&gt;</div>
-		<canvas id="debugCanvas" width="640" height="480"></canvas>
+		<canvas id="debugCanvas" width="1280" height="720"></canvas>
 	</div>
 
 	<div class="container" id="mainTracking3dScene">
