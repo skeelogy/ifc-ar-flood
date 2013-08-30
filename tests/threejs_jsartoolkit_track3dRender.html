@@ -17,6 +17,13 @@
 	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
 	<script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
 
+	<script type="text/javascript" src="/js/lib/postprocessing/EffectComposer.js"></script>
+	<script type="text/javascript" src="/js/lib/postprocessing/RenderPass.js"></script>
+	<script type="text/javascript" src="/js/lib/postprocessing/ShaderPass.js"></script>
+	<script type="text/javascript" src="/js/lib/postprocessing/MaskPass.js"></script>
+	<script type="text/javascript" src="/js/lib/postprocessing/shaders/CopyShader.js"></script>
+	<script type="text/javascript" src="/js/lib/postprocessing/shaders/FXAAShader.js"></script>
+	
 	<script>
 	
 	var DEBUG = false;  //for JSARToolKit built-in debugging info
@@ -75,6 +82,7 @@
 		// CREATE 3D SCENE FOR TRACKING
 		//===================================================
 
+		//renderer
 		var trackSceneRenderer = new THREE.WebGLRenderer({
 			antialias : true
 		});
@@ -84,8 +92,10 @@
 		$threejsTrackSceneContainerElem.append(trackSceneRenderer.domElement);
 		source = trackSceneRenderer.domElement;
 
+		//scene
 		var trackSceneScene = new THREE.Scene();
 
+		//camera
 		var trackSceneCamera = new THREE.PerspectiveCamera(35, canvasWidth/canvasHeight, 0.1, 1000);
 		trackSceneCamera.position.set(0.25, 0.25, 0.25);
 		trackSceneCamera.lookAt(new THREE.Vector3(0,0,0));
@@ -97,6 +107,7 @@
 
 		// trackSceneScene.add(new THREE.AxisHelper());
 
+		//plane
 		var trackScenePlaneMesh = new THREE.Mesh(
 			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
 			new THREE.MeshBasicMaterial({
@@ -106,6 +117,13 @@
 		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		trackSceneScene.add(trackScenePlaneMesh);
 
+		//effects composer
+		var composer = new THREE.EffectComposer(trackSceneRenderer);
+		composer.addPass(new THREE.RenderPass(trackSceneScene, trackSceneCamera));
+		var	pass = new THREE.ShaderPass(THREE.FXAAShader);
+		pass.uniforms['resolution'].value.set(1.0/canvasWidth, 1.0/canvasHeight);
+		pass.renderToScreen = true;
+		composer.addPass(pass);
 
 		//===================================================
 		// INIT JSARTOOLKIT
@@ -217,7 +235,8 @@
 			//update 
 			trackSceneRenderer.autoClear = false;
 			trackSceneRenderer.clear();
-			trackSceneRenderer.render(trackSceneScene, trackSceneCamera);
+			// trackSceneRenderer.render(trackSceneScene, trackSceneCamera);
+			composer.render(trackSceneScene, trackSceneCamera);
 
 			// if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
 			// {
