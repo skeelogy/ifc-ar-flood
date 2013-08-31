@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>IFC - js-aruco - Track 3D Render</title>
+	<meta charset="UTF-8"/>
+
+	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" href="/css/style.css">
+
+	<!--load helper libraries-->
+	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+
+	<!--load AR libraries-->
+	<script type="text/javascript" src="/js/lib/ar/js-aruco/svd.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/posit1.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/cv.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/aruco.js"></script>
+
+    <!--load 3D libraries-->
+	<script type="text/javascript" src="/js/lib/three.min.js"></script>
+	<script type="text/javascript" src="/js/lib/Detector.js"></script>
+	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
+	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
+	<script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
+
+	<script type="text/javascript" src="/js/lib/postprocessing/EffectComposer.js"></script>
+	<script type="text/javascript" src="/js/lib/postprocessing/RenderPass.js"></script>
+	<script type="text/javascript" src="/js/lib/postprocessing/ShaderPass.js"></script>
+	<script type="text/javascript" src="/js/lib/postprocessing/MaskPass.js"></script>
+	<script type="text/javascript" src="/js/lib/postprocessing/shaders/CopyShader.js"></script>
+	<script type="text/javascript" src="/js/lib/postprocessing/shaders/FXAAShader.js"></script>
+
+	<script>
+
+	var MODEL_SIZE = 35.0;  //millimeters
+
+	var clock = new THREE.Clock();
+	var lookAtPoint = new THREE.Vector3();
+
+	var options = {
+		cameraMotionRadius: 0.2,
+		cameraMotionSpeed: 0.2,
+		cameraMotionTiltAmp: 0.2,
+		cameraMotionTiltOffset: 0.1
+	};
+
+	var gui;
+	var cameraMotionFolder;
+	function setupGui() {
+
+		gui = new dat.GUI();
+		//gui.close();  //close GUI by default
+
+		//Terrain folder
+		cameraMotionFolder = gui.addFolder('Camera Motion');
+		cameraMotionFolder.open();
+
+		var control = cameraMotionFolder.add(options, 'cameraMotionRadius', 0.1, 1.0).name('Radius');
+
+		control = cameraMotionFolder.add(options, 'cameraMotionSpeed', 0.1, 2.0).name('Speed');
+
+		control = cameraMotionFolder.add(options, 'cameraMotionTiltAmp', 0.0, 1.0).name('Tilt Amp');
+
+		control = cameraMotionFolder.add(options, 'cameraMotionTiltOffset', 0.0, 0.5).name('Tilt Offset');
+	}
+
+	function setupEvents()
+	{
+		window.addEventListener('keydown', window_onKeyDown, false);
+		window.addEventListener('keyup', window_onKeyUp, false);
+	}
+
+	var isAnimating = true;
+	function window_onKeyDown(event)
+	{
+
+	}
+
+	function window_onKeyUp(event)
+	{
+		if (event.keyCode === 65)  //a
+		{
+			isAnimating = !isAnimating;
+		}
+	}
+
+	function drawCorners(markers)
+	{
+        var corners, corner, i, j;
+
+        ctx.lineWidth = 3;
+
+        for (i = 0; i < markers.length; i++)
+        {
+            corners = markers[i].corners;
+
+            ctx.strokeStyle = "red";
+            ctx.beginPath();
+
+            for (j = 0; j < corners.length; j++)
+            {
+                corner = corners[j];
+                ctx.moveTo(corner.x, corner.y);
+                corner = corners[(j + 1) % corners.length];
+                ctx.lineTo(corner.x, corner.y);
+            }
+
+            ctx.stroke();
+            ctx.closePath();
+
+            ctx.strokeStyle = "green";
+            ctx.strokeRect(corners[0].x - 2, corners[0].y - 2, 4, 4);
+        }
+    };
+
+    function drawId(markers)
+    {
+        var corners, corner, x, y, i, j;
+
+        ctx.strokeStyle = "yellow";
+        ctx.lineWidth = 1;
+
+        for (i = 0; i !== markers.length; ++ i)
+        {
+            corners = markers[i].corners;
+
+            x = corners[0].x;
+            y = corners[0].y;
+
+            ctx.strokeText(markers[i].id, x, y);
+        }
+    }
+
+    function updateScenes(markers)
+    {
+        var corners, corner, pose, i;
+
+        if (markers.length > 0)
+        {
+            corners = markers[0].corners;
+
+            for (i = 0; i < corners.length; ++ i)
+            {
+                corner = corners[i];
+
+                corner.x = corner.x - (canvasWidth / 2);
+                corner.y = (canvasHeight / 2) - corner.y;
+            }
+
+            pose = posit.pose(corners);
+
+            updateObject(markerRoot, pose.bestRotation, pose.bestTranslation);
+            // updateObject(markerRoot, pose.alternativeRotation, pose.alternativeTranslation);
+
+            updatePose("pose1", pose.bestError, pose.bestRotation, pose.bestTranslation);
+            updatePose("pose2", pose.alternativeError, pose.alternativeRotation, pose.alternativeTranslation);
+        }
+    };
+
+    function updateObject(object, rotation, translation)
+    {
+        object.scale.x = MODEL_SIZE;
+        object.scale.y = MODEL_SIZE;
+        object.scale.z = MODEL_SIZE;
+
+        object.rotation.x = -Math.asin(-rotation[1][2]);
+        object.rotation.y = -Math.atan2(rotation[0][2], rotation[2][2]);
+        object.rotation.z = Math.atan2(rotation[1][0], rotation[1][1]);
+
+        object.position.x = translation[0];
+        object.position.y = translation[1];
+        object.position.z = -translation[2];
+    };
+
+    function updatePose(id, error, rotation, translation)
+    {
+        var yaw = -Math.atan2(rotation[0][2], rotation[2][2]);
+        var pitch = -Math.asin(-rotation[1][2]);
+        var roll = Math.atan2(rotation[1][0], rotation[1][1]);
+
+        var d = document.getElementById(id);
+        d.innerHTML = " error: " + error
+                  + "<br/>"
+                  + " x: " + (translation[0] | 0)
+                  + " y: " + (translation[1] | 0)
+                  + " z: " + (translation[2] | 0)
+                  + "<br/>"
+                  + " yaw: " + Math.round(-yaw * 180.0/Math.PI)
+                  + " pitch: " + Math.round(-pitch * 180.0/Math.PI)
+                  + " roll: " + Math.round(roll * 180.0/Math.PI);
+    };
+
+    var ctx;
+    var canvasWidth, canvasHeight;
+    var detector, posit;
+    var markerRoot;
+	$(document).ready(function()
+	{
+		//check for WebGL
+		if (!Detector.webgl)
+		{
+			$('div').remove();
+			Detector.addGetWebGLMessage();
+			return;
+		}
+
+		console.log('Document is ready.');
+
+		setupEvents();
+
+		var canvas = $('#mainCanvas')[0];
+		canvasWidth = canvas.width;
+		canvasHeight = canvas.height;
+
+		//===================================================
+		// CREATE 3D SCENE FOR TRACKING
+		//===================================================
+
+		//renderer
+		var trackSceneRenderer = new THREE.WebGLRenderer({
+			antialias : true
+		});
+		trackSceneRenderer.setSize(canvasWidth, canvasHeight);
+		trackSceneRenderer.setClearColor('#888888', 1);
+		var $threejsTrackSceneContainerElem = $('#mainTracking3dScene');
+		$threejsTrackSceneContainerElem.append(trackSceneRenderer.domElement);
+		source = trackSceneRenderer.domElement;
+
+		//scene
+		var trackSceneScene = new THREE.Scene();
+
+		//camera
+		var trackSceneCamera = new THREE.PerspectiveCamera(40, canvasWidth/canvasHeight, 0.1, 1000);
+		trackSceneCamera.position.set(0.25, 0.25, 0.25);
+		trackSceneCamera.lookAt(new THREE.Vector3(0,0,0));
+		// controls = new THREE.OrbitControls(trackSceneCamera);
+		// controls.modifierKey = 'alt';
+		// controls.userPanSpeed = 0.04;
+		// controls.pan(new THREE.Vector3(0, 1, 0));
+		// controls.pan(new THREE.Vector3(0, 1, 0));
+
+		// trackSceneScene.add(new THREE.AxisHelper());
+
+		//plane
+		var trackScenePlaneMesh = new THREE.Mesh(
+			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
+			new THREE.MeshBasicMaterial({
+				map: THREE.ImageUtils.loadTexture('/resources/markers/js-aruco/1001.jpg')
+			})
+		);
+		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		trackSceneScene.add(trackScenePlaneMesh);
+
+		//effects composer
+		var composer = new THREE.EffectComposer(trackSceneRenderer);
+		composer.addPass(new THREE.RenderPass(trackSceneScene, trackSceneCamera));
+		var	pass = new THREE.ShaderPass(THREE.FXAAShader);
+		pass.uniforms['resolution'].value.set(1.0/canvasWidth, 1.0/canvasHeight);
+		pass.renderToScreen = true;
+		composer.addPass(pass);
+
+		//===================================================
+		// INIT JS-ARUCO
+		//===================================================
+
+		detector = new AR.Detector();
+		posit = new POS.Posit(MODEL_SIZE, canvasWidth);
+
+		//===================================================
+		// INIT THREE.JS
+		//===================================================
+
+		var renderer = new THREE.WebGLRenderer({
+			antialias : true
+		});
+		renderer.setSize(640, 480);  //fix the output size, will not affect tracking resolution
+		var $threejsContainerElem = $('#threejs-container');
+		$threejsContainerElem.append(renderer.domElement);
+
+		// create the scene
+		var scene = new THREE.Scene();
+
+		// Create a camera and a marker root object for your Three.js scene.
+		// var camera = new THREE.Camera();
+		var camera = new THREE.PerspectiveCamera(40, canvasWidth / canvasHeight, 1, 1000);
+
+		//create a new Three.js object as marker root
+        markerRoot = new THREE.Object3D();
+        // markerRoot.matrixAutoUpdate = false;
+        // markerRoots[currId] = markerRoot;
+        var cube = new THREE.Mesh(
+            new THREE.CubeGeometry(1.0, 1.0, 1.0),
+            new THREE.MeshNormalMaterial({color: 0xff00ff, side: THREE.DoubleSide, wireframe: true})
+        );
+        cube.position.z = 0.5;
+        markerRoot.add(cube);
+        scene.add(markerRoot);
+
+		// // glMatrix matrices are flat arrays.
+		// var tmp = new Float32Array(16);
+//
+		// // Next we need to make the Three.js camera use the FLARParam matrix.
+		// param.copyCameraMatrix(tmp, 10, 10000);
+		// camera.projectionMatrix.setFromArray(tmp);
+
+		// Create scene and quad for the video.
+		// NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
+		var videoTex = new THREE.Texture(canvas);
+		var geometry = new THREE.PlaneGeometry(2, 2);
+		var material = new THREE.MeshBasicMaterial({
+			map : videoTex,
+			depthTest : false,
+			depthWrite : false
+		});
+		var plane = new THREE.Mesh(geometry, material );
+		var videoScene = new THREE.Scene();
+		var videoCam = new THREE.Camera();
+		videoScene.add(plane);
+		videoScene.add(videoCam);
+
+		//===================================================
+		// GUI
+		//===================================================
+
+		setupGui();
+
+		//===================================================
+		// STATS
+		//===================================================
+
+		//create a stats monitor
+		stats = new Stats();
+		$threejsContainerElem.append(stats.domElement);
+
+		//===================================================
+		// LOOP
+		//===================================================
+
+		// // Create a NyARTransMatResult object for getting the marker translation matrices.
+		// var resultMat = new NyARTransMatResult();
+
+		var markerRoots = {};
+		var markers = {};
+
+		var emptyFloatArray = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+
+		ctx = canvas.getContext('2d');
+
+		// On every frame do the following:
+		var t = 0;
+		function loop()
+		{
+			var dt = clock.getDelta();  //have to call this before getElapsedTime()
+			var time = clock.getElapsedTime();
+
+			//update camera
+			if (isAnimating)
+			{
+				t += dt;
+
+				// controls.update();
+				trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * t);
+				trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * t) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
+				trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * t);
+				trackSceneCamera.lookAt(lookAtPoint);
+			}
+
+			//update
+			trackSceneRenderer.autoClear = false;
+			trackSceneRenderer.clear();
+			trackSceneRenderer.render(trackSceneScene, trackSceneCamera);
+			// composer.render(trackSceneScene, trackSceneCamera);
+
+			// if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
+			// {
+				// Draw the video frame to the canvas.
+				ctx.drawImage(source, 0, 0, canvasWidth, canvasHeight);
+				var imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
+				var markers = detector.detect(imageData);
+				drawCorners(markers);
+				drawId(markers);
+				updateScenes(markers);
+
+				// Tell JSARToolKit that the canvas has changed.
+				// canvas.changed = true;
+
+				// Update the video texture.
+				videoTex.needsUpdate = true;
+
+				// // move all marker roots to origin so that they will disappear when not tracked
+				// Object.keys(markerRoots).forEach(function (key){
+					// markerRoots[key].matrix.setFromArray(emptyFloatArray);
+					// markerRoots[key].matrixWorldNeedsUpdate = true;
+				// });
+//
+				// // Do marker detection by using the detector object on the raster object.
+				// // The threshold parameter determines the threshold value
+				// // for turning the video frame into a 1-bit black-and-white image.
+				// var markerCount = detector.detectMarkerLite(raster, threshold);
+//
+				// // Go through the detected markers and get their IDs and transformation matrices.
+				// for (var i = 0; i < markerCount; i++)
+				// {
+//
+					// // Get the ID marker data for the current marker.
+					// // ID markers are special kind of markers that encode a number.
+					// // The bytes for the number are in the ID marker data.
+					// var id = detector.getIdMarkerData(i);
+//
+					// // Read bytes from the id packet.
+					// var currId = -1;
+					// // This code handles only 32-bit numbers or shorter.
+					// if (id.packetLength <= 4) {
+						// currId = 0;
+						// for (var j = 0; j < id.packetLength; j++) {
+						  // currId = (currId << 8) | id.getPacketData(j);
+						// }
+					// }
+//
+					// // If this is a new id, let's start tracking it.
+					// if (markers[currId] == null) {
+//
+						// //create new object for the marker
+						// markers[currId] = {};
+//
+						// //create a new Three.js object as marker root
+						// var markerRoot = new THREE.Object3D();
+						// markerRoot.matrixAutoUpdate = false;
+						// markerRoots[currId] = markerRoot;
+//
+						// // Add the marker models and suchlike into your marker root object.
+						// var cube = new THREE.Mesh(
+							// new THREE.CubeGeometry(120,120,120),
+							// new THREE.MeshNormalMaterial({color: 0xff00ff, side: THREE.BackSide, wireframe: true})
+						// );
+						// cube.position.z = -60;
+						// markerRoot.add(cube);
+//
+						// // Add the marker root to your scene.
+						// scene.add(markerRoot);
+					// }
+//
+					// // Get the transformation matrix for the detected marker.
+					// detector.getTransformMatrix(i, resultMat);
+//
+					// // Copy the marker matrix to the tmp matrix.
+					// copyMarkerMatrix(resultMat, tmp);
+//
+					// // Copy the marker matrix over to your marker root object.
+					// markerRoots[currId].matrix.setFromArray(tmp);
+					// markerRoots[currId].matrixWorldNeedsUpdate = true;
+				// }
+
+				// Render the scene.
+				renderer.autoClear = false;
+				renderer.clear();
+				renderer.render(videoScene, videoCam);
+				renderer.render(scene, camera);
+
+				//update stats
+				stats.update();
+			// }
+
+		  requestAnimationFrame(loop);
+		}
+		loop();
+
+	});
+	</script>
+</head>
+<body>
+	<h2>Three.js and JSARToolKit</h2>
+
+	<div class="container" id="mainTracking3dScene">
+		<div class="caption">Three.js 3D scene for tracking</div>
+	</div>
+
+	<div class="container" id="canvas-container">
+		<div class="caption">&lt;canvas&gt;</div>
+		<canvas id="mainCanvas" width="1280" height="960"></canvas>
+	</div>
+
+	<div class="container" id="threejs-container">
+		<div class="caption">three.js &lt;canvas&gt;</div>
+	</div>
+
+	<div class="container" id="pose1">
+	</div>
+	<div class="container" id="pose2">
+	</div>
+</body>
+</html>
