@@ -91,6 +91,25 @@
 		control = cameraMotionFolder.add(options, 'cameraMotionTiltOffset', 0.0, 0.5).name('Tilt Offset');
 	}
 
+	function setupEvents()
+	{
+		window.addEventListener('keydown', window_onKeyDown, false);
+		window.addEventListener('keyup', window_onKeyUp, false);
+	}
+
+	var isAnimating = true;
+	function window_onKeyDown(event)
+	{
+		
+	}
+
+	function window_onKeyUp(event)
+	{
+		if (event.keyCode === 65)  //a
+		{
+			isAnimating = !isAnimating;
+		}
+	}
 
 	$(document).ready(function()
 	{
@@ -103,6 +122,8 @@
 		}
 		
 		console.log('Document is ready.');
+
+		setupEvents();
 		
 		var canvas = $('#mainCanvas')[0];
 		var canvasWidth = canvas.width;
@@ -251,17 +272,23 @@
 		var ctx = canvas.getContext('2d');
 		
 		// On every frame do the following:
+		var t = 0;
 		function loop()
 		{
 			var dt = clock.getDelta();  //have to call this before getElapsedTime()
 			var time = clock.getElapsedTime();
 
 			//update camera
-			// controls.update();
-			trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * time);
-			trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * time) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
-			trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * time);
-			trackSceneCamera.lookAt(lookAtPoint);
+			if (isAnimating)
+			{
+				t += dt;
+				
+				// controls.update();
+				trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * t);
+				trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * t) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
+				trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * t);
+				trackSceneCamera.lookAt(lookAtPoint);
+			}
 
 			//update 
 			trackSceneRenderer.autoClear = false;
