@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Iowa Flood Center - Augmented Reality Flood Simulation</title>
+	<title>IFC - Augmented Reality Flood Simulation</title>
 	<meta charset="UTF-8"/>
-	
+
 	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
 	<link rel="stylesheet" href="/css/style.css">
-	
+
 	<!--load helper libraries-->
 	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-	
+
 	<!--load webcam streaming libraries-->
 	<script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
 	<script type="text/javascript" src="/js/streamvideo.js"></script>
-	
+
 	<!--load AR and 3D libraries-->
 	<script type="text/javascript" src="/js/lib/JSARToolKit.js"></script>
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
@@ -23,13 +23,13 @@
 	<script type="text/javascript" src="/js/lib/OBJMTLLoader.js"></script>
 	<script type="text/javascript" src="/js/lib/MTLLoader.js"></script>
 	<script type="text/javascript" src="/js/lib/BinaryLoader.js"></script>
-	<script type="text/javascript" src="/js/lib/skarf.js"></script>
-	
+	<script type="text/javascript" src="/js/skarf.js"></script>
+
 	<script>
-	
+
 	var g_trackingThreshold = 128;
 	var g_debug = true;
-	
+
 	function setupGui(skarf) {
 
 		var options = {
@@ -52,7 +52,7 @@
 
 		//Display folder
 		folder = gui.addFolder('Display');
-		
+
 		var control = folder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
 		{
@@ -60,7 +60,7 @@
 		}
 		control.onChange(toggleWireframe);
 		toggleWireframe(options.displayWireframe);
-		
+
 		control = folder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
@@ -69,7 +69,7 @@
 		control.onChange(toggleLocalAxis);
 		toggleLocalAxis(options.displayLocalAxis);
 	}
-	
+
 	$(document).ready(function()
 	{
 		//check for WebGL
@@ -79,16 +79,16 @@
 			Detector.addGetWebGLMessage();
 			return;
 		}
-		
+
 		console.log('Document is ready.');
-		
+
 		var canvas = $('#mainCanvas')[0];
-		
+
 		//stream to video element
 		var video = $('#mainVideo')[0];
 		streamVideo(video);
-		var source = video;	
-		
+		var source = video;
+
 		//create an AR library
 		var jsArToolKitArLib = new JsArToolKitArLib({
 			canvasElem: canvas,
@@ -96,11 +96,11 @@
 			threshold: g_trackingThreshold,
 			debug: g_debug
 		});
-		
+
 		//get the camera projection matrix from jsArToolKitArLib
 		var camProjMatrixArray = new Float32Array(16);
 		jsArToolKitArLib.flarParam.copyCameraMatrix(camProjMatrixArray, 10, 10000);
-		
+
 		//create a renderer
 		var $threejsContainerElem = $('#threejs-container');
 		var threeJsRenderer = new ThreeJsRenderer({
@@ -115,7 +115,7 @@
 			camProjMatrixArray: camProjMatrixArray,
 			modelsJsonFile: '/resources/models/models.json'
 		});
-		
+
 		//create a framework
 		var skarf = new SkArF({
 			canvasElem: canvas,
@@ -127,10 +127,10 @@
 		//create a stats monitor
 		stats = new Stats();
 		$threejsContainerElem.append(stats.domElement);
-		
+
 		//setup GUI
 		setupGui(skarf);
-		
+
 		//main loop
 		function loop()
 		{
@@ -139,7 +139,7 @@
 			requestAnimationFrame(loop);
 		}
 		loop();
-		
+
 	});
 	</script>
 </head>
