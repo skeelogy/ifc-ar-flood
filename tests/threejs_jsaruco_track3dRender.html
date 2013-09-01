@@ -38,50 +38,80 @@
 	var lookAtPoint = new THREE.Vector3();
 
 	var options = {
+	    trackingSceneFxaa: false,
+	    cameraMotionAutoOrbit: false,
 		cameraMotionRadius: 0.2,
 		cameraMotionSpeed: 0.2,
 		cameraMotionTiltAmp: 0.2,
-		cameraMotionTiltOffset: 0.1
+		cameraMotionTiltOffset: 0.1,
+		togglePauseOrbit: togglePauseOrbit,
+		displayRefCube: true,
+		displayDebugView: false,
+		displayLocalAxis: false
 	};
 
 	var gui;
-	var cameraMotionFolder;
+	var trackingSceneFolder, cameraMotionFolder, displayFolder;
 	function setupGui() {
 
 		gui = new dat.GUI();
 		//gui.close();  //close GUI by default
 
-		//Terrain folder
+		//tracking scene folder
+		trackingSceneFolder = gui.addFolder('Tracking Scene');
+		trackingSceneFolder.open();
+
+		var control = trackingSceneFolder.add(options, 'trackingSceneFxaa').name('FXAA');
+
+		//camera motion folder
 		cameraMotionFolder = gui.addFolder('Camera Motion');
 		cameraMotionFolder.open();
 
-		var control = cameraMotionFolder.add(options, 'cameraMotionRadius', 0.1, 1.0).name('Radius');
+		control = cameraMotionFolder.add(options, 'cameraMotionAutoOrbit').name('Auto Orbit');
+		function toggleCameraMotionAutoOrbit(value)
+		{
+		    //always turn orbiting on when auto orbit is turned on
+			isOrbiting = true;
+		}
+		control.onChange(toggleCameraMotionAutoOrbit);
+
+		control = cameraMotionFolder.add(options, 'cameraMotionRadius', 0.1, 1.0).name('Radius');
 
 		control = cameraMotionFolder.add(options, 'cameraMotionSpeed', 0.1, 2.0).name('Speed');
 
 		control = cameraMotionFolder.add(options, 'cameraMotionTiltAmp', 0.0, 1.0).name('Tilt Amp');
 
 		control = cameraMotionFolder.add(options, 'cameraMotionTiltOffset', 0.0, 0.5).name('Tilt Offset');
-	}
 
-	function setupEvents()
-	{
-		window.addEventListener('keydown', window_onKeyDown, false);
-		window.addEventListener('keyup', window_onKeyUp, false);
-	}
+		control = cameraMotionFolder.add(options, 'togglePauseOrbit').name('Pause');
 
-	var isAnimating = true;
-	function window_onKeyDown(event)
-	{
+		//display folder
+		displayFolder = gui.addFolder('Display');
+		displayFolder.open();
 
-	}
-
-	function window_onKeyUp(event)
-	{
-		if (event.keyCode === 65)  //a
+		control = displayFolder.add(options, 'displayRefCube').name('Reference Cube');
+		function toggleRefCube(value)
 		{
-			isAnimating = !isAnimating;
+			refCubeMesh.visible = value;
 		}
+		control.onChange(toggleRefCube);
+		toggleRefCube(options.displayRefCube);
+
+		control = displayFolder.add(options, 'displayDebugView').name('Debug View');
+
+		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
+		function toggleLocalAxis(value)
+		{
+			worldAxis.visible = value;
+		}
+		control.onChange(toggleLocalAxis);
+		toggleLocalAxis(options.displayLocalAxis);
+	}
+
+	var isOrbiting = true;
+	function togglePauseOrbit()
+	{
+	    isOrbiting = !isOrbiting;
 	}
 
 	function drawCorners(markers)
@@ -194,6 +224,8 @@
     var canvasWidth, canvasHeight;
     var detector, posit;
     var markerRoot;
+    var refCubeMesh;
+    var worldAxis;
 	$(document).ready(function()
 	{
 		//check for WebGL
@@ -205,8 +237,6 @@
 		}
 
 		console.log('Document is ready.');
-
-		setupEvents();
 
 		var canvas = $('#mainCanvas')[0];
 		canvasWidth = canvas.width;
@@ -239,7 +269,9 @@
 		controls.pan(new THREE.Vector3(0, 1, 0));
 		controls.pan(new THREE.Vector3(0, 1, 0));
 
-		// trackSceneScene.add(new THREE.AxisHelper(0.01));
+		//add world axis
+		worldAxis = new THREE.AxisHelper(0.01);
+		trackSceneScene.add(worldAxis);
 
 		//plane
 		var trackScenePlaneMesh = new THREE.Mesh(
@@ -252,7 +284,7 @@
 		trackSceneScene.add(trackScenePlaneMesh);
 
 		// Create a reference cube for comparison
-		var refCubeMesh = new THREE.Mesh(
+		refCubeMesh = new THREE.Mesh(
 		    new THREE.CubeGeometry(0.1, 0.1, 0.1),
 		    new THREE.MeshBasicMaterial({
 		        color: 0x00ff00,
@@ -264,13 +296,13 @@
 		refCubeMesh.position.y = 0.05;
 		trackSceneScene.add(refCubeMesh);
 
-		// //effects composer
-		// var composer = new THREE.EffectComposer(trackSceneRenderer);
-		// composer.addPass(new THREE.RenderPass(trackSceneScene, trackSceneCamera));
-		// var	pass = new THREE.ShaderPass(THREE.FXAAShader);
-		// pass.uniforms['resolution'].value.set(1.0/canvasWidth, 1.0/canvasHeight);
-		// pass.renderToScreen = true;
-		// composer.addPass(pass);
+		//effects composer
+		var composer = new THREE.EffectComposer(trackSceneRenderer);
+		composer.addPass(new THREE.RenderPass(trackSceneScene, trackSceneCamera));
+		var	pass = new THREE.ShaderPass(THREE.FXAAShader);
+		pass.uniforms['resolution'].value.set(1.0/canvasWidth, 1.0/canvasHeight);
+		pass.renderToScreen = true;
+		composer.addPass(pass);
 
 		//===================================================
 		// INIT JS-ARUCO
@@ -373,22 +405,34 @@
 			var time = clock.getElapsedTime();
 
 			//update camera
-			if (isAnimating)
+			if (options.cameraMotionAutoOrbit)
 			{
-				t += dt;
+			    if (isOrbiting)
+			    {
+                    t += dt;
 
-				controls.update();
-				// trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * t);
-				// trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * t) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
-				// trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * t);
-				// trackSceneCamera.lookAt(lookAtPoint);
+                    trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * t);
+                    trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * t) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
+                    trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * t);
+                    trackSceneCamera.lookAt(lookAtPoint);
+                }
+			}
+			else
+			{
+			    controls.update();
 			}
 
 			//update
 			trackSceneRenderer.autoClear = false;
 			trackSceneRenderer.clear();
-			trackSceneRenderer.render(trackSceneScene, trackSceneCamera);
-			// composer.render(trackSceneScene, trackSceneCamera);
+			if (options.trackingSceneFxaa)
+			{
+			    composer.render(trackSceneScene, trackSceneCamera);
+			}
+			else
+			{
+			    trackSceneRenderer.render(trackSceneScene, trackSceneCamera);
+			}
 
 			// if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
 			// {
@@ -396,8 +440,11 @@
 				ctx.drawImage(source, 0, 0, canvasWidth, canvasHeight);
 				var imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
 				var markers = detector.detect(imageData);
-				drawCorners(markers);
-				drawId(markers);
+				if (options.displayDebugView)
+				{
+                    drawCorners(markers);
+                    drawId(markers);
+                }
 				updateScenes(markers);
 
 				// Tell JSARToolKit that the canvas has changed.
@@ -488,7 +535,7 @@
 	</script>
 </head>
 <body>
-	<h2>Three.js and JSARToolKit</h2>
+	<h2>Three.js and js-aruco</h2>
 
 	<div class="container" id="mainTracking3dScene">
 		<div class="caption">Three.js 3D scene for tracking</div>
