@@ -3,13 +3,13 @@
 <head>
 	<title>IFC - JSARToolKit - Track 3D Render</title>
 	<meta charset="UTF-8"/>
-	
+
 	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
 	<link rel="stylesheet" href="/css/style.css">
-	
+
 	<!--load helper libraries-->
 	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-	
+
 	<!--load AR and 3D libraries-->
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
 	<script type="text/javascript" src="/js/lib/JSARToolKit.js"></script>
@@ -24,15 +24,15 @@
 	<script type="text/javascript" src="/js/lib/postprocessing/MaskPass.js"></script>
 	<script type="text/javascript" src="/js/lib/postprocessing/shaders/CopyShader.js"></script>
 	<script type="text/javascript" src="/js/lib/postprocessing/shaders/FXAAShader.js"></script>
-	
+
 	<script>
-	
+
 	var DEBUG = false;  //for JSARToolKit built-in debugging info
 	var threshold = 30;
 
 	var clock = new THREE.Clock();
 	var lookAtPoint = new THREE.Vector3();
-	
+
 	// I'm going to use a glMatrix-style matrix as an intermediary.
 	// So the first step is to create a function to convert a glMatrix matrix into a Three.js Matrix4.
 	THREE.Matrix4.prototype.setFromArray = function(m) {
@@ -43,7 +43,7 @@
 		m[3], m[7], m[11], m[15]
 	  );
 	};
-	
+
 	function copyMarkerMatrix(arMat, glMat)
 	{
 	  glMat[0] = arMat.m00;
@@ -63,7 +63,7 @@
 	  glMat[14] = arMat.m23;
 	  glMat[15] = 1;
 	}
-	
+
 	var options = {
 		cameraMotionRadius: 0.2,
 		cameraMotionSpeed: 0.2,
@@ -100,7 +100,7 @@
 	var isAnimating = true;
 	function window_onKeyDown(event)
 	{
-		
+
 	}
 
 	function window_onKeyUp(event)
@@ -120,15 +120,15 @@
 			Detector.addGetWebGLMessage();
 			return;
 		}
-		
+
 		console.log('Document is ready.');
 
 		setupEvents();
-		
+
 		var canvas = $('#mainCanvas')[0];
 		var canvasWidth = canvas.width;
 		var canvasHeight = canvas.height;
-		
+
 		//===================================================
 		// CREATE 3D SCENE FOR TRACKING
 		//===================================================
@@ -147,14 +147,14 @@
 		var trackSceneScene = new THREE.Scene();
 
 		//camera
-		var trackSceneCamera = new THREE.PerspectiveCamera(35, canvasWidth/canvasHeight, 0.1, 1000);
+		var trackSceneCamera = new THREE.PerspectiveCamera(40, canvasWidth/canvasHeight, 0.1, 1000);
 		trackSceneCamera.position.set(0.25, 0.25, 0.25);
 		trackSceneCamera.lookAt(new THREE.Vector3(0,0,0));
-		// controls = new THREE.OrbitControls(trackSceneCamera);
-		// controls.modifierKey = 'alt';
-		// controls.userPanSpeed = 0.04;
-		// controls.pan(new THREE.Vector3(0, 1, 0));
-		// controls.pan(new THREE.Vector3(0, 1, 0));
+		controls = new THREE.OrbitControls(trackSceneCamera);
+		controls.modifierKey = 'alt';
+		controls.userPanSpeed = 0.04;
+		controls.pan(new THREE.Vector3(0, 1, 0));
+		controls.pan(new THREE.Vector3(0, 1, 0));
 
 		// trackSceneScene.add(new THREE.AxisHelper());
 
@@ -167,6 +167,19 @@
 		);
 		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		trackSceneScene.add(trackScenePlaneMesh);
+
+		// Create a reference cube for comparison
+		var refCubeMesh = new THREE.Mesh(
+		    new THREE.CubeGeometry(0.1, 0.1, 0.1),
+		    new THREE.MeshBasicMaterial({
+		        color: 0x00ff00,
+		        side: THREE.DoubleSide,wireframe: true,
+		        depthTest : false,
+		        depthWrite : false
+		    })
+		);
+		refCubeMesh.position.y = 0.05;
+		trackSceneScene.add(refCubeMesh);
 
 		//effects composer
 		var composer = new THREE.EffectComposer(trackSceneRenderer);
@@ -203,11 +216,11 @@
 		// The second and third parameters determine the zNear and zFar planes for the perspective matrix.
 		//var tmpGlMatCam	= new Float32Array(16);
 		//param.copyCameraMatrix(tmpGlMatCam, 10, 10000);
-		
+
 		//===================================================
 		// INIT THREE.JS
 		//===================================================
-		
+
 		var renderer = new THREE.WebGLRenderer({
 			antialias : true
 		});
@@ -220,10 +233,10 @@
 
 		// Create a camera and a marker root object for your Three.js scene.
 		var camera = new THREE.Camera();
-		
+
 		// glMatrix matrices are flat arrays.
 		var tmp = new Float32Array(16);
-		
+
 		// Next we need to make the Three.js camera use the FLARParam matrix.
 		param.copyCameraMatrix(tmp, 10, 10000);
 		camera.projectionMatrix.setFromArray(tmp);
@@ -256,21 +269,21 @@
 		//create a stats monitor
 		stats = new Stats();
 		$threejsContainerElem.append(stats.domElement);
-		
+
 		//===================================================
 		// LOOP
-		//===================================================	
-		
+		//===================================================
+
 		// Create a NyARTransMatResult object for getting the marker translation matrices.
 		var resultMat = new NyARTransMatResult();
 
 		var markerRoots = {};
 		var markers = {};
-		
+
 		var emptyFloatArray = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 
 		var ctx = canvas.getContext('2d');
-		
+
 		// On every frame do the following:
 		var t = 0;
 		function loop()
@@ -282,19 +295,19 @@
 			if (isAnimating)
 			{
 				t += dt;
-				
-				// controls.update();
-				trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * t);
-				trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * t) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
-				trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * t);
-				trackSceneCamera.lookAt(lookAtPoint);
+
+				controls.update();
+				// trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * t);
+				// trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * t) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
+				// trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * t);
+				// trackSceneCamera.lookAt(lookAtPoint);
 			}
 
-			//update 
+			//update
 			trackSceneRenderer.autoClear = false;
 			trackSceneRenderer.clear();
-			// trackSceneRenderer.render(trackSceneScene, trackSceneCamera);
-			composer.render(trackSceneScene, trackSceneCamera);
+			trackSceneRenderer.render(trackSceneScene, trackSceneCamera);
+			// composer.render(trackSceneScene, trackSceneCamera);
 
 			// if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
 			// {
@@ -312,16 +325,16 @@
 					markerRoots[key].matrix.setFromArray(emptyFloatArray);
 					markerRoots[key].matrixWorldNeedsUpdate = true;
 				});
-				
+
 				// Do marker detection by using the detector object on the raster object.
 				// The threshold parameter determines the threshold value
 				// for turning the video frame into a 1-bit black-and-white image.
 				var markerCount = detector.detectMarkerLite(raster, threshold);
-				
+
 				// Go through the detected markers and get their IDs and transformation matrices.
 				for (var i = 0; i < markerCount; i++)
 				{
-				
+
 					// Get the ID marker data for the current marker.
 					// ID markers are special kind of markers that encode a number.
 					// The bytes for the number are in the ID marker data.
@@ -339,27 +352,32 @@
 
 					// If this is a new id, let's start tracking it.
 					if (markers[currId] == null) {
-					
+
 						//create new object for the marker
 						markers[currId] = {};
-						
+
 						//create a new Three.js object as marker root
 						var markerRoot = new THREE.Object3D();
 						markerRoot.matrixAutoUpdate = false;
 						markerRoots[currId] = markerRoot;
 
 						// Add the marker models and suchlike into your marker root object.
+						var cubeLength = 120 * 1.0;
 						var cube = new THREE.Mesh(
-							new THREE.CubeGeometry(120,120,120),
-							new THREE.MeshNormalMaterial({color: 0xff00ff, side: THREE.BackSide, wireframe: true})
+							new THREE.CubeGeometry(cubeLength, cubeLength, cubeLength),
+							new THREE.MeshBasicMaterial({
+							    color: 0xff0000,
+							    side: THREE.BackSide,
+							    wireframe: true
+							})
 						);
-						cube.position.z = -60;
+						cube.position.z = -cubeLength / 2.0;
 						markerRoot.add(cube);
-						
+
 						// Add the marker root to your scene.
 						scene.add(markerRoot);
 					}
-				
+
 					// Get the transformation matrix for the detected marker.
 					detector.getTransformMatrix(i, resultMat);
 
@@ -376,24 +394,24 @@
 				renderer.clear();
 				renderer.render(videoScene, videoCam);
 				renderer.render(scene, camera);
-				
+
 				//update stats
 				stats.update();
 			// }
-		  
+
 		  requestAnimationFrame(loop);
 		}
 		loop();
-		
+
 	});
 	</script>
 </head>
 <body>
 	<h2>Three.js and JSARToolKit</h2>
-	
+
 	<div class="container" id="canvas-container">
 		<div class="caption">&lt;canvas&gt;</div>
-		<canvas id="mainCanvas" width="1280" height="720"></canvas>
+		<canvas id="mainCanvas" width="640" height="480"></canvas>
 	</div>
 	<div class="caption" style="margin: 2em auto;">
 		Threshold (0-255):
@@ -401,7 +419,7 @@
 	</div>
 	<div class="container" id="debugCanvas-container">
 		<div class="caption">debug &lt;canvas&gt;</div>
-		<canvas id="debugCanvas" width="1280" height="720"></canvas>
+		<canvas id="debugCanvas" width="640" height="480"></canvas>
 	</div>
 
 	<div class="container" id="mainTracking3dScene">

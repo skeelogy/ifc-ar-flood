@@ -233,13 +233,13 @@
 		var trackSceneCamera = new THREE.PerspectiveCamera(40, canvasWidth/canvasHeight, 0.1, 1000);
 		trackSceneCamera.position.set(0.25, 0.25, 0.25);
 		trackSceneCamera.lookAt(new THREE.Vector3(0,0,0));
-		// controls = new THREE.OrbitControls(trackSceneCamera);
-		// controls.modifierKey = 'alt';
-		// controls.userPanSpeed = 0.04;
-		// controls.pan(new THREE.Vector3(0, 1, 0));
-		// controls.pan(new THREE.Vector3(0, 1, 0));
+		controls = new THREE.OrbitControls(trackSceneCamera);
+		controls.modifierKey = 'alt';
+		controls.userPanSpeed = 0.04;
+		controls.pan(new THREE.Vector3(0, 1, 0));
+		controls.pan(new THREE.Vector3(0, 1, 0));
 
-		// trackSceneScene.add(new THREE.AxisHelper());
+		// trackSceneScene.add(new THREE.AxisHelper(0.01));
 
 		//plane
 		var trackScenePlaneMesh = new THREE.Mesh(
@@ -251,13 +251,26 @@
 		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		trackSceneScene.add(trackScenePlaneMesh);
 
-		//effects composer
-		var composer = new THREE.EffectComposer(trackSceneRenderer);
-		composer.addPass(new THREE.RenderPass(trackSceneScene, trackSceneCamera));
-		var	pass = new THREE.ShaderPass(THREE.FXAAShader);
-		pass.uniforms['resolution'].value.set(1.0/canvasWidth, 1.0/canvasHeight);
-		pass.renderToScreen = true;
-		composer.addPass(pass);
+		// Create a reference cube for comparison
+		var refCubeMesh = new THREE.Mesh(
+		    new THREE.CubeGeometry(0.1, 0.1, 0.1),
+		    new THREE.MeshBasicMaterial({
+		        color: 0x00ff00,
+		        side: THREE.DoubleSide,wireframe: true,
+		        depthTest : false,
+		        depthWrite : false
+		    })
+		);
+		refCubeMesh.position.y = 0.05;
+		trackSceneScene.add(refCubeMesh);
+
+		// //effects composer
+		// var composer = new THREE.EffectComposer(trackSceneRenderer);
+		// composer.addPass(new THREE.RenderPass(trackSceneScene, trackSceneCamera));
+		// var	pass = new THREE.ShaderPass(THREE.FXAAShader);
+		// pass.uniforms['resolution'].value.set(1.0/canvasWidth, 1.0/canvasHeight);
+		// pass.renderToScreen = true;
+		// composer.addPass(pass);
 
 		//===================================================
 		// INIT JS-ARUCO
@@ -288,12 +301,18 @@
         markerRoot = new THREE.Object3D();
         // markerRoot.matrixAutoUpdate = false;
         // markerRoots[currId] = markerRoot;
-        var cube = new THREE.Mesh(
-            new THREE.CubeGeometry(1.0, 1.0, 1.0),
-            new THREE.MeshNormalMaterial({color: 0xff00ff, side: THREE.DoubleSide, wireframe: true})
+        var cubeLength = 0.98;
+        var cubeGeom = new THREE.CubeGeometry(cubeLength, cubeLength, cubeLength);
+        var cubeMesh = new THREE.Mesh(
+            cubeGeom,
+            new THREE.MeshBasicMaterial({
+                color: 0xff0000,
+                side: THREE.DoubleSide,
+                wireframe: true
+            })
         );
-        cube.position.z = 0.5;
-        markerRoot.add(cube);
+        cubeMesh.position.z = cubeLength / 2.0;
+        markerRoot.add(cubeMesh);
         scene.add(markerRoot);
 
 		// // glMatrix matrices are flat arrays.
@@ -358,11 +377,11 @@
 			{
 				t += dt;
 
-				// controls.update();
-				trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * t);
-				trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * t) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
-				trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * t);
-				trackSceneCamera.lookAt(lookAtPoint);
+				controls.update();
+				// trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * t);
+				// trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * t) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
+				// trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * t);
+				// trackSceneCamera.lookAt(lookAtPoint);
 			}
 
 			//update
