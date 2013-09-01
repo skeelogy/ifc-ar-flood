@@ -12,7 +12,7 @@
 
 	<!--load AR and 3D libraries-->
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
-	<script type="text/javascript" src="/js/lib/JSARToolKit.js"></script>
+	<script type="text/javascript" src="/js/lib/ar/JSARToolKit.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
 	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
 	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
@@ -162,7 +162,7 @@
 		var trackScenePlaneMesh = new THREE.Mesh(
 			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
 			new THREE.MeshBasicMaterial({
-				map: THREE.ImageUtils.loadTexture('/resources/markers/22.jpg')
+				map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/22.jpg')
 			})
 		);
 		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
