@@ -177,13 +177,21 @@
                 corner.y = (canvasHeight / 2) - corner.y;
             }
 
-            pose = posit.pose(corners);
+            try
+            {
+                pose = posit.pose(corners);
 
-            updateObject(markerRoot, pose.bestRotation, pose.bestTranslation);
-            // updateObject(markerRoot, pose.alternativeRotation, pose.alternativeTranslation);
+                updateObject(markerRoot, pose.bestRotation, pose.bestTranslation);
+                // updateObject(markerRoot, pose.alternativeRotation, pose.alternativeTranslation);
 
-            updatePose("pose1", pose.bestError, pose.bestRotation, pose.bestTranslation);
-            updatePose("pose2", pose.alternativeError, pose.alternativeRotation, pose.alternativeTranslation);
+                updatePose("pose1", pose.bestError, pose.bestRotation, pose.bestTranslation);
+                updatePose("pose2", pose.alternativeError, pose.alternativeRotation, pose.alternativeTranslation);
+            }
+            catch(err)
+            {
+                //just print to console but let the error pass so that the program can continue
+                console.log(err.message);
+            }
         }
     };
 
