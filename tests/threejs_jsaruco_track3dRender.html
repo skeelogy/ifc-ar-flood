@@ -22,7 +22,6 @@
 	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
 	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
 	<script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
-
 	<script type="text/javascript" src="/js/lib/postprocessing/EffectComposer.js"></script>
 	<script type="text/javascript" src="/js/lib/postprocessing/RenderPass.js"></script>
 	<script type="text/javascript" src="/js/lib/postprocessing/ShaderPass.js"></script>
@@ -50,7 +49,157 @@
 		displayLocalAxis: false
 	};
 
-	var gui;
+	function checkWebGl()
+	{
+		//check for WebGL
+		if (!Detector.webgl)
+		{
+			$('div').remove();
+			Detector.addGetWebGLMessage();
+			throw new Error('Your browser does not seem to support WebGL');
+		}
+	}
+
+    var trackSceneRenderer, trackSceneScene, trackSceneCamera, trackSceneCameraControls;
+    var worldAxis;
+    var refCubeMesh;
+    var composer;
+    function setupThreejsTrackingScene()
+    {
+		//renderer
+		trackSceneRenderer = new THREE.WebGLRenderer({
+			antialias : true
+		});
+		trackSceneRenderer.setSize(canvasWidth, canvasHeight);
+		trackSceneRenderer.setClearColor('#888888', 1);
+		var $threejsTrackSceneContainerElem = $('#mainTracking3dScene');
+		$threejsTrackSceneContainerElem.append(trackSceneRenderer.domElement);
+		source = trackSceneRenderer.domElement;
+
+		//scene
+		trackSceneScene = new THREE.Scene();
+
+		//camera
+		trackSceneCamera = new THREE.PerspectiveCamera(40, canvasWidth/canvasHeight, 0.1, 1000);
+		trackSceneCamera.position.set(0.25, 0.25, 0.25);
+		trackSceneCamera.lookAt(new THREE.Vector3(0,0,0));
+		trackSceneCameraControls = new THREE.OrbitControls(trackSceneCamera);
+		trackSceneCameraControls.modifierKey = 'alt';
+		trackSceneCameraControls.userPanSpeed = 0.04;
+		trackSceneCameraControls.pan(new THREE.Vector3(0, 1, 0));
+		trackSceneCameraControls.pan(new THREE.Vector3(0, 1, 0));
+
+		//add world axis
+		worldAxis = new THREE.AxisHelper(0.01);
+		trackSceneScene.add(worldAxis);
+
+		//plane
+		var trackScenePlaneMesh = new THREE.Mesh(
+			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
+			new THREE.MeshBasicMaterial({
+				map: THREE.ImageUtils.loadTexture('/resources/markers/js-aruco/1001.jpg')
+			})
+		);
+		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		trackSceneScene.add(trackScenePlaneMesh);
+
+		// Create a reference cube for comparison
+		refCubeMesh = new THREE.Mesh(
+		    new THREE.CubeGeometry(0.1, 0.1, 0.1),
+		    new THREE.MeshBasicMaterial({
+		        color: 0x00ff00,
+		        side: THREE.DoubleSide,wireframe: true,
+		        depthTest : false,
+		        depthWrite : false
+		    })
+		);
+		refCubeMesh.position.y = 0.05;
+		trackSceneScene.add(refCubeMesh);
+
+		//effects composer
+		composer = new THREE.EffectComposer(trackSceneRenderer);
+		composer.addPass(new THREE.RenderPass(trackSceneScene, trackSceneCamera));
+		var	pass = new THREE.ShaderPass(THREE.FXAAShader);
+		pass.uniforms['resolution'].value.set(1.0/canvasWidth, 1.0/canvasHeight);
+		pass.renderToScreen = true;
+		composer.addPass(pass);
+    }
+
+    var detector, posit;
+    function setupJsaruco()
+    {
+		detector = new AR.Detector();
+		posit = new POS.Posit(MODEL_SIZE, canvasWidth);
+    }
+
+    var $threejsContainerElem;
+    var renderer, scene, camera;
+    var markerRoot;
+    var videoScene, videoCam, videoTex;
+    function setupThreejsScene()
+    {
+		renderer = new THREE.WebGLRenderer({
+			antialias : true
+		});
+		renderer.setSize(640, 480);  //fix the output size, will not affect tracking resolution
+		$threejsContainerElem = $('#threejs-container');
+		$threejsContainerElem.append(renderer.domElement);
+
+		// create the scene
+		scene = new THREE.Scene();
+
+		// Create a camera and a marker root object for your Three.js scene.
+		camera = new THREE.PerspectiveCamera(40, canvasWidth / canvasHeight, 1, 1000);
+
+		//create a new Three.js object as marker root
+        markerRoot = new THREE.Object3D();
+        // markerRoot.matrixAutoUpdate = false;
+        // markerRoots[currId] = markerRoot;
+        var cubeLength = 0.98;
+        var cubeGeom = new THREE.CubeGeometry(cubeLength, cubeLength, cubeLength);
+        var cubeMesh = new THREE.Mesh(
+            cubeGeom,
+            new THREE.MeshBasicMaterial({
+                color: 0xff0000,
+                side: THREE.DoubleSide,
+                wireframe: true
+            })
+        );
+        cubeMesh.position.z = cubeLength / 2.0;
+        markerRoot.add(cubeMesh);
+        scene.add(markerRoot);
+
+		// // glMatrix matrices are flat arrays.
+		// var tmp = new Float32Array(16);
+//
+		// // Next we need to make the Three.js camera use the FLARParam matrix.
+		// param.copyCameraMatrix(tmp, 10, 10000);
+		// camera.projectionMatrix.setFromArray(tmp);
+
+		// Create scene and quad for the video.
+		// NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
+		videoTex = new THREE.Texture(canvas);
+		var geometry = new THREE.PlaneGeometry(2, 2);
+		var material = new THREE.MeshBasicMaterial({
+			map : videoTex,
+			depthTest : false,
+			depthWrite : false
+		});
+		var plane = new THREE.Mesh(geometry, material );
+		videoScene = new THREE.Scene();
+		videoCam = new THREE.Camera();
+		videoScene.add(plane);
+		videoScene.add(videoCam);
+    }
+
+    function setupStats()
+    {
+        //create a stats monitor
+		stats = new Stats();
+		$threejsContainerElem.append(stats.domElement);
+    }
+
+    var gui;
 	var trackingSceneFolder, cameraMotionFolder, displayFolder;
 	function setupGui() {
 
@@ -184,8 +333,8 @@
                 updateObject(markerRoot, pose.bestRotation, pose.bestTranslation);
                 // updateObject(markerRoot, pose.alternativeRotation, pose.alternativeTranslation);
 
-                updatePose("pose1", pose.bestError, pose.bestRotation, pose.bestTranslation);
-                updatePose("pose2", pose.alternativeError, pose.alternativeRotation, pose.alternativeTranslation);
+                updatePoseInfo("pose1", pose.bestError, pose.bestRotation, pose.bestTranslation);
+                updatePoseInfo("pose2", pose.alternativeError, pose.alternativeRotation, pose.alternativeTranslation);
             }
             catch(err)
             {
@@ -210,7 +359,7 @@
         object.position.z = -translation[2];
     };
 
-    function updatePose(id, error, rotation, translation)
+    function updatePoseInfo(id, error, rotation, translation)
     {
         var yaw = -Math.atan2(rotation[0][2], rotation[2][2]);
         var pitch = -Math.asin(-rotation[1][2]);
@@ -228,185 +377,51 @@
                   + " roll: " + Math.round(roll * 180.0/Math.PI);
     };
 
+
+    var canvas, canvasWidth, canvasHeight;
     var ctx;
-    var canvasWidth, canvasHeight;
-    var detector, posit;
-    var markerRoot;
-    var refCubeMesh;
-    var worldAxis;
+
+
+    // // Create a NyARTransMatResult object for getting the marker translation matrices.
+    // var resultMat = new NyARTransMatResult();
+
+    var markerRoots = {};
+    var markers = {};
+
+    var emptyFloatArray = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+
+
+
+    var t = 0;
 	$(document).ready(function()
 	{
-		//check for WebGL
-		if (!Detector.webgl)
-		{
-			$('div').remove();
-			Detector.addGetWebGLMessage();
-			return;
-		}
+	    //check for WebGL
+		checkWebGl();
 
 		console.log('Document is ready.');
 
-		var canvas = $('#mainCanvas')[0];
+		//get canvas
+		canvas = $('#mainCanvas')[0];
 		canvasWidth = canvas.width;
 		canvasHeight = canvas.height;
-
-		//===================================================
-		// CREATE 3D SCENE FOR TRACKING
-		//===================================================
-
-		//renderer
-		var trackSceneRenderer = new THREE.WebGLRenderer({
-			antialias : true
-		});
-		trackSceneRenderer.setSize(canvasWidth, canvasHeight);
-		trackSceneRenderer.setClearColor('#888888', 1);
-		var $threejsTrackSceneContainerElem = $('#mainTracking3dScene');
-		$threejsTrackSceneContainerElem.append(trackSceneRenderer.domElement);
-		source = trackSceneRenderer.domElement;
-
-		//scene
-		var trackSceneScene = new THREE.Scene();
-
-		//camera
-		var trackSceneCamera = new THREE.PerspectiveCamera(40, canvasWidth/canvasHeight, 0.1, 1000);
-		trackSceneCamera.position.set(0.25, 0.25, 0.25);
-		trackSceneCamera.lookAt(new THREE.Vector3(0,0,0));
-		controls = new THREE.OrbitControls(trackSceneCamera);
-		controls.modifierKey = 'alt';
-		controls.userPanSpeed = 0.04;
-		controls.pan(new THREE.Vector3(0, 1, 0));
-		controls.pan(new THREE.Vector3(0, 1, 0));
-
-		//add world axis
-		worldAxis = new THREE.AxisHelper(0.01);
-		trackSceneScene.add(worldAxis);
-
-		//plane
-		var trackScenePlaneMesh = new THREE.Mesh(
-			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
-			new THREE.MeshBasicMaterial({
-				map: THREE.ImageUtils.loadTexture('/resources/markers/js-aruco/1001.jpg')
-			})
-		);
-		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-		trackSceneScene.add(trackScenePlaneMesh);
-
-		// Create a reference cube for comparison
-		refCubeMesh = new THREE.Mesh(
-		    new THREE.CubeGeometry(0.1, 0.1, 0.1),
-		    new THREE.MeshBasicMaterial({
-		        color: 0x00ff00,
-		        side: THREE.DoubleSide,wireframe: true,
-		        depthTest : false,
-		        depthWrite : false
-		    })
-		);
-		refCubeMesh.position.y = 0.05;
-		trackSceneScene.add(refCubeMesh);
-
-		//effects composer
-		var composer = new THREE.EffectComposer(trackSceneRenderer);
-		composer.addPass(new THREE.RenderPass(trackSceneScene, trackSceneCamera));
-		var	pass = new THREE.ShaderPass(THREE.FXAAShader);
-		pass.uniforms['resolution'].value.set(1.0/canvasWidth, 1.0/canvasHeight);
-		pass.renderToScreen = true;
-		composer.addPass(pass);
-
-		//===================================================
-		// INIT JS-ARUCO
-		//===================================================
-
-		detector = new AR.Detector();
-		posit = new POS.Posit(MODEL_SIZE, canvasWidth);
-
-		//===================================================
-		// INIT THREE.JS
-		//===================================================
-
-		var renderer = new THREE.WebGLRenderer({
-			antialias : true
-		});
-		renderer.setSize(640, 480);  //fix the output size, will not affect tracking resolution
-		var $threejsContainerElem = $('#threejs-container');
-		$threejsContainerElem.append(renderer.domElement);
-
-		// create the scene
-		var scene = new THREE.Scene();
-
-		// Create a camera and a marker root object for your Three.js scene.
-		// var camera = new THREE.Camera();
-		var camera = new THREE.PerspectiveCamera(40, canvasWidth / canvasHeight, 1, 1000);
-
-		//create a new Three.js object as marker root
-        markerRoot = new THREE.Object3D();
-        // markerRoot.matrixAutoUpdate = false;
-        // markerRoots[currId] = markerRoot;
-        var cubeLength = 0.98;
-        var cubeGeom = new THREE.CubeGeometry(cubeLength, cubeLength, cubeLength);
-        var cubeMesh = new THREE.Mesh(
-            cubeGeom,
-            new THREE.MeshBasicMaterial({
-                color: 0xff0000,
-                side: THREE.DoubleSide,
-                wireframe: true
-            })
-        );
-        cubeMesh.position.z = cubeLength / 2.0;
-        markerRoot.add(cubeMesh);
-        scene.add(markerRoot);
-
-		// // glMatrix matrices are flat arrays.
-		// var tmp = new Float32Array(16);
-//
-		// // Next we need to make the Three.js camera use the FLARParam matrix.
-		// param.copyCameraMatrix(tmp, 10, 10000);
-		// camera.projectionMatrix.setFromArray(tmp);
-
-		// Create scene and quad for the video.
-		// NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
-		var videoTex = new THREE.Texture(canvas);
-		var geometry = new THREE.PlaneGeometry(2, 2);
-		var material = new THREE.MeshBasicMaterial({
-			map : videoTex,
-			depthTest : false,
-			depthWrite : false
-		});
-		var plane = new THREE.Mesh(geometry, material );
-		var videoScene = new THREE.Scene();
-		var videoCam = new THREE.Camera();
-		videoScene.add(plane);
-		videoScene.add(videoCam);
-
-		//===================================================
-		// GUI
-		//===================================================
-
-		setupGui();
-
-		//===================================================
-		// STATS
-		//===================================================
-
-		//create a stats monitor
-		stats = new Stats();
-		$threejsContainerElem.append(stats.domElement);
-
-		//===================================================
-		// LOOP
-		//===================================================
-
-		// // Create a NyARTransMatResult object for getting the marker translation matrices.
-		// var resultMat = new NyARTransMatResult();
-
-		var markerRoots = {};
-		var markers = {};
-
-		var emptyFloatArray = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-
 		ctx = canvas.getContext('2d');
 
-		// On every frame do the following:
-		var t = 0;
+		//setup tracking scene
+		setupThreejsTrackingScene();
+
+		//setup js-aruco
+		setupJsaruco();
+
+		//setup scene
+		setupThreejsScene();
+
+		//setup stats monitor
+		setupStats();
+
+		//setup GUI
+		setupGui();
+
+		//main loop
 		function loop()
 		{
 			var dt = clock.getDelta();  //have to call this before getElapsedTime()
@@ -418,7 +433,6 @@
 			    if (isOrbiting)
 			    {
                     t += dt;
-
                     trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * t);
                     trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * t) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
                     trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * t);
@@ -427,7 +441,7 @@
 			}
 			else
 			{
-			    controls.update();
+			    trackSceneCameraControls.update();
 			}
 
 			//update
@@ -558,9 +572,13 @@
 		<div class="caption">three.js &lt;canvas&gt;</div>
 	</div>
 
-	<div class="container" id="pose1">
+	<div class="container" id="pose1-container">
+	    <div class="caption">Best Estimated Pose Info</div>
+	    <div class="caption" id="pose1" width="640"></div>
 	</div>
-	<div class="container" id="pose2">
+	<div class="container" id="pose2-container">
+	    <div class="caption">Alternative Estimated Pose Info</div>
+	    <div class="caption" id="pose2"></div>
 	</div>
 </body>
 </html>
