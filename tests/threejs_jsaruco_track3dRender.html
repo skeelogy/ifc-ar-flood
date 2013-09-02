@@ -62,7 +62,7 @@
 
     var trackSceneRenderer, trackSceneScene, trackSceneCamera, trackSceneCameraControls;
     var worldAxis;
-    var refCubeMesh;
+    var refCubeMesh, refCubeMesh2;
     var composer;
     function setupThreejsTrackingScene()
     {
@@ -97,13 +97,25 @@
 		var trackScenePlaneMesh = new THREE.Mesh(
 			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
 			new THREE.MeshBasicMaterial({
-				map: THREE.ImageUtils.loadTexture('/resources/markers/js-aruco/1001.jpg')
+				map: THREE.ImageUtils.loadTexture('/resources/markers/js-aruco/1001.png')
 			})
 		);
 		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		trackSceneScene.add(trackScenePlaneMesh);
 
-		// Create a reference cube for comparison
+		//plane 2
+		var trackScenePlaneMesh = new THREE.Mesh(
+			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
+			new THREE.MeshBasicMaterial({
+				map: THREE.ImageUtils.loadTexture('/resources/markers/js-aruco/446.png')
+			})
+		);
+		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		trackScenePlaneMesh.position.x = 0.11;
+		trackScenePlaneMesh.position.z = -0.05;
+		trackSceneScene.add(trackScenePlaneMesh);
+
+		//reference cube
 		refCubeMesh = new THREE.Mesh(
 		    new THREE.CubeGeometry(0.1, 0.1, 0.1),
 		    new THREE.MeshBasicMaterial({
@@ -115,6 +127,21 @@
 		);
 		refCubeMesh.position.y = 0.05;
 		trackSceneScene.add(refCubeMesh);
+
+		//reference cube 2
+		refCubeMesh2 = new THREE.Mesh(
+		    new THREE.CubeGeometry(0.1, 0.1, 0.1),
+		    new THREE.MeshBasicMaterial({
+		        color: 0x00ff00,
+		        side: THREE.DoubleSide,wireframe: true,
+		        depthTest : false,
+		        depthWrite : false
+		    })
+		);
+		refCubeMesh2.position.x = 0.11;
+		refCubeMesh2.position.y = 0.05;
+		refCubeMesh2.position.z = -0.05;
+		trackSceneScene.add(refCubeMesh2);
 
 		//effects composer
 		composer = new THREE.EffectComposer(trackSceneRenderer);
@@ -134,7 +161,6 @@
 
     var $threejsContainerElem;
     var renderer, scene, camera;
-    var markerRoot;
     var videoScene, videoCam, videoTex;
     function setupThreejsScene()
     {
@@ -150,31 +176,6 @@
 
 		// Create a camera and a marker root object for your Three.js scene.
 		camera = new THREE.PerspectiveCamera(40, canvasWidth / canvasHeight, 1, 1000);
-
-		//create a new Three.js object as marker root
-        markerRoot = new THREE.Object3D();
-        // markerRoot.matrixAutoUpdate = false;
-        // markerRoots[currId] = markerRoot;
-        var cubeLength = 0.98;
-        var cubeGeom = new THREE.CubeGeometry(cubeLength, cubeLength, cubeLength);
-        var cubeMesh = new THREE.Mesh(
-            cubeGeom,
-            new THREE.MeshBasicMaterial({
-                color: 0xff0000,
-                side: THREE.DoubleSide,
-                wireframe: true
-            })
-        );
-        cubeMesh.position.z = cubeLength / 2.0;
-        markerRoot.add(cubeMesh);
-        scene.add(markerRoot);
-
-		// // glMatrix matrices are flat arrays.
-		// var tmp = new Float32Array(16);
-//
-		// // Next we need to make the Three.js camera use the FLARParam matrix.
-		// param.copyCameraMatrix(tmp, 10, 10000);
-		// camera.projectionMatrix.setFromArray(tmp);
 
 		// Create scene and quad for the video.
 		// NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
@@ -242,6 +243,7 @@
 		function toggleRefCube(value)
 		{
 			refCubeMesh.visible = value;
+			refCubeMesh2.visible = value;
 		}
 		control.onChange(toggleRefCube);
 		toggleRefCube(options.displayRefCube);
@@ -265,14 +267,13 @@
 
 	function drawCorners(markers)
 	{
-        var corners, corner, i, j;
+        var corners, corner, i, j, len;
 
-        ctx.lineWidth = 3;
-
-        for (i = 0; i < markers.length; i++)
+        for (i = 0, len = markers.length; i < len; i++)
         {
             corners = markers[i].corners;
 
+            ctx.lineWidth = 2;
             ctx.strokeStyle = "red";
             ctx.beginPath();
 
@@ -287,6 +288,7 @@
             ctx.stroke();
             ctx.closePath();
 
+            ctx.lineWidth = 3;
             ctx.strokeStyle = "green";
             ctx.strokeRect(corners[0].x - 2, corners[0].y - 2, 4, 4);
         }
@@ -296,8 +298,10 @@
     {
         var corners, corner, x, y, i, j;
 
-        ctx.strokeStyle = "yellow";
-        ctx.lineWidth = 1;
+        ctx.font = '12pt Calibri';
+        ctx.fillStyle = "yellow";
+        // ctx.strokeStyle = "black";
+        // ctx.lineWidth = 1.0;
 
         for (i = 0; i !== markers.length; ++ i)
         {
@@ -306,32 +310,64 @@
             x = corners[0].x;
             y = corners[0].y;
 
-            ctx.strokeText(markers[i].id, x, y);
+            ctx.fillText(markers[i].id, x, y);
+            // ctx.strokeText(markers[i].id, x, y);
         }
     }
 
+    var markerRoots = {};
     function updateScenes(markers)
     {
-        var corners, corner, pose, i;
+        var corners, corner, pose, i, markerId;
 
-        if (markers.length > 0)
+        //hide all marker roots first
+        var keys = Object.keys(markerRoots);
+        for (i = 0; i < keys.length; i++)
         {
-            corners = markers[0].corners;
+            showChildren(markerRoots[keys[i]], false);
+        }
 
-            for (i = 0; i < corners.length; ++ i)
+        for (i = 0; i < markers.length; i++)
+        {
+            markerId = markers[i].id;
+            corners = markers[i].corners;
+
+            //create a new marker root if this id has not been seen before
+            if (!markerRoots[markerId])
             {
-                corner = corners[i];
+                console.log('creating new marker root for id: ' + markerId);
+                markerRoot = new THREE.Object3D();
+                markerRoots[markerId] = markerRoot;
+                var cubeLength = 0.98;
+                var cubeGeom = new THREE.CubeGeometry(cubeLength, cubeLength, cubeLength);
+                var cubeMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x0000ff,
+                    side: THREE.DoubleSide,
+                    wireframe: true
+                });
+                var cubeMesh = new THREE.Mesh(cubeGeom, cubeMaterial);
+                cubeMesh.position.z = cubeLength / 2.0;
+                markerRoot.add(cubeMesh);
+                scene.add(markerRoot);
+            }
 
+            //align corners to center of canvas
+            var j;
+            for (j = 0; j < corners.length; j++)
+            {
+                corner = corners[j];
                 corner.x = corner.x - (canvasWidth / 2);
                 corner.y = (canvasHeight / 2) - corner.y;
             }
 
+            //estimate pose
             try
             {
                 pose = posit.pose(corners);
 
-                updateObject(markerRoot, pose.bestRotation, pose.bestTranslation);
-                // updateObject(markerRoot, pose.alternativeRotation, pose.alternativeTranslation);
+                showChildren(markerRoots[markerId], true);
+                updateMesh(markerRoots[markerId], pose.bestRotation, pose.bestTranslation);
+                // updateMesh(markerRoots[markerId], pose.alternativeRotation, pose.alternativeTranslation);
 
                 updatePoseInfo("pose1", pose.bestError, pose.bestRotation, pose.bestTranslation);
                 updatePoseInfo("pose2", pose.alternativeError, pose.alternativeRotation, pose.alternativeTranslation);
@@ -344,19 +380,29 @@
         }
     };
 
-    function updateObject(object, rotation, translation)
+    function showChildren(object3d, visible)
     {
-        object.scale.x = MODEL_SIZE;
-        object.scale.y = MODEL_SIZE;
-        object.scale.z = MODEL_SIZE;
+        var i, len;
+        var children = object3d.children;
+        for (i = 0, len = children.length; i < len; i++)
+        {
+            children[i].visible = visible;
+        }
+    }
 
-        object.rotation.x = -Math.asin(-rotation[1][2]);
-        object.rotation.y = -Math.atan2(rotation[0][2], rotation[2][2]);
-        object.rotation.z = Math.atan2(rotation[1][0], rotation[1][1]);
+    function updateMesh(mesh, rotation, translation)
+    {
+        mesh.scale.x = MODEL_SIZE;
+        mesh.scale.y = MODEL_SIZE;
+        mesh.scale.z = MODEL_SIZE;
 
-        object.position.x = translation[0];
-        object.position.y = translation[1];
-        object.position.z = -translation[2];
+        mesh.rotation.x = -Math.asin(-rotation[1][2]);
+        mesh.rotation.y = -Math.atan2(rotation[0][2], rotation[2][2]);
+        mesh.rotation.z = Math.atan2(rotation[1][0], rotation[1][1]);
+
+        mesh.position.x = translation[0];
+        mesh.position.y = translation[1];
+        mesh.position.z = -translation[2];
     };
 
     function updatePoseInfo(id, error, rotation, translation)
@@ -377,21 +423,9 @@
                   + " roll: " + Math.round(roll * 180.0/Math.PI);
     };
 
-
     var canvas, canvasWidth, canvasHeight;
     var ctx;
-
-
-    // // Create a NyARTransMatResult object for getting the marker translation matrices.
-    // var resultMat = new NyARTransMatResult();
-
-    var markerRoots = {};
     var markers = {};
-
-    var emptyFloatArray = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-
-
-
     var t = 0;
 	$(document).ready(function()
 	{
@@ -427,7 +461,7 @@
 			var dt = clock.getDelta();  //have to call this before getElapsedTime()
 			var time = clock.getElapsedTime();
 
-			//update camera
+			//update tracking camera
 			if (options.cameraMotionAutoOrbit)
 			{
 			    if (isOrbiting)
@@ -444,7 +478,7 @@
 			    trackSceneCameraControls.update();
 			}
 
-			//update
+			//update tracking scene
 			trackSceneRenderer.autoClear = false;
 			trackSceneRenderer.clear();
 			if (options.trackingSceneFxaa)
@@ -456,103 +490,36 @@
 			    trackSceneRenderer.render(trackSceneScene, trackSceneCamera);
 			}
 
-			// if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
-			// {
-				// Draw the video frame to the canvas.
-				ctx.drawImage(source, 0, 0, canvasWidth, canvasHeight);
-				var imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
-				var markers = detector.detect(imageData);
-				if (options.displayDebugView)
-				{
-                    drawCorners(markers);
-                    drawId(markers);
-                }
-				updateScenes(markers);
+            //draw the video frame to the canvas
+            ctx.drawImage(source, 0, 0, canvasWidth, canvasHeight);
+            var imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
 
-				// Tell JSARToolKit that the canvas has changed.
-				// canvas.changed = true;
+            //detect markers
+            var markers = detector.detect(imageData);
+            if (options.displayDebugView)
+            {
+                drawCorners(markers);
+                drawId(markers);
+            }
 
-				// Update the video texture.
-				videoTex.needsUpdate = true;
+            //update scene
+            updateScenes(markers);
 
-				// // move all marker roots to origin so that they will disappear when not tracked
-				// Object.keys(markerRoots).forEach(function (key){
-					// markerRoots[key].matrix.setFromArray(emptyFloatArray);
-					// markerRoots[key].matrixWorldNeedsUpdate = true;
-				// });
-//
-				// // Do marker detection by using the detector object on the raster object.
-				// // The threshold parameter determines the threshold value
-				// // for turning the video frame into a 1-bit black-and-white image.
-				// var markerCount = detector.detectMarkerLite(raster, threshold);
-//
-				// // Go through the detected markers and get their IDs and transformation matrices.
-				// for (var i = 0; i < markerCount; i++)
-				// {
-//
-					// // Get the ID marker data for the current marker.
-					// // ID markers are special kind of markers that encode a number.
-					// // The bytes for the number are in the ID marker data.
-					// var id = detector.getIdMarkerData(i);
-//
-					// // Read bytes from the id packet.
-					// var currId = -1;
-					// // This code handles only 32-bit numbers or shorter.
-					// if (id.packetLength <= 4) {
-						// currId = 0;
-						// for (var j = 0; j < id.packetLength; j++) {
-						  // currId = (currId << 8) | id.getPacketData(j);
-						// }
-					// }
-//
-					// // If this is a new id, let's start tracking it.
-					// if (markers[currId] == null) {
-//
-						// //create new object for the marker
-						// markers[currId] = {};
-//
-						// //create a new Three.js object as marker root
-						// var markerRoot = new THREE.Object3D();
-						// markerRoot.matrixAutoUpdate = false;
-						// markerRoots[currId] = markerRoot;
-//
-						// // Add the marker models and suchlike into your marker root object.
-						// var cube = new THREE.Mesh(
-							// new THREE.CubeGeometry(120,120,120),
-							// new THREE.MeshNormalMaterial({color: 0xff00ff, side: THREE.BackSide, wireframe: true})
-						// );
-						// cube.position.z = -60;
-						// markerRoot.add(cube);
-//
-						// // Add the marker root to your scene.
-						// scene.add(markerRoot);
-					// }
-//
-					// // Get the transformation matrix for the detected marker.
-					// detector.getTransformMatrix(i, resultMat);
-//
-					// // Copy the marker matrix to the tmp matrix.
-					// copyMarkerMatrix(resultMat, tmp);
-//
-					// // Copy the marker matrix over to your marker root object.
-					// markerRoots[currId].matrix.setFromArray(tmp);
-					// markerRoots[currId].matrixWorldNeedsUpdate = true;
-				// }
+            //update the video texture
+            videoTex.needsUpdate = true;
 
-				// Render the scene.
-				renderer.autoClear = false;
-				renderer.clear();
-				renderer.render(videoScene, videoCam);
-				renderer.render(scene, camera);
+            //render the scene
+            renderer.autoClear = false;
+            renderer.clear();
+            renderer.render(videoScene, videoCam);
+            renderer.render(scene, camera);
 
-				//update stats
-				stats.update();
-			// }
+            //update stats
+            stats.update();
 
-		  requestAnimationFrame(loop);
+			requestAnimationFrame(loop);
 		}
 		loop();
-
 	});
 	</script>
 </head>
@@ -574,7 +541,7 @@
 
 	<div class="container" id="pose1-container">
 	    <div class="caption">Best Estimated Pose Info</div>
-	    <div class="caption" id="pose1" width="640"></div>
+	    <div class="caption" id="pose1"></div>
 	</div>
 	<div class="container" id="pose2-container">
 	    <div class="caption">Alternative Estimated Pose Info</div>
