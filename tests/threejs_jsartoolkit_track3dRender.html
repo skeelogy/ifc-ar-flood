@@ -27,9 +27,6 @@
 
 	<script>
 
-	var DEBUG = false;  //for JSARToolKit built-in debugging info
-	var threshold = 30;
-
 	var clock = new THREE.Clock();
 	var lookAtPoint = new THREE.Vector3();
 
@@ -65,52 +62,103 @@
 	}
 
 	var options = {
+	    trackingSceneFxaa: false,
+	    trackingThreshold: 40,
+	    cameraMotionAutoOrbit: false,
 		cameraMotionRadius: 0.2,
 		cameraMotionSpeed: 0.2,
 		cameraMotionTiltAmp: 0.2,
-		cameraMotionTiltOffset: 0.1
+		cameraMotionTiltOffset: 0.1,
+		togglePauseOrbit: togglePauseOrbit,
+		displayRefCube: true,
+		displayDebugView: false,
+		displayLocalAxis: false
 	};
 
 	var gui;
-	var cameraMotionFolder;
+	var trackingSceneFolder, trackingFolder, cameraMotionFolder, displayFolder;
 	function setupGui() {
 
 		gui = new dat.GUI();
 		//gui.close();  //close GUI by default
 
-		//Terrain folder
+		//tracking scene folder
+		trackingSceneFolder = gui.addFolder('Tracking Scene');
+		trackingSceneFolder.open();
+
+		var control = trackingSceneFolder.add(options, 'trackingSceneFxaa').name('FXAA');
+
+		//tracking folder
+		trackingFolder = gui.addFolder('Tracking');
+		trackingFolder.open();
+
+		control = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold');
+		function changeTrackingThreshold(value)
+		{
+			console.log(value);
+		}
+		control.onChange(changeTrackingThreshold);
+		changeTrackingThreshold(options.trackingThreshold);
+
+		//camera motion folder
 		cameraMotionFolder = gui.addFolder('Camera Motion');
 		cameraMotionFolder.open();
 
-		var control = cameraMotionFolder.add(options, 'cameraMotionRadius', 0.1, 1.0).name('Radius');
+		control = cameraMotionFolder.add(options, 'cameraMotionAutoOrbit').name('Auto Orbit');
+		function toggleCameraMotionAutoOrbit(value)
+		{
+		    //always turn orbiting on when auto orbit is turned on
+			isOrbiting = true;
+		}
+		control.onChange(toggleCameraMotionAutoOrbit);
+
+		control = cameraMotionFolder.add(options, 'cameraMotionRadius', 0.1, 1.0).name('Radius');
 
 		control = cameraMotionFolder.add(options, 'cameraMotionSpeed', 0.1, 2.0).name('Speed');
 
 		control = cameraMotionFolder.add(options, 'cameraMotionTiltAmp', 0.0, 1.0).name('Tilt Amp');
 
 		control = cameraMotionFolder.add(options, 'cameraMotionTiltOffset', 0.0, 0.5).name('Tilt Offset');
-	}
 
-	function setupEvents()
-	{
-		window.addEventListener('keydown', window_onKeyDown, false);
-		window.addEventListener('keyup', window_onKeyUp, false);
-	}
+		control = cameraMotionFolder.add(options, 'togglePauseOrbit').name('Pause');
 
-	var isAnimating = true;
-	function window_onKeyDown(event)
-	{
+		//display folder
+		displayFolder = gui.addFolder('Display');
+		displayFolder.open();
 
-	}
-
-	function window_onKeyUp(event)
-	{
-		if (event.keyCode === 65)  //a
+		control = displayFolder.add(options, 'displayRefCube').name('Reference Cube');
+		function toggleRefCube(value)
 		{
-			isAnimating = !isAnimating;
+			refCubeMesh.visible = value;
+			refCubeMesh2.visible = value;
 		}
+		control.onChange(toggleRefCube);
+		toggleRefCube(options.displayRefCube);
+
+		control = displayFolder.add(options, 'displayDebugView').name('Debug View');
+		function toggleDebugView(value)
+		{
+			DEBUG = value;
+		}
+		control.onChange(toggleDebugView);
+
+		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
+		function toggleLocalAxis(value)
+		{
+			worldAxis.visible = value;
+		}
+		control.onChange(toggleLocalAxis);
+		toggleLocalAxis(options.displayLocalAxis);
 	}
 
+	var isOrbiting = true;
+	function togglePauseOrbit()
+	{
+	    isOrbiting = !isOrbiting;
+	}
+
+	var refCubeMesh;
+	var worldAxis;
 	$(document).ready(function()
 	{
 		//check for WebGL
@@ -122,8 +170,6 @@
 		}
 
 		console.log('Document is ready.');
-
-		setupEvents();
 
 		var canvas = $('#mainCanvas')[0];
 		var canvasWidth = canvas.width;
@@ -156,7 +202,9 @@
 		controls.pan(new THREE.Vector3(0, 1, 0));
 		controls.pan(new THREE.Vector3(0, 1, 0));
 
-		// trackSceneScene.add(new THREE.AxisHelper());
+		//add world axis
+		worldAxis = new THREE.AxisHelper(0.01);
+		trackSceneScene.add(worldAxis);
 
 		//plane
 		var trackScenePlaneMesh = new THREE.Mesh(
@@ -168,8 +216,20 @@
 		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		trackSceneScene.add(trackScenePlaneMesh);
 
-		// Create a reference cube for comparison
-		var refCubeMesh = new THREE.Mesh(
+		//plane 2
+		var trackScenePlaneMesh = new THREE.Mesh(
+			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
+			new THREE.MeshBasicMaterial({
+				map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/64.jpg')
+			})
+		);
+		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		trackScenePlaneMesh.position.x = 0.11;
+		trackScenePlaneMesh.position.z = -0.05;
+		trackSceneScene.add(trackScenePlaneMesh);
+
+		//reference cube
+		refCubeMesh = new THREE.Mesh(
 		    new THREE.CubeGeometry(0.1, 0.1, 0.1),
 		    new THREE.MeshBasicMaterial({
 		        color: 0x00ff00,
@@ -181,10 +241,25 @@
 		refCubeMesh.position.y = 0.05;
 		trackSceneScene.add(refCubeMesh);
 
+		//reference cube 2
+		refCubeMesh2 = new THREE.Mesh(
+		    new THREE.CubeGeometry(0.1, 0.1, 0.1),
+		    new THREE.MeshBasicMaterial({
+		        color: 0x00ff00,
+		        side: THREE.DoubleSide,wireframe: true,
+		        depthTest : false,
+		        depthWrite : false
+		    })
+		);
+		refCubeMesh2.position.x = 0.11;
+		refCubeMesh2.position.y = 0.05;
+		refCubeMesh2.position.z = -0.05;
+		trackSceneScene.add(refCubeMesh2);
+
 		//effects composer
 		var composer = new THREE.EffectComposer(trackSceneRenderer);
 		composer.addPass(new THREE.RenderPass(trackSceneScene, trackSceneCamera));
-		var	pass = new THREE.ShaderPass(THREE.FXAAShader);
+		var pass = new THREE.ShaderPass(THREE.FXAAShader);
 		pass.uniforms['resolution'].value.set(1.0/canvasWidth, 1.0/canvasHeight);
 		pass.renderToScreen = true;
 		composer.addPass(pass);
@@ -292,22 +367,33 @@
 			var time = clock.getElapsedTime();
 
 			//update camera
-			if (isAnimating)
+			if (options.cameraMotionAutoOrbit)
 			{
-				t += dt;
-
-				controls.update();
-				// trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * t);
-				// trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * t) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
-				// trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * t);
-				// trackSceneCamera.lookAt(lookAtPoint);
+			    if (isOrbiting)
+                {
+                    t += dt;
+                    trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * t);
+                    trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * t) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
+                    trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * t);
+                    trackSceneCamera.lookAt(lookAtPoint);
+                }
+			}
+			else
+			{
+			    controls.update();
 			}
 
 			//update
 			trackSceneRenderer.autoClear = false;
 			trackSceneRenderer.clear();
-			trackSceneRenderer.render(trackSceneScene, trackSceneCamera);
-			// composer.render(trackSceneScene, trackSceneCamera);
+			if (options.trackingSceneFxaa)
+			{
+			    composer.render(trackSceneScene, trackSceneCamera);
+			}
+			else
+			{
+			    trackSceneRenderer.render(trackSceneScene, trackSceneCamera);
+			}
 
 			// if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
 			// {
@@ -329,7 +415,7 @@
 				// Do marker detection by using the detector object on the raster object.
 				// The threshold parameter determines the threshold value
 				// for turning the video frame into a 1-bit black-and-white image.
-				var markerCount = detector.detectMarkerLite(raster, threshold);
+				var markerCount = detector.detectMarkerLite(raster, options.trackingThreshold);
 
 				// Go through the detected markers and get their IDs and transformation matrices.
 				for (var i = 0; i < markerCount; i++)
@@ -409,21 +495,17 @@
 <body>
 	<h2>Three.js and JSARToolKit</h2>
 
+	<div class="container" id="mainTracking3dScene">
+		<div class="caption">Three.js 3D scene for tracking</div>
+	</div>
+
 	<div class="container" id="canvas-container">
 		<div class="caption">&lt;canvas&gt;</div>
 		<canvas id="mainCanvas" width="640" height="480"></canvas>
 	</div>
-	<div class="caption" style="margin: 2em auto;">
-		Threshold (0-255):
-		<input id="thresholdInput" type="range" min="0" max="255" onchange="threshold=this.value; console.log('threshold = ' + threshold);" style="vertical-align:middle;"></input>
-	</div>
 	<div class="container" id="debugCanvas-container">
 		<div class="caption">debug &lt;canvas&gt;</div>
 		<canvas id="debugCanvas" width="640" height="480"></canvas>
-	</div>
-
-	<div class="container" id="mainTracking3dScene">
-		<div class="caption">Three.js 3D scene for tracking</div>
 	</div>
 
 	<div class="container" id="threejs-container">
