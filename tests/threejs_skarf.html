@@ -1,91 +1,50 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>IFC - SkArF.js</title>
+	<title>IFC - SkArF.js (JSARToolKit with Three.js)</title>
 	<meta charset="UTF-8"/>
-	
+
 	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
 	<link rel="stylesheet" href="/css/style.css">
-	
+
 	<!--load helper libraries-->
 	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-	
-	<!--load AR and 3D libraries-->
+
+	<!--load 3D libraries-->
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
-	<script type="text/javascript" src="/js/lib/ar/JSARToolKit.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
 	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
 	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
 	<script type="text/javascript" src="/js/lib/OBJMTLLoader.js"></script>
 	<script type="text/javascript" src="/js/lib/MTLLoader.js"></script>
 	<script type="text/javascript" src="/js/lib/BinaryLoader.js"></script>
+
+	<!--load AR libraries-->
+	<script type="text/javascript" src="/js/lib/ar/JSARToolKit.js"></script>
 	<script type="text/javascript" src="/js/skarf.js"></script>
-	
+
 	<script>
-	
+
 	var g_trackingThreshold = 128;
-	var g_debug = true;
+	var g_debug = false;
 
-	
-	function setupGui(skarf) {
-
-		var options = {
-			trackingThreshold: g_trackingThreshold,
-			displayWireframe: false,
-			displayLocalAxis: false,
-		};
-
-		var gui = new dat.GUI();
-		gui.close();  //close GUI by default
-
-		//Tracking folder
-		var folder = gui.addFolder('Tracking');
-		var control = folder.add(options, 'trackingThreshold', 0, 255).name('Threshold');
-		function trackingThreshold_onChange(value)
-		{
-			skarf.arLib.threshold = value;
-		}
-		control.onChange(trackingThreshold_onChange);
-
-		//Display folder
-		folder = gui.addFolder('Display');
-		
-		var control = folder.add(options, 'displayWireframe').name('Wireframe');
-		function toggleWireframe(value)
-		{
-			skarf.renderer.setWireframeVisible(value);
-		}
-		control.onChange(toggleWireframe);
-		toggleWireframe(options.displayWireframe);
-		
-		control = folder.add(options, 'displayLocalAxis').name('Local Axis');
-		function toggleLocalAxis(value)
-		{
-			skarf.renderer.setLocalAxisVisible(value);
-		}
-		control.onChange(toggleLocalAxis);
-		toggleLocalAxis(options.displayLocalAxis);
-	}
-	
-	$(document).ready(function()
+	function checkWebGl()
 	{
 		//check for WebGL
 		if (!Detector.webgl)
 		{
 			$('div').remove();
 			Detector.addGetWebGLMessage();
-			return;
+			throw new Error('Your browser does not seem to support WebGL');
 		}
-		
-		console.log('Document is ready.');
-		
-		var canvas = $('#mainCanvas')[0];
-		
-		//stream to video element
-		//TODO: create a list and allow user to select
-		var video = $('#mainVideo')[0];
-		var img = $('#mainImage')[0];
-		var source;
+	}
+
+	var video, img, source;
+	function setupVideo()
+	{
+	    //TODO: create a list and allow user to select
+		video = $('#mainVideo')[0];
+		img = $('#mainImage')[0];
 		videoId = 0;
 		if (videoId == 0)
 		{
@@ -102,21 +61,26 @@
 			img.src = '/resources/markers/chalk_multi.jpg';
 			source = img;
 		}
-		
-		//create an AR library
+	}
+
+	var $threejsContainerElem;
+	var skarf;
+	function setupAr()
+	{
+	    //create an AR library
 		var jsArToolKitArLib = new JsArToolKitArLib({
 			canvasElem: canvas,
 			markerWidth: 120,
 			threshold: g_trackingThreshold,
 			debug: g_debug
 		});
-		
+
 		//get the camera projection matrix from jsArToolKitArLib
 		var camProjMatrixArray = new Float32Array(16);
 		jsArToolKitArLib.flarParam.copyCameraMatrix(camProjMatrixArray, 10, 10000);
-		
+
 		//create a renderer
-		var $threejsContainerElem = $('#threejs-container');
+		$threejsContainerElem = $('#threejs-container');
 		var threeJsRenderer = new ThreeJsRenderer({
 			//container to attach the Three.js-created renderer canvas
 			rendererContainerElem: $threejsContainerElem,
@@ -129,22 +93,86 @@
 			camProjMatrixArray: camProjMatrixArray,
 			modelsJsonFile: '/resources/models/models.json'
 		});
-		
+
 		//create a framework
-		var skarf = new SkArF({
+		skarf = new SkArF({
 			canvasElem: canvas,
 			videoElem: video,
 			arLib: jsArToolKitArLib,
 			renderer: threeJsRenderer
 		});
-		
-		//create a stats monitor
-		stats = new Stats();
-		$threejsContainerElem.append(stats.domElement);
-		
+	}
+
+	function setupStats()
+    {
+        //create a stats monitor
+        stats = new Stats();
+        $threejsContainerElem.append(stats.domElement);
+    }
+
+	var options = {
+        trackingThreshold: g_trackingThreshold,
+        displayWireframe: false,
+        displayLocalAxis: false,
+    };
+    var gui;
+    var trackingFolder, displayFolder;
+	function setupGui(skarf) {
+
+		gui = new dat.GUI();
+		gui.close();  //close GUI by default
+
+		//Tracking folder
+		trackingFolder = gui.addFolder('Tracking');
+		var control = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold');
+		function trackingThreshold_onChange(value)
+		{
+			skarf.arLib.threshold = value;
+		}
+		control.onChange(trackingThreshold_onChange);
+
+		//Display folder
+		displayFolder = gui.addFolder('Display');
+
+		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
+		function toggleWireframe(value)
+		{
+			skarf.renderer.setWireframeVisible(value);
+		}
+		control.onChange(toggleWireframe);
+		toggleWireframe(options.displayWireframe);
+
+		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
+		function toggleLocalAxis(value)
+		{
+			skarf.renderer.setLocalAxisVisible(value);
+		}
+		control.onChange(toggleLocalAxis);
+		toggleLocalAxis(options.displayLocalAxis);
+	}
+
+	var canvas;
+	$(document).ready(function()
+	{
+		//check for WebGL
+		checkWebGl();
+
+		console.log('Document is ready.');
+
+		canvas = $('#mainCanvas')[0];
+
+		//stream to video element
+		setupVideo();
+
+		//setup AR
+		setupAr();
+
+		//setup stats monitor
+		setupStats();
+
 		//setup GUI
 		setupGui(skarf);
-		
+
 		//main loop
 		function loop()
 		{
@@ -153,13 +181,12 @@
 			requestAnimationFrame(loop);
 		}
 		loop();
-		
+
 	});
 	</script>
 </head>
 <body>
-	<h1>Test 4</h1>
-	<h2>Three.js and JSARToolKit tracking background video</h2>
+	<h2>SkArF.js (JSARToolKit with Three.js)</h2>
 	<div class="container" id="video-container">
 		<div class="caption">&lt;video&gt;</div>
 		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
