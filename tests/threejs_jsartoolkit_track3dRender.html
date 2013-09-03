@@ -93,12 +93,6 @@
 		trackingFolder.open();
 
 		control = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold');
-		function changeTrackingThreshold(value)
-		{
-			console.log(value);
-		}
-		control.onChange(changeTrackingThreshold);
-		changeTrackingThreshold(options.trackingThreshold);
 
 		//camera motion folder
 		cameraMotionFolder = gui.addFolder('Camera Motion');
@@ -464,15 +458,23 @@
 						scene.add(markerRoot);
 					}
 
-					// Get the transformation matrix for the detected marker.
-					detector.getTransformMatrix(i, resultMat);
+					try
+					{
+                        // Get the transformation matrix for the detected marker.
+                        detector.getTransformMatrix(i, resultMat);
 
-					// Copy the marker matrix to the tmp matrix.
-					copyMarkerMatrix(resultMat, tmp);
+                        // Copy the marker matrix to the tmp matrix.
+                        copyMarkerMatrix(resultMat, tmp);
 
-					// Copy the marker matrix over to your marker root object.
-					markerRoots[currId].matrix.setFromArray(tmp);
-					markerRoots[currId].matrixWorldNeedsUpdate = true;
+                        // Copy the marker matrix over to your marker root object.
+                        markerRoots[currId].matrix.setFromArray(tmp);
+                        markerRoots[currId].matrixWorldNeedsUpdate = true;
+                    }
+                    catch (err)
+                    {
+                        //just print to console but let the error pass so that the program can continue
+                        console.log(err.message);
+                    }
 				}
 
 				// Render the scene.
