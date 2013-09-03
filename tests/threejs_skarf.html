@@ -23,8 +23,13 @@
 	<script type="text/javascript" src="/js/lib/ar/JSARToolKit.js"></script>
 	<script type="text/javascript" src="/js/skarf.js"></script>
 
+	<!--load webcam streaming libraries-->
+	<script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
+	<script type="text/javascript" src="/js/streamvideo.js"></script>
+
 	<script>
 
+	var useWebcam = false;
 	var g_trackingThreshold = 128;
 	var g_debug = false;
 
@@ -42,28 +47,35 @@
 	var video, img, source;
 	function setupVideo()
 	{
-	    //TODO: create a list and allow user to select
-		video = $('#mainVideo')[0];
-		img = $('#mainImage')[0];
-		videoId = 0;
-		if (videoId == 0)
-		{
-			video.src = '/resources/markers/output_4.ogg';
-			source = video;
-		}
-		else if (videoId == 1)
-		{
-			video.src = '/resources/markers/swap_loop.ogg';
-			source = video;
-		}
-		else if (videoId == 2)
-		{
-			img.src = '/resources/markers/chalk_multi.jpg';
-			source = img;
-		}
+	    video = $('#mainVideo')[0];
+	    if (useWebcam)
+	    {
+	        streamVideo(video);
+	        source = video;
+	    }
+	    else
+	    {
+            //TODO: create a list and allow user to select
+            img = $('#mainImage')[0];
+            sourceId = 0;
+            if (sourceId == 0)
+            {
+                video.src = '/resources/markers/output_4.ogg';
+                source = video;
+            }
+            else if (sourceId == 1)
+            {
+                video.src = '/resources/markers/swap_loop.ogg';
+                source = video;
+            }
+            else if (sourceId == 2)
+            {
+                img.src = '/resources/markers/chalk_multi.jpg';
+                source = img;
+            }
+        }
 	}
 
-	var $threejsContainerElem;
 	var skarf;
 	function setupAr()
 	{
@@ -80,7 +92,6 @@
 		jsArToolKitArLib.flarParam.copyCameraMatrix(camProjMatrixArray, 10, 10000);
 
 		//create a renderer
-		$threejsContainerElem = $('#threejs-container');
 		var threeJsRenderer = new ThreeJsRenderer({
 			//container to attach the Three.js-created renderer canvas
 			rendererContainerElem: $threejsContainerElem,
@@ -117,7 +128,7 @@
     };
     var gui;
     var trackingFolder, displayFolder;
-	function setupGui(skarf) {
+	function setupGui() {
 
 		gui = new dat.GUI();
 		gui.close();  //close GUI by default
@@ -152,6 +163,7 @@
 	}
 
 	var canvas;
+	var $threejsContainerElem;
 	$(document).ready(function()
 	{
 		//check for WebGL
@@ -160,6 +172,7 @@
 		console.log('Document is ready.');
 
 		canvas = $('#mainCanvas')[0];
+		$threejsContainerElem = $('#threejs-container');
 
 		//stream to video element
 		setupVideo();
@@ -171,7 +184,7 @@
 		setupStats();
 
 		//setup GUI
-		setupGui(skarf);
+		setupGui();
 
 		//main loop
 		function loop()
