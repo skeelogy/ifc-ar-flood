@@ -7,32 +7,16 @@
  *
  * Usage:
  *
- * //get canvas element e.g.
- * var canvas = document.getElementById('myCanvas');
- *
- * //get video element
- * var video = document.getElementById('myVideo');
- *
- * //create an AR library
- * var jsArToolKitArLib = new JsArToolKitArLib...
- *
- * //create a renderer
- * var threeJsRenderer = new ThreeJsRenderer...
- *
  * //create an AR framework (SkArF)
- * var skarf = new SkArF({
- *     canvasElem: canvas,
- *     videoElem: video,
- *     arLib: jsArToolKitArLib,
- *     renderer: threeJsRenderer
- * });
+ * var skarf = new SkArF({...});
  *
- * //finally, within the main loop, call:
+ * //within the main loop, call:
  * skarf.update();
  *
- * If you wish to use your own AR library:
+ * If you wish to use your own AR library (e.g. JsArToolKitArLib):
  * 1) Subclass ArLib
- * 2) Override the init() and loop() methods
+ * 2) Register with factory: ArLibFactory.register('jsartoolkit', JsArToolKitArLib);
+ * 3) Override the init() and loop() methods
  *
  * You can do similar things to create your own renderer.
  */
@@ -293,37 +277,101 @@ function copyMarkerMatrix(arMat, glMat) {
 }
 
 function SkArF(options) {
-    if (typeof options.canvasElem === 'undefined') {
-        throw new Error('canvasElem not specified');
-    }
-    this.canvasElem = options.canvasElem;
 
-    if (typeof options.videoElem === 'undefined') {
-        throw new Error('videoElem not specified');
+    //AR lib parameters
+    if (typeof options.arLibType === 'undefined') {
+        throw new Error('arLibType not specified');
     }
-    this.videoElem = options.videoElem;
-
-    if (typeof options.arLib === 'undefined') {
-        throw new Error('arLib not specified');
+    this.arLibType = options.arLibType;
+    if (typeof options.trackingElem === 'undefined') {
+        throw new Error('trackingElem not specified');
     }
-    this.arLib = options.arLib;
-
-    if (typeof options.renderer === 'undefined') {
-        throw new Error('renderer not specified');
+    this.trackingElem = options.trackingElem;
+    if (typeof options.markerSize === 'undefined') {
+        throw new Error('markerSize not specified');
     }
-    this.renderer = options.renderer;
+    this.markerSize = options.markerSize;
+    this.threshold = options.threshold || 128;
+    this.debug = typeof options.threshold === 'undefined' ? false : options.debug;
 
+    //canvas
+    this.canvasContainerElem = options.canvasContainerElem;
+
+    //renderer parameters
+    if (typeof options.rendererType === 'undefined') {
+        throw new Error('rendererType not specified');
+    }
+    this.rendererType = options.rendererType;
+    this.rendererContainerElem = options.rendererContainerElem;
+    this.rendererCanvasElemWidth = options.rendererCanvasElemWidth || 640;
+    this.rendererCanvasElemHeight = options.rendererCanvasElemHeight || 480;
+    if (typeof options.modelsJsonFile === 'undefined') {
+        throw new Error('modelsJsonFile not specified');
+    }
+    this.modelsJsonFile = options.modelsJsonFile;
+
+    //init
     this.init();
 }
+SkArF.prototype.__create2dCanvas = function () {
+
+    //create canvas
+    this.canvasElem = document.createElement('canvas');
+
+    //canvas should be same width/height as the tracking element
+    this.canvasElem.width = this.trackingElem.width;
+    this.canvasElem.height = this.trackingElem.height;
+
+    //attach to container if specified, otherwise attach to body
+    if (this.canvasContainerElem) {
+        this.canvasContainerElem.append(this.canvasElem);
+    } else {
+        $('body').append(this.canvasElem);
+    }
+
+    //store the 2d context
+    this.context = this.canvasElem.getContext('2d');
+};
 SkArF.prototype.init = function () {
-    //assign a pointer of itself to each other
+
+    //create a 2d canvas for copying data from tracking element
+    this.__create2dCanvas();
+
+    //create AR lib instance
+    this.arLib = ArLibFactory.create(this.arLibType, {
+                                        trackingElem: this.trackingElem,
+                                        markerSize: this.markerSize,
+                                        threshold: this.threshold,
+                                        debug: this.debug
+                                     });
+
+    //create renderer instance
+    this.renderer = RendererFactory.create(this.rendererType, {
+                                               rendererContainerElem: this.rendererContainerElem,
+                                               rendererCanvasElemWidth: this.rendererCanvasElemWidth,
+                                               rendererCanvasElemHeight: this.rendererCanvasElemHeight,
+                                               modelsJsonFile: this.modelsJsonFile
+                                           });
+
+    //assign necessary pointers of itself to each other
     this.arLib.renderer = this.renderer;
     this.renderer.arLib = this.arLib;
+
+    //assign the canvas to arLib and renderer
+    this.arLib.canvasElem = this.canvasElem;
+    this.renderer.backgroundCanvasElem = this.canvasElem;
+
+    //finally call init of both
+    this.renderer.init();
+    this.arLib.init();
 };
+/**
+ * Draws tracking data to canvas, and then updates both the AR lib and renderer
+ */
 SkArF.prototype.update = function () {
-    //draw the video to canvas
-    if (this.videoElem.readyState === this.videoElem.HAVE_ENOUGH_DATA) {
-        this.canvasElem.getContext('2d').drawImage(this.videoElem, 0, 0, this.canvasElem.width, this.canvasElem.height);
+    //draw the video/img to canvas
+    // if (this.videoElem.readyState === this.videoElem.HAVE_ENOUGH_DATA) {
+        this.context.drawImage(this.trackingElem, 0, 0, this.canvasElem.width, this.canvasElem.height);
         this.canvasElem.changed = true;
 
         this.preUpdate();
@@ -341,7 +389,7 @@ SkArF.prototype.update = function () {
         this.renderer.postUpdate();
 
         this.postUpdate();
-    }
+    // }
 };
 SkArF.prototype.preUpdate = function () {};
 SkArF.prototype.postUpdate = function () {};
@@ -350,12 +398,49 @@ SkArF.prototype.postUpdate = function () {};
 // AR Libraries
 //===================================
 
-function ArLib(options) {
-    if (typeof options.canvasElem === 'undefined') {
-        throw new Error('canvasElem not specified');
+var ArLibFactory = {
+
+    mappings: {},
+
+    create: function (type, options) {
+        if (!type) {
+            throw new Error('ArLib type not specified');
+        }
+        if (!this.mappings.hasOwnProperty(type)) {
+            throw new Error('ArLib of this type has not been registered with ArLibFactory: ' + type);
+        }
+        var arLib = new this.mappings[type](options);
+        return arLib;
+    },
+
+    register: function (mappingName, mappingClass) {
+        //check that mappingName is not in mappings already
+        if (this.mappings.hasOwnProperty(mappingName)) {
+            throw new Error('Mapping name already exists: ' + mappingName);
+        }
+        this.mappings[mappingName] = mappingClass;
     }
-    this.canvasElem = options.canvasElem;
-    this.threshold = options.threshold || 128;
+};
+
+function ArLib(options) {
+
+    if (typeof options.trackingElem === 'undefined') {
+        throw new Error('trackingElem not specified');
+    }
+    this.trackingElem = options.trackingElem;
+
+    if (typeof options.markerSize === 'undefined') {
+        throw new Error('markerSize not specified');
+    }
+    this.markerSize = options.markerSize;
+
+    this.debug = (typeof options.debug === 'undefined') ? false : options.debug;
+
+    //variables to be assigned by skarf
+    this.canvasElem = null;
+    this.renderer = null;
+
+    this.markers = {};
 }
 ArLib.prototype.init = function () {
     throw new Error('Abstract method not implemented');
@@ -372,21 +457,19 @@ ArLib.prototype.postUpdate = function () {};
 function JsArToolKitArLib(options) {
     ArLib.call(this, options);
 
-    this.markerWidth = options.markerWidth || 120;
-    this.debug = (typeof options.debug === 'undefined') ? false : options.debug;
-
-    this.markers = {};
+    this.threshold = options.threshold || 128;
 
     //store some temp variables
     this.resultMat = new NyARTransMatResult();
     this.tmp = {};
-
-    this.init();
 }
 
 //inherit from ArLib
 JsArToolKitArLib.prototype = Object.create(ArLib.prototype);
 JsArToolKitArLib.prototype.constructor = JsArToolKitArLib;
+
+//register with factory
+ArLibFactory.register('jsartoolkit', JsArToolKitArLib);
 
 //override methods
 JsArToolKitArLib.prototype.init = function () {
@@ -403,11 +486,16 @@ JsArToolKitArLib.prototype.init = function () {
 
     // The FLARMultiIdMarkerDetector is the actual detection engine for marker detection.
     // It detects multiple ID markers. ID markers are special markers that encode a number.
-    this.detector = new FLARMultiIdMarkerDetector(this.flarParam, this.markerWidth);
+    this.detector = new FLARMultiIdMarkerDetector(this.flarParam, this.markerSize);
 
     // For tracking video set continue mode to true. In continue mode, the detector
     // tracks markers across multiple frames.
     this.detector.setContinueMode(true);
+
+    //set the camera projection matrix in the renderer
+    var camProjMatrixArray = new Float32Array(16);
+    this.flarParam.copyCameraMatrix(camProjMatrixArray, 10, 10000);
+    this.renderer.initCameraProjMatrix(camProjMatrixArray);
 };
 JsArToolKitArLib.prototype.update = function () {
     // Do marker detection by using the detector object on the raster object.
@@ -438,7 +526,6 @@ JsArToolKitArLib.prototype.update = function () {
             }
         }
 
-
         // If this is a new id, let's start tracking it.
         if (typeof this.markers[currId] === 'undefined') {
 
@@ -459,15 +546,38 @@ JsArToolKitArLib.prototype.update = function () {
         copyMarkerMatrix(this.resultMat, this.tmp);
 
         // Copy the marker matrix over to your marker root object.
-        this.renderer.setMarkerTransform(currId, this.tmp);
+        this.renderer.setMarkerTransformMatrix(currId, this.tmp);
     }
 };
-
 
 
 //===================================
 // Renderers
 //===================================
+
+var RendererFactory = {
+
+    mappings: {},
+
+    create: function (type, options) {
+        if (!type) {
+            throw new Error('Renderer type not specified');
+        }
+        if (!this.mappings.hasOwnProperty(type)) {
+            throw new Error('Renderer of this type has not been registered with RendererFactory: ' + type);
+        }
+        var renderer = new this.mappings[type](options);
+        return renderer;
+    },
+
+    register: function (mappingName, mappingClass) {
+        //check that mappingName is not in mappings already
+        if (this.mappings.hasOwnProperty(mappingName)) {
+            throw new Error('Mapping name already exists: ' + mappingName);
+        }
+        this.mappings[mappingName] = mappingClass;
+    }
+};
 
 function Renderer(options) {
     if (typeof options.rendererContainerElem === 'undefined') {
@@ -475,20 +585,15 @@ function Renderer(options) {
     }
     this.rendererContainerElem = options.rendererContainerElem;
 
-    if (typeof options.rendererCanvasWidth === 'undefined') {
-        throw new Error('rendererCanvasWidth not specified');
+    if (typeof options.rendererCanvasElemWidth === 'undefined') {
+        throw new Error('rendererCanvasElemWidth not specified');
     }
-    this.rendererCanvasWidth = options.rendererCanvasWidth;
+    this.rendererCanvasElemWidth = options.rendererCanvasElemWidth;
 
-    if (typeof options.rendererCanvasHeight === 'undefined') {
-        throw new Error('rendererCanvasHeight not specified');
+    if (typeof options.rendererCanvasElemHeight === 'undefined') {
+        throw new Error('rendererCanvasElemHeight not specified');
     }
-    this.rendererCanvasHeight = options.rendererCanvasHeight;
-
-    if (typeof options.streamCanvasElem === 'undefined') {
-        throw new Error('streamCanvasElem not specified');
-    }
-    this.streamCanvasElem = options.streamCanvasElem;
+    this.rendererCanvasElemHeight = options.rendererCanvasElemHeight;
 
     if (typeof options.modelsJsonFile === 'undefined') {
         throw new Error('modelsJsonFile not specified');
@@ -502,9 +607,9 @@ function Renderer(options) {
 
     this.modelManager = new ModelManager(this.modelsJsonFile);
 
-    this.preInit();
-    this.init();
-    this.postInit();
+    //variables to be assigned by skarf
+    this.arLib = null;
+    this.backgroundCanvasElem = null;
 }
 Renderer.prototype.init = function () {
     throw new Error('Abstract method not implemented');
@@ -519,7 +624,7 @@ Renderer.prototype.postUpdate = function () {};
 Renderer.prototype.createTransformForMarker = function (markerId) {
     throw new Error('Abstract method not implemented');
 };
-Renderer.prototype.setMarkerTransform = function (markerId, transformMatrix) {
+Renderer.prototype.setMarkerTransformMatrix = function (markerId, transformMatrix) {
     throw new Error('Abstract method not implemented');
 };
 Renderer.prototype.getAllMaterials = function (transform) {
@@ -557,10 +662,6 @@ Renderer.prototype.setLocalAxisVisible = function (isVisible) {
 
 
 function ThreeJsRenderer(options) {
-    if (typeof options.camProjMatrixArray === 'undefined') {
-        throw new Error('camProjMatrixArray not specified');
-    }
-    this.camProjMatrixArray = options.camProjMatrixArray;
 
     this.markerTransforms = {};
     this.emptyFloatArray = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -571,6 +672,9 @@ function ThreeJsRenderer(options) {
 //inherit from Renderer
 ThreeJsRenderer.prototype = Object.create(Renderer.prototype);
 ThreeJsRenderer.prototype.constructor = ThreeJsRenderer;
+
+//register with factory
+RendererFactory.register('threejs', ThreeJsRenderer);
 
 //override methods
 ThreeJsRenderer.prototype.init = function () {
@@ -618,7 +722,7 @@ ThreeJsRenderer.prototype.createTransformForMarker = function (markerId) {
 ThreeJsRenderer.prototype.loadModelForMarker = function (markerId, markerTransform) {
     this.modelManager.loadForMarker(markerId, markerTransform, this.isWireframeVisible);
 };
-ThreeJsRenderer.prototype.setMarkerTransform = function (markerId, transformMatrix) {
+ThreeJsRenderer.prototype.setMarkerTransformMatrix = function (markerId, transformMatrix) {
     this.markerTransforms[markerId].matrix.setFromArray(transformMatrix);
 
     //TODO: bake these transforms into the AR conversion matrix
@@ -668,9 +772,11 @@ ThreeJsRenderer.prototype.getAllLocalAxesForTransform = function (transform) {
 };
 
 //methods
+ThreeJsRenderer.prototype.initCameraProjMatrix = function (camProjMatrixArray) {
+    this.camera.projectionMatrix.setFromArray(camProjMatrixArray);
+};
 ThreeJsRenderer.prototype.setupCamera = function () {
     this.camera = new THREE.Camera();
-    this.camera.projectionMatrix.setFromArray(this.camProjMatrixArray);
 };
 ThreeJsRenderer.prototype.setupScene = function () {
     this.scene = new THREE.Scene();
@@ -688,7 +794,7 @@ ThreeJsRenderer.prototype.setupLights = function () {
 };
 ThreeJsRenderer.prototype.setupRenderer = function () {
     this.renderer = this.createRenderer();
-    this.renderer.setSize(this.rendererCanvasWidth, this.rendererCanvasHeight);
+    this.renderer.setSize(this.rendererCanvasElemWidth, this.rendererCanvasElemHeight);
     this.rendererContainerElem.append(this.renderer.domElement);
 };
 ThreeJsRenderer.prototype.createRenderer = function () {  //meant for overriding
@@ -698,7 +804,7 @@ ThreeJsRenderer.prototype.createRenderer = function () {  //meant for overriding
 };
 ThreeJsRenderer.prototype.setupBackgroundVideo = function () {
     //NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
-    this.videoTex = new THREE.Texture(this.streamCanvasElem);
+    this.videoTex = new THREE.Texture(this.backgroundCanvasElem);
     this.videoPlane = new THREE.PlaneGeometry(2, 2);
     this.videoMaterial = new THREE.MeshBasicMaterial({
         map: this.videoTex,

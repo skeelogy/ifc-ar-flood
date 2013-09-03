@@ -79,38 +79,23 @@
 	var skarf;
 	function setupAr()
 	{
-	    //create an AR library
-		var jsArToolKitArLib = new JsArToolKitArLib({
-			canvasElem: canvas,
-			markerWidth: 120,
-			threshold: g_trackingThreshold,
-			debug: g_debug
-		});
-
-		//get the camera projection matrix from jsArToolKitArLib
-		var camProjMatrixArray = new Float32Array(16);
-		jsArToolKitArLib.flarParam.copyCameraMatrix(camProjMatrixArray, 10, 10000);
-
-		//create a renderer
-		var threeJsRenderer = new ThreeJsRenderer({
-			//container to attach the Three.js-created renderer canvas
-			rendererContainerElem: $threejsContainerElem,
-			//width of the Three.js-created renderer canvas
-			rendererCanvasWidth: canvas.width,
-			//height of the Three.js-created renderer canvas
-			rendererCanvasHeight: canvas.height,
-			//the streaming canvas for background plane
-			streamCanvasElem: canvas,
-			camProjMatrixArray: camProjMatrixArray,
-			modelsJsonFile: '/resources/models/models.json'
-		});
-
-		//create a framework
+		//create a SkArF framework
 		skarf = new SkArF({
-			canvasElem: canvas,
-			videoElem: video,
-			arLib: jsArToolKitArLib,
-			renderer: threeJsRenderer
+
+		    arLibType: 'jsartoolkit',
+		    trackingElem: source,
+		    markerSize: 120,
+		    threshold: g_trackingThreshold,
+		    debug: g_debug,
+
+		    canvasContainerElem: $canvasContainerElem,
+
+		    rendererType: 'threejs',
+		    rendererContainerElem: $threejsContainerElem,  //container to attach the renderer canvas. If not defined, canvas will just be attached to end of body.
+		    rendererCanvasElemWidth: 640,  //width of the display canvas, need not be the same as the tracking element
+			rendererCanvasElemHeight: 480,  //height of the display canvas, need not be the same as the tracking element
+			modelsJsonFile: '/resources/models/models.json'
+
 		});
 	}
 
@@ -162,8 +147,7 @@
 		toggleLocalAxis(options.displayLocalAxis);
 	}
 
-	var canvas;
-	var $threejsContainerElem;
+	var $canvasContainerElem, $threejsContainerElem;
 	$(document).ready(function()
 	{
 		//check for WebGL
@@ -171,8 +155,8 @@
 
 		console.log('Document is ready.');
 
-		canvas = $('#mainCanvas')[0];
 		$threejsContainerElem = $('#threejs-container');
+		$canvasContainerElem = $('#canvas-container');
 
 		//stream to video element
 		setupVideo();
@@ -189,7 +173,7 @@
 		//main loop
 		function loop()
 		{
-			skarf.update();  //this will update the AR lib and renderer too
+			skarf.update();
 			stats.update();
 			requestAnimationFrame(loop);
 		}
@@ -210,7 +194,6 @@
 	</div>
 	<div class="container" id="canvas-container">
 		<div class="caption">&lt;canvas&gt;</div>
-		<canvas id="mainCanvas" width="640" height="480"></canvas>
 	</div>
 	<div class="container" id="debugCanvas-container">
 		<div class="caption">debug &lt;canvas&gt;</div>
