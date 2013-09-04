@@ -267,9 +267,9 @@
 
 	function drawCorners(markers)
 	{
-        var corners, corner, i, j, len;
+        var corners, corner, i, j, leni, lenj;
 
-        for (i = 0, len = markers.length; i < len; i++)
+        for (i = 0, leni = markers.length; i < leni; i++)
         {
             corners = markers[i].corners;
 
@@ -277,7 +277,7 @@
             ctx.strokeStyle = "red";
             ctx.beginPath();
 
-            for (j = 0; j < corners.length; j++)
+            for (j = 0, lenj = corners.length; j < lenj; j++)
             {
                 corner = corners[j];
                 ctx.moveTo(corner.x, corner.y);
@@ -296,14 +296,14 @@
 
     function drawId(markers)
     {
-        var corners, corner, x, y, i, j;
+        var corners, corner, x, y, i, len;
 
         ctx.font = '12pt Calibri';
         ctx.fillStyle = "yellow";
         // ctx.strokeStyle = "black";
         // ctx.lineWidth = 1.0;
 
-        for (i = 0; i !== markers.length; ++ i)
+        for (i = 0, len = markers.length; i < len; i++)
         {
             corners = markers[i].corners;
 

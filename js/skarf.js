@@ -320,7 +320,7 @@ function ArLib(options) {
     this.canvasElem = null;
     this.renderer = null;
 
-    this.markers = {};
+    this.markers = {};  //this is just to keep track if a certain marker id has been seen
 }
 ArLib.prototype.init = function () {
     throw new Error('Abstract method not implemented');
@@ -409,7 +409,7 @@ JsArToolKitArLib.prototype.update = function () {
         // If this is a new id, let's start tracking it.
         if (typeof this.markers[currId] === 'undefined') {
 
-            //create new object for the marker
+            //create empty object for the marker
             this.markers[currId] = {};
 
             //create a transform for this marker
@@ -451,10 +451,10 @@ JsArucoArLib.prototype.init = function () {
 JsArucoArLib.prototype.update = function () {
     var imageData = this.context.getImageData(0, 0, this.canvasElem.width, this.canvasElem.height);
     var markers = this.detector.detect(imageData);
-    // if (options.displayDebugView) {
-        // drawCorners(markers);
-        // drawId(markers);
-    // }
+    if (this.debug) {
+        this.__drawCorners(markers);
+        this.__drawId(markers);
+    }
 
     //update scene
     this.__updateScenes(markers);
@@ -464,10 +464,10 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
 
     //hide all marker roots first
     var keys = Object.keys(this.markers);
-    // for (i = 0; i < keys.length; i++)
-    // {
-        // showChildren(this.markers[keys[i]], false);
-    // }
+    for (i = 0; i < keys.length; i++)
+    {
+        this.renderer.showChildrenOfMarker(keys[i], false);
+    }
 
     for (i = 0; i < markers.length; i++)
     {
@@ -479,7 +479,7 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
 
             console.log('creating new marker root for id: ' + markerId);
 
-            //create new object for the marker
+            //create empty object for the marker
             this.markers[markerId] = {};
 
             //create a transform for this marker
@@ -503,7 +503,7 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
         {
             pose = this.posit.pose(corners);
 
-            // showChildren(this.markers[markerId], true);
+            this.renderer.showChildrenOfMarker(markerId, true);
             this.renderer.setMarkerSRT(markerId, this.markerSize, pose.bestRotation, pose.bestTranslation);
             // this.renderer.setMarkerSRT(markerId, this.markerSize, pose.alternativeRotation, pose.alternativeTranslation);
 
@@ -515,6 +515,50 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
             //just print to console but let the error pass so that the program can continue
             console.log(err.message);
         }
+    }
+};
+JsArucoArLib.prototype.__drawCorners = function (markers) {
+
+    var corners, corner, i, j, leni, lenj;
+    for (i = 0, leni = markers.length; i < leni; i++) {
+        corners = markers[i].corners;
+
+        this.context.lineWidth = 2;
+        this.context.strokeStyle = "red";
+        this.context.beginPath();
+
+        for (j = 0, lenj = corners.length; j < lenj; j++) {
+            corner = corners[j];
+            this.context.moveTo(corner.x, corner.y);
+            corner = corners[(j + 1) % corners.length];
+            this.context.lineTo(corner.x, corner.y);
+        }
+
+        this.context.stroke();
+        this.context.closePath();
+
+        this.context.lineWidth = 3;
+        this.context.strokeStyle = "green";
+        this.context.strokeRect(corners[0].x - 2, corners[0].y - 2, 4, 4);
+    }
+};
+JsArucoArLib.prototype.__drawId = function (markers) {
+
+    var corners, corner, x, y, i, len;
+
+    this.context.font = '12pt Calibri';
+    this.context.fillStyle = "yellow";
+    // this.context.strokeStyle = "black";
+    // this.context.lineWidth = 1.0;
+
+    for (i = 0, len = markers.length; i < len; i++) {
+        corners = markers[i].corners;
+
+        x = corners[0].x;
+        y = corners[0].y;
+
+        this.context.fillText(markers[i].id, x, y);
+        // this.context.strokeText(markers[i].id, x, y);
     }
 };
 
@@ -668,7 +712,19 @@ ThreeJsRenderer.prototype.preUpdate = function () {
     Object.keys(this.markerTransforms).forEach(function (key) {
         that.markerTransforms[key].matrix.setFromArray(that.emptyFloatArray);
         that.markerTransforms[key].matrixWorldNeedsUpdate = true;
-    });
+    })
+};
+ThreeJsRenderer.prototype.showChildrenOfMarker = function (markerId, visible) {
+    this.showChildren(this.markerTransforms[markerId], visible);
+};
+ThreeJsRenderer.prototype.showChildren = function (object3d, visible) {
+    var children = object3d.children;
+    var i, len;
+    for (i = 0, len = children.length; i < len; i++) {
+        if (children[i] instanceof THREE.Mesh) {
+            children[i].visible = visible;
+        }
+    }
 };
 ThreeJsRenderer.prototype.createTransformForMarker = function (markerId, matrixAutoUpdate) {
     //FIXME: no need to create a transform if this markerId is not in the models JSON file

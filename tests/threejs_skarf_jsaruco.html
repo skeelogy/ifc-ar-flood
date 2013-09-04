@@ -33,8 +33,6 @@
 	<script>
 
 	var useWebcam = false;
-	var g_trackingThreshold = 128;
-	var g_debug = false;
 
 	function checkWebGl()
 	{
@@ -77,8 +75,7 @@
 		    arLibType: 'jsaruco',
 		    trackingElem: source,
 		    markerSize: 35,
-		    threshold: g_trackingThreshold,
-		    debug: g_debug,
+		    debug: options.debug,
 
 		    canvasContainerElem: $canvasContainerElem,
 
@@ -99,28 +96,27 @@
     }
 
 	var options = {
-        trackingThreshold: g_trackingThreshold,
+        displayDebugView: false,
         displayWireframe: false,
         displayLocalAxis: false,
     };
     var gui;
-    var trackingFolder, displayFolder;
+    var displayFolder;
 	function setupGui() {
 
 		gui = new dat.GUI();
 		gui.close();  //close GUI by default
 
-		//Tracking folder
-		trackingFolder = gui.addFolder('Tracking');
-		var control = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold');
-		function trackingThreshold_onChange(value)
-		{
-			skarf.arLib.threshold = value;
-		}
-		control.onChange(trackingThreshold_onChange);
-
 		//Display folder
 		displayFolder = gui.addFolder('Display');
+
+		control = displayFolder.add(options, 'displayDebugView').name('Debug View');
+		function toggleDebugView(value)
+		{
+			skarf.arLib.debug = value;
+		}
+		control.onChange(toggleDebugView);
+		toggleDebugView(options.displayDebugView);
 
 		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
