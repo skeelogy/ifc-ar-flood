@@ -715,8 +715,16 @@ ThreeJsRenderer.prototype.showChildren = function (object3d, visible) {
     var children = object3d.children;
     var i, len;
     for (i = 0, len = children.length; i < len; i++) {
-        if (children[i] instanceof THREE.Mesh) {
+        if (!visible) {
+            //if hide mode, just hide without caring about the type
             children[i].visible = visible;
+        } else {
+            //if show mode, just show first
+            children[i].visible = visible;
+            //if it is an axis, then check also whether it is suppose to be shown
+            if (children[i] instanceof THREE.AxisHelper) {
+                children[i].visible &= this.isLocalAxisVisible;
+            }
         }
     }
 };
