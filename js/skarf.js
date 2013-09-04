@@ -550,6 +550,93 @@ JsArToolKitArLib.prototype.update = function () {
     }
 };
 
+//create a class to handle js-aruco
+function JsArucoArLib(options) {
+    ArLib.call(this, options);
+}
+
+//inherit from ArLib
+JsArucoArLib.prototype = Object.create(ArLib.prototype);
+JsArucoArLib.prototype.constructor = JsArucoArLib;
+
+//register with factory
+ArLibFactory.register('jsaruco', JsArucoArLib);
+
+//override methods
+JsArucoArLib.prototype.init = function () {
+    this.detector = new AR.Detector();
+    this.posit = new POS.Posit(this.markerSize, this.canvasElem.width);
+    this.context = this.canvasElem.getContext('2d');
+};
+JsArucoArLib.prototype.update = function () {
+    var imageData = this.context.getImageData(0, 0, this.canvasElem.width, this.canvasElem.height);
+    var markers = this.detector.detect(imageData);
+    // if (options.displayDebugView) {
+        // drawCorners(markers);
+        // drawId(markers);
+    // }
+
+    //update scene
+    this.__updateScenes(markers);
+};
+JsArucoArLib.prototype.__updateScenes = function (markers) {
+    var corners, corner, pose, i, markerId;
+
+    //hide all marker roots first
+    var keys = Object.keys(this.markers);
+    // for (i = 0; i < keys.length; i++)
+    // {
+        // showChildren(this.markers[keys[i]], false);
+    // }
+
+    for (i = 0; i < markers.length; i++)
+    {
+        markerId = markers[i].id;
+        corners = markers[i].corners;
+
+        // If this is a new id, let's start tracking it.
+        if (typeof this.markers[markerId] === 'undefined') {
+
+            console.log('creating new marker root for id: ' + markerId);
+
+            //create new object for the marker
+            this.markers[markerId] = {};
+
+            //create a transform for this marker
+            var transform = this.renderer.createTransformForMarker(markerId);
+
+            //delay-load the model
+            this.renderer.loadModelForMarker(markerId, transform);
+        }
+
+        //align corners to center of canvas
+        var j;
+        for (j = 0; j < corners.length; j++)
+        {
+            corner = corners[j];
+            corner.x = corner.x - (this.canvasElem.width / 2);
+            corner.y = (this.canvasElem.height / 2) - corner.y;
+        }
+
+        //estimate pose
+        try
+        {
+            pose = this.posit.pose(corners);
+
+            // showChildren(this.markers[markerId], true);
+            this.renderer.setMarkerSRT(markerId, this.markerSize, pose.bestRotation, pose.bestTranslation);
+            // this.renderer.setMarkerSRT(markerId, this.markerSize, pose.alternativeRotation, pose.alternativeTranslation);
+
+            // updatePoseInfo("pose1", pose.bestError, pose.bestRotation, pose.bestTranslation);
+            // updatePoseInfo("pose2", pose.alternativeError, pose.alternativeRotation, pose.alternativeTranslation);
+        }
+        catch(err)
+        {
+            //just print to console but let the error pass so that the program can continue
+            console.log(err.message);
+        }
+    }
+};
 
 //===================================
 // Renderers
@@ -625,6 +712,9 @@ Renderer.prototype.createTransformForMarker = function (markerId) {
     throw new Error('Abstract method not implemented');
 };
 Renderer.prototype.setMarkerTransformMatrix = function (markerId, transformMatrix) {
+    throw new Error('Abstract method not implemented');
+};
+Renderer.prototype.setMarkerSRT = function (markerId, scale, rotationMat, translationMat) {
     throw new Error('Abstract method not implemented');
 };
 Renderer.prototype.getAllMaterials = function (transform) {
@@ -706,7 +796,7 @@ ThreeJsRenderer.prototype.createTransformForMarker = function (markerId) {
 
     //create a new Three.js object as marker root
     var markerTransform = new THREE.Object3D();
-    markerTransform.matrixAutoUpdate = false;
+    // markerTransform.matrixAutoUpdate = false;  //FIXME: split this
     this.markerTransforms[markerId] = markerTransform;
 
     // Add the marker root to your scene.
@@ -735,6 +825,22 @@ ThreeJsRenderer.prototype.setMarkerTransformMatrix = function (markerId, transfo
 
     this.markerTransforms[markerId].matrixWorldNeedsUpdate = true;
 };
+ThreeJsRenderer.prototype.setMarkerSRT = function (markerId, scale, rotation, translation) {
+
+    var mesh = this.markerTransforms[markerId];
+
+    mesh.scale.x = scale;
+    mesh.scale.y = scale;
+    mesh.scale.z = scale;
+
+    mesh.rotation.x = -Math.asin(-rotation[1][2]);
+    mesh.rotation.y = -Math.atan2(rotation[0][2], rotation[2][2]);
+    mesh.rotation.z = Math.atan2(rotation[1][0], rotation[1][1]);
+
+    mesh.position.x = translation[0];
+    mesh.position.y = translation[1];
+    mesh.position.z = -translation[2];
+}
 ThreeJsRenderer.prototype.getAllMaterialsForTransform = function (transform) {
     //FIXME: does not work with obj models. Need to recurse down tree to find materials.
 
@@ -776,7 +882,8 @@ ThreeJsRenderer.prototype.initCameraProjMatrix = function (camProjMatrixArray) {
     this.camera.projectionMatrix.setFromArray(camProjMatrixArray);
 };
 ThreeJsRenderer.prototype.setupCamera = function () {
-    this.camera = new THREE.Camera();
+    // this.camera = new THREE.Camera();  //FIXME: split
+    this.camera = new THREE.PerspectiveCamera(40, this.rendererCanvasElemWidth / this.rendererCanvasElemHeight, 1, 1000);
 };
 ThreeJsRenderer.prototype.setupScene = function () {
     this.scene = new THREE.Scene();

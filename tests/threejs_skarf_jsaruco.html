@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>IFC - SkArF.js (js-aruco with Three.js)</title>
+	<meta charset="UTF-8"/>
+
+	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" href="/css/style.css">
+
+	<!--load helper libraries-->
+	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+
+	<!--load 3D libraries-->
+	<script type="text/javascript" src="/js/lib/three.js"></script>
+	<script type="text/javascript" src="/js/lib/Detector.js"></script>
+	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
+	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
+	<script type="text/javascript" src="/js/lib/OBJMTLLoader.js"></script>
+	<script type="text/javascript" src="/js/lib/MTLLoader.js"></script>
+	<script type="text/javascript" src="/js/lib/BinaryLoader.js"></script>
+
+	<!--load AR libraries-->
+	<script type="text/javascript" src="/js/lib/ar/js-aruco/svd.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/posit1.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/cv.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/aruco.js"></script>
+	<script type="text/javascript" src="/js/skarf.js"></script>
+
+	<!--load webcam streaming libraries-->
+	<script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
+	<script type="text/javascript" src="/js/streamvideo.js"></script>
+
+	<script>
+
+	var useWebcam = false;
+	var g_trackingThreshold = 128;
+	var g_debug = false;
+
+	function checkWebGl()
+	{
+		//check for WebGL
+		if (!Detector.webgl)
+		{
+			$('div').remove();
+			Detector.addGetWebGLMessage();
+			throw new Error('Your browser does not seem to support WebGL');
+		}
+	}
+
+	var video, img, source;
+	function setupVideo()
+	{
+	    video = $('#mainVideo')[0];
+	    if (useWebcam)
+	    {
+	        streamVideo(video);
+	        source = video;
+	    }
+	    else
+	    {
+            img = $('#mainImage')[0];
+            videoId = 0;
+            if (videoId == 0)
+            {
+                img.src = '/resources/markers/js-aruco/persp_1001_446.png';
+                source = img;
+            }
+        }
+	}
+
+	var skarf;
+	function setupAr()
+	{
+		//create a SkArF framework
+		skarf = new SkArF({
+
+		    arLibType: 'jsaruco',
+		    trackingElem: source,
+		    markerSize: 35,
+		    threshold: g_trackingThreshold,
+		    debug: g_debug,
+
+		    canvasContainerElem: $canvasContainerElem,
+
+		    rendererType: 'threejs',
+		    rendererContainerElem: $threejsContainerElem,  //container to attach the renderer canvas. If not defined, canvas will just be attached to end of body.
+		    rendererCanvasElemWidth: 640,  //width of the display canvas, need not be the same as the tracking element
+			rendererCanvasElemHeight: 480,  //height of the display canvas, need not be the same as the tracking element
+			modelsJsonFile: '/resources/models/models_jsaruco.json'
+
+		});
+	}
+
+	function setupStats()
+    {
+        //create a stats monitor
+        stats = new Stats();
+        $threejsContainerElem.append(stats.domElement);
+    }
+
+	var options = {
+        trackingThreshold: g_trackingThreshold,
+        displayWireframe: false,
+        displayLocalAxis: false,
+    };
+    var gui;
+    var trackingFolder, displayFolder;
+	function setupGui() {
+
+		gui = new dat.GUI();
+		gui.close();  //close GUI by default
+
+		//Tracking folder
+		trackingFolder = gui.addFolder('Tracking');
+		var control = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold');
+		function trackingThreshold_onChange(value)
+		{
+			skarf.arLib.threshold = value;
+		}
+		control.onChange(trackingThreshold_onChange);
+
+		//Display folder
+		displayFolder = gui.addFolder('Display');
+
+		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
+		function toggleWireframe(value)
+		{
+			skarf.renderer.setWireframeVisible(value);
+		}
+		control.onChange(toggleWireframe);
+		toggleWireframe(options.displayWireframe);
+
+		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
+		function toggleLocalAxis(value)
+		{
+			skarf.renderer.setLocalAxisVisible(value);
+		}
+		control.onChange(toggleLocalAxis);
+		toggleLocalAxis(options.displayLocalAxis);
+	}
+
+	var $canvasContainerElem, $threejsContainerElem;
+	$(document).ready(function()
+	{
+		//check for WebGL
+		checkWebGl();
+
+		console.log('Document is ready.');
+
+		$threejsContainerElem = $('#threejs-container');
+		$canvasContainerElem = $('#canvas-container');
+
+		//stream to video element
+		setupVideo();
+
+		//setup AR
+		setupAr();
+
+		//setup stats monitor
+		setupStats();
+
+		//setup GUI
+		setupGui();
+
+		//main loop
+		function loop()
+		{
+			skarf.update();
+			stats.update();
+			requestAnimationFrame(loop);
+		}
+		loop();
+
+	});
+	</script>
+</head>
+<body>
+	<h2>SkArF.js (js-aruco with Three.js)</h2>
+	<div class="container" id="video-container">
+		<div class="caption">&lt;video&gt;</div>
+		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
+	</div>
+	<div class="container" id="image-container">
+		<div class="caption">&lt;image&gt;</div>
+		<img id="mainImage" width="640" height="480"></img>
+	</div>
+	<div class="container" id="canvas-container">
+		<div class="caption">&lt;canvas&gt;</div>
+	</div>
+	<div class="container" id="debugCanvas-container">
+		<div class="caption">debug &lt;canvas&gt;</div>
+		<canvas id="debugCanvas" width="640" height="480"></canvas>
+	</div>
+	<div class="container" id="threejs-container">
+		<div class="caption">three.js &lt;canvas&gt;</div>
+	</div>
+</body>
+</html>
