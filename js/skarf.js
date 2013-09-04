@@ -325,13 +325,9 @@ function ArLib(options) {
 ArLib.prototype.init = function () {
     throw new Error('Abstract method not implemented');
 };
-ArLib.prototype.preInit = function () {};
-ArLib.prototype.postInit = function () {};
 ArLib.prototype.update = function () {
     throw new Error('Abstract method not implemented');
 };
-ArLib.prototype.preUpdate = function () {};
-ArLib.prototype.postUpdate = function () {};
 
 //create a class to handle JSARToolKit
 function JsArToolKitArLib(options) {
@@ -629,13 +625,9 @@ function Renderer(options) {
 Renderer.prototype.init = function () {
     throw new Error('Abstract method not implemented');
 };
-Renderer.prototype.preInit = function () {};
-Renderer.prototype.postInit = function () {};
 Renderer.prototype.update = function () {
     throw new Error('Abstract method not implemented');
 };
-Renderer.prototype.preUpdate = function () {};
-Renderer.prototype.postUpdate = function () {};
 Renderer.prototype.createTransformForMarker = function (markerId) {
     throw new Error('Abstract method not implemented');
 };
@@ -964,22 +956,8 @@ SkArF.prototype.update = function () {
         this.context.drawImage(this.trackingElem, 0, 0, this.canvasElem.width, this.canvasElem.height);
         this.canvasElem.changed = true;
 
-        this.preUpdate();
-
-        //call pre-updates
-        this.arLib.preUpdate();
-        this.renderer.preUpdate();
-
         //call updates
         this.arLib.update();
         this.renderer.update();
-
-        //call post-updates
-        this.arLib.postUpdate();
-        this.renderer.postUpdate();
-
-        this.postUpdate();
     // }
 };
-SkArF.prototype.preUpdate = function () {};
-SkArF.prototype.postUpdate = function () {};
