@@ -151,6 +151,17 @@
 	    isOrbiting = !isOrbiting;
 	}
 
+	function showChildren(object3d, visible)
+	{
+        var children = object3d.children;
+        var i, len;
+        for (i = 0, len = children.length; i < len; i++) {
+            if (children[i] instanceof THREE.Mesh) {
+                children[i].visible = visible;
+            }
+        }
+    }
+
 	var refCubeMesh;
 	var worldAxis;
 	$(document).ready(function()
@@ -349,8 +360,6 @@
 		var markerRoots = {};
 		var markers = {};
 
-		var emptyFloatArray = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-
 		var ctx = canvas.getContext('2d');
 
 		// On every frame do the following:
@@ -400,10 +409,9 @@
 				// Update the video texture.
 				videoTex.needsUpdate = true;
 
-				// move all marker roots to origin so that they will disappear when not tracked
+				// hide all markers first
 				Object.keys(markerRoots).forEach(function (key){
-					markerRoots[key].matrix.setFromArray(emptyFloatArray);
-					markerRoots[key].matrixWorldNeedsUpdate = true;
+					showChildren(markerRoots[key], false);
 				});
 
 				// Do marker detection by using the detector object on the raster object.
@@ -469,6 +477,9 @@
                         // Copy the marker matrix over to your marker root object.
                         markerRoots[currId].matrix.setFromArray(tmp);
                         markerRoots[currId].matrixWorldNeedsUpdate = true;
+
+                        // show the children of this marker
+                        showChildren(markerRoots[currId], true);
                     }
                     catch (err)
                     {

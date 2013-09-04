@@ -378,6 +378,14 @@ JsArToolKitArLib.prototype.init = function () {
     this.renderer.initCameraProjMatrix(camProjMatrixArray);
 };
 JsArToolKitArLib.prototype.update = function () {
+
+    //hide all marker roots first
+    var keys = Object.keys(this.markers);
+    var i;
+    for (i = 0; i < keys.length; i++) {
+        this.renderer.showChildrenOfMarker(keys[i], false);
+    }
+
     // Do marker detection by using the detector object on the raster object.
     // The threshold parameter determines the threshold value
     // for turning the video frame into a 1-bit black-and-white image.
@@ -387,7 +395,6 @@ JsArToolKitArLib.prototype.update = function () {
     var markerCount = this.detector.detectMarkerLite(this.raster, this.threshold);
 
     // Go through the detected markers and get their IDs and transformation matrices.
-    var i, j;
     for (i = 0; i < markerCount; i++) {
 
         // Get the ID marker data for the current marker.
@@ -427,6 +434,10 @@ JsArToolKitArLib.prototype.update = function () {
 
         // Copy the marker matrix over to your marker root object.
         this.renderer.setMarkerTransformMatrix(currId, this.tmp);
+
+        //show the object
+        //hide all marker roots first
+        this.renderer.showChildrenOfMarker(currId, true);
     }
 };
 
@@ -464,13 +475,11 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
 
     //hide all marker roots first
     var keys = Object.keys(this.markers);
-    for (i = 0; i < keys.length; i++)
-    {
+    for (i = 0; i < keys.length; i++) {
         this.renderer.showChildrenOfMarker(keys[i], false);
     }
 
-    for (i = 0; i < markers.length; i++)
-    {
+    for (i = 0; i < markers.length; i++) {
         markerId = markers[i].id;
         corners = markers[i].corners;
 
@@ -491,16 +500,14 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
 
         //align corners to center of canvas
         var j;
-        for (j = 0; j < corners.length; j++)
-        {
+        for (j = 0; j < corners.length; j++) {
             corner = corners[j];
             corner.x = corner.x - (this.canvasElem.width / 2);
             corner.y = (this.canvasElem.height / 2) - corner.y;
         }
 
         //estimate pose
-        try
-        {
+        try {
             pose = this.posit.pose(corners);
 
             this.renderer.showChildrenOfMarker(markerId, true);
@@ -509,9 +516,7 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
 
             // updatePoseInfo("pose1", pose.bestError, pose.bestRotation, pose.bestTranslation);
             // updatePoseInfo("pose2", pose.alternativeError, pose.alternativeRotation, pose.alternativeTranslation);
-        }
-        catch (err)
-        {
+        } catch (err) {
             //just print to console but let the error pass so that the program can continue
             console.log(err.message);
         }
@@ -675,10 +680,7 @@ Renderer.prototype.setLocalAxisVisible = function (isVisible) {
 
 
 function ThreeJsRenderer(options) {
-
     this.markerTransforms = {};
-    this.emptyFloatArray = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
     Renderer.call(this, options);
 }
 
@@ -705,14 +707,6 @@ ThreeJsRenderer.prototype.update = function () {
     this.renderer.clear();
     this.renderer.render(this.videoScene, this.videoCam);
     this.renderer.render(this.scene, this.camera);
-};
-ThreeJsRenderer.prototype.preUpdate = function () {
-    //move all marker roots to origin so that they will disappear when not tracked
-    var that = this;
-    Object.keys(this.markerTransforms).forEach(function (key) {
-        that.markerTransforms[key].matrix.setFromArray(that.emptyFloatArray);
-        that.markerTransforms[key].matrixWorldNeedsUpdate = true;
-    })
 };
 ThreeJsRenderer.prototype.showChildrenOfMarker = function (markerId, visible) {
     this.showChildren(this.markerTransforms[markerId], visible);

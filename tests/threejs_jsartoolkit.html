@@ -3,24 +3,24 @@
 <head>
 	<title>IFC - JSARToolKit</title>
 	<meta charset="UTF-8"/>
-	
+
 	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
 	<link rel="stylesheet" href="/css/style.css">
-	
+
 	<!--load helper libraries-->
 	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-	
+
 	<!--load AR and 3D libraries-->
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
 	<script type="text/javascript" src="/js/lib/ar/JSARToolKit.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
 	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
-	
+
 	<script>
-	
+
 	var DEBUG = true;  //for JSARToolKit built-in debugging info
 	var threshold = 128;
-	
+
 	// I'm going to use a glMatrix-style matrix as an intermediary.
 	// So the first step is to create a function to convert a glMatrix matrix into a Three.js Matrix4.
 	THREE.Matrix4.prototype.setFromArray = function(m) {
@@ -31,7 +31,7 @@
 		m[3], m[7], m[11], m[15]
 	  );
 	};
-	
+
 	function copyMarkerMatrix(arMat, glMat)
 	{
 	  glMat[0] = arMat.m00;
@@ -51,7 +51,18 @@
 	  glMat[14] = arMat.m23;
 	  glMat[15] = 1;
 	}
-	
+
+	function showChildren(object3d, visible)
+	{
+        var children = object3d.children;
+        var i, len;
+        for (i = 0, len = children.length; i < len; i++) {
+            if (children[i] instanceof THREE.Mesh) {
+                children[i].visible = visible;
+            }
+        }
+    }
+
 	$(document).ready(function()
 	{
 		//check for WebGL
@@ -61,13 +72,13 @@
 			Detector.addGetWebGLMessage();
 			return;
 		}
-		
+
 		console.log('Document is ready.');
-		
+
 		var canvas = $('#mainCanvas')[0];
 		var canvasWidth = canvas.width;
 		var canvasHeight = canvas.height;
-		
+
 		//===================================================
 		// PREPARE VIDEO
 		//===================================================
@@ -120,11 +131,11 @@
 		// The second and third parameters determine the zNear and zFar planes for the perspective matrix.
 		//var tmpGlMatCam	= new Float32Array(16);
 		//param.copyCameraMatrix(tmpGlMatCam, 10, 10000);
-		
+
 		//===================================================
 		// INIT THREE.JS
 		//===================================================
-		
+
 		var renderer = new THREE.WebGLRenderer({
 			antialias : true
 		});
@@ -137,10 +148,10 @@
 
 		// Create a camera and a marker root object for your Three.js scene.
 		var camera = new THREE.Camera();
-		
+
 		// glMatrix matrices are flat arrays.
 		var tmp = new Float32Array(16);
-		
+
 		// Next we need to make the Three.js camera use the FLARParam matrix.
 		param.copyCameraMatrix(tmp, 10, 10000);
 		camera.projectionMatrix.setFromArray(tmp);
@@ -167,21 +178,19 @@
 		//create a stats monitor
 		stats = new Stats();
 		$threejsContainerElem.append(stats.domElement);
-		
+
 		//===================================================
 		// LOOP
-		//===================================================	
-		
+		//===================================================
+
 		// Create a NyARTransMatResult object for getting the marker translation matrices.
 		var resultMat = new NyARTransMatResult();
 
 		var markerRoots = {};
 		var markers = {};
-		
-		var emptyFloatArray = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 
 		var ctx = canvas.getContext('2d');
-		
+
 		// On every frame do the following:
 		function loop()
 		{
@@ -196,21 +205,20 @@
 				// Update the video texture.
 				videoTex.needsUpdate = true;
 
-				// move all marker roots to origin so that they will disappear when not tracked
+				// hide all markers first
 				Object.keys(markerRoots).forEach(function (key){
-					markerRoots[key].matrix.setFromArray(emptyFloatArray);
-					markerRoots[key].matrixWorldNeedsUpdate = true;
+					showChildren(markerRoots[key], false);
 				});
-				
+
 				// Do marker detection by using the detector object on the raster object.
 				// The threshold parameter determines the threshold value
 				// for turning the video frame into a 1-bit black-and-white image.
 				var markerCount = detector.detectMarkerLite(raster, threshold);
-				
+
 				// Go through the detected markers and get their IDs and transformation matrices.
 				for (var i = 0; i < markerCount; i++)
 				{
-				
+
 					// Get the ID marker data for the current marker.
 					// ID markers are special kind of markers that encode a number.
 					// The bytes for the number are in the ID marker data.
@@ -228,10 +236,10 @@
 
 					// If this is a new id, let's start tracking it.
 					if (markers[currId] == null) {
-					
+
 						//create new object for the marker
 						markers[currId] = {};
-						
+
 						//create a new Three.js object as marker root
 						var markerRoot = new THREE.Object3D();
 						markerRoot.matrixAutoUpdate = false;
@@ -244,11 +252,11 @@
 						);
 						cube.position.z = -60;
 						markerRoot.add(cube);
-						
+
 						// Add the marker root to your scene.
 						scene.add(markerRoot);
 					}
-				
+
 					// Get the transformation matrix for the detected marker.
 					detector.getTransformMatrix(i, resultMat);
 
@@ -258,6 +266,9 @@
 					// Copy the marker matrix over to your marker root object.
 					markerRoots[currId].matrix.setFromArray(tmp);
 					markerRoots[currId].matrixWorldNeedsUpdate = true;
+
+					// show the children of this marker
+					showChildren(markerRoots[currId], true);
 				}
 
 				// Render the scene.
@@ -265,15 +276,15 @@
 				renderer.clear();
 				renderer.render(videoScene, videoCam);
 				renderer.render(scene, camera);
-				
+
 				//update stats
 				stats.update();
 			}
-		  
+
 		  requestAnimationFrame(loop);
 		}
 		loop();
-		
+
 	});
 	</script>
 </head>
