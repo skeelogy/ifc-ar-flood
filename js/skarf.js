@@ -41,7 +41,6 @@ var ModelLoaderFactory = {
     },
 
     register: function (mappingName, mappingClass) {
-        //check that mappingName is not in mappings already
         if (this.mappings.hasOwnProperty(mappingName)) {
             throw new Error('Mapping name already exists: ' + mappingName);
         }
@@ -276,124 +275,6 @@ function copyMarkerMatrix(arMat, glMat) {
     glMat[15] = 1;
 }
 
-function SkArF(options) {
-
-    //AR lib parameters
-    if (typeof options.arLibType === 'undefined') {
-        throw new Error('arLibType not specified');
-    }
-    this.arLibType = options.arLibType;
-    if (typeof options.trackingElem === 'undefined') {
-        throw new Error('trackingElem not specified');
-    }
-    this.trackingElem = options.trackingElem;
-    if (typeof options.markerSize === 'undefined') {
-        throw new Error('markerSize not specified');
-    }
-    this.markerSize = options.markerSize;
-    this.threshold = options.threshold || 128;
-    this.debug = typeof options.threshold === 'undefined' ? false : options.debug;
-
-    //canvas
-    this.canvasContainerElem = options.canvasContainerElem;
-
-    //renderer parameters
-    if (typeof options.rendererType === 'undefined') {
-        throw new Error('rendererType not specified');
-    }
-    this.rendererType = options.rendererType;
-    this.rendererContainerElem = options.rendererContainerElem;
-    this.rendererCanvasElemWidth = options.rendererCanvasElemWidth || 640;
-    this.rendererCanvasElemHeight = options.rendererCanvasElemHeight || 480;
-    if (typeof options.modelsJsonFile === 'undefined') {
-        throw new Error('modelsJsonFile not specified');
-    }
-    this.modelsJsonFile = options.modelsJsonFile;
-
-    //init
-    this.init();
-}
-SkArF.prototype.__create2dCanvas = function () {
-
-    //create canvas
-    this.canvasElem = document.createElement('canvas');
-
-    //canvas should be same width/height as the tracking element
-    this.canvasElem.width = this.trackingElem.width;
-    this.canvasElem.height = this.trackingElem.height;
-
-    //attach to container if specified, otherwise attach to body
-    if (this.canvasContainerElem) {
-        this.canvasContainerElem.append(this.canvasElem);
-    } else {
-        $('body').append(this.canvasElem);
-    }
-
-    //store the 2d context
-    this.context = this.canvasElem.getContext('2d');
-};
-SkArF.prototype.init = function () {
-
-    //create a 2d canvas for copying data from tracking element
-    this.__create2dCanvas();
-
-    //create AR lib instance
-    this.arLib = ArLibFactory.create(this.arLibType, {
-                                        trackingElem: this.trackingElem,
-                                        markerSize: this.markerSize,
-                                        threshold: this.threshold,
-                                        debug: this.debug
-                                     });
-
-    //create renderer instance
-    this.renderer = RendererFactory.create(this.rendererType, {
-                                               rendererContainerElem: this.rendererContainerElem,
-                                               rendererCanvasElemWidth: this.rendererCanvasElemWidth,
-                                               rendererCanvasElemHeight: this.rendererCanvasElemHeight,
-                                               modelsJsonFile: this.modelsJsonFile
-                                           });
-
-    //assign necessary pointers of itself to each other
-    this.arLib.renderer = this.renderer;
-    this.renderer.arLib = this.arLib;
-
-    //assign the canvas to arLib and renderer
-    this.arLib.canvasElem = this.canvasElem;
-    this.renderer.backgroundCanvasElem = this.canvasElem;
-
-    //finally call init of both
-    this.renderer.init();
-    this.arLib.init();
-};
-/**
- * Draws tracking data to canvas, and then updates both the AR lib and renderer
- */
-SkArF.prototype.update = function () {
-    //draw the video/img to canvas
-    // if (this.videoElem.readyState === this.videoElem.HAVE_ENOUGH_DATA) {
-        this.context.drawImage(this.trackingElem, 0, 0, this.canvasElem.width, this.canvasElem.height);
-        this.canvasElem.changed = true;
-
-        this.preUpdate();
-
-        //call pre-updates
-        this.arLib.preUpdate();
-        this.renderer.preUpdate();
-
-        //call updates
-        this.arLib.update();
-        this.renderer.update();
-
-        //call post-updates
-        this.arLib.postUpdate();
-        this.renderer.postUpdate();
-
-        this.postUpdate();
-    // }
-};
-SkArF.prototype.preUpdate = function () {};
-SkArF.prototype.postUpdate = function () {};
-
 //===================================
 // AR Libraries
 //===================================
@@ -414,7 +295,6 @@ var ArLibFactory = {
     },
 
     register: function (mappingName, mappingClass) {
-        //check that mappingName is not in mappings already
         if (this.mappings.hasOwnProperty(mappingName)) {
             throw new Error('Mapping name already exists: ' + mappingName);
         }
@@ -533,7 +413,7 @@ JsArToolKitArLib.prototype.update = function () {
             this.markers[currId] = {};
 
             //create a transform for this marker
-            var transform = this.renderer.createTransformForMarker(currId);
+            var transform = this.renderer.createTransformForMarker(currId, false);
 
             //delay-load the model
             this.renderer.loadModelForMarker(currId, transform);
@@ -603,7 +483,7 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
             this.markers[markerId] = {};
 
             //create a transform for this marker
-            var transform = this.renderer.createTransformForMarker(markerId);
+            var transform = this.renderer.createTransformForMarker(markerId, true);
 
             //delay-load the model
             this.renderer.loadModelForMarker(markerId, transform);
@@ -630,7 +510,7 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
             // updatePoseInfo("pose1", pose.bestError, pose.bestRotation, pose.bestTranslation);
             // updatePoseInfo("pose2", pose.alternativeError, pose.alternativeRotation, pose.alternativeTranslation);
         }
-        catch(err)
+        catch (err)
         {
             //just print to console but let the error pass so that the program can continue
             console.log(err.message);
@@ -658,7 +538,6 @@ var RendererFactory = {
     },
 
     register: function (mappingName, mappingClass) {
-        //check that mappingName is not in mappings already
         if (this.mappings.hasOwnProperty(mappingName)) {
             throw new Error('Mapping name already exists: ' + mappingName);
         }
@@ -714,7 +593,7 @@ Renderer.prototype.createTransformForMarker = function (markerId) {
 Renderer.prototype.setMarkerTransformMatrix = function (markerId, transformMatrix) {
     throw new Error('Abstract method not implemented');
 };
-Renderer.prototype.setMarkerSRT = function (markerId, scale, rotationMat, translationMat) {
+Renderer.prototype.setMarkerSRT = function (markerId, scale, rotationMat, translationVec) {
     throw new Error('Abstract method not implemented');
 };
 Renderer.prototype.getAllMaterials = function (transform) {
@@ -791,12 +670,12 @@ ThreeJsRenderer.prototype.preUpdate = function () {
         that.markerTransforms[key].matrixWorldNeedsUpdate = true;
     });
 };
-ThreeJsRenderer.prototype.createTransformForMarker = function (markerId) {
+ThreeJsRenderer.prototype.createTransformForMarker = function (markerId, matrixAutoUpdate) {
     //FIXME: no need to create a transform if this markerId is not in the models JSON file
 
     //create a new Three.js object as marker root
     var markerTransform = new THREE.Object3D();
-    // markerTransform.matrixAutoUpdate = false;  //FIXME: split this
+    markerTransform.matrixAutoUpdate = matrixAutoUpdate;
     this.markerTransforms[markerId] = markerTransform;
 
     // Add the marker root to your scene.
@@ -825,7 +704,7 @@ ThreeJsRenderer.prototype.setMarkerTransformMatrix = function (markerId, transfo
 
     this.markerTransforms[markerId].matrixWorldNeedsUpdate = true;
 };
-ThreeJsRenderer.prototype.setMarkerSRT = function (markerId, scale, rotation, translation) {
+ThreeJsRenderer.prototype.setMarkerSRT = function (markerId, scale, rotationMat, translationVec) {
 
     var mesh = this.markerTransforms[markerId];
 
@@ -833,14 +712,14 @@ ThreeJsRenderer.prototype.setMarkerSRT = function (markerId, scale, rotation, tr
     mesh.scale.y = scale;
     mesh.scale.z = scale;
 
-    mesh.rotation.x = -Math.asin(-rotation[1][2]);
-    mesh.rotation.y = -Math.atan2(rotation[0][2], rotation[2][2]);
-    mesh.rotation.z = Math.atan2(rotation[1][0], rotation[1][1]);
+    mesh.rotation.x = -Math.asin(-rotationMat[1][2]);
+    mesh.rotation.y = -Math.atan2(rotationMat[0][2], rotationMat[2][2]);
+    mesh.rotation.z = Math.atan2(rotationMat[1][0], rotationMat[1][1]);
 
-    mesh.position.x = translation[0];
-    mesh.position.y = translation[1];
-    mesh.position.z = -translation[2];
-}
+    mesh.position.x = translationVec[0];
+    mesh.position.y = translationVec[1];
+    mesh.position.z = -translationVec[2];
+};
 ThreeJsRenderer.prototype.getAllMaterialsForTransform = function (transform) {
     //FIXME: does not work with obj models. Need to recurse down tree to find materials.
 
@@ -924,3 +803,125 @@ ThreeJsRenderer.prototype.setupBackgroundVideo = function () {
     this.videoScene.add(plane);
     this.videoScene.add(this.videoCam);
 };
+
+//===================================
+// SKARF
+//===================================
+
+function SkArF(options) {
+
+    //AR lib parameters
+    if (typeof options.arLibType === 'undefined') {
+        throw new Error('arLibType not specified');
+    }
+    this.arLibType = options.arLibType;
+    if (typeof options.trackingElem === 'undefined') {
+        throw new Error('trackingElem not specified');
+    }
+    this.trackingElem = options.trackingElem;
+    if (typeof options.markerSize === 'undefined') {
+        throw new Error('markerSize not specified');
+    }
+    this.markerSize = options.markerSize;
+    this.threshold = options.threshold || 128;
+    this.debug = typeof options.threshold === 'undefined' ? false : options.debug;
+
+    //canvas
+    this.canvasContainerElem = options.canvasContainerElem;
+
+    //renderer parameters
+    if (typeof options.rendererType === 'undefined') {
+        throw new Error('rendererType not specified');
+    }
+    this.rendererType = options.rendererType;
+    this.rendererContainerElem = options.rendererContainerElem;
+    this.rendererCanvasElemWidth = options.rendererCanvasElemWidth || 640;
+    this.rendererCanvasElemHeight = options.rendererCanvasElemHeight || 480;
+    if (typeof options.modelsJsonFile === 'undefined') {
+        throw new Error('modelsJsonFile not specified');
+    }
+    this.modelsJsonFile = options.modelsJsonFile;
+
+    //init
+    this.init();
+}
+SkArF.prototype.__create2dCanvas = function () {
+
+    //create canvas
+    this.canvasElem = document.createElement('canvas');
+
+    //canvas should be same width/height as the tracking element
+    this.canvasElem.width = this.trackingElem.width;
+    this.canvasElem.height = this.trackingElem.height;
+
+    //attach to container if specified, otherwise attach to body
+    if (this.canvasContainerElem) {
+        this.canvasContainerElem.append(this.canvasElem);
+    } else {
+        $('body').append(this.canvasElem);
+    }
+
+    //store the 2d context
+    this.context = this.canvasElem.getContext('2d');
+};
+SkArF.prototype.init = function () {
+
+    //create a 2d canvas for copying data from tracking element
+    this.__create2dCanvas();
+
+    //create AR lib instance
+    this.arLib = ArLibFactory.create(this.arLibType, {
+                                        trackingElem: this.trackingElem,
+                                        markerSize: this.markerSize,
+                                        threshold: this.threshold,
+                                        debug: this.debug
+                                     });
+
+    //create renderer instance
+    this.renderer = RendererFactory.create(this.rendererType, {
+                                               rendererContainerElem: this.rendererContainerElem,
+                                               rendererCanvasElemWidth: this.rendererCanvasElemWidth,
+                                               rendererCanvasElemHeight: this.rendererCanvasElemHeight,
+                                               modelsJsonFile: this.modelsJsonFile
+                                           });
+
+    //assign necessary pointers of itself to each other
+    this.arLib.renderer = this.renderer;
+    this.renderer.arLib = this.arLib;
+
+    //assign the canvas to arLib and renderer
+    this.arLib.canvasElem = this.canvasElem;
+    this.renderer.backgroundCanvasElem = this.canvasElem;
+
+    //finally call init of both
+    this.renderer.init();
+    this.arLib.init();
+};
+/**
+ * Draws tracking data to canvas, and then updates both the AR lib and renderer
+ */
+SkArF.prototype.update = function () {
+    //draw the video/img to canvas
+    // if (this.videoElem.readyState === this.videoElem.HAVE_ENOUGH_DATA) {
+        this.context.drawImage(this.trackingElem, 0, 0, this.canvasElem.width, this.canvasElem.height);
+        this.canvasElem.changed = true;
+
+        this.preUpdate();
+
+        //call pre-updates
+        this.arLib.preUpdate();
+        this.renderer.preUpdate();
+
+        //call updates
+        this.arLib.update();
+        this.renderer.update();
+
+        //call post-updates
+        this.arLib.postUpdate();
+        this.renderer.postUpdate();
+
+        this.postUpdate();
+    // }
+};
+SkArF.prototype.preUpdate = function () {};
+SkArF.prototype.postUpdate = function () {};
