@@ -80,7 +80,7 @@
 	function setupGui() {
 
 		gui = new dat.GUI();
-		//gui.close();  //close GUI by default
+		gui.close();  //close GUI by default
 
 		//tracking scene folder
 		trackingSceneFolder = gui.addFolder('Tracking Scene');
@@ -124,7 +124,7 @@
 		function toggleRefCube(value)
 		{
 			refCubeMesh.visible = value;
-			refCubeMesh2.visible = value;
+			// refCubeMesh2.visible = value;
 		}
 		control.onChange(toggleRefCube);
 		toggleRefCube(options.displayRefCube);
@@ -221,17 +221,17 @@
 		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		trackSceneScene.add(trackScenePlaneMesh);
 
-		//plane 2
-		var trackScenePlaneMesh = new THREE.Mesh(
-			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
-			new THREE.MeshBasicMaterial({
-				map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/64.jpg')
-			})
-		);
-		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-		trackScenePlaneMesh.position.x = 0.11;
-		trackScenePlaneMesh.position.z = -0.05;
-		trackSceneScene.add(trackScenePlaneMesh);
+		// //plane 2
+		// var trackScenePlaneMesh = new THREE.Mesh(
+			// new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
+			// new THREE.MeshBasicMaterial({
+				// map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/64.jpg')
+			// })
+		// );
+		// trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		// trackScenePlaneMesh.position.x = 0.11;
+		// trackScenePlaneMesh.position.z = -0.05;
+		// trackSceneScene.add(trackScenePlaneMesh);
 
 		//reference cube
 		refCubeMesh = new THREE.Mesh(
@@ -246,20 +246,20 @@
 		refCubeMesh.position.y = 0.05;
 		trackSceneScene.add(refCubeMesh);
 
-		//reference cube 2
-		refCubeMesh2 = new THREE.Mesh(
-		    new THREE.CubeGeometry(0.1, 0.1, 0.1),
-		    new THREE.MeshBasicMaterial({
-		        color: 0x00ff00,
-		        side: THREE.DoubleSide,wireframe: true,
-		        depthTest : false,
-		        depthWrite : false
-		    })
-		);
-		refCubeMesh2.position.x = 0.11;
-		refCubeMesh2.position.y = 0.05;
-		refCubeMesh2.position.z = -0.05;
-		trackSceneScene.add(refCubeMesh2);
+		// //reference cube 2
+		// refCubeMesh2 = new THREE.Mesh(
+		    // new THREE.CubeGeometry(0.1, 0.1, 0.1),
+		    // new THREE.MeshBasicMaterial({
+		        // color: 0x00ff00,
+		        // side: THREE.DoubleSide,wireframe: true,
+		        // depthTest : false,
+		        // depthWrite : false
+		    // })
+		// );
+		// refCubeMesh2.position.x = 0.11;
+		// refCubeMesh2.position.y = 0.05;
+		// refCubeMesh2.position.z = -0.05;
+		// trackSceneScene.add(refCubeMesh2);
 
 		//effects composer
 		var composer = new THREE.EffectComposer(trackSceneRenderer);
@@ -305,6 +305,9 @@
 			antialias : true
 		});
 		renderer.setSize(640, 480);  //fix the output size, will not affect tracking resolution
+		renderer.shadowMapEnabled = true;
+		renderer.shadowMapType = THREE.PCFShadowMap;
+		renderer.shadowMapSoft = true;
 		var $threejsContainerElem = $('#threejs-container');
 		$threejsContainerElem.append(renderer.domElement);
 
@@ -313,6 +316,11 @@
 
 		// Create a camera and a marker root object for your Three.js scene.
 		var camera = new THREE.Camera();
+		camera.position.set(25,25,25);
+		// camera.lookAt(new THREE.Vector3());
+		camera.matrixAutoUpdate = false;
+
+		scene.add(new THREE.AxisHelper(1000));
 
 		// glMatrix matrices are flat arrays.
 		var tmp = new Float32Array(16);
@@ -320,6 +328,38 @@
 		// Next we need to make the Three.js camera use the FLARParam matrix.
 		param.copyCameraMatrix(tmp, 10, 10000);
 		camera.projectionMatrix.setFromArray(tmp);
+
+		//setup lights
+		scene.add(new THREE.AmbientLight(0x330015));
+
+		keyLight = new THREE.SpotLight(0xffff00, 0.5);
+		keyLight.position.set(5, 15, 15);
+		keyLight.target.position.set(0, 0, 0);
+		keyLight.castShadow = true;
+		keyLight.shadowCameraNear = 20;
+		keyLight.shadowCameraFar = 33;
+		keyLight.shadowCameraFov = 35;
+		//keyLight.shadowCameraVisible = true;
+		keyLight.shadowBias = 0.0001;
+		keyLight.shadowDarkness = 0.5;
+		keyLight.shadowMapWidth = 1024;
+		keyLight.shadowMapHeight = 1024;
+		scene.add(keyLight);
+
+		fillLight = new THREE.SpotLight(0x00ff00, 0.2);
+		fillLight.position.set(5, 2, 15);
+		fillLight.target.position.set(0, 0, 0);
+		scene.add(fillLight);
+
+		//create a ground plane at the origin
+		var groundPlaneGeom = new THREE.PlaneGeometry(500, 500, 1, 1);
+		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		var groundPlaneMaterial = new THREE.MeshPhongMaterial({side: THREE.DoubleSide});
+		// materials.push(groundPlaneMaterial);
+		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
+		groundPlaneMesh.castShadow = true;
+		groundPlaneMesh.receiveShadow = true;
+		scene.add(groundPlaneMesh);
 
 		// Create scene and quad for the video.
 		// NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
@@ -411,7 +451,7 @@
 
 				// hide all markers first
 				Object.keys(markerRoots).forEach(function (key){
-					showChildren(markerRoots[key], false);
+					// showChildren(markerRoots[key], false);
 				});
 
 				// Do marker detection by using the detector object on the raster object.
@@ -453,10 +493,10 @@
 						var cubeLength = 120 * 1.0;
 						var cube = new THREE.Mesh(
 							new THREE.CubeGeometry(cubeLength, cubeLength, cubeLength),
-							new THREE.MeshBasicMaterial({
+							new THREE.MeshPhongMaterial({
 							    color: 0xff0000,
-							    side: THREE.BackSide,
-							    wireframe: true
+							    side: THREE.DoubleSide,
+							    wireframe: false
 							})
 						);
 						cube.position.z = -cubeLength / 2.0;
@@ -474,12 +514,24 @@
                         // Copy the marker matrix to the tmp matrix.
                         copyMarkerMatrix(resultMat, tmp);
 
-                        // Copy the marker matrix over to your marker root object.
-                        markerRoots[currId].matrix.setFromArray(tmp);
-                        markerRoots[currId].matrixWorldNeedsUpdate = true;
+                        // // Copy the marker matrix over to your marker root object.
+                        // markerRoots[currId].matrix.setFromArray(tmp);
+                        // markerRoots[currId].matrixWorldNeedsUpdate = true;
+                        // console.log(markerRoots[currId].matrixWorld.elements[12] + ' ' + markerRoots[currId].matrixWorld.elements[13] + ' ' + markerRoots[currId].matrixWorld.elements[14]);
+
+                        //transform marker matrix into world space
+                        var mat = new THREE.Matrix4().setFromArray(tmp);
+                        // markerRoots[currId].matrix = new THREE.Matrix4().multiplyMatrices(camera.matrixWorld, mat);
+                        // markerRoots[currId].matrixWorldNeedsUpdate = true;
+
+                        //move the camera instead of the marker root
+                        var matInv = new THREE.Matrix4().getInverse(mat);
+                        camera.matrix = matInv;
+                        camera.matrixWorldNeedsUpdate = true;
+                        // console.log(camera.matrixWorld.elements[12] + ' ' + camera.matrixWorld.elements[13] + ' ' + camera.matrixWorld.elements[14]);
 
                         // show the children of this marker
-                        showChildren(markerRoots[currId], true);
+                        // showChildren(markerRoots[currId], true);
                     }
                     catch (err)
                     {
