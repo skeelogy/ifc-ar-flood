@@ -64,6 +64,7 @@
 
 	var options = {
 	    trackingSceneFxaa: false,
+	    trackingSceneMultipleTrackers: false,
 	    trackingThreshold: 40,
 	    cameraMotionAutoOrbit: false,
 		cameraMotionRadius: 0.2,
@@ -73,6 +74,8 @@
 		togglePauseOrbit: togglePauseOrbit,
 		displayRefCube: true,
 		displayDebugView: false,
+		displayOriginPlane: true,
+		displayWireframe: false,
 		displayLocalAxis: false
 	};
 
@@ -81,13 +84,24 @@
 	function setupGui() {
 
 		gui = new dat.GUI();
-		gui.close();  //close GUI by default
+		// gui.close();  //close GUI by default
 
 		//tracking scene folder
 		trackingSceneFolder = gui.addFolder('Tracking Scene');
 		trackingSceneFolder.open();
 
 		var control = trackingSceneFolder.add(options, 'trackingSceneFxaa').name('FXAA');
+
+		control = trackingSceneFolder.add(options, 'trackingSceneMultipleTrackers').name('Multiple Markers');
+		function toggleMultipleMarkers(value)
+		{
+		    trackScenePlaneMesh2.visible = value;
+		    trackScenePlaneMesh3.visible = value;
+		    refCubeMesh2.visible = value && options.displayRefCube;
+		    refCubeMesh3.visible = value && options.displayRefCube;
+		}
+		control.onChange(toggleMultipleMarkers);
+		toggleMultipleMarkers(options.trackingSceneMultipleTrackers);
 
 		//tracking folder
 		trackingFolder = gui.addFolder('Tracking');
@@ -125,8 +139,8 @@
 		function toggleRefCube(value)
 		{
 			refCubeMesh.visible = value;
-			refCubeMesh2.visible = value;
-			refCubeMesh3.visible = value;
+			refCubeMesh2.visible = value && options.trackingSceneMultipleTrackers;
+			refCubeMesh3.visible = value && options.trackingSceneMultipleTrackers;
 		}
 		control.onChange(toggleRefCube);
 		toggleRefCube(options.displayRefCube);
@@ -138,10 +152,34 @@
 		}
 		control.onChange(toggleDebugView);
 
+		control = displayFolder.add(options, 'displayOriginPlane').name('Origin Plane');
+		function toggleOriginPlane(value)
+		{
+			groundPlaneMesh.visible = value;
+		}
+		control.onChange(toggleOriginPlane);
+		toggleOriginPlane(options.displayOriginPlane);
+
+		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
+		function toggleWireframe(value)
+		{
+		    var i, len;
+		    for (i = 0, len = materials.length; i < len; i++)
+		    {
+		        materials[i].wireframe = value;
+		    }
+		}
+		control.onChange(toggleWireframe);
+		toggleWireframe(options.displayWireframe);
+
 		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
-			worldAxis.visible = value;
+			var i, len;
+		    for (i = 0, len = localAxes.length; i < len; i++)
+		    {
+		        localAxes[i].visible = value;
+		    }
 		}
 		control.onChange(toggleLocalAxis);
 		toggleLocalAxis(options.displayLocalAxis);
@@ -165,7 +203,10 @@
     }
 
 	var refCubeMesh, refCubeMesh2, refCubeMesh3;
-	var worldAxis;
+	var trackScenePlaneMesh, trackScenePlaneMesh2, trackScenePlaneMesh3;
+	var groundPlaneMesh;
+	var localAxes = [];
+	var materials = [];
 	$(document).ready(function()
 	{
 		//check for WebGL
@@ -209,12 +250,8 @@
 		controls.pan(new THREE.Vector3(0, 1, 0));
 		controls.pan(new THREE.Vector3(0, 1, 0));
 
-		//add world axis
-		worldAxis = new THREE.AxisHelper(0.01);
-		trackSceneScene.add(worldAxis);
-
 		//plane
-		var trackScenePlaneMesh = new THREE.Mesh(
+		trackScenePlaneMesh = new THREE.Mesh(
 			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
 			new THREE.MeshBasicMaterial({
 				map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/22.jpg')
@@ -224,7 +261,7 @@
 		trackSceneScene.add(trackScenePlaneMesh);
 
 		//plane 2
-		var trackScenePlaneMesh2 = new THREE.Mesh(
+		trackScenePlaneMesh2 = new THREE.Mesh(
 			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
 			new THREE.MeshBasicMaterial({
 				map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/64.jpg')
@@ -236,7 +273,7 @@
 		trackSceneScene.add(trackScenePlaneMesh2);
 
 		//plane 3
-		var trackScenePlaneMesh3 = new THREE.Mesh(
+		trackScenePlaneMesh3 = new THREE.Mesh(
 			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
 			new THREE.MeshBasicMaterial({
 				map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/81.jpg')
@@ -348,13 +385,7 @@
 
 		// Create a camera and a marker root object for your Three.js scene.
 		var camera = new THREE.Camera();
-		// var camera = new THREE.PerspectiveCamera(40, canvasWidth/canvasHeight, 0.1, 10000);
-		// camera.position.set(25, 25, 25);
-		// camera.lookAt(new THREE.Vector3());
 		camera.matrixAutoUpdate = false;
-
-		//add a world axis to mark the origin and directions
-		// scene.add(new THREE.AxisHelper(1000));
 
 		// glMatrix matrices are flat arrays.
 		var tmp = new Float32Array(16);
@@ -371,8 +402,8 @@
 		keyLight.target.position.set(0, 0, 0);
 		keyLight.castShadow = true;
 		keyLight.shadowCameraNear = 60;
-		keyLight.shadowCameraFar = 150;
-		keyLight.shadowCameraFov = 50;
+		keyLight.shadowCameraFar = 200;
+		keyLight.shadowCameraFov = 70;
 		// keyLight.shadowCameraVisible = true;
 		keyLight.shadowBias = 0.0001;
 		keyLight.shadowDarkness = 0.5;
@@ -389,7 +420,7 @@
 		var groundPlaneGeom = new THREE.PlaneGeometry(100, 100, 1, 1);
 		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		var groundPlaneMaterial = new THREE.MeshPhongMaterial({side: THREE.DoubleSide, wireframe: false});
-		// materials.push(groundPlaneMaterial);
+		materials.push(groundPlaneMaterial);
 		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
 		groundPlaneMesh.castShadow = true;
 		groundPlaneMesh.receiveShadow = true;
@@ -484,7 +515,8 @@
 				// Update the video texture.
 				videoTex.needsUpdate = true;
 
-				// hide all markers first
+				// hide everything first
+				groundPlaneMesh.visible = false;
 				Object.keys(markerRoots).forEach(function (key){
 					showChildren(markerRoots[key], false);
 					markerRoots[key].detected = false;
@@ -527,13 +559,15 @@
 
 						// Add the marker models and suchlike into your marker root object.
 						var cubeLength = MARKER_SIZE * 1.0;
+						var cubeMaterial = new THREE.MeshPhongMaterial({
+                            color: 0xff0000,
+                            side: THREE.DoubleSide,
+                            wireframe: options.displayWireframe
+                        });
+						materials.push(cubeMaterial);
 						var cube = new THREE.Mesh(
 							new THREE.CubeGeometry(cubeLength, cubeLength, cubeLength),
-							new THREE.MeshPhongMaterial({
-							    color: 0xff0000,
-							    side: THREE.DoubleSide,
-							    wireframe: false
-							})
+							cubeMaterial
 						);
 						cube.position.y = cubeLength / 2.0;
 						cube.castShadow = true;
@@ -541,7 +575,10 @@
 						markerRoot.add(cube);
 
 						//add a local axis for each marker root for debugging
-						markerRoot.add(new THREE.AxisHelper(100));
+						var localAxis = new THREE.AxisHelper(50);
+						localAxis.visible = options.displayLocalAxis;
+						localAxes.push(localAxis);
+						markerRoot.add(localAxis);
 
 						// Add the marker root to your scene.
 						scene.add(markerRoot);
@@ -607,6 +644,9 @@
                     var matInv = new THREE.Matrix4().getInverse(mainMarkerRootSolvedMatrix);
                     camera.matrix.multiply(matInv);
                     camera.matrixWorldNeedsUpdate = true;
+
+                    //also show the ground plane if necessary
+                    groundPlaneMesh.visible = options.displayOriginPlane;
 				}
 
 				// Render the scene.
@@ -643,7 +683,7 @@
 	</div>
 
 	<div class="container" id="threejs-container">
-		<div class="caption">three.js &lt;canvas&gt;</div>
+		<div class="caption">three.js &lt;canvas&gt; <br/> NOTE: Plane is at the origin</div>
 	</div>
 </body>
 </html>
