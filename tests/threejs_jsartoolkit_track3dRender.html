@@ -27,6 +27,7 @@
 
 	<script>
 
+	var MARKER_SIZE = 35;
 	var clock = new THREE.Clock();
 	var lookAtPoint = new THREE.Vector3();
 
@@ -238,7 +239,8 @@
 		    new THREE.CubeGeometry(0.1, 0.1, 0.1),
 		    new THREE.MeshBasicMaterial({
 		        color: 0x00ff00,
-		        side: THREE.DoubleSide,wireframe: true,
+		        side: THREE.DoubleSide,
+		        wireframe: true,
 		        depthTest : false,
 		        depthWrite : false
 		    })
@@ -251,7 +253,8 @@
 		    // new THREE.CubeGeometry(0.1, 0.1, 0.1),
 		    // new THREE.MeshBasicMaterial({
 		        // color: 0x00ff00,
-		        // side: THREE.DoubleSide,wireframe: true,
+		        // side: THREE.DoubleSide,
+		        // wireframe: true,
 		        // depthTest : false,
 		        // depthWrite : false
 		    // })
@@ -286,7 +289,7 @@
 
 		// The FLARMultiIdMarkerDetector is the actual detection engine for marker detection.
 		// It detects multiple ID markers. ID markers are special markers that encode a number.
-		var detector = new FLARMultiIdMarkerDetector(param, 120);
+		var detector = new FLARMultiIdMarkerDetector(param, MARKER_SIZE);
 
 		// For tracking video set continue mode to true. In continue mode, the detector
 		// tracks markers across multiple frames.
@@ -316,45 +319,47 @@
 
 		// Create a camera and a marker root object for your Three.js scene.
 		var camera = new THREE.Camera();
-		camera.position.set(25,25,25);
+		// var camera = new THREE.PerspectiveCamera(40, canvasWidth/canvasHeight, 0.1, 10000);
+		// camera.position.set(25, 25, 25);
 		// camera.lookAt(new THREE.Vector3());
 		camera.matrixAutoUpdate = false;
 
+		//add a world axis to mark the origin and directions
 		scene.add(new THREE.AxisHelper(1000));
 
 		// glMatrix matrices are flat arrays.
 		var tmp = new Float32Array(16);
 
 		// Next we need to make the Three.js camera use the FLARParam matrix.
-		param.copyCameraMatrix(tmp, 10, 10000);
+		param.copyCameraMatrix(tmp, 0.1, 10000);
 		camera.projectionMatrix.setFromArray(tmp);
 
 		//setup lights
 		scene.add(new THREE.AmbientLight(0x330015));
 
 		keyLight = new THREE.SpotLight(0xffff00, 0.5);
-		keyLight.position.set(5, 15, 15);
+		keyLight.position.set(25, 75, 75);
 		keyLight.target.position.set(0, 0, 0);
 		keyLight.castShadow = true;
-		keyLight.shadowCameraNear = 20;
-		keyLight.shadowCameraFar = 33;
-		keyLight.shadowCameraFov = 35;
-		//keyLight.shadowCameraVisible = true;
+		keyLight.shadowCameraNear = 60;
+		keyLight.shadowCameraFar = 150;
+		keyLight.shadowCameraFov = 50;
+		// keyLight.shadowCameraVisible = true;
 		keyLight.shadowBias = 0.0001;
 		keyLight.shadowDarkness = 0.5;
 		keyLight.shadowMapWidth = 1024;
 		keyLight.shadowMapHeight = 1024;
 		scene.add(keyLight);
 
-		fillLight = new THREE.SpotLight(0x00ff00, 0.2);
-		fillLight.position.set(5, 2, 15);
+		fillLight = new THREE.SpotLight(0x00ff00, 0.3);
+		fillLight.position.set(25, 10, 75);
 		fillLight.target.position.set(0, 0, 0);
 		scene.add(fillLight);
 
 		//create a ground plane at the origin
-		var groundPlaneGeom = new THREE.PlaneGeometry(500, 500, 1, 1);
+		var groundPlaneGeom = new THREE.PlaneGeometry(100, 100, 1, 1);
 		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-		var groundPlaneMaterial = new THREE.MeshPhongMaterial({side: THREE.DoubleSide});
+		var groundPlaneMaterial = new THREE.MeshPhongMaterial({side: THREE.DoubleSide, wireframe: false});
 		// materials.push(groundPlaneMaterial);
 		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
 		groundPlaneMesh.castShadow = true;
@@ -490,7 +495,7 @@
 						markerRoots[currId] = markerRoot;
 
 						// Add the marker models and suchlike into your marker root object.
-						var cubeLength = 120 * 1.0;
+						var cubeLength = MARKER_SIZE * 1.0;
 						var cube = new THREE.Mesh(
 							new THREE.CubeGeometry(cubeLength, cubeLength, cubeLength),
 							new THREE.MeshPhongMaterial({
@@ -499,7 +504,9 @@
 							    wireframe: false
 							})
 						);
-						cube.position.z = -cubeLength / 2.0;
+						cube.position.y = cubeLength / 2.0;
+						cube.castShadow = true;
+						cube.receiveShadow = true;
 						markerRoot.add(cube);
 
 						// Add the marker root to your scene.
@@ -526,7 +533,15 @@
 
                         //move the camera instead of the marker root
                         var matInv = new THREE.Matrix4().getInverse(mat);
-                        camera.matrix = matInv;
+
+
+                        var m = new THREE.Matrix4().makeScale(1, 1, -1);  //scale in -z to swap from LH-coord to RH-coord
+                        camera.matrix = m;
+                        var m2 = new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90));  //rotate 90deg in X to get Y-up;
+                        camera.matrix.multiply(m2);
+
+                        camera.matrix.multiply(matInv);
+
                         camera.matrixWorldNeedsUpdate = true;
                         // console.log(camera.matrixWorld.elements[12] + ' ' + camera.matrixWorld.elements[13] + ' ' + camera.matrixWorld.elements[14]);
 
