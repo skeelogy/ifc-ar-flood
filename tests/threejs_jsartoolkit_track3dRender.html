@@ -125,7 +125,8 @@
 		function toggleRefCube(value)
 		{
 			refCubeMesh.visible = value;
-			// refCubeMesh2.visible = value;
+			refCubeMesh2.visible = value;
+			refCubeMesh3.visible = value;
 		}
 		control.onChange(toggleRefCube);
 		toggleRefCube(options.displayRefCube);
@@ -163,7 +164,7 @@
         }
     }
 
-	var refCubeMesh;
+	var refCubeMesh, refCubeMesh2, refCubeMesh3;
 	var worldAxis;
 	$(document).ready(function()
 	{
@@ -222,17 +223,29 @@
 		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		trackSceneScene.add(trackScenePlaneMesh);
 
-		// //plane 2
-		// var trackScenePlaneMesh = new THREE.Mesh(
-			// new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
-			// new THREE.MeshBasicMaterial({
-				// map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/64.jpg')
-			// })
-		// );
-		// trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-		// trackScenePlaneMesh.position.x = 0.11;
-		// trackScenePlaneMesh.position.z = -0.05;
-		// trackSceneScene.add(trackScenePlaneMesh);
+		//plane 2
+		var trackScenePlaneMesh2 = new THREE.Mesh(
+			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
+			new THREE.MeshBasicMaterial({
+				map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/64.jpg')
+			})
+		);
+		trackScenePlaneMesh2.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		trackScenePlaneMesh2.position.x = 0.11;
+		trackScenePlaneMesh2.position.z = -0.05;
+		trackSceneScene.add(trackScenePlaneMesh2);
+
+		//plane 3
+		var trackScenePlaneMesh3 = new THREE.Mesh(
+			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
+			new THREE.MeshBasicMaterial({
+				map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/81.jpg')
+			})
+		);
+		trackScenePlaneMesh3.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		trackScenePlaneMesh3.position.x = -0.11;
+		trackScenePlaneMesh3.position.z = 0.05;
+		trackSceneScene.add(trackScenePlaneMesh3);
 
 		//reference cube
 		refCubeMesh = new THREE.Mesh(
@@ -248,21 +261,37 @@
 		refCubeMesh.position.y = 0.05;
 		trackSceneScene.add(refCubeMesh);
 
-		// //reference cube 2
-		// refCubeMesh2 = new THREE.Mesh(
-		    // new THREE.CubeGeometry(0.1, 0.1, 0.1),
-		    // new THREE.MeshBasicMaterial({
-		        // color: 0x00ff00,
-		        // side: THREE.DoubleSide,
-		        // wireframe: true,
-		        // depthTest : false,
-		        // depthWrite : false
-		    // })
-		// );
-		// refCubeMesh2.position.x = 0.11;
-		// refCubeMesh2.position.y = 0.05;
-		// refCubeMesh2.position.z = -0.05;
-		// trackSceneScene.add(refCubeMesh2);
+		//reference cube 2
+		refCubeMesh2 = new THREE.Mesh(
+		    new THREE.CubeGeometry(0.1, 0.1, 0.1),
+		    new THREE.MeshBasicMaterial({
+		        color: 0x00ff00,
+		        side: THREE.DoubleSide,
+		        wireframe: true,
+		        depthTest : false,
+		        depthWrite : false
+		    })
+		);
+		refCubeMesh2.position.x = 0.11;
+		refCubeMesh2.position.y = 0.05;
+		refCubeMesh2.position.z = -0.05;
+		trackSceneScene.add(refCubeMesh2);
+
+		//reference cube 3
+		refCubeMesh3 = new THREE.Mesh(
+		    new THREE.CubeGeometry(0.1, 0.1, 0.1),
+		    new THREE.MeshBasicMaterial({
+		        color: 0x00ff00,
+		        side: THREE.DoubleSide,
+		        wireframe: true,
+		        depthTest : false,
+		        depthWrite : false
+		    })
+		);
+		refCubeMesh3.position.x = -0.11;
+		refCubeMesh3.position.y = 0.05;
+		refCubeMesh3.position.z = 0.05;
+		trackSceneScene.add(refCubeMesh3);
 
 		//effects composer
 		var composer = new THREE.EffectComposer(trackSceneRenderer);
@@ -325,7 +354,7 @@
 		camera.matrixAutoUpdate = false;
 
 		//add a world axis to mark the origin and directions
-		scene.add(new THREE.AxisHelper(1000));
+		// scene.add(new THREE.AxisHelper(1000));
 
 		// glMatrix matrices are flat arrays.
 		var tmp = new Float32Array(16);
@@ -404,6 +433,7 @@
 
 		var markerRoots = {};
 		var markers = {};
+		var mainMarkerRootId = 22;
 
 		var ctx = canvas.getContext('2d');
 
@@ -456,7 +486,8 @@
 
 				// hide all markers first
 				Object.keys(markerRoots).forEach(function (key){
-					// showChildren(markerRoots[key], false);
+					showChildren(markerRoots[key], false);
+					markerRoots[key].detected = false;
 				});
 
 				// Do marker detection by using the detector object on the raster object.
@@ -509,8 +540,15 @@
 						cube.receiveShadow = true;
 						markerRoot.add(cube);
 
+						//add a local axis for each marker root for debugging
+						markerRoot.add(new THREE.AxisHelper(100));
+
 						// Add the marker root to your scene.
 						scene.add(markerRoot);
+
+						//also save other variables for keeping track
+						//TODO: probably can just store in matrix instead of currSolvedMatrix
+						markerRoots[currId].currSolvedMatrix = new THREE.Matrix4();
 					}
 
 					try
@@ -521,38 +559,54 @@
                         // Copy the marker matrix to the tmp matrix.
                         copyMarkerMatrix(resultMat, tmp);
 
-                        // // Copy the marker matrix over to your marker root object.
-                        // markerRoots[currId].matrix.setFromArray(tmp);
-                        // markerRoots[currId].matrixWorldNeedsUpdate = true;
-                        // console.log(markerRoots[currId].matrixWorld.elements[12] + ' ' + markerRoots[currId].matrixWorld.elements[13] + ' ' + markerRoots[currId].matrixWorld.elements[14]);
+                        //store tmp for this marker first
+                        markerRoots[currId].currSolvedMatrix.setFromArray(tmp);
 
-                        //transform marker matrix into world space
-                        var mat = new THREE.Matrix4().setFromArray(tmp);
-                        // markerRoots[currId].matrix = new THREE.Matrix4().multiplyMatrices(camera.matrixWorld, mat);
-                        // markerRoots[currId].matrixWorldNeedsUpdate = true;
-
-                        //move the camera instead of the marker root
-                        var matInv = new THREE.Matrix4().getInverse(mat);
-
-
-                        var m = new THREE.Matrix4().makeScale(1, 1, -1);  //scale in -z to swap from LH-coord to RH-coord
-                        camera.matrix = m;
-                        var m2 = new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90));  //rotate 90deg in X to get Y-up;
-                        camera.matrix.multiply(m2);
-
-                        camera.matrix.multiply(matInv);
-
-                        camera.matrixWorldNeedsUpdate = true;
-                        // console.log(camera.matrixWorld.elements[12] + ' ' + camera.matrixWorld.elements[13] + ' ' + camera.matrixWorld.elements[14]);
-
-                        // show the children of this marker
-                        // showChildren(markerRoots[currId], true);
+                        //mark that this id has been detected
+                        markerRoots[currId].detected = true;
                     }
                     catch (err)
                     {
                         //just print to console but let the error pass so that the program can continue
                         console.log(err.message);
                     }
+				}
+
+				//start iterating if main marker id is detected
+				if (markerRoots[mainMarkerRootId] && markerRoots[mainMarkerRootId].detected)
+				{
+				    var mainMarkerRootSolvedMatrix = markerRoots[mainMarkerRootId].currSolvedMatrix;
+
+				    //for each of the marker root detected, move into the space of the main marker root
+				    Object.keys(markerRoots).forEach(function (key){
+                        if (markerRoots[key].detected)
+                        {
+                            //transform and compensate
+                            var m4 = new THREE.Matrix4().makeRotationZ(THREE.Math.degToRad(180));  //rotate 90deg in X to get Y-up;
+                            markerRoots[key].matrix = m4;
+                            var m3 = new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90));  //rotate 90deg in X to get Y-up;
+                            markerRoots[key].matrix.multiply(m3);
+                            markerRoots[key].matrix.multiply(new THREE.Matrix4().getInverse(markerRoots[key].currSolvedMatrix));
+                            markerRoots[key].matrix.multiply(mainMarkerRootSolvedMatrix);
+                            var m5 = new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90));  //rotate 90deg in X to get Y-up;
+                            markerRoots[key].matrix.multiply(m5);
+                            var m6 = new THREE.Matrix4().makeRotationY(THREE.Math.degToRad(180));  //rotate 90deg in X to get Y-up;
+                            markerRoots[key].matrix.multiply(m6);
+                            markerRoots[key].matrixWorldNeedsUpdate = true;
+
+                            //show the object
+                            showChildren(markerRoots[key], true);
+                        }
+                    });
+
+				    //move the camera instead of the marker root
+                    var m = new THREE.Matrix4().makeScale(1, 1, -1);  //scale in -z to swap from LH-coord to RH-coord
+                    camera.matrix = m;
+                    var m2 = new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90));  //rotate 90deg in X to get Y-up;
+                    camera.matrix.multiply(m2);
+                    var matInv = new THREE.Matrix4().getInverse(mainMarkerRootSolvedMatrix);
+                    camera.matrix.multiply(matInv);
+                    camera.matrixWorldNeedsUpdate = true;
 				}
 
 				// Render the scene.
