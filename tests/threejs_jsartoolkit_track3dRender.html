@@ -468,6 +468,19 @@
 
 		var ctx = canvas.getContext('2d');
 
+		//precompute some matrices for space compensation/conversion
+        var cameraCompensationMatrix = new THREE.Matrix4().makeScale(1, 1, -1);  //scale in -z to swap from LH-coord to RH-coord
+        cameraCompensationMatrix.multiply(new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90)));  //rotate 90deg in X to get Y-up;
+        var markerRootPreCompensateMatrix = new THREE.Matrix4().makeRotationZ(THREE.Math.degToRad(180));
+        markerRootPreCompensateMatrix.multiply(new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90)));
+        var markerRootPostCompensateMatrix = new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90));
+        markerRootPostCompensateMatrix.multiply(new THREE.Matrix4().makeRotationY(THREE.Math.degToRad(180)));
+
+        //some temp matrices
+        var mainMarkerRootSolvedMatrixInv = new THREE.Matrix4();
+        var markerRootMatrixInv = new THREE.Matrix4();
+        var tempMat = new THREE.Matrix4();
+
 		// On every frame do the following:
 		var t = 0;
 		function loop()
@@ -613,22 +626,16 @@
 				if (markerRoots[mainMarkerRootId] && markerRoots[mainMarkerRootId].detected)
 				{
 				    var mainMarkerRootSolvedMatrix = markerRoots[mainMarkerRootId].currSolvedMatrix;
+				    var markerRootSolveAndPostCompensateMatrix = tempMat.multiplyMatrices(mainMarkerRootSolvedMatrix, markerRootPostCompensateMatrix);
 
 				    //for each of the marker root detected, move into the space of the main marker root
 				    Object.keys(markerRoots).forEach(function (key){
                         if (markerRoots[key].detected)
                         {
                             //transform and compensate
-                            var m4 = new THREE.Matrix4().makeRotationZ(THREE.Math.degToRad(180));  //rotate 90deg in X to get Y-up;
-                            markerRoots[key].matrix = m4;
-                            var m3 = new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90));  //rotate 90deg in X to get Y-up;
-                            markerRoots[key].matrix.multiply(m3);
-                            markerRoots[key].matrix.multiply(new THREE.Matrix4().getInverse(markerRoots[key].currSolvedMatrix));
-                            markerRoots[key].matrix.multiply(mainMarkerRootSolvedMatrix);
-                            var m5 = new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90));  //rotate 90deg in X to get Y-up;
-                            markerRoots[key].matrix.multiply(m5);
-                            var m6 = new THREE.Matrix4().makeRotationY(THREE.Math.degToRad(180));  //rotate 90deg in X to get Y-up;
-                            markerRoots[key].matrix.multiply(m6);
+                            markerRoots[key].matrix.copy(markerRootPreCompensateMatrix);
+                            markerRoots[key].matrix.multiply(markerRootMatrixInv.getInverse(markerRoots[key].currSolvedMatrix));
+                            markerRoots[key].matrix.multiply(markerRootSolveAndPostCompensateMatrix);
                             markerRoots[key].matrixWorldNeedsUpdate = true;
 
                             //show the object
@@ -637,12 +644,8 @@
                     });
 
 				    //move the camera instead of the marker root
-                    var m = new THREE.Matrix4().makeScale(1, 1, -1);  //scale in -z to swap from LH-coord to RH-coord
-                    camera.matrix = m;
-                    var m2 = new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90));  //rotate 90deg in X to get Y-up;
-                    camera.matrix.multiply(m2);
-                    var matInv = new THREE.Matrix4().getInverse(mainMarkerRootSolvedMatrix);
-                    camera.matrix.multiply(matInv);
+				    camera.matrix.copy(cameraCompensationMatrix);
+                    camera.matrix.multiply(mainMarkerRootSolvedMatrixInv.getInverse(mainMarkerRootSolvedMatrix));
                     camera.matrixWorldNeedsUpdate = true;
 
                     //also show the ground plane if necessary
