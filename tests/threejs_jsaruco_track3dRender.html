@@ -76,8 +76,8 @@
 		});
 		trackSceneRenderer.setSize(canvasWidth, canvasHeight);
 		trackSceneRenderer.setClearColor('#888888', 1);
-		var $threejsTrackSceneContainerElem = $('#mainTracking3dScene');
-		$threejsTrackSceneContainerElem.append(trackSceneRenderer.domElement);
+		var $threejsTrackSceneContainerElem = $('#mainTracking3dScene div:eq(0)');
+		$threejsTrackSceneContainerElem.after(trackSceneRenderer.domElement);
 		source = trackSceneRenderer.domElement;
 
 		//scene
@@ -187,7 +187,6 @@
 		posit = new POS.Posit(MARKER_SIZE, canvasWidth);
     }
 
-    var $threejsContainerElem;
     var renderer, scene, camera;
     var videoScene, videoCam, videoTex;
     var groundPlaneMesh;
@@ -201,8 +200,8 @@
 		renderer.shadowMapEnabled = true;
 		renderer.shadowMapType = THREE.PCFShadowMap;
 		renderer.shadowMapSoft = true;
-		$threejsContainerElem = $('#threejs-container');
-		$threejsContainerElem.append(renderer.domElement);
+		var $threejsContainerElem = $('#threejs-container div:eq(0)');
+		$threejsContainerElem.after(renderer.domElement);
 
 		// create the scene
 		scene = new THREE.Scene();
@@ -263,6 +262,7 @@
     {
         //create a stats monitor
 		stats = new Stats();
+		var $threejsContainerElem = $('#threejs-container div:eq(-1)');
 		$threejsContainerElem.append(stats.domElement);
     }
 
@@ -485,15 +485,9 @@
             {
                 pose = posit.pose(corners);
 
-                // showChildren(markerRoots[markerId], true);
-                // updateMesh(markerRoots[markerId], pose.bestRotation, pose.bestTranslation);
-                // updateMesh(markerRoots[markerId], pose.alternativeRotation, pose.alternativeTranslation);
-
-                var currSolvedMatrix = createMatrix4FromRotAndTrans(pose.bestRotation, pose.bestTranslation);
-                currSolvedMatrix.multiply(new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90)));
-
                 //store matrix for this marker first
-                markerRoots[markerId].currSolvedMatrix = currSolvedMatrix;
+                markerRoots[markerId].currSolvedMatrix = createMatrix4FromRotAndTrans(pose.bestRotation, pose.bestTranslation);
+                markerRoots[markerId].currSolvedMatrix.multiply(new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90)));
 
                 //mark that this id has been detected
                 markerRoots[markerId].detected = true;
@@ -556,28 +550,6 @@
             }
         }
     }
-
-    function updateMesh(mesh, rotation, translation)
-    {
-        //convert into matrix so that it's easier to do transformations
-        mesh.matrix = createMatrix4FromRotAndTrans(rotation, translation);
-        mesh.matrix.multiply(new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90)));
-        mesh.matrixWorldNeedsUpdate = true;
-
-        //THESE ARE CALCULATIONS FROM JS-ARUCO EXAMPLES:
-
-        // mesh.scale.x = MARKER_SIZE;
-        // mesh.scale.y = MARKER_SIZE;
-        // mesh.scale.z = MARKER_SIZE;
-
-        // mesh.rotation.x = -Math.asin(-rotation[1][2]);
-        // mesh.rotation.y = -Math.atan2(rotation[0][2], rotation[2][2]);
-        // mesh.rotation.z = Math.atan2(rotation[1][0], rotation[1][1]);
-
-        // mesh.position.x = translation[0];
-        // mesh.position.y = translation[1];
-        // mesh.position.z = -translation[2];
-    };
 
     var canvas, canvasWidth, canvasHeight;
     var ctx;
@@ -684,6 +656,7 @@
 
 	<div class="container" id="mainTracking3dScene">
 		<div class="caption">Three.js 3D scene for tracking</div>
+		<div class="caption">alt+LMB: tumble ("rotate")<br/>alt+MMB: track ("pan")<br/>alt+RMB: dolly ("zoom")</div>
 	</div>
 
 	<div class="container" id="canvas-container">
@@ -692,7 +665,8 @@
 	</div>
 
 	<div class="container" id="threejs-container">
-		<div class="caption">three.js &lt;canvas&gt; <br/> NOTE: Plane is at the origin</div>
+		<div class="caption">three.js &lt;canvas&gt;</div>
+		<div class="caption">NOTE: Plane is at the origin</div>
 	</div>
 </body>
 </html>

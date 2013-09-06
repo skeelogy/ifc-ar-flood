@@ -3,13 +3,13 @@
 <head>
 	<title>IFC - Check Axis</title>
 	<meta charset="UTF-8"/>
-	
+
 	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
 	<link rel="stylesheet" href="/css/style.css">
-	
+
 	<!--load helper libraries-->
 	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-	
+
 	<!--load 3D libraries-->
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
@@ -18,7 +18,7 @@
 	<script type="text/javascript" src="/js/lib/MTLLoader.js"></script>
 	<script type="text/javascript" src="/js/lib/BinaryLoader.js"></script>
 	<script type="text/javascript" src="/js/skarf.js"></script>
-	
+
 	<script>
 	$(document).ready(function()
 	{
@@ -29,13 +29,13 @@
 			Detector.addGetWebGLMessage();
 			return;
 		}
-	
+
 		console.log('Document is ready.');
-		
+
 		//===================================================
 		//THREE.JS
 		//===================================================
-		
+
 		// setup three.js renderer
 		var renderer = new THREE.WebGLRenderer({
 			antialias : true
@@ -69,7 +69,7 @@
 		var light	= new THREE.DirectionalLight(0xffffff);
 		light.position.set(-0, 2, -1).normalize();
 		scene.add(light);
-		
+
 		//load a model
 		var modelsJsonFile = '/resources/models/models_jsartoolkit_test.json';
 		var modelManager = new ModelManager(modelsJsonFile);
@@ -78,26 +78,26 @@
 			modelManager.loadForMarker('22', transform);
 			scene.add(transform);
 		}, 500);  //FIXME: should not have to do setTimeout
-		
+
 		//add an axis to tell the direction
 		var localAxis = new THREE.AxisHelper(0.5);
 		scene.add(localAxis);
-		
-		function animate(){	
+
+		function animate(){
 			requestAnimationFrame(animate);
 			render();
 		};
 
 		function render(){
-		
+
 			controls.update();
-			
+
 			// trigger the rendering
 			renderer.autoClear = false;
 			renderer.clear();
 			renderer.render(scene, camera);
 		};
-		
+
 		//animate
 		animate();
 	});
@@ -110,7 +110,7 @@
 	<div class="caption">As you can see below, both coordinate systems are right-handed, so no flipping of coordinate system has occured during the export.</div>
 	<div class="container" id="threejs-container">
 		<div class="caption" id="threejs-heading">three.js &lt;canvas&gt;</div>
-		<div class="caption">alt+LMB: tumble ("rotate")<br/>alt+MMB: dolly ("zoom")<br/>alt+RMB: track ("move")</div>
+		<div class="caption">alt+LMB: tumble ("rotate")<br/>alt+MMB: track ("pan")<br/>alt+RMB: dolly ("zoom")</div>
 	</div>
 	<div class="container" id="blender-container">
 		<div class="caption">Blender screenshot</div>

@@ -27,7 +27,9 @@
 
 	<script>
 
+	var MAIN_MARKER_ID = 22;
 	var MARKER_SIZE = 35;
+
 	var clock = new THREE.Clock();
 	var lookAtPoint = new THREE.Vector3();
 
@@ -233,8 +235,8 @@
 		});
 		trackSceneRenderer.setSize(canvasWidth, canvasHeight);
 		trackSceneRenderer.setClearColor('#888888', 1);
-		var $threejsTrackSceneContainerElem = $('#mainTracking3dScene');
-		$threejsTrackSceneContainerElem.append(trackSceneRenderer.domElement);
+		var $threejsTrackSceneContainerElem = $('#mainTracking3dScene div:eq(0)');
+		$threejsTrackSceneContainerElem.after(trackSceneRenderer.domElement);
 		source = trackSceneRenderer.domElement;
 
 		//scene
@@ -377,8 +379,8 @@
 		renderer.shadowMapEnabled = true;
 		renderer.shadowMapType = THREE.PCFShadowMap;
 		renderer.shadowMapSoft = true;
-		var $threejsContainerElem = $('#threejs-container');
-		$threejsContainerElem.append(renderer.domElement);
+		var $threejsContainerElem = $('#threejs-container div:eq(0)');
+		$threejsContainerElem.after(renderer.domElement);
 
 		// create the scene
 		var scene = new THREE.Scene();
@@ -453,6 +455,7 @@
 
 		//create a stats monitor
 		stats = new Stats();
+		var $threejsContainerElem = $('#threejs-container div:eq(-1)');
 		$threejsContainerElem.append(stats.domElement);
 
 		//===================================================
@@ -464,7 +467,6 @@
 
 		var markerRoots = {};
 		var markers = {};
-		var mainMarkerRootId = 22;
 
 		var ctx = canvas.getContext('2d');
 
@@ -555,7 +557,7 @@
 					if (id.packetLength <= 4) {
 						currId = 0;
 						for (var j = 0; j < id.packetLength; j++) {
-						  currId = (currId << 8) | id.getPacketData(j);
+							currId = (currId << 8) | id.getPacketData(j);
 						}
 					}
 
@@ -623,9 +625,9 @@
 				}
 
 				//start iterating if main marker id is detected
-				if (markerRoots[mainMarkerRootId] && markerRoots[mainMarkerRootId].detected)
+				if (markerRoots[MAIN_MARKER_ID] && markerRoots[MAIN_MARKER_ID].detected)
 				{
-				    var mainMarkerRootSolvedMatrix = markerRoots[mainMarkerRootId].currSolvedMatrix;
+				    var mainMarkerRootSolvedMatrix = markerRoots[MAIN_MARKER_ID].currSolvedMatrix;
 				    var markerRootSolveAndPostCompensateMatrix = tempMat.multiplyMatrices(mainMarkerRootSolvedMatrix, markerRootPostCompensateMatrix);
 
 				    //for each of the marker root detected, move into the space of the main marker root
@@ -674,6 +676,7 @@
 
 	<div class="container" id="mainTracking3dScene">
 		<div class="caption">Three.js 3D scene for tracking</div>
+		<div class="caption">alt+LMB: tumble ("rotate")<br/>alt+MMB: track ("pan")<br/>alt+RMB: dolly ("zoom")</div>
 	</div>
 
 	<div class="container" id="canvas-container">
@@ -686,7 +689,8 @@
 	</div>
 
 	<div class="container" id="threejs-container">
-		<div class="caption">three.js &lt;canvas&gt; <br/> NOTE: Plane is at the origin</div>
+		<div class="caption">three.js &lt;canvas&gt;</div>
+		<div class="caption">NOTE: Plane is at the origin</div>
 	</div>
 </body>
 </html>
