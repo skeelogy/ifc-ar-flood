@@ -39,6 +39,7 @@
 
 	var options = {
 	    trackingSceneFxaa: false,
+	    trackingSceneMultipleTrackers: false,
 	    cameraMotionAutoOrbit: false,
 		cameraMotionRadius: 0.2,
 		cameraMotionSpeed: 0.2,
@@ -47,6 +48,8 @@
 		togglePauseOrbit: togglePauseOrbit,
 		displayRefCube: true,
 		displayDebugView: false,
+		displayOriginPlane: true,
+		displayWireframe: false,
 		displayLocalAxis: false
 	};
 
@@ -62,7 +65,6 @@
 	}
 
     var trackSceneRenderer, trackSceneScene, trackSceneCamera, trackSceneCameraControls;
-    var worldAxis;
     var trackScenePlaneMesh, trackScenePlaneMesh2, trackScenePlaneMesh3;
     var refCubeMesh, refCubeMesh2, refCubeMesh3;
     var composer;
@@ -90,10 +92,6 @@
 		trackSceneCameraControls.userPanSpeed = 0.04;
 		trackSceneCameraControls.pan(new THREE.Vector3(0, 1, 0));
 		trackSceneCameraControls.pan(new THREE.Vector3(0, 1, 0));
-
-		//add world axis
-		worldAxis = new THREE.AxisHelper(0.01);
-		trackSceneScene.add(worldAxis);
 
 		//plane
 		trackScenePlaneMesh = new THREE.Mesh(
@@ -193,6 +191,7 @@
     var renderer, scene, camera;
     var videoScene, videoCam, videoTex;
     var groundPlaneMesh;
+    var materials = [];
     function setupThreejsScene()
     {
 		renderer = new THREE.WebGLRenderer({
@@ -238,7 +237,7 @@
 		var groundPlaneGeom = new THREE.PlaneGeometry(100, 100, 1, 1);
 		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		var groundPlaneMaterial = new THREE.MeshPhongMaterial({side: THREE.DoubleSide, wireframe: true});
-		// materials.push(groundPlaneMaterial);
+		materials.push(groundPlaneMaterial);
 		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
 		groundPlaneMesh.castShadow = true;
 		groundPlaneMesh.receiveShadow = true;
@@ -272,13 +271,24 @@
 	function setupGui() {
 
 		gui = new dat.GUI();
-		gui.close();  //close GUI by default
+		// gui.close();  //close GUI by default
 
 		//tracking scene folder
 		trackingSceneFolder = gui.addFolder('Tracking Scene');
 		trackingSceneFolder.open();
 
 		var control = trackingSceneFolder.add(options, 'trackingSceneFxaa').name('FXAA');
+
+		control = trackingSceneFolder.add(options, 'trackingSceneMultipleTrackers').name('Multiple Markers');
+		function toggleMultipleMarkers(value)
+		{
+		    trackScenePlaneMesh2.visible = value;
+		    trackScenePlaneMesh3.visible = value;
+		    refCubeMesh2.visible = value && options.displayRefCube;
+		    refCubeMesh3.visible = value && options.displayRefCube;
+		}
+		control.onChange(toggleMultipleMarkers);
+		toggleMultipleMarkers(options.trackingSceneMultipleTrackers);
 
 		//camera motion folder
 		cameraMotionFolder = gui.addFolder('Camera Motion');
@@ -310,18 +320,42 @@
 		function toggleRefCube(value)
 		{
 			refCubeMesh.visible = value;
-			refCubeMesh2.visible = value;
-			refCubeMesh3.visible = value;
+			refCubeMesh2.visible = value && options.trackingSceneMultipleTrackers;
+			refCubeMesh3.visible = value && options.trackingSceneMultipleTrackers;
 		}
 		control.onChange(toggleRefCube);
 		toggleRefCube(options.displayRefCube);
 
 		control = displayFolder.add(options, 'displayDebugView').name('Debug View');
 
+		control = displayFolder.add(options, 'displayOriginPlane').name('Origin Plane');
+		function toggleOriginPlane(value)
+		{
+			groundPlaneMesh.visible = value;
+		}
+		control.onChange(toggleOriginPlane);
+		toggleOriginPlane(options.displayOriginPlane);
+
+		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
+		function toggleWireframe(value)
+		{
+		    var i, len;
+		    for (i = 0, len = materials.length; i < len; i++)
+		    {
+		        materials[i].wireframe = value;
+		    }
+		}
+		control.onChange(toggleWireframe);
+		toggleWireframe(options.displayWireframe);
+
 		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
-			worldAxis.visible = value;
+			var i, len;
+			for (i = 0, len = localAxes.length; i < len; i++)
+			{
+			    localAxes[i].visible = value;
+			}
 		}
 		control.onChange(toggleLocalAxis);
 		toggleLocalAxis(options.displayLocalAxis);
@@ -384,6 +418,7 @@
     }
 
     var markerRoots = {};
+    var localAxes = [];
     var markerRootPreCompensateMatrix = new THREE.Matrix4().makeRotationY(THREE.Math.degToRad(180));
     var markerRootPostCompensateMatrix = new THREE.Matrix4().makeRotationY(THREE.Math.degToRad(-180));
     var mainMarkerRootSolvedMatrixInv = new THREE.Matrix4();
@@ -394,11 +429,12 @@
         var corners, corner, pose, i, markerId;
 
         //hide all marker roots first
+        groundPlaneMesh.visible = false;
         var keys = Object.keys(markerRoots);
         for (i = 0; i < keys.length; i++)
         {
             showChildren(markerRoots[keys[i]], false);
-            groundPlaneMesh.visible = false;
+            markerRoots[keys[i]].detected = false;
         }
 
         for (i = 0; i < markers.length; i++)
@@ -418,8 +454,9 @@
                 var cubeMaterial = new THREE.MeshPhongMaterial({
                     color: 0xff0000,
                     side: THREE.DoubleSide,
-                    wireframe: true
+                    wireframe: options.displayWireframe
                 });
+                materials.push(cubeMaterial);
                 var cubeMesh = new THREE.Mesh(cubeGeom, cubeMaterial);
                 cubeMesh.position.y = cubeLength / 2.0;
                 cubeMesh.castShadow = true;
@@ -430,7 +467,7 @@
                 //add a local axis for each marker root for debugging
                 var localAxis = new THREE.AxisHelper(50);
                 localAxis.visible = options.displayLocalAxis;
-                // localAxes.push(localAxis);
+                localAxes.push(localAxis);
                 markerRoot.add(localAxis);
             }
 
@@ -448,7 +485,7 @@
             {
                 pose = posit.pose(corners);
 
-                showChildren(markerRoots[markerId], true);
+                // showChildren(markerRoots[markerId], true);
                 // updateMesh(markerRoots[markerId], pose.bestRotation, pose.bestTranslation);
                 // updateMesh(markerRoots[markerId], pose.alternativeRotation, pose.alternativeTranslation);
 
@@ -494,7 +531,7 @@
             camera.matrixWorldNeedsUpdate = true;
 
             //also show the ground plane if necessary
-            groundPlaneMesh.visible = true;
+            groundPlaneMesh.visible = options.displayOriginPlane;
         }
     };
 
@@ -514,7 +551,9 @@
         var children = object3d.children;
         for (i = 0, len = children.length; i < len; i++)
         {
-            children[i].visible = visible;
+            if (children[i] instanceof THREE.Mesh) {
+                children[i].visible = visible;
+            }
         }
     }
 
