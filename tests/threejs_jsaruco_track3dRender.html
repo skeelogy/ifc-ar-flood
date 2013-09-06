@@ -112,7 +112,7 @@
 		);
 		trackScenePlaneMesh2.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		trackScenePlaneMesh2.position.x = 0.11;
-		trackScenePlaneMesh2.position.z = -0.05;
+		trackScenePlaneMesh2.position.z = -0.07;
 		trackSceneScene.add(trackScenePlaneMesh2);
 
 		//plane 3
@@ -123,8 +123,8 @@
 			})
 		);
 		trackScenePlaneMesh3.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-		trackScenePlaneMesh3.position.x = -0.11;
-		trackScenePlaneMesh3.position.z = 0.05;
+		trackScenePlaneMesh3.position.x = -0.14;
+		trackScenePlaneMesh3.position.z = -0.02;
 		trackSceneScene.add(trackScenePlaneMesh3);
 
 		//reference cube
@@ -150,9 +150,9 @@
 		        depthWrite : false
 		    })
 		);
-		refCubeMesh2.position.x = 0.11;
+		refCubeMesh2.position.x = trackScenePlaneMesh2.position.x;
 		refCubeMesh2.position.y = 0.05;
-		refCubeMesh2.position.z = -0.05;
+		refCubeMesh2.position.z = trackScenePlaneMesh2.position.z;
 		trackSceneScene.add(refCubeMesh2);
 
 		//reference cube 3
@@ -166,9 +166,9 @@
 		        depthWrite : false
 		    })
 		);
-		refCubeMesh3.position.x = -0.11;
+		refCubeMesh3.position.x = trackScenePlaneMesh3.position.x;
 		refCubeMesh3.position.y = 0.05;
-		refCubeMesh3.position.z = 0.05;
+		refCubeMesh3.position.z = trackScenePlaneMesh3.position.z;
 		trackSceneScene.add(refCubeMesh3);
 
 		//effects composer
@@ -419,11 +419,7 @@
 
     var markerRoots = {};
     var localAxes = [];
-    var markerRootPreCompensateMatrix = new THREE.Matrix4().makeRotationY(THREE.Math.degToRad(180));
-    var markerRootPostCompensateMatrix = new THREE.Matrix4().makeRotationY(THREE.Math.degToRad(-180));
     var mainMarkerRootSolvedMatrixInv = new THREE.Matrix4();
-    var markerRootMatrixInv = new THREE.Matrix4();
-    var tempMat = new THREE.Matrix4();
     function updateScenes(markers)
     {
         var corners, corner, pose, i, markerId;
@@ -502,27 +498,23 @@
         //start iterating if main marker id is detected
         if (markerRoots[MAIN_MARKER_ID] && markerRoots[MAIN_MARKER_ID].detected)
         {
-            var mainMarkerRootSolvedMatrix = markerRoots[MAIN_MARKER_ID].currSolvedMatrix;
-            var markerRootSolveAndPostCompensateMatrix = tempMat.multiplyMatrices(mainMarkerRootSolvedMatrix, markerRootPostCompensateMatrix);
+            //move the camera instead of the marker root
+            camera.matrix = mainMarkerRootSolvedMatrixInv.getInverse(markerRoots[MAIN_MARKER_ID].currSolvedMatrix);  //multiply inverse of main marker's matrix will force main marker to be at origin and the camera to transform around this world space
+            camera.matrixWorldNeedsUpdate = true;
 
             //for each of the marker root detected, move into the space of the main marker root
             Object.keys(markerRoots).forEach(function (key){
                 if (markerRoots[key].detected)
                 {
                     //transform and compensate
-                    markerRoots[key].matrix.copy(markerRootPreCompensateMatrix);
-                    markerRoots[key].matrix.multiply(markerRootMatrixInv.getInverse(markerRoots[key].currSolvedMatrix));
-                    markerRoots[key].matrix.multiply(markerRootSolveAndPostCompensateMatrix);
+                    markerRoots[key].matrix.copy(camera.matrix);  //transform into new camera world space first
+                    markerRoots[key].matrix.multiply(markerRoots[key].currSolvedMatrix);  //since currSolvedMatrix is relative to camera space, multiplying by it next will bring this object into world space
                     markerRoots[key].matrixWorldNeedsUpdate = true;
 
                     //show the object
                     showChildren(markerRoots[key], true);
                 }
             });
-
-            //move the camera instead of the marker root
-            camera.matrix = mainMarkerRootSolvedMatrixInv.getInverse(mainMarkerRootSolvedMatrix);
-            camera.matrixWorldNeedsUpdate = true;
 
             //also show the ground plane if necessary
             groundPlaneMesh.visible = options.displayOriginPlane;
@@ -543,10 +535,11 @@
     {
         var i, len;
         var children = object3d.children;
-        for (i = 0, len = children.length; i < len; i++)
-        {
+        for (i = 0, len = children.length; i < len; i++) {
             if (children[i] instanceof THREE.Mesh) {
                 children[i].visible = visible;
+            } else if (children[i] instanceof THREE.AxisHelper) {
+                children[i].visible = visible && options.displayLocalAxis;
             }
         }
     }
@@ -661,7 +654,7 @@
 
 	<div class="container" id="canvas-container">
 		<div class="caption">&lt;canvas&gt;</div>
-		<canvas id="mainCanvas" width="640" height="480"></canvas>
+		<canvas id="mainCanvas" width="1280" height="960"></canvas>
 	</div>
 
 	<div class="container" id="threejs-container">
