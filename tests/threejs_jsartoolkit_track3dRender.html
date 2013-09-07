@@ -245,7 +245,8 @@
 		var trackSceneScene = new THREE.Scene();
 
 		//camera
-		var trackSceneCamera = new THREE.PerspectiveCamera(40, canvasWidth/canvasHeight, 0.1, 1000);
+		var vfov = 40;
+		var trackSceneCamera = new THREE.PerspectiveCamera(vfov, canvasWidth/canvasHeight, 0.1, 1000);
 		trackSceneCamera.position.set(0.25, 0.25, 0.25);
 		trackSceneCamera.lookAt(new THREE.Vector3(0,0,0));
 		controls = new THREE.OrbitControls(trackSceneCamera);
@@ -355,7 +356,7 @@
 		// Here we create a FLARParam for images with 320x240 pixel dimensions.
 		// NOTE: THESE DIMENSIONS MUST BE THE SAME SIZE AS THE RASTER
 		// OTHERWISE WILL GET AN "Uncaught #<Object>" ERROR
-		var param = new FLARParam(canvasWidth, canvasHeight);
+		var param = new FLARParam(canvasWidth, canvasHeight, vfov);
 
 		// The FLARMultiIdMarkerDetector is the actual detection engine for marker detection.
 		// It detects multiple ID markers. ID markers are special markers that encode a number.
@@ -377,7 +378,7 @@
 		var renderer = new THREE.WebGLRenderer({
 			antialias : true
 		});
-		renderer.setSize(640, 480);  //fix the output size, will not affect tracking resolution
+		renderer.setSize(640, 360);  //fix the output size, will not affect tracking resolution
 		renderer.shadowMapEnabled = true;
 		renderer.shadowMapType = THREE.PCFShadowMap;
 		renderer.shadowMapSoft = true;
@@ -674,11 +675,11 @@
 
 	<div class="container" id="canvas-container">
 		<div class="caption">&lt;canvas&gt;</div>
-		<canvas id="mainCanvas" width="640" height="480"></canvas>
+		<canvas id="mainCanvas" width="1280" height="720"></canvas>
 	</div>
 	<div class="container" id="debugCanvas-container">
 		<div class="caption">debug &lt;canvas&gt;</div>
-		<canvas id="debugCanvas" width="640" height="480"></canvas>
+		<canvas id="debugCanvas" width="1280" height="720"></canvas>
 	</div>
 
 	<div class="container" id="threejs-container">
