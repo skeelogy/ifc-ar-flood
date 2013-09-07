@@ -35,7 +35,6 @@
 
 	<script>
 
-	var MAIN_MARKER_ID = 1001;
 	var MARKER_SIZE = 35.0;  //millimeters
 
 	var clock = new THREE.Clock();
@@ -50,7 +49,7 @@
 		cameraMotionTiltAmp: 0.2,
 		cameraMotionTiltOffset: 0.1,
 		togglePauseOrbit: togglePauseOrbit,
-		displayRefCube: true,
+		displayRefCube: false,
 		displayDebugView: false,
 		displayOriginPlane: true,
 		displayWireframe: false,
@@ -195,7 +194,7 @@
 
 		    arLibType: 'jsaruco',
 		    trackingElem: source,
-		    markerSize: 35,
+		    markerSize: MARKER_SIZE,
 		    verticalFov: 40,  //you will have to estimate this for your camera
 		    debug: options.displayDebugView,
 
@@ -214,7 +213,7 @@
     {
         //create a stats monitor
 		stats = new Stats();
-		var $threejsContainerElem = $('#threejs-container div:eq(-1)');
+		var $threejsContainerElem = $('#threejs-container-parent');
 		$threejsContainerElem.append(stats.domElement);
     }
 
@@ -279,11 +278,17 @@
 		toggleRefCube(options.displayRefCube);
 
 		control = displayFolder.add(options, 'displayDebugView').name('Debug View');
+		function toggleDebugView(value)
+		{
+			skarf.arLib.debug = value;
+		}
+		control.onChange(toggleDebugView);
+		toggleDebugView(options.displayDebugView);
 
 		control = displayFolder.add(options, 'displayOriginPlane').name('Origin Plane');
 		function toggleOriginPlane(value)
 		{
-			// groundPlaneMesh.visible = value;
+			skarf.renderer.setOriginPlaneVisible(value);
 		}
 		control.onChange(toggleOriginPlane);
 		toggleOriginPlane(options.displayOriginPlane);
@@ -291,11 +296,7 @@
 		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
 		{
-		    // var i, len;
-		    // for (i = 0, len = materials.length; i < len; i++)
-		    // {
-		        // materials[i].wireframe = value;
-		    // }
+		    skarf.renderer.setWireframeVisible(value);
 		}
 		control.onChange(toggleWireframe);
 		toggleWireframe(options.displayWireframe);
@@ -303,11 +304,7 @@
 		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
-			// var i, len;
-			// for (i = 0, len = localAxes.length; i < len; i++)
-			// {
-			    // localAxes[i].visible = value;
-			// }
+			skarf.renderer.setLocalAxisVisible(value);
 		}
 		control.onChange(toggleLocalAxis);
 		toggleLocalAxis(options.displayLocalAxis);
@@ -408,8 +405,9 @@
 		<canvas id="mainCanvas" width="640" height="360"></canvas>
 	</div>
 
-	<div class="container" id="threejs-container">
+	<div class="container" id="threejs-container-parent">
 		<div class="caption">three.js &lt;canvas&gt;</div>
+		<div id="threejs-container"></div>
 		<div class="caption">NOTE: Plane is at the origin</div>
 	</div>
 </body>

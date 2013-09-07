@@ -55,6 +55,7 @@ ModelLoader.prototype.loadForMarker = function (markerId, markerTransform, overa
     throw new Error('Abstract method not implemented');
 };
 ModelLoader.prototype.transformAndParent = function (model, object, markerTransform, overallScale) {
+
     //accumulate transformations into matrix
     var m = new THREE.Matrix4();
     if (model.translate) {
@@ -76,6 +77,10 @@ ModelLoader.prototype.transformAndParent = function (model, object, markerTransf
         object.applyMatrix(m);
         markerTransform.add(object);
     }
+
+    //also set objects to cast shadows
+    object.castShadow = true;
+    object.receiveShadow = true;
 };
 
 function EmptyModelLoader() {
@@ -499,6 +504,9 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
         this.renderer.setMarkerDetected(keys[i], false);
     }
 
+    //hide ground plane regardless of the originPlaneMeshIsVisible flag
+    this.renderer.originPlaneMesh.visible = false;
+
     for (i = 0; i < markers.length; i++) {
         markerId = markers[i].id;
         corners = markers[i].corners;
@@ -662,13 +670,38 @@ function Renderer(options) {
     this.backgroundCanvasElem = null;
 }
 Renderer.prototype.init = function () {
-    throw new Error('Abstract method not implemented');
+    this.setupCamera();
+    this.setupScene();
+    this.createOriginPlane();
+    if (this.useDefaultLights) {
+        this.setupLights();
+    }
+    this.setupRenderer();
+    this.setupBackgroundVideo();
+};
+Renderer.prototype.getMainMarkerId = function () {
+    return this.modelManager.modelData.mainMarkerId;
 };
 Renderer.prototype.update = function () {
     throw new Error('Abstract method not implemented');
 };
-Renderer.prototype.getMainMarkerId = function () {
-    return this.modelManager.modelData.mainMarkerId;
+Renderer.prototype.setupCamera = function () {
+    throw new Error('Abstract method not implemented');
+};
+Renderer.prototype.setupScene = function () {
+    throw new Error('Abstract method not implemented');
+};
+Renderer.prototype.createOriginPlane = function () {
+    throw new Error('Abstract method not implemented');
+};
+Renderer.prototype.setupLights = function () {
+    throw new Error('Abstract method not implemented');
+};
+Renderer.prototype.setupRenderer = function () {
+    throw new Error('Abstract method not implemented');
+};
+Renderer.prototype.setupBackgroundVideo = function () {
+    throw new Error('Abstract method not implemented');
 };
 Renderer.prototype.createTransformForMarker = function (markerId, markerSize) {
     throw new Error('Abstract method not implemented');
@@ -683,31 +716,14 @@ Renderer.prototype.getAllLocalAxes = function (transform) {
     throw new Error('Abstract method not implemented');
 };
 Renderer.prototype.setWireframeVisible = function (isVisible) {
-    this.isWireframeVisible = isVisible;
-    var markerTransform, materials;
-    var markerTransformsKeys = Object.keys(this.markerTransforms);
-    var i, j, leni, lenj;
-    for (i = 0, leni = markerTransformsKeys.length; i < leni; i++) {
-        markerTransform = this.markerTransforms[markerTransformsKeys[i]];
-        materials = this.getAllMaterialsForTransform(markerTransform);
-        for (j = 0, lenj = materials.length; j < lenj; j++) {
-            materials[j].wireframe = isVisible;
-        }
-    }
+    throw new Error('Abstract method not implemented');
 };
 Renderer.prototype.setLocalAxisVisible = function (isVisible) {
-    this.isLocalAxisVisible = isVisible;
-    var markerTransform, localAxes;
-    var markerTransformsKeys = Object.keys(this.markerTransforms);
-    var i, j, leni, lenj;
-    for (i = 0, leni = markerTransformsKeys.length; i < leni; i++) {
-        markerTransform = this.markerTransforms[markerTransformsKeys[i]];
-        localAxes = this.getAllLocalAxesForTransform(markerTransform);
-        for (j = 0, lenj = localAxes.length; j < lenj; j++) {
-            localAxes[j].visible = isVisible;
-        }
-    }
+    throw new Error('Abstract method not implemented');
 };
+Renderer.prototype.setOriginPlaneVisible = function (visible) {
+    throw new Error('Abstract method not implemented');
+}
 
 
 function ThreeJsRenderer(options) {
@@ -726,15 +742,6 @@ ThreeJsRenderer.prototype.constructor = ThreeJsRenderer;
 RendererFactory.register('threejs', ThreeJsRenderer);
 
 //override methods
-ThreeJsRenderer.prototype.init = function () {
-    this.setupCamera();
-    this.setupScene();
-    if (this.useDefaultLights) {
-        this.setupLights();
-    }
-    this.setupRenderer();
-    this.setupBackgroundVideo();
-};
 ThreeJsRenderer.prototype.update = function () {
     this.videoTex.needsUpdate = true;
     this.renderer.autoClear = false;
@@ -775,7 +782,7 @@ ThreeJsRenderer.prototype.createTransformForMarker = function (markerId, markerS
     this.scene.add(markerTransform);
 
     //add a axis helper to see the local axis
-    var localAxis = new THREE.AxisHelper(50);
+    var localAxis = new THREE.AxisHelper(markerSize * 2);
     localAxis.visible = this.isLocalAxisVisible;
     markerTransform.add(localAxis);
 
@@ -844,37 +851,57 @@ ThreeJsRenderer.prototype.setupCamera = function () {
 };
 ThreeJsRenderer.prototype.setupScene = function () {
     this.scene = new THREE.Scene();
-
-    //create a ground plane at the origin
-    var groundPlaneGeom = new THREE.PlaneGeometry(100, 100, 1, 1);
-    groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-    var groundPlaneMaterial = new THREE.MeshPhongMaterial({side: THREE.DoubleSide, wireframe: true});
-    // materials.push(groundPlaneMaterial);
-    this.groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
-    this.groundPlaneMesh.castShadow = true;
-    this.groundPlaneMesh.receiveShadow = true;
-    this.scene.add(this.groundPlaneMesh);
+};
+ThreeJsRenderer.prototype.createOriginPlane = function () {
+    var originPlaneGeom = new THREE.PlaneGeometry(this.arLib.markerSize * 3, this.arLib.markerSize * 3, 1, 1);
+    originPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+    var originPlaneMaterial = new THREE.MeshPhongMaterial({
+        color: 0x99ff66,
+        side: THREE.DoubleSide,
+        wireframe: false  //TODO: this should default to global wireframe setting
+    });
+    // materials.push(originPlaneMaterial);
+    this.originPlaneMesh = new THREE.Mesh(originPlaneGeom, originPlaneMaterial);
+    this.originPlaneMesh.castShadow = true;
+    this.originPlaneMesh.receiveShadow = true;
+    this.scene.add(this.originPlaneMesh);
+    this.originPlaneMeshIsVisible = false;
 };
 ThreeJsRenderer.prototype.setupLights = function () {
-    this.scene.add(new THREE.AmbientLight(0x444444));
 
-    var light = new THREE.DirectionalLight(0xffffff);
-    light.position.set(3, -3, 1).normalize();
-    this.scene.add(light);
+    this.scene.add(new THREE.AmbientLight(0x111111));
 
-    light = new THREE.DirectionalLight(0xffffff);
-    light.position.set(-0, 2, -1).normalize();
-    this.scene.add(light);
+    var keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    keyLight.position.set(-50, 75, 75);
+    keyLight.target.position.set(0, 0, 0);
+    keyLight.castShadow = true;
+    keyLight.shadowCameraNear = 60;
+    keyLight.shadowCameraFar = 200;
+    keyLight.shadowCameraRight = 150;
+    keyLight.shadowCameraLeft = -150;
+    keyLight.shadowCameraTop = 150;
+    keyLight.shadowCameraBottom = -150;
+    // keyLight.shadowCameraVisible = true;
+    keyLight.shadowBias = 0.0001;
+    keyLight.shadowDarkness = 0.5;
+    keyLight.shadowMapWidth = 1024;
+    keyLight.shadowMapHeight = 1024;
+    this.scene.add(keyLight);
+
+    var fillLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    fillLight.position.set(25, 75, 75);
+    fillLight.target.position.set(0, 0, 0);
+    this.scene.add(fillLight);
 };
 ThreeJsRenderer.prototype.setupRenderer = function () {
-    this.renderer = this.createRenderer();
-    this.renderer.setSize(this.rendererCanvasElemWidth, this.rendererCanvasElemHeight);
-    this.rendererContainerElem.append(this.renderer.domElement);
-};
-ThreeJsRenderer.prototype.createRenderer = function () {  //meant for overriding
-    return new THREE.WebGLRenderer({
+    this.renderer = new THREE.WebGLRenderer({
         antialias: true
     });
+    this.renderer.setSize(this.rendererCanvasElemWidth, this.rendererCanvasElemHeight);
+    this.renderer.shadowMapEnabled = true;
+    this.renderer.shadowMapType = THREE.PCFShadowMap;
+    this.renderer.shadowMapSoft = true;
+    this.rendererContainerElem.append(this.renderer.domElement);
 };
 ThreeJsRenderer.prototype.setupBackgroundVideo = function () {
     //NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
@@ -919,10 +946,46 @@ ThreeJsRenderer.prototype.updateSolvedScene = function (mainMarkerId) {
             }
         });
 
-        //also show the ground plane if necessary
-        // groundPlaneMesh.visible = options.displayOriginPlane;
+        //also show the ground plane based on the originPlaneMeshIsVisible flag
+        this.originPlaneMesh.visible = this.originPlaneMeshIsVisible;
     }
 };
+ThreeJsRenderer.prototype.setOriginPlaneVisible = function (visible) {
+    this.originPlaneMeshIsVisible = visible;
+};
+ThreeJsRenderer.prototype.setWireframeVisible = function (isVisible) {
+
+    this.isWireframeVisible = isVisible;
+
+    //set wireframe mode for the loaded models
+    var markerTransform, materials;
+    var markerTransformsKeys = Object.keys(this.markerTransforms);
+    var i, j, leni, lenj;
+    for (i = 0, leni = markerTransformsKeys.length; i < leni; i++) {
+        markerTransform = this.markerTransforms[markerTransformsKeys[i]];
+        materials = this.getAllMaterialsForTransform(markerTransform);
+        for (j = 0, lenj = materials.length; j < lenj; j++) {
+            materials[j].wireframe = isVisible;
+        }
+    }
+
+    //also set the wireframe mode for the ground plane
+    this.originPlaneMesh.material.wireframe = isVisible;
+};
+ThreeJsRenderer.prototype.setLocalAxisVisible = function (isVisible) {
+    this.isLocalAxisVisible = isVisible;
+    var markerTransform, localAxes;
+    var markerTransformsKeys = Object.keys(this.markerTransforms);
+    var i, j, leni, lenj;
+    for (i = 0, leni = markerTransformsKeys.length; i < leni; i++) {
+        markerTransform = this.markerTransforms[markerTransformsKeys[i]];
+        localAxes = this.getAllLocalAxesForTransform(markerTransform);
+        for (j = 0, lenj = localAxes.length; j < lenj; j++) {
+            localAxes[j].visible = isVisible;
+        }
+    }
+};
+
 
 //===================================
 // SKARF
@@ -1010,8 +1073,6 @@ SkArF.prototype.init = function () {
                                         threshold: this.threshold,
                                         debug: this.debug
                                      });
-
-
 
     //assign necessary pointers of itself to each other
     this.arLib.renderer = this.renderer;
