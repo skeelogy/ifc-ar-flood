@@ -64,6 +64,7 @@
 		}
 	}
 
+	var vfov;
     var trackSceneRenderer, trackSceneScene, trackSceneCamera, trackSceneCameraControls;
     var trackScenePlaneMesh, trackScenePlaneMesh2, trackScenePlaneMesh3;
     var refCubeMesh, refCubeMesh2, refCubeMesh3;
@@ -84,7 +85,8 @@
 		trackSceneScene = new THREE.Scene();
 
 		//camera
-		trackSceneCamera = new THREE.PerspectiveCamera(40, canvasWidth/canvasHeight, 0.1, 1000);
+		vfov = 40;
+		trackSceneCamera = new THREE.PerspectiveCamera(vfov, canvasWidth/canvasHeight, 0.1, 1000);
 		trackSceneCamera.position.set(0.25, 0.25, 0.25);
 		trackSceneCamera.lookAt(new THREE.Vector3(0,0,0));
 		trackSceneCameraControls = new THREE.OrbitControls(trackSceneCamera);
@@ -184,7 +186,11 @@
     function setupJsaruco()
     {
 		detector = new AR.Detector();
-		posit = new POS.Posit(MARKER_SIZE, canvasWidth);
+
+		//NOTE: the second parameter is suppose to be canvasWidth (from the js-aruco example).
+		//However, it cannot work when I change the aspect ratio of the tracking canvas.
+		//It seems as though the tracking canvas must be 4:3, so I'm doing some compensation here to allow any aspect ratio.
+		posit = new POS.Posit(MARKER_SIZE, canvasHeight * 4.0 / 3.0);
     }
 
     var renderer, scene, camera;
@@ -196,7 +202,7 @@
 		renderer = new THREE.WebGLRenderer({
 			antialias : true
 		});
-		renderer.setSize(640, 480);  //fix the output size, will not affect tracking resolution
+		renderer.setSize(640, 360);  //fix the output size, will not affect tracking resolution
 		renderer.shadowMapEnabled = true;
 		renderer.shadowMapType = THREE.PCFShadowMap;
 		renderer.shadowMapSoft = true;
@@ -207,7 +213,7 @@
 		scene = new THREE.Scene();
 
 		// Create a camera and a marker root object for your Three.js scene.
-		camera = new THREE.PerspectiveCamera(40, canvasWidth / canvasHeight, 0.1, 1000);
+		camera = new THREE.PerspectiveCamera(vfov, canvasWidth / canvasHeight, 0.1, 1000);
 		camera.matrixAutoUpdate = false;
 
 		//setup lights
@@ -445,7 +451,7 @@
                 markerRoot = new THREE.Object3D();
                 markerRoot.matrixAutoUpdate = false;
                 markerRoots[markerId] = markerRoot;
-                var cubeLength = MARKER_SIZE * 0.98;
+                var cubeLength = MARKER_SIZE * 1.0;
                 var cubeGeom = new THREE.CubeGeometry(cubeLength, cubeLength, cubeLength);
                 var cubeMaterial = new THREE.MeshPhongMaterial({
                     color: 0xff0000,
@@ -472,8 +478,10 @@
             for (j = 0; j < corners.length; j++)
             {
                 corner = corners[j];
-                corner.x = corner.x - (canvasWidth / 2);
-                corner.y = (canvasHeight / 2) - corner.y;
+                //NOTE: there seems to be some scale away from the center, so I have to scale everything down from the center.
+                //The value of 0.97 is by trial-and-error, seems to work pretty well.
+                corner.x = 0.97 * (corner.x - (canvasWidth / 2));
+                corner.y = 0.97 * ((canvasHeight / 2) - corner.y);
             }
 
             //estimate pose
@@ -654,7 +662,7 @@
 
 	<div class="container" id="canvas-container">
 		<div class="caption">&lt;canvas&gt;</div>
-		<canvas id="mainCanvas" width="1280" height="960"></canvas>
+		<canvas id="mainCanvas" width="1280" height="720"></canvas>
 	</div>
 
 	<div class="container" id="threejs-container">
