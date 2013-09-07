@@ -98,18 +98,20 @@
 
 	var options = {
         displayDebugView: false,
-        displayWireframe: false,
-        displayLocalAxis: false,
+		displayOriginPlane: false,
+		displayWireframe: false,
+		displayLocalAxis: false
     };
     var gui;
     var displayFolder;
 	function setupGui() {
 
 		gui = new dat.GUI();
-		gui.close();  //close GUI by default
+		// gui.close();  //close GUI by default
 
 		//Display folder
 		displayFolder = gui.addFolder('Display');
+		displayFolder.open();
 
 		control = displayFolder.add(options, 'displayDebugView').name('Debug View');
 		function toggleDebugView(value)
@@ -119,10 +121,18 @@
 		control.onChange(toggleDebugView);
 		toggleDebugView(options.displayDebugView);
 
+		control = displayFolder.add(options, 'displayOriginPlane').name('Origin Plane');
+		function toggleOriginPlane(value)
+		{
+			skarf.renderer.setOriginPlaneVisible(value);
+		}
+		control.onChange(toggleOriginPlane);
+		toggleOriginPlane(options.displayOriginPlane);
+
 		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
 		{
-			skarf.renderer.setWireframeVisible(value);
+		    skarf.renderer.setWireframeVisible(value);
 		}
 		control.onChange(toggleWireframe);
 		toggleWireframe(options.displayWireframe);
