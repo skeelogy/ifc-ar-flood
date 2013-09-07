@@ -382,8 +382,8 @@
 		renderer.shadowMapEnabled = true;
 		renderer.shadowMapType = THREE.PCFShadowMap;
 		renderer.shadowMapSoft = true;
-		var $threejsContainerElem = $('#threejs-container div:eq(0)');
-		$threejsContainerElem.after(renderer.domElement);
+		var $threejsContainerElem = $('#threejs-container');
+		$threejsContainerElem.append(renderer.domElement);
 
 		// create the scene
 		var scene = new THREE.Scene();
@@ -458,7 +458,7 @@
 
 		//create a stats monitor
 		stats = new Stats();
-		var $threejsContainerElem = $('#threejs-container div:eq(-1)');
+		var $threejsContainerElem = $('#threejs-container-parent');
 		$threejsContainerElem.append(stats.domElement);
 
 		//===================================================
@@ -682,8 +682,9 @@
 		<canvas id="debugCanvas" width="1280" height="720"></canvas>
 	</div>
 
-	<div class="container" id="threejs-container">
+	<div class="container" id="threejs-container-parent">
 		<div class="caption">three.js &lt;canvas&gt;</div>
+		<div id="threejs-container"></div>
 		<div class="caption">NOTE: Plane is at the origin</div>
 	</div>
 </body>
