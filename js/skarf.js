@@ -219,14 +219,15 @@ ModelManager.prototype.load = function () {
 
     //load the JSON file
     var that = this;
-    $.getJSON(this.modelsJsonFile)
-        .done(function (data) {
-            that.modelData = data;
-            console.log('loaded ' + that.modelsJsonFile);
-        })
-        .fail(function (jqxhr, textStatus, error) {
-            console.error('Unable to load JSON file ' + that.modelsJsonFile + ' - ' + error + ' - ' + textStatus);
-        });
+    $.ajax({
+        url: this.modelsJsonFile,
+        async: false
+    }).done(function (data) {
+        that.modelData = data;
+        console.log('loaded ' + that.modelsJsonFile);
+    }).error(function (xhr, textStatus, error) {
+        throw new Error('error loading ' + this.modelsJsonFile + ': ' + error);
+    });
 };
 ModelManager.prototype.loadForMarker = function (markerId, markerTransform, isWireframeVisible) {
     var model = this.modelData.models[markerId];
