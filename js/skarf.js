@@ -51,10 +51,10 @@ var ModelLoaderFactory = {
 function ModelLoader() {
     this.loader = null;
 }
-ModelLoader.prototype.loadForMarker = function (markerId, markerTransform, isWireframeVisible) {
+ModelLoader.prototype.loadForMarker = function (markerId, markerTransform, overallScale, isWireframeVisible) {
     throw new Error('Abstract method not implemented');
 };
-ModelLoader.prototype.transformAndParent = function (model, object, markerTransform) {
+ModelLoader.prototype.transformAndParent = function (model, object, markerTransform, overallScale) {
     //accumulate transformations into matrix
     var m = new THREE.Matrix4();
     if (model.translate) {
@@ -68,7 +68,7 @@ ModelLoader.prototype.transformAndParent = function (model, object, markerTransf
         m.multiply(rotationMat);
     }
     if (model.scale) {
-        m.scale(new THREE.Vector3(model.scale[0], model.scale[1], model.scale[2]));
+        m.scale(new THREE.Vector3(model.scale[0]*overallScale, model.scale[1]*overallScale, model.scale[2]*overallScale));
     }
 
     //apply the transforms
@@ -92,11 +92,11 @@ EmptyModelLoader.prototype.constructor = EmptyModelLoader;
 ModelLoaderFactory.register('empty', EmptyModelLoader);
 
 //override methods
-EmptyModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, isWireframeVisible) {
+EmptyModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible) {
     //TODO: time how long it takes to load
 
     //bake transformations into vertices
-    this.transformAndParent(model, null, markerTransform);
+    this.transformAndParent(model, null, markerTransform, overallScale);
 
     console.log('Loaded empty transform for marker id ' + markerId);
 };
@@ -115,7 +115,7 @@ JsonModelLoader.prototype.constructor = JsonModelLoader;
 ModelLoaderFactory.register('json', JsonModelLoader);
 
 //override methods
-JsonModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, isWireframeVisible) {
+JsonModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible) {
     //TODO: time how long it takes to load
 
     var that = this;
@@ -131,7 +131,7 @@ JsonModelLoader.prototype.loadForMarker = function (model, markerId, markerTrans
         var mesh = new THREE.Mesh(geometry, new THREE.MeshFaceMaterial(materials));
 
         //bake transformations into vertices
-        that.transformAndParent(model, mesh, markerTransform);
+        that.transformAndParent(model, mesh, markerTransform, overallScale);
 
         console.log('Loaded mesh ' + model.url + ' for marker id ' + markerId);
     });
@@ -171,7 +171,7 @@ ObjModelLoader.prototype.constructor = ObjModelLoader;
 ModelLoaderFactory.register('obj', ObjModelLoader);
 
 //override methods
-ObjModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, isWireframeVisible) {
+ObjModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible) {
     var that = this;
     this.loader.addEventListener('load', function (event) {
 
@@ -191,7 +191,7 @@ ObjModelLoader.prototype.loadForMarker = function (model, markerId, markerTransf
         }
 
         //transform and parent
-        that.transformAndParent(model, object, markerTransform);
+        that.transformAndParent(model, object, markerTransform, overallScale);
 
         console.log('Loaded mesh ' + model.url + ' for marker id ' + markerId);
     });
@@ -224,7 +224,8 @@ ModelManager.prototype.load = function () {
         async: false
     }).done(function (data) {
         that.modelData = data;
-        console.log('loaded ' + that.modelsJsonFile);
+        console.log('Loaded ' + that.modelsJsonFile);
+        console.log('Main marker id: ' + that.modelData.mainMarkerId);
     }).error(function (xhr, textStatus, error) {
         throw new Error('error loading ' + this.modelsJsonFile + ': ' + error);
     });
@@ -314,6 +315,16 @@ function ArLib(options) {
         throw new Error('markerSize not specified');
     }
     this.markerSize = options.markerSize;
+
+    if (typeof options.verticalFov === 'undefined') {
+        throw new Error('verticalFov not specified');
+    }
+    this.verticalFov = options.verticalFov;
+
+    if (typeof options.mainMarkerId === 'undefined') {
+        throw new Error('mainMarkerId not specified');
+    }
+    this.mainMarkerId = options.mainMarkerId;
 
     this.debug = (typeof options.debug === 'undefined') ? false : options.debug;
 
@@ -417,10 +428,10 @@ JsArToolKitArLib.prototype.update = function () {
             this.markers[currId] = {};
 
             //create a transform for this marker
-            var transform = this.renderer.createTransformForMarker(currId, false);
+            var transform = this.renderer.createTransformForMarker(currId, this.markerSize);
 
             //delay-load the model
-            this.renderer.loadModelForMarker(currId, transform);
+            this.renderer.loadModelForMarker(currId, transform, this.markerSize);
         }
 
         // Get the transformation matrix for the detected marker.
@@ -441,6 +452,9 @@ JsArToolKitArLib.prototype.update = function () {
 //create a class to handle js-aruco
 function JsArucoArLib(options) {
     ArLib.call(this, options);
+
+    //temp matrix for calculations later
+    this.tmpMat = new THREE.Matrix4();
 }
 
 //inherit from ArLib
@@ -453,7 +467,12 @@ ArLibFactory.register('jsaruco', JsArucoArLib);
 //override methods
 JsArucoArLib.prototype.init = function () {
     this.detector = new AR.Detector();
-    this.posit = new POS.Posit(this.markerSize, this.canvasElem.width);
+
+    //NOTE: the second parameter is suppose to be canvasWidth (from the js-aruco example).
+    //However, it cannot work when I change the aspect ratio of the tracking canvas.
+    //It seems as though the tracking canvas must be 4:3, so I'm doing some compensation here to allow any aspect ratio.
+    this.posit = new POS.Posit(this.markerSize, this.canvasElem.height * 4.0 / 3.0);
+
     this.context = this.canvasElem.getContext('2d');
 };
 JsArucoArLib.prototype.update = function () {
@@ -470,10 +489,14 @@ JsArucoArLib.prototype.update = function () {
 JsArucoArLib.prototype.__updateScenes = function (markers) {
     var corners, corner, pose, i, markerId;
 
-    //hide all marker roots first
     var keys = Object.keys(this.markers);
     for (i = 0; i < keys.length; i++) {
+
+        //hide marker
         this.renderer.showChildrenOfMarker(keys[i], false);
+
+        //set detected to false for this marker
+        this.renderer.setMarkerDetected(keys[i], false);
     }
 
     for (i = 0; i < markers.length; i++) {
@@ -483,41 +506,56 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
         // If this is a new id, let's start tracking it.
         if (typeof this.markers[markerId] === 'undefined') {
 
-            console.log('creating new marker root for id: ' + markerId);
+            console.log('Creating new marker root for id ' + markerId);
 
             //create empty object for the marker
             this.markers[markerId] = {};
 
             //create a transform for this marker
-            var transform = this.renderer.createTransformForMarker(markerId, true);
+            var transform = this.renderer.createTransformForMarker(markerId, this.markerSize);
 
             //delay-load the model
-            this.renderer.loadModelForMarker(markerId, transform);
+            this.renderer.loadModelForMarker(markerId, transform, this.markerSize);
         }
 
         //align corners to center of canvas
         var j;
         for (j = 0; j < corners.length; j++) {
             corner = corners[j];
-            corner.x = corner.x - (this.canvasElem.width / 2);
-            corner.y = (this.canvasElem.height / 2) - corner.y;
+            //NOTE: there seems to be some scale away from the center, so I have to scale everything down from the center.
+            //The value of 0.97 is by trial-and-error, seems to work pretty well.
+            corner.x = 0.97 * (corner.x - (this.canvasElem.width / 2));
+            corner.y = 0.97 * ((this.canvasElem.height / 2) - corner.y);
         }
 
         //estimate pose
         try {
             pose = this.posit.pose(corners);
 
-            this.renderer.showChildrenOfMarker(markerId, true);
-            this.renderer.setMarkerSRT(markerId, this.markerSize, pose.bestRotation, pose.bestTranslation);
-            // this.renderer.setMarkerSRT(markerId, this.markerSize, pose.alternativeRotation, pose.alternativeTranslation);
+            //store the current solved matrix first
+            this.updateMatrix4FromRotAndTrans(pose.bestRotation, pose.bestTranslation);
+            this.tmpMat.multiply(new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90)));
+            this.renderer.setCurrSolvedMatrixValues(markerId, this.tmpMat);
 
-            // updatePoseInfo("pose1", pose.bestError, pose.bestRotation, pose.bestTranslation);
-            // updatePoseInfo("pose2", pose.alternativeError, pose.alternativeRotation, pose.alternativeTranslation);
+            //register that this marker has been detected
+            this.renderer.setMarkerDetected(markerId, true);
+
         } catch (err) {
             //just print to console but let the error pass so that the program can continue
             console.log(err.message);
         }
     }
+
+    //update the solved scene
+    this.renderer.updateSolvedScene(this.mainMarkerId);
+};
+JsArucoArLib.prototype.updateMatrix4FromRotAndTrans = function (rotationMat, translationVec) {
+    this.tmpMat.set(
+        rotationMat[0][0], rotationMat[0][1], -rotationMat[0][2], translationVec[0],
+        rotationMat[1][0], rotationMat[1][1], -rotationMat[1][2], translationVec[1],
+        -rotationMat[2][0], -rotationMat[2][1], rotationMat[2][2], -translationVec[2],
+        0, 0, 0, 1
+    );
 };
 JsArucoArLib.prototype.__drawCorners = function (markers) {
 
@@ -629,13 +667,13 @@ Renderer.prototype.init = function () {
 Renderer.prototype.update = function () {
     throw new Error('Abstract method not implemented');
 };
-Renderer.prototype.createTransformForMarker = function (markerId) {
+Renderer.prototype.getMainMarkerId = function () {
+    return this.modelManager.modelData.mainMarkerId;
+};
+Renderer.prototype.createTransformForMarker = function (markerId, markerSize) {
     throw new Error('Abstract method not implemented');
 };
 Renderer.prototype.setMarkerTransformMatrix = function (markerId, transformMatrix) {
-    throw new Error('Abstract method not implemented');
-};
-Renderer.prototype.setMarkerSRT = function (markerId, scale, rotationMat, translationVec) {
     throw new Error('Abstract method not implemented');
 };
 Renderer.prototype.getAllMaterials = function (transform) {
@@ -675,6 +713,9 @@ Renderer.prototype.setLocalAxisVisible = function (isVisible) {
 function ThreeJsRenderer(options) {
     this.markerTransforms = {};
     Renderer.call(this, options);
+
+    //temp matrix
+    this.mainMarkerRootSolvedMatrixInv = new THREE.Matrix4();
 }
 
 //inherit from Renderer
@@ -721,26 +762,27 @@ ThreeJsRenderer.prototype.showChildren = function (object3d, visible) {
         }
     }
 };
-ThreeJsRenderer.prototype.createTransformForMarker = function (markerId, matrixAutoUpdate) {
+ThreeJsRenderer.prototype.createTransformForMarker = function (markerId, markerSize) {
     //FIXME: no need to create a transform if this markerId is not in the models JSON file
 
     //create a new Three.js object as marker root
     var markerTransform = new THREE.Object3D();
-    markerTransform.matrixAutoUpdate = matrixAutoUpdate;
+    markerTransform.matrixAutoUpdate = false;
+    markerTransform.currSolvedMatrix = new THREE.Matrix4();
     this.markerTransforms[markerId] = markerTransform;
 
     // Add the marker root to your scene.
     this.scene.add(markerTransform);
 
     //add a axis helper to see the local axis
-    var localAxis = new THREE.AxisHelper(100);
+    var localAxis = new THREE.AxisHelper(50);
     localAxis.visible = this.isLocalAxisVisible;
     markerTransform.add(localAxis);
 
     return markerTransform;
 };
-ThreeJsRenderer.prototype.loadModelForMarker = function (markerId, markerTransform) {
-    this.modelManager.loadForMarker(markerId, markerTransform, this.isWireframeVisible);
+ThreeJsRenderer.prototype.loadModelForMarker = function (markerId, markerTransform, markerSize) {
+    this.modelManager.loadForMarker(markerId, markerTransform, markerSize, this.isWireframeVisible);
 };
 ThreeJsRenderer.prototype.setMarkerTransformMatrix = function (markerId, transformMatrix) {
     this.markerTransforms[markerId].matrix.setFromArray(transformMatrix);
@@ -754,22 +796,6 @@ ThreeJsRenderer.prototype.setMarkerTransformMatrix = function (markerId, transfo
     this.markerTransforms[markerId].matrix.multiply(m);
 
     this.markerTransforms[markerId].matrixWorldNeedsUpdate = true;
-};
-ThreeJsRenderer.prototype.setMarkerSRT = function (markerId, scale, rotationMat, translationVec) {
-
-    var mesh = this.markerTransforms[markerId];
-
-    mesh.scale.x = scale;
-    mesh.scale.y = scale;
-    mesh.scale.z = scale;
-
-    mesh.rotation.x = -Math.asin(-rotationMat[1][2]);
-    mesh.rotation.y = -Math.atan2(rotationMat[0][2], rotationMat[2][2]);
-    mesh.rotation.z = Math.atan2(rotationMat[1][0], rotationMat[1][1]);
-
-    mesh.position.x = translationVec[0];
-    mesh.position.y = translationVec[1];
-    mesh.position.z = -translationVec[2];
 };
 ThreeJsRenderer.prototype.getAllMaterialsForTransform = function (transform) {
     //FIXME: does not work with obj models. Need to recurse down tree to find materials.
@@ -813,10 +839,21 @@ ThreeJsRenderer.prototype.initCameraProjMatrix = function (camProjMatrixArray) {
 };
 ThreeJsRenderer.prototype.setupCamera = function () {
     // this.camera = new THREE.Camera();  //FIXME: split
-    this.camera = new THREE.PerspectiveCamera(40, this.rendererCanvasElemWidth / this.rendererCanvasElemHeight, 1, 1000);
+    this.camera = new THREE.PerspectiveCamera(40, this.rendererCanvasElemWidth / this.rendererCanvasElemHeight, 0.1, 10000);
+    this.camera.matrixAutoUpdate = false;
 };
 ThreeJsRenderer.prototype.setupScene = function () {
     this.scene = new THREE.Scene();
+
+    //create a ground plane at the origin
+    var groundPlaneGeom = new THREE.PlaneGeometry(100, 100, 1, 1);
+    groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+    var groundPlaneMaterial = new THREE.MeshPhongMaterial({side: THREE.DoubleSide, wireframe: true});
+    // materials.push(groundPlaneMaterial);
+    this.groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
+    this.groundPlaneMesh.castShadow = true;
+    this.groundPlaneMesh.receiveShadow = true;
+    this.scene.add(this.groundPlaneMesh);
 };
 ThreeJsRenderer.prototype.setupLights = function () {
     this.scene.add(new THREE.AmbientLight(0x444444));
@@ -854,6 +891,38 @@ ThreeJsRenderer.prototype.setupBackgroundVideo = function () {
     this.videoScene.add(plane);
     this.videoScene.add(this.videoCam);
 };
+ThreeJsRenderer.prototype.setCurrSolvedMatrixValues = function (markerId, matrix) {
+    this.markerTransforms[markerId].currSolvedMatrix.copy(matrix);
+};
+ThreeJsRenderer.prototype.setMarkerDetected = function (markerId, detected) {
+    this.markerTransforms[markerId].detected = detected;
+};
+ThreeJsRenderer.prototype.updateSolvedScene = function (mainMarkerId) {
+    if (this.markerTransforms[mainMarkerId] && this.markerTransforms[mainMarkerId].detected) {
+
+        //move the camera instead of the marker root
+        this.camera.matrix = this.mainMarkerRootSolvedMatrixInv.getInverse(this.markerTransforms[mainMarkerId].currSolvedMatrix);  //multiply inverse of main marker's matrix will force main marker to be at origin and the camera to transform around this world space
+        this.camera.matrixWorldNeedsUpdate = true;
+
+        //for each of the marker root detected, move into the space of the main marker root
+        var that = this;
+        Object.keys(this.markerTransforms).forEach(function (key) {
+            if (that.markerTransforms[key].detected) {
+
+                //transform and compensate
+                that.markerTransforms[key].matrix.copy(that.camera.matrix);  //transform into new camera world space first
+                that.markerTransforms[key].matrix.multiply(that.markerTransforms[key].currSolvedMatrix);  //since currSolvedMatrix is relative to camera space, multiplying by it next will bring this object into world space
+                that.markerTransforms[key].matrixWorldNeedsUpdate = true;
+
+                //show the object
+                that.showChildren(that.markerTransforms[key], true);
+            }
+        });
+
+        //also show the ground plane if necessary
+        // groundPlaneMesh.visible = options.displayOriginPlane;
+    }
+};
 
 //===================================
 // SKARF
@@ -874,6 +943,10 @@ function SkArF(options) {
         throw new Error('markerSize not specified');
     }
     this.markerSize = options.markerSize;
+    if (typeof options.verticalFov === 'undefined') {
+        throw new Error('verticalFov not specified');
+    }
+    this.verticalFov = options.verticalFov;
     this.threshold = options.threshold || 128;
     this.debug = typeof options.threshold === 'undefined' ? false : options.debug;
 
@@ -920,14 +993,6 @@ SkArF.prototype.init = function () {
     //create a 2d canvas for copying data from tracking element
     this.__create2dCanvas();
 
-    //create AR lib instance
-    this.arLib = ArLibFactory.create(this.arLibType, {
-                                        trackingElem: this.trackingElem,
-                                        markerSize: this.markerSize,
-                                        threshold: this.threshold,
-                                        debug: this.debug
-                                     });
-
     //create renderer instance
     this.renderer = RendererFactory.create(this.rendererType, {
                                                rendererContainerElem: this.rendererContainerElem,
@@ -935,6 +1000,18 @@ SkArF.prototype.init = function () {
                                                rendererCanvasElemHeight: this.rendererCanvasElemHeight,
                                                modelsJsonFile: this.modelsJsonFile
                                            });
+
+    //create AR lib instance
+    this.arLib = ArLibFactory.create(this.arLibType, {
+                                        trackingElem: this.trackingElem,
+                                        markerSize: this.markerSize,
+                                        verticalFov: this.verticalFov,
+                                        mainMarkerId: this.renderer.getMainMarkerId(),
+                                        threshold: this.threshold,
+                                        debug: this.debug
+                                     });
+
+
 
     //assign necessary pointers of itself to each other
     this.arLib.renderer = this.renderer;
