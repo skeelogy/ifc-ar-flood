@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>IFC - SkArF.js (js-aruco with Three.js) - Track 3D Render</title>
+	<title>IFC - SkArF.js (JSARToolKit with Three.js) - Track 3D Render</title>
 	<meta charset="UTF-8"/>
 
 	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
@@ -27,11 +27,8 @@
 	<script type="text/javascript" src="/js/lib/postprocessing/shaders/FXAAShader.js"></script>
 
 	<!--load AR libraries-->
-	<script type="text/javascript" src="/js/lib/ar/js-aruco/svd.js"></script>
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/posit1.js"></script>
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/cv.js"></script>
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/aruco.js"></script>
-    <script type="text/javascript" src="/js/skarf.js"></script>
+	<script type="text/javascript" src="/js/lib/ar/JSARToolKit.js"></script>
+	<script type="text/javascript" src="/js/skarf.js"></script>
 
 	<script>
 
@@ -103,7 +100,7 @@
 		trackScenePlaneMesh = new THREE.Mesh(
 			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
 			new THREE.MeshBasicMaterial({
-				map: THREE.ImageUtils.loadTexture('/resources/markers/js-aruco/1001.png')
+				map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/22.jpg')
 			})
 		);
 		trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
@@ -113,7 +110,7 @@
 		trackScenePlaneMesh2 = new THREE.Mesh(
 			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
 			new THREE.MeshBasicMaterial({
-				map: THREE.ImageUtils.loadTexture('/resources/markers/js-aruco/446.png')
+				map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/81.jpg')
 			})
 		);
 		trackScenePlaneMesh2.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
@@ -125,7 +122,7 @@
 		trackScenePlaneMesh3 = new THREE.Mesh(
 			new THREE.PlaneGeometry(0.1, 0.1, 2, 2),
 			new THREE.MeshBasicMaterial({
-				map: THREE.ImageUtils.loadTexture('/resources/markers/js-aruco/923.png')
+				map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/63.jpg')
 			})
 		);
 		trackScenePlaneMesh3.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
@@ -192,7 +189,7 @@
 		//create a SkArF framework
 		skarf = new SkArF({
 
-		    arLibType: 'jsaruco',
+		    arLibType: 'jsartoolkit',
 		    trackingElem: source,
 		    markerSize: MARKER_SIZE,
 		    verticalFov: 40,  //you will have to estimate this for your camera
@@ -204,7 +201,7 @@
 		    rendererContainerElem: $('#threejs-container'),  //container to attach the renderer canvas. If not defined, canvas will just be attached to end of body.
 		    rendererCanvasElemWidth: 640,  //width of the display canvas, need not be the same as the tracking element
 			rendererCanvasElemHeight: 360,  //height of the display canvas, need not be the same as the tracking element
-			modelsJsonFile: '/resources/models/models_jsaruco.json'
+			modelsJsonFile: '/resources/models/models_jsartoolkit.json'
 
 		});
 	}
@@ -393,7 +390,7 @@
 	</script>
 </head>
 <body>
-	<h2>SkArF.js (js-aruco with Three.js)</h2>
+	<h2>SkArF.js (JSARToolKit with Three.js)</h2>
 
 	<div class="container" id="mainTracking3dScene">
 		<div class="caption">Three.js 3D scene for tracking</div>
@@ -403,6 +400,10 @@
 	<div class="container" id="canvas-container">
 		<div class="caption">&lt;canvas&gt;</div>
 		<canvas id="mainCanvas" width="640" height="360"></canvas>
+	</div>
+	<div class="container" id="debugCanvas-container">
+		<div class="caption">debug &lt;canvas&gt;</div>
+		<canvas id="debugCanvas" width="640" height="360"></canvas>
 	</div>
 
 	<div class="container" id="threejs-container-parent">

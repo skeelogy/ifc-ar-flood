@@ -1,13 +1,14 @@
 {
+    "mainMarkerId": "22",
 	"models": {
 		"22": {
 			"name": "us_police_car",
 			"url": "/resources/models/us_police_car/us_police_car_bin.js",
 			"type": "json_bin",
 			"translate": [0, 0, 0],
-			"rotate": [0, 90, 0],
+			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
-			"scale": [80, 80, 80]
+			"scale": [0.3, 0.3, 0.3]
 		},
 		"64": {
 			"name": "park_bench",
@@ -16,7 +17,7 @@
 			"translate": [0, 0, 0],
 			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
-			"scale": [150, 150, 150]
+			"scale": [0.5, 0.5, 0.5]
 		},
 		"49": {
 			"name": "us_police_car2",
@@ -25,7 +26,7 @@
 			"translate": [0, 0, 0],
 			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
-			"scale": [40, 40, 40]
+			"scale": [0.3, 0.3, 0.3]
 		},
 		"81": {
 			"name": "park_bench2",
@@ -34,7 +35,7 @@
 			"translate": [0, 0, 0],
 			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
-			"scale": [80, 80, 80]
+			"scale": [0.5, 0.5, 0.5]
 		},
 		"63": {
 			"name": "house_15",
@@ -43,7 +44,7 @@
 			"translate": [0, 0, 0],
 			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
-			"scale": [10, 10, 10]
+			"scale": [0.1, 0.1, 0.1]
 		}
 	}
 }

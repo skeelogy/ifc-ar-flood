@@ -338,6 +338,11 @@ function ArLib(options) {
 
     this.debug = (typeof options.debug === 'undefined') ? false : options.debug;
 
+    this.compensationMatrix = new THREE.Matrix4();
+
+    //temp matrix for calculations later
+    this.tmpMat = new THREE.Matrix4();
+
     //variables to be assigned by skarf
     this.canvasElem = null;
     this.renderer = null;
@@ -356,6 +361,9 @@ function JsArToolKitArLib(options) {
     ArLib.call(this, options);
 
     this.threshold = options.threshold || 128;
+
+    this.compensationMatrix = new THREE.Matrix4().makeScale(1, 1, -1);  //scale in -z to swap from LH-coord to RH-coord
+    this.compensationMatrix.multiply(new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90)));  //rotate 90deg in X to get Y-up;
 
     //store some temp variables
     this.resultMat = new NyARTransMatResult();
@@ -392,17 +400,26 @@ JsArToolKitArLib.prototype.init = function () {
 
     //set the camera projection matrix in the renderer
     var camProjMatrixArray = new Float32Array(16);
-    this.flarParam.copyCameraMatrix(camProjMatrixArray, 10, 10000);
+    this.flarParam.copyCameraMatrix(camProjMatrixArray, 0.1, 10000);
     this.renderer.initCameraProjMatrix(camProjMatrixArray);
 };
 JsArToolKitArLib.prototype.update = function () {
 
+    DEBUG = this.debug;
+
     //hide all marker roots first
     var keys = Object.keys(this.markers);
-    var i;
     for (i = 0; i < keys.length; i++) {
+
+        //hide marker
         this.renderer.showChildrenOfMarker(keys[i], false);
+
+        //set detected to false for this marker
+        this.renderer.setMarkerDetected(keys[i], false);
     }
+
+    //hide ground plane regardless of the originPlaneMeshIsVisible flag
+    this.renderer.originPlaneMesh.visible = false;
 
     // Do marker detection by using the detector object on the raster object.
     // The threshold parameter determines the threshold value
@@ -444,27 +461,35 @@ JsArToolKitArLib.prototype.update = function () {
             this.renderer.loadModelForMarker(currId, transform, this.markerSize);
         }
 
-        // Get the transformation matrix for the detected marker.
-        this.detector.getTransformMatrix(i, this.resultMat);
+        try
+        {
+            // Get the transformation matrix for the detected marker.
+            this.detector.getTransformMatrix(i, this.resultMat);
 
-        // Copy the marker matrix to the tmp matrix.
-        copyMarkerMatrix(this.resultMat, this.tmp);
+            // Copy the marker matrix to the tmp matrix.
+            copyMarkerMatrix(this.resultMat, this.tmp);
 
-        // Copy the marker matrix over to your marker root object.
-        this.renderer.setMarkerTransformMatrix(currId, this.tmp);
+            //store the current solved matrix first
+            this.tmpMat.setFromArray(this.tmp);
+            this.renderer.setCurrSolvedMatrixValues(currId, this.tmpMat);
 
-        //show the object
-        //hide all marker roots first
-        this.renderer.showChildrenOfMarker(currId, true);
+            //register that this marker has been detected
+            this.renderer.setMarkerDetected(currId, true);
+        }
+        catch (err)
+        {
+            //just print to console but let the error pass so that the program can continue
+            console.log(err.message);
+        }
     }
+
+    //update the solved scene
+    this.renderer.updateSolvedScene(this.mainMarkerId);
 };
 
 //create a class to handle js-aruco
 function JsArucoArLib(options) {
     ArLib.call(this, options);
-
-    //temp matrix for calculations later
-    this.tmpMat = new THREE.Matrix4();
 }
 
 //inherit from ArLib
@@ -499,6 +524,7 @@ JsArucoArLib.prototype.update = function () {
 JsArucoArLib.prototype.__updateScenes = function (markers) {
     var corners, corner, pose, i, markerId;
 
+    //hide all marker roots first
     var keys = Object.keys(this.markers);
     for (i = 0; i < keys.length; i++) {
 
@@ -712,9 +738,6 @@ Renderer.prototype.setupBackgroundVideo = function () {
 Renderer.prototype.createTransformForMarker = function (markerId, markerSize) {
     throw new Error('Abstract method not implemented');
 };
-Renderer.prototype.setMarkerTransformMatrix = function (markerId, transformMatrix) {
-    throw new Error('Abstract method not implemented');
-};
 Renderer.prototype.getAllMaterials = function (transform) {
     throw new Error('Abstract method not implemented');
 };
@@ -798,26 +821,12 @@ ThreeJsRenderer.prototype.createTransformForMarker = function (markerId, markerS
 ThreeJsRenderer.prototype.loadModelForMarker = function (markerId, markerTransform, markerSize) {
     this.modelManager.loadForMarker(markerId, markerTransform, markerSize, this.isWireframeVisible);
 };
-ThreeJsRenderer.prototype.setMarkerTransformMatrix = function (markerId, transformMatrix) {
-    this.markerTransforms[markerId].matrix.setFromArray(transformMatrix);
-
-    //TODO: bake these transforms into the AR conversion matrix
-    //FIXME: this assumes that we are using JSARToolKit...
-    var m = new THREE.Matrix4();
-    m.makeScale(1, 1, -1);  //scale in -z to swap from LH-coord to RH-coord
-    this.markerTransforms[markerId].matrix.multiply(m);
-    m.makeRotationX(THREE.Math.degToRad(90));  //rotate 90deg in X to get Y-up
-    this.markerTransforms[markerId].matrix.multiply(m);
-
-    this.markerTransforms[markerId].matrixWorldNeedsUpdate = true;
-};
 
 //methods
 ThreeJsRenderer.prototype.initCameraProjMatrix = function (camProjMatrixArray) {
     this.camera.projectionMatrix.setFromArray(camProjMatrixArray);
 };
 ThreeJsRenderer.prototype.setupCamera = function () {
-    // this.camera = new THREE.Camera();  //FIXME: split
     this.camera = new THREE.PerspectiveCamera(40, this.rendererCanvasElemWidth / this.rendererCanvasElemHeight, 0.1, 10000);
     this.camera.matrixAutoUpdate = false;
 };
@@ -830,9 +839,8 @@ ThreeJsRenderer.prototype.createOriginPlane = function () {
     var originPlaneMaterial = new THREE.MeshPhongMaterial({
         color: 0x99ff66,
         side: THREE.DoubleSide,
-        wireframe: false  //TODO: this should default to global wireframe setting
+        wireframe: false
     });
-    // materials.push(originPlaneMaterial);
     this.originPlaneMesh = new THREE.Mesh(originPlaneGeom, originPlaneMaterial);
     this.originPlaneMesh.castShadow = true;
     this.originPlaneMesh.receiveShadow = true;
@@ -900,7 +908,8 @@ ThreeJsRenderer.prototype.updateSolvedScene = function (mainMarkerId) {
     if (this.markerTransforms[mainMarkerId] && this.markerTransforms[mainMarkerId].detected) {
 
         //move the camera instead of the marker root
-        this.camera.matrix = this.mainMarkerRootSolvedMatrixInv.getInverse(this.markerTransforms[mainMarkerId].currSolvedMatrix);  //multiply inverse of main marker's matrix will force main marker to be at origin and the camera to transform around this world space
+        this.camera.matrix.copy(this.arLib.compensationMatrix);  //compensate coordinate system and up vector differences
+        this.camera.matrix.multiply(this.mainMarkerRootSolvedMatrixInv.getInverse(this.markerTransforms[mainMarkerId].currSolvedMatrix));  //multiply inverse of main marker's matrix will force main marker to be at origin and the camera to transform around this world space
         this.camera.matrixWorldNeedsUpdate = true;
 
         //for each of the marker root detected, move into the space of the main marker root
@@ -911,6 +920,7 @@ ThreeJsRenderer.prototype.updateSolvedScene = function (mainMarkerId) {
                 //transform and compensate
                 that.markerTransforms[key].matrix.copy(that.camera.matrix);  //transform into new camera world space first
                 that.markerTransforms[key].matrix.multiply(that.markerTransforms[key].currSolvedMatrix);  //since currSolvedMatrix is relative to camera space, multiplying by it next will bring this object into world space
+                that.markerTransforms[key].matrix.multiply(that.arLib.compensationMatrix);  //compensate back into the right coordinate system, locally
                 that.markerTransforms[key].matrixWorldNeedsUpdate = true;
 
                 //show the object
@@ -977,7 +987,7 @@ function SkArF(options) {
     }
     this.verticalFov = options.verticalFov;
     this.threshold = options.threshold || 128;
-    this.debug = typeof options.threshold === 'undefined' ? false : options.debug;
+    this.debug = typeof options.debug === 'undefined' ? false : options.debug;
 
     //canvas
     this.canvasContainerElem = options.canvasContainerElem;
