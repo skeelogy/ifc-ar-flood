@@ -38,6 +38,7 @@
 	var lookAtPoint = new THREE.Vector3();
 
 	var options = {
+	    trackingSceneThreshold: 128,
 	    trackingSceneFxaa: false,
 	    trackingSceneMultipleTrackers: false,
 	    cameraMotionAutoOrbit: false,
@@ -193,6 +194,7 @@
 		    trackingElem: source,
 		    markerSize: MARKER_SIZE,
 		    verticalFov: 40,  //you will have to estimate this for your camera
+		    threshold: options.trackingSceneThreshold,
 		    debug: options.displayDebugView,
 
 		    canvasContainerElem: $('#canvas-container'),
@@ -225,7 +227,14 @@
 		trackingSceneFolder = gui.addFolder('Tracking Scene');
 		trackingSceneFolder.open();
 
-		var control = trackingSceneFolder.add(options, 'trackingSceneFxaa').name('FXAA');
+		var control = trackingSceneFolder.add(options, 'trackingSceneThreshold', 0, 255).name('Threshold');
+		function trackingThreshold_onChange(value)
+		{
+			skarf.arLib.threshold = value;
+		}
+		control.onChange(trackingThreshold_onChange);
+
+		control = trackingSceneFolder.add(options, 'trackingSceneFxaa').name('FXAA');
 
 		control = trackingSceneFolder.add(options, 'trackingSceneMultipleTrackers').name('Multiple Markers');
 		function toggleMultipleMarkers(value)
