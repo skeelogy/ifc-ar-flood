@@ -69,7 +69,7 @@ ModelLoader.prototype.transformAndParent = function (model, object, markerTransf
         m.multiply(rotationMat);
     }
     if (model.scale) {
-        m.scale(new THREE.Vector3(model.scale[0]*overallScale, model.scale[1]*overallScale, model.scale[2]*overallScale));
+        m.scale(new THREE.Vector3(model.scale[0] * overallScale, model.scale[1] * overallScale, model.scale[2] * overallScale));
     }
 
     //apply the transforms
@@ -409,6 +409,7 @@ JsArToolKitArLib.prototype.update = function () {
 
     //hide all marker roots first
     var keys = Object.keys(this.markers);
+    var i, j;
     for (i = 0; i < keys.length; i++) {
 
         //hide marker
@@ -593,8 +594,7 @@ JsArucoArLib.prototype.updateMatrix4FromRotAndTrans = function (rotationMat, tra
         rotationMat[0][0], rotationMat[0][1], -rotationMat[0][2], translationVec[0],
         rotationMat[1][0], rotationMat[1][1], -rotationMat[1][2], translationVec[1],
         -rotationMat[2][0], -rotationMat[2][1], rotationMat[2][2], -translationVec[2],
-        0, 0, 0, 1
-    );
+        0, 0, 0, 1);
 };
 JsArucoArLib.prototype.__drawCorners = function (markers) {
 
@@ -752,7 +752,7 @@ Renderer.prototype.setLocalAxisVisible = function (isVisible) {
 };
 Renderer.prototype.setOriginPlaneVisible = function (visible) {
     throw new Error('Abstract method not implemented');
-}
+};
 
 
 function ThreeJsRenderer(options) {
@@ -835,7 +835,7 @@ ThreeJsRenderer.prototype.setupScene = function () {
 };
 ThreeJsRenderer.prototype.createOriginPlane = function () {
     var originPlaneGeom = new THREE.PlaneGeometry(this.arLib.markerSize * 3, this.arLib.markerSize * 3, 1, 1);
-    originPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+    originPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
     var originPlaneMaterial = new THREE.MeshPhongMaterial({
         color: 0x99ff66,
         side: THREE.DoubleSide,
