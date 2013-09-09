@@ -326,9 +326,6 @@ function ArLib(options) {
     }
     this.markerSize = options.markerSize;
 
-    if (typeof options.verticalFov === 'undefined') {
-        throw new Error('verticalFov not specified');
-    }
     this.verticalFov = options.verticalFov;
 
     if (typeof options.mainMarkerId === 'undefined') {
@@ -388,7 +385,7 @@ JsArToolKitArLib.prototype.init = function () {
     this.raster = new NyARRgbRaster_Canvas2D(this.canvasElem);
 
     // FLARParam is the thing used by FLARToolKit to set camera parameters.
-    this.flarParam = new FLARParam(this.canvasElem.width, this.canvasElem.height);
+    this.flarParam = new FLARParam(this.canvasElem.width, this.canvasElem.height, this.verticalFov);
 
     // The FLARMultiIdMarkerDetector is the actual detection engine for marker detection.
     // It detects multiple ID markers. ID markers are special markers that encode a number.
@@ -827,7 +824,8 @@ ThreeJsRenderer.prototype.initCameraProjMatrix = function (camProjMatrixArray) {
     this.camera.projectionMatrix.setFromArray(camProjMatrixArray);
 };
 ThreeJsRenderer.prototype.setupCamera = function () {
-    this.camera = new THREE.PerspectiveCamera(40, this.rendererCanvasElemWidth / this.rendererCanvasElemHeight, 0.1, 10000);
+    var verticalFov = this.arLib.verticalFov || 30;
+    this.camera = new THREE.PerspectiveCamera(verticalFov, this.rendererCanvasElemWidth / this.rendererCanvasElemHeight, 0.1, 10000);
     this.camera.matrixAutoUpdate = false;
 };
 ThreeJsRenderer.prototype.setupScene = function () {
@@ -982,9 +980,6 @@ function SkArF(options) {
         throw new Error('markerSize not specified');
     }
     this.markerSize = options.markerSize;
-    if (typeof options.verticalFov === 'undefined') {
-        throw new Error('verticalFov not specified');
-    }
     this.verticalFov = options.verticalFov;
     this.threshold = options.threshold || 128;
     this.debug = typeof options.debug === 'undefined' ? false : options.debug;
