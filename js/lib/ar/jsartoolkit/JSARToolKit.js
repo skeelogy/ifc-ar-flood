@@ -4181,12 +4181,23 @@ FLARParam = ASKlass('FLARParam', NyARParam,
     h = h || 480;
     this._screen_size.w = w;
     this._screen_size.h = h;
-    var vfov = vfov || 54.4;  //vertical field-of-view (default to 54.4 so that it will not change the look of existing codes)
-    var hf = h/(2*Math.tan(Math.PI/180*vfov/2.0));
-    var dist = new FloatVector([w/2, h/2, 0, 1.0]);
-    var projection = new FloatVector([hf, 0, w/2, 0,
+    var dist, projection;
+    if (vfov) {
+        //8 Sep 2013, Skeel Lee (skeel@skeelogy.com)
+        //Removed hardcoded values in projection matrix so that it can work more generically
+        var hf = h/(2*Math.tan(Math.PI/180*vfov/2.0));
+        dist = new FloatVector([w/2, h/2, 0, 1]);
+        projection = new FloatVector([hf, 0, w/2, 0,
                                       0, hf, h/2, 0,
                                       0, 0, 1, 0]);
+    } else {
+        //Keep the originals so that existing codes/looks will not break
+        var f = (w/h) / (4/3);
+        dist = new FloatVector([w/2, 1.1*h/2, 26.2, 1.0127565206658486]);
+        projection = new FloatVector([f*700.9514702992245, 0, w/2-0.5, 0,
+                                      0, 726.0941816535367, h/2-0.5, 0,
+                                      0, 0,                 1,     0]);
+    }
     this.setValue(dist, projection);
   }
 
