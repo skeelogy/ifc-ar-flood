@@ -556,7 +556,7 @@ JsArToolKitArLib.prototype.update = function () {
     var keys = Object.keys(this.markers);
     var i, j;
     for (i = 0; i < keys.length; i++) {
-        this.markers[keys[i]].detected = false;
+        this.renderer.setMarkerDetected(keys[i], false);
     }
 
     //hide ground plane regardless of the originPlaneMeshIsVisible flag
@@ -571,16 +571,16 @@ JsArToolKitArLib.prototype.update = function () {
     var markerCount = this.detector.detectMarkerLite(this.raster, this.threshold);
 
     // Go through the detected markers and get their IDs and transformation matrices.
+    var id, currId;
     for (i = 0; i < markerCount; i++) {
 
         // Get the ID marker data for the current marker.
         // ID markers are special kind of markers that encode a number.
         // The bytes for the number are in the ID marker data.
-        var id = this.detector.getIdMarkerData(i);
-
+        id = this.detector.getIdMarkerData(i);
 
         // Read bytes from the id packet.
-        var currId = -1;
+        currId = -1;
         // This code handles only 32-bit numbers or shorter.
         if (id.packetLength <= 4) {
             currId = 0;
@@ -616,25 +616,11 @@ JsArToolKitArLib.prototype.update = function () {
 
             //register that this marker has been detected
             this.renderer.setMarkerDetected(currId, true);
-            this.markers[currId].detected = true;
         }
         catch (err)
         {
             //just print to console but let the error pass so that the program can continue
             console.log(err.message);
-        }
-    }
-
-    //hide markers that are not detected
-    for (i = 0; i < keys.length; i++) {
-        var currId = keys[i];
-        if (!this.markers[currId].detected) {
-
-            //hide marker
-            this.renderer.showChildrenOfMarker(currId, false);
-
-            //set detected to false for this marker
-            this.renderer.setMarkerDetected(currId, false);
         }
     }
 
@@ -683,7 +669,7 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
     var keys = Object.keys(this.markers);
     var i, j;
     for (i = 0; i < keys.length; i++) {
-        this.markers[keys[i]].detected = false;
+        this.renderer.setMarkerDetected(keys[i], false);
     }
 
     //hide ground plane regardless of the originPlaneMeshIsVisible flag
@@ -729,24 +715,10 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
 
             //register that this marker has been detected
             this.renderer.setMarkerDetected(markerId, true);
-            this.markers[currId].detected = true;
 
         } catch (err) {
             //just print to console but let the error pass so that the program can continue
             console.log(err.message);
-        }
-    }
-
-    //hide markers that are not detected
-    for (i = 0; i < keys.length; i++) {
-        var currId = keys[i];
-        if (!this.markers[currId].detected) {
-
-            //hide marker
-            this.renderer.showChildrenOfMarker(currId, false);
-
-            //set detected to false for this marker
-            this.renderer.setMarkerDetected(currId, false);
         }
     }
 
@@ -1068,42 +1040,52 @@ ThreeJsRenderer.prototype.setCurrSolvedMatrixValues = function (markerId, matrix
 };
 ThreeJsRenderer.prototype.setMarkerDetected = function (markerId, detected) {
     this.markerTransforms[markerId].detected = detected;
-    if (!detected && this.markerTransforms[markerId].guiMarker) {
-        this.markerTransforms[markerId].guiMarker.hidden();
-    }
 };
 ThreeJsRenderer.prototype.updateSolvedScene = function (mainMarkerId) {
-    if (this.markerTransforms[mainMarkerId] && this.markerTransforms[mainMarkerId].detected) {
+
+    var mainMarkerIdDetected = this.markerTransforms[mainMarkerId] && this.markerTransforms[mainMarkerId].detected;
+    if (mainMarkerIdDetected) {
 
         //move the camera instead of the marker root
         this.camera.matrix.copy(this.arLib.compensationMatrix);  //compensate coordinate system and up vector differences
         this.camera.matrix.multiply(this.mainMarkerRootSolvedMatrixInv.getInverse(this.markerTransforms[mainMarkerId].currSolvedMatrix));  //multiply inverse of main marker's matrix will force main marker to be at origin and the camera to transform around this world space
         this.camera.matrixWorldNeedsUpdate = true;
 
-        //for each of the marker root detected, move into the space of the main marker root
-        var that = this;
-        Object.keys(this.markerTransforms).forEach(function (key) {
-            if (that.markerTransforms[key].detected) {
-
-                //transform and compensate
-                that.markerTransforms[key].matrix.copy(that.camera.matrix);  //transform into new camera world space first
-                that.markerTransforms[key].matrix.multiply(that.markerTransforms[key].currSolvedMatrix);  //since currSolvedMatrix is relative to camera space, multiplying by it next will bring this object into world space
-                that.markerTransforms[key].matrix.multiply(that.arLib.compensationMatrix);  //compensate back into the right coordinate system, locally
-                that.markerTransforms[key].matrixWorldNeedsUpdate = true;
-
-                //show the object
-                that.showChildren(that.markerTransforms[key], true);
-
-                //call detected() on the GUI markers
-                if (that.markerTransforms[key].guiMarker) {
-                    that.markerTransforms[key].guiMarker.detected(that.markerTransforms[key].matrix);
-                }
-            }
-        });
-
         //also show the ground plane based on the originPlaneMeshIsVisible flag
         this.originPlaneMesh.visible = this.originPlaneMeshIsVisible;
     }
+
+    //for each of the marker root detected, move into the space of the main marker root
+    var that = this;
+    Object.keys(this.markerTransforms).forEach(function (key) {
+        if (mainMarkerIdDetected && that.markerTransforms[key].detected) {
+
+            //transform and compensate
+            that.markerTransforms[key].matrix.copy(that.camera.matrix);  //transform into new camera world space first
+            that.markerTransforms[key].matrix.multiply(that.markerTransforms[key].currSolvedMatrix);  //since currSolvedMatrix is relative to camera space, multiplying by it next will bring this object into world space
+            that.markerTransforms[key].matrix.multiply(that.arLib.compensationMatrix);  //compensate back into the right coordinate system, locally
+            that.markerTransforms[key].matrixWorldNeedsUpdate = true;
+
+            //show the object
+            that.showChildren(that.markerTransforms[key], true);
+
+            //call detected() on the GUI markers
+            if (that.markerTransforms[key].guiMarker) {
+                that.markerTransforms[key].guiMarker.detected(that.markerTransforms[key].matrix);
+            }
+        } else {
+
+            //no need to transform
+
+            //hide the object
+            that.showChildren(that.markerTransforms[key], false);
+
+            //call hidden() on the GUI markers
+            if (that.markerTransforms[key].guiMarker) {
+                that.markerTransforms[key].guiMarker.hidden();
+            }
+        }
+    });
 };
 ThreeJsRenderer.prototype.setOriginPlaneVisible = function (visible) {
     this.originPlaneMeshIsVisible = visible;
