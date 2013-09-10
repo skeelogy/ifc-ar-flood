@@ -21,6 +21,127 @@
  * You can do similar things to create your own renderer.
  */
 
+
+//===================================
+// GUI Markers
+//===================================
+
+GuiMarkerFactory = {
+    mappings: {},
+
+    create: function (type, options) {
+        if (!type) {
+            throw new Error('GuiMarker type not specified');
+        }
+        if (!this.mappings.hasOwnProperty(type)) {
+            throw new Error('GuiMarker of this type has not been registered with GuiMarkerFactory: ' + type);
+        }
+        var guiMarker = new this.mappings[type](options);
+        return guiMarker;
+    },
+
+    register: function (mappingName, mappingClass) {
+        if (this.mappings.hasOwnProperty(mappingName)) {
+            throw new Error('Mapping name already exists: ' + mappingName);
+        }
+        this.mappings[mappingName] = mappingClass;
+    }
+}
+
+/**
+ * An augmented reality marker
+ * @constructor
+ */
+function GuiMarker(options) {
+    if (typeof options.key === 'undefined') {
+        throw new Error('key not specified');
+    }
+    this.key = options.key;
+    if (typeof options.name === 'undefined') {
+        throw new Error('name not specified');
+    }
+    this.name = options.name;
+    if (typeof options.markerId === 'undefined') {
+        throw new Error('markerId not specified');
+    }
+    this.markerId = options.markerId;
+    if (typeof options.markerTransform === 'undefined') {
+        throw new Error('markerTransform not specified');
+    }
+    this.markerTransform = options.markerTransform;
+    //TODO: determine if markerSize is needed
+    if (typeof options.markerSize === 'undefined') {
+        throw new Error('markerSize not specified');
+    }
+    this.markerSize = options.markerSize;
+    this.matrix = null;
+    // this.detected = false;  //TODO: determine if this is needed
+    this.callbackFnName = this.key + 'CB';
+    this.callbackFn = undefined;
+}
+GuiMarker.prototype.detected = function (matrix) {
+    // this.detected = true;
+    this.matrix = matrix;
+    if (typeof this.callbackFn === 'undefined') {
+        try {
+            this.callbackFn = eval(this.callbackFnName);
+        } catch (err) {
+            this.callbackFn = null;
+        }
+    }
+    if (this.callbackFn) {
+        this.callCallbackFunction();
+    }
+};
+GuiMarker.prototype.callCallbackFunction = function () {
+    this.callbackFn.call();
+}
+GuiMarker.prototype.hidden = function () {
+    // this.detected = false;
+};
+
+/**
+ * GuiMarker that activates only once until marker is next shown
+ * @constructor
+ * @extends {GuiMarker}
+ */
+function FlashMarker(options) {
+    this.flashed = true;
+    GuiMarker.call(this, options);
+}
+//inherit
+FlashMarker.prototype = Object.create(GuiMarker.prototype);
+FlashMarker.prototype.constructor = FlashMarker;
+//override
+FlashMarker.prototype.detected = function (matrix) {
+    GuiMarker.prototype.detected.call(this, matrix);
+    this.flashed = false;  //turn off so that callback will not be called anymore until next flash
+}
+FlashMarker.prototype.hidden = function () {
+    this.flashed = true;  //turn on so that callback will be called in next detection
+    GuiMarker.prototype.hidden.call(this);
+};
+FlashMarker.prototype.callCallbackFunction = function () {
+    //call the callback function only once when this marker is flashed
+    if (this.flashed) {
+        this.callbackFn.call();
+    }
+}
+
+/**
+ * GuiMarker that activates once when marker is shown
+ * @constructor
+ * @extends {FlashMarker}
+ */
+function ButtonMarker(options) {
+    FlashMarker.call(this, options);
+}
+//inherit
+ButtonMarker.prototype = Object.create(FlashMarker.prototype);
+ButtonMarker.prototype.constructor = ButtonMarker;
+//register with factory
+GuiMarkerFactory.register('button', ButtonMarker);
+
 //===================================
 // Model Loaders
 //===================================
@@ -51,10 +172,10 @@ var ModelLoaderFactory = {
 function ModelLoader() {
     this.loader = null;
 }
-ModelLoader.prototype.loadForMarker = function (markerId, markerTransform, overallScale, isWireframeVisible, modelManager) {
+ModelLoader.prototype.loadForMarker = function (markerId, markerTransform, overallScale, isWireframeVisible, markerManager) {
     throw new Error('Abstract method not implemented');
 };
-ModelLoader.prototype.transformAndParent = function (model, object, markerTransform, overallScale, modelManager) {
+ModelLoader.prototype.transformAndParent = function (model, object, markerTransform, overallScale, markerManager) {
 
     //accumulate transformations into matrix
     var m = new THREE.Matrix4();
@@ -77,8 +198,8 @@ ModelLoader.prototype.transformAndParent = function (model, object, markerTransf
         object.applyMatrix(m);
         markerTransform.add(object);
 
-        //store the material in modelManager
-        modelManager.materials.push(object.material);
+        //store the material in markerManager
+        markerManager.materials.push(object.material);
 
         //also set objects to cast shadows
         object.castShadow = true;
@@ -101,11 +222,11 @@ EmptyModelLoader.prototype.constructor = EmptyModelLoader;
 ModelLoaderFactory.register('empty', EmptyModelLoader);
 
 //override methods
-EmptyModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible, modelManager) {
+EmptyModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible, markerManager) {
     //TODO: time how long it takes to load
 
     //bake transformations into vertices
-    this.transformAndParent(model, null, markerTransform, overallScale, modelManager);
+    this.transformAndParent(model, null, markerTransform, overallScale, markerManager);
 
     console.log('Loaded empty transform for marker id ' + markerId);
 };
@@ -124,7 +245,7 @@ JsonModelLoader.prototype.constructor = JsonModelLoader;
 ModelLoaderFactory.register('json', JsonModelLoader);
 
 //override methods
-JsonModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible, modelManager) {
+JsonModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible, markerManager) {
     //TODO: time how long it takes to load
 
     var that = this;
@@ -140,7 +261,7 @@ JsonModelLoader.prototype.loadForMarker = function (model, markerId, markerTrans
         var mesh = new THREE.Mesh(geometry, new THREE.MeshFaceMaterial(materials));
 
         //bake transformations into vertices
-        that.transformAndParent(model, mesh, markerTransform, overallScale, modelManager);
+        that.transformAndParent(model, mesh, markerTransform, overallScale, markerManager);
 
         console.log('Loaded mesh ' + model.url + ' for marker id ' + markerId);
     });
@@ -180,7 +301,7 @@ ObjModelLoader.prototype.constructor = ObjModelLoader;
 ModelLoaderFactory.register('obj', ObjModelLoader);
 
 //override methods
-ObjModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible, modelManager) {
+ObjModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible, markerManager) {
     var that = this;
     this.loader.addEventListener('load', function (event) {
 
@@ -200,7 +321,7 @@ ObjModelLoader.prototype.loadForMarker = function (model, markerId, markerTransf
         }
 
         //transform and parent
-        that.transformAndParent(model, object, markerTransform, overallScale, modelManager);
+        that.transformAndParent(model, object, markerTransform, overallScale, markerManager);
 
         console.log('Loaded mesh ' + model.url + ' for marker id ' + markerId);
     });
@@ -210,48 +331,74 @@ ObjModelLoader.prototype.loadForMarker = function (model, markerId, markerTransf
 };
 
 //===================================
-// Model Manager
+// Marker Manager
 //===================================
 
 //TODO: this is Three.js specific, have to separate out into its own subclass
 
-function ModelManager(modelsJsonFile) {
-    this.modelsJsonFile = modelsJsonFile;
+/**
+ * Manager to manage markers, both for models and GuiMarkers
+ * @constructor
+ */
+function MarkerManager(markersJsonFile) {
+    this.markersJsonFile = markersJsonFile;
 
-    this.modelData = null;
-    this.loaders = {};
+    this.markerData = null;
+    this.modelLoaders = {};
 
     this.materials = [];
 
     this.load();
 }
-ModelManager.prototype.load = function () {
-    console.log('Loading models json file: ' + this.modelsJsonFile);
+MarkerManager.prototype.load = function () {
+    console.log('Loading markers json file: ' + this.markersJsonFile);
 
     //load the JSON file
     var that = this;
     $.ajax({
-        url: this.modelsJsonFile,
+        url: this.markersJsonFile,
         async: false
     }).done(function (data) {
-        that.modelData = data;
-        console.log('Loaded ' + that.modelsJsonFile);
-        console.log('Main marker id: ' + that.modelData.mainMarkerId);
+        that.markerData = data;
+        console.log('Loaded ' + that.markersJsonFile);
+        console.log('Main marker id: ' + that.markerData.mainMarkerId);
     }).error(function (xhr, textStatus, error) {
-        throw new Error('error loading ' + this.modelsJsonFile + ': ' + error);
+        throw new Error('error loading ' + this.markersJsonFile + ': ' + error);
     });
 };
-ModelManager.prototype.loadForMarker = function (markerId, markerTransform, markerSize, isWireframeVisible) {
-    var model = this.modelData.models[markerId];
-    if (model) {
-        var type = model.type;
-        if (!this.loaders.hasOwnProperty(type)) {
-            //create a loader using ModelLoaderFactory
-            this.loaders[type] = ModelLoaderFactory.create(type);
-        }
+MarkerManager.prototype.loadForMarker = function (markerId, markerTransform, markerSize, isWireframeVisible) {
 
-        this.loaders[type].loadForMarker(model, markerId, markerTransform, markerSize, isWireframeVisible, this);
+    //two types of markers to load:
+
+    if (this.markerData.models && this.markerData.models[markerId]) {
+        //1) models
+        var model = this.markerData.models[markerId];
+        if (model) {
+            var type = model.type;
+            if (!this.modelLoaders.hasOwnProperty(type)) {
+                //create a loader using ModelLoaderFactory
+                this.modelLoaders[type] = ModelLoaderFactory.create(type);
+            }
+            this.modelLoaders[type].loadForMarker(model, markerId, markerTransform, markerSize, isWireframeVisible, this);
+        }
+    } else if (this.markerData.guiMarkers && this.markerData.guiMarkers[markerId]) {
+        //2) GUI markers
+        var guiMarker = this.markerData.guiMarkers[markerId];
+        if (guiMarker) {
+            var type = guiMarker.type;
+            var guiMarker = GuiMarkerFactory.create(type, {
+                name: guiMarker.name,
+                key: guiMarker.key,
+                markerId: markerId,
+                markerTransform: markerTransform,
+                markerSize: markerSize
+            });
+            markerTransform.guiMarker = guiMarker;
+        }
+    } else {
+        console.warning('Unable to find data for marker id ' + markerId);
     }
+
 };
 
 //===================================
@@ -405,16 +552,11 @@ JsArToolKitArLib.prototype.update = function () {
 
     DEBUG = this.debug;
 
-    //hide all marker roots first
+    //set all markers detected to false first
     var keys = Object.keys(this.markers);
     var i, j;
     for (i = 0; i < keys.length; i++) {
-
-        //hide marker
-        this.renderer.showChildrenOfMarker(keys[i], false);
-
-        //set detected to false for this marker
-        this.renderer.setMarkerDetected(keys[i], false);
+        this.markers[keys[i]].detected = false;
     }
 
     //hide ground plane regardless of the originPlaneMeshIsVisible flag
@@ -457,7 +599,7 @@ JsArToolKitArLib.prototype.update = function () {
             var transform = this.renderer.createTransformForMarker(currId, this.markerSize);
 
             //delay-load the model
-            this.renderer.loadModelForMarker(currId, transform, this.markerSize);
+            this.renderer.loadForMarker(currId, transform, this.markerSize);
         }
 
         try
@@ -474,11 +616,25 @@ JsArToolKitArLib.prototype.update = function () {
 
             //register that this marker has been detected
             this.renderer.setMarkerDetected(currId, true);
+            this.markers[currId].detected = true;
         }
         catch (err)
         {
             //just print to console but let the error pass so that the program can continue
             console.log(err.message);
+        }
+    }
+
+    //hide markers that are not detected
+    for (i = 0; i < keys.length; i++) {
+        var currId = keys[i];
+        if (!this.markers[currId].detected) {
+
+            //hide marker
+            this.renderer.showChildrenOfMarker(currId, false);
+
+            //set detected to false for this marker
+            this.renderer.setMarkerDetected(currId, false);
         }
     }
 
@@ -523,15 +679,11 @@ JsArucoArLib.prototype.update = function () {
 JsArucoArLib.prototype.__updateScenes = function (markers) {
     var corners, corner, pose, i, markerId;
 
-    //hide all marker roots first
+    //set all markers detected to false first
     var keys = Object.keys(this.markers);
+    var i, j;
     for (i = 0; i < keys.length; i++) {
-
-        //hide marker
-        this.renderer.showChildrenOfMarker(keys[i], false);
-
-        //set detected to false for this marker
-        this.renderer.setMarkerDetected(keys[i], false);
+        this.markers[keys[i]].detected = false;
     }
 
     //hide ground plane regardless of the originPlaneMeshIsVisible flag
@@ -553,7 +705,7 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
             var transform = this.renderer.createTransformForMarker(markerId, this.markerSize);
 
             //delay-load the model
-            this.renderer.loadModelForMarker(markerId, transform, this.markerSize);
+            this.renderer.loadForMarker(markerId, transform, this.markerSize);
         }
 
         //align corners to center of canvas
@@ -577,10 +729,24 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
 
             //register that this marker has been detected
             this.renderer.setMarkerDetected(markerId, true);
+            this.markers[currId].detected = true;
 
         } catch (err) {
             //just print to console but let the error pass so that the program can continue
             console.log(err.message);
+        }
+    }
+
+    //hide markers that are not detected
+    for (i = 0; i < keys.length; i++) {
+        var currId = keys[i];
+        if (!this.markers[currId].detected) {
+
+            //hide marker
+            this.renderer.showChildrenOfMarker(currId, false);
+
+            //set detected to false for this marker
+            this.renderer.setMarkerDetected(currId, false);
         }
     }
 
@@ -682,17 +848,17 @@ function Renderer(options) {
     }
     this.rendererCanvasElemHeight = options.rendererCanvasElemHeight;
 
-    if (typeof options.modelsJsonFile === 'undefined') {
-        throw new Error('modelsJsonFile not specified');
+    if (typeof options.markersJsonFile === 'undefined') {
+        throw new Error('markersJsonFile not specified');
     }
-    this.modelsJsonFile = options.modelsJsonFile;
+    this.markersJsonFile = options.markersJsonFile;
 
     this.useDefaultLights = (typeof options.useDefaultLights === 'undefined') ? true : options.useDefaultLights;
 
     this.isWireframeVisible = (typeof options.displayWireframe === 'undefined') ? false : options.displayWireframe;
     this.isLocalAxisVisible = (typeof options.displayLocalAxis === 'undefined') ? false : options.displayLocalAxis;
 
-    this.modelManager = new ModelManager(this.modelsJsonFile);
+    this.markerManager = new MarkerManager(this.markersJsonFile);
     this.localAxes = [];
 
     //variables to be assigned by skarf
@@ -710,7 +876,7 @@ Renderer.prototype.init = function () {
     this.setupBackgroundVideo();
 };
 Renderer.prototype.getMainMarkerId = function () {
-    return this.modelManager.modelData.mainMarkerId;
+    return this.markerManager.markerData.mainMarkerId;
 };
 Renderer.prototype.update = function () {
     throw new Error('Abstract method not implemented');
@@ -816,8 +982,8 @@ ThreeJsRenderer.prototype.createTransformForMarker = function (markerId, markerS
 
     return markerTransform;
 };
-ThreeJsRenderer.prototype.loadModelForMarker = function (markerId, markerTransform, markerSize) {
-    this.modelManager.loadForMarker(markerId, markerTransform, markerSize, this.isWireframeVisible);
+ThreeJsRenderer.prototype.loadForMarker = function (markerId, markerTransform, markerSize) {
+    this.markerManager.loadForMarker(markerId, markerTransform, markerSize, this.isWireframeVisible);
 };
 
 //methods
@@ -902,6 +1068,9 @@ ThreeJsRenderer.prototype.setCurrSolvedMatrixValues = function (markerId, matrix
 };
 ThreeJsRenderer.prototype.setMarkerDetected = function (markerId, detected) {
     this.markerTransforms[markerId].detected = detected;
+    if (!detected && this.markerTransforms[markerId].guiMarker) {
+        this.markerTransforms[markerId].guiMarker.hidden();
+    }
 };
 ThreeJsRenderer.prototype.updateSolvedScene = function (mainMarkerId) {
     if (this.markerTransforms[mainMarkerId] && this.markerTransforms[mainMarkerId].detected) {
@@ -924,6 +1093,11 @@ ThreeJsRenderer.prototype.updateSolvedScene = function (mainMarkerId) {
 
                 //show the object
                 that.showChildren(that.markerTransforms[key], true);
+
+                //call detected() on the GUI markers
+                if (that.markerTransforms[key].guiMarker) {
+                    that.markerTransforms[key].guiMarker.detected(that.markerTransforms[key].matrix);
+                }
             }
         });
 
@@ -939,8 +1113,8 @@ ThreeJsRenderer.prototype.setWireframeVisible = function (isVisible) {
     this.isWireframeVisible = isVisible;
 
     var i, j, leni, lenj, m;
-    for (i = 0, leni = this.modelManager.materials.length; i < leni; i++) {
-        m = this.modelManager.materials[i];
+    for (i = 0, leni = this.markerManager.materials.length; i < leni; i++) {
+        m = this.markerManager.materials[i];
         if (m instanceof THREE.MeshFaceMaterial) {
             for (j = 0, lenj = m.materials.length; j < lenj; j++) {
                 m.materials[j].wireframe = isVisible;
@@ -996,10 +1170,10 @@ function SkArF(options) {
     this.rendererContainerElem = options.rendererContainerElem;
     this.rendererCanvasElemWidth = options.rendererCanvasElemWidth || 640;
     this.rendererCanvasElemHeight = options.rendererCanvasElemHeight || 480;
-    if (typeof options.modelsJsonFile === 'undefined') {
-        throw new Error('modelsJsonFile not specified');
+    if (typeof options.markersJsonFile === 'undefined') {
+        throw new Error('markersJsonFile not specified');
     }
-    this.modelsJsonFile = options.modelsJsonFile;
+    this.markersJsonFile = options.markersJsonFile;
 
     //init
     this.init();
@@ -1033,7 +1207,7 @@ SkArF.prototype.init = function () {
                                                rendererContainerElem: this.rendererContainerElem,
                                                rendererCanvasElemWidth: this.rendererCanvasElemWidth,
                                                rendererCanvasElemHeight: this.rendererCanvasElemHeight,
-                                               modelsJsonFile: this.modelsJsonFile
+                                               markersJsonFile: this.markersJsonFile
                                            });
 
     //create AR lib instance

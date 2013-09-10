@@ -1,11 +1,11 @@
 {
     "mainMarkerId": "22",
 	"models": {
-	    "64": {
+	    "22": {
 			"name": "Origin",
 			"type": "empty"
 		},
-		"22": {
+		"99": {
 			"name": "us_police_car",
 			"url": "/resources/models/us_police_car/us_police_car_bin.js",
 			"type": "json_bin",
@@ -13,6 +13,13 @@
 			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
 			"scale": [0.3, 0.3, 0.3]
+		}
+	},
+	"guiMarkers": {
+		"64": {
+			"name": "Clear Sculpts",
+			"key": "clearSculptsButton",
+			"type": "button"
 		}
 	}
 }

@@ -37,6 +37,14 @@
 	<script>
 
 	var MARKER_SIZE = 25;  //in mm
+	var MARKERS_JSON = '/resources/models/models_jsartoolkit_main.json';
+
+	var options = {
+        trackingThreshold: 128,
+        displayWireframe: true,
+        displayLocalAxis: true,
+        displayOriginPlane: true,
+    };
 
 	var clock = new THREE.Clock();
 
@@ -62,9 +70,6 @@
 	var skarf;
 	function setupAr()
 	{
-	    //select appropriate JSON file based on situation, for better scales and rotations
-	    var modelsJsonFile = '/resources/models/models_jsartoolkit_main.json';
-
 		//create a SkArF framework
 		skarf = new SkArF({
 
@@ -82,7 +87,7 @@
 		    rendererContainerElem: $threejsContainerElem,  //container to attach the renderer canvas. If not defined, canvas will just be attached to end of body.
 		    rendererCanvasElemWidth: window.innerWidth,  //width of the display canvas, need not be the same as the tracking element
 			rendererCanvasElemHeight: window.innerHeight-5,  //height of the display canvas, need not be the same as the tracking element
-			modelsJsonFile: modelsJsonFile
+			markersJsonFile: MARKERS_JSON
 
 		});
 	}
@@ -125,12 +130,6 @@
 		$('body').append(stats.domElement);
 	}
 
-	var options = {
-        trackingThreshold: 128,
-        displayWireframe: true,
-        displayLocalAxis: true,
-        displayOriginPlane: true,
-    };
     var gui;
     var trackingFolder, displayFolder;
 	function setupGui() {
@@ -178,6 +177,12 @@
 		toggleOriginPlane(options.displayOriginPlane);
 	}
 
+	function setupGuiMarkerCallbacks() {
+        clearSculptsButtonCB = function () {
+            console.log('clear sculpts');
+        };
+    }
+
 	var $canvasContainerElem, $threejsContainerElem;
 	$(document).ready(function()
 	{
@@ -200,6 +205,9 @@
 
 		//setup stats monitor
 		setupStats();
+
+		//setup GUI marker callbacks
+		setupGuiMarkerCallbacks();
 
 		//setup GUI
 		setupGui();

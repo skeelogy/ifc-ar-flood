@@ -80,7 +80,7 @@
 	function setupAr()
 	{
 	    //select appropriate JSON file based on situation, for better scales and rotations
-	    var modelsJsonFile = useWebcam ? '/resources/models/models_jsartoolkit.json': '/resources/models/models_jsartoolkit_video.json';
+	    var markersJsonFile = useWebcam ? '/resources/models/models_jsartoolkit.json': '/resources/models/models_jsartoolkit_video.json';
 
 		//create a SkArF framework
 		skarf = new SkArF({
@@ -99,7 +99,7 @@
 		    rendererContainerElem: $threejsContainerElem,  //container to attach the renderer canvas. If not defined, canvas will just be attached to end of body.
 		    rendererCanvasElemWidth: 640,  //width of the display canvas, need not be the same as the tracking element
 			rendererCanvasElemHeight: 480,  //height of the display canvas, need not be the same as the tracking element
-			modelsJsonFile: modelsJsonFile
+			markersJsonFile: markersJsonFile
 
 		});
 	}
