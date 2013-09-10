@@ -76,14 +76,15 @@ ModelLoader.prototype.transformAndParent = function (model, object, markerTransf
     if (object) {
         object.applyMatrix(m);
         markerTransform.add(object);
+
+        //store the material in modelManager
+        modelManager.materials.push(object.material);
+
+        //also set objects to cast shadows
+        object.castShadow = true;
+        object.receiveShadow = true;
     }
 
-    //store the material in modelManager
-    modelManager.materials.push(object.material);
-
-    //also set objects to cast shadows
-    object.castShadow = true;
-    object.receiveShadow = true;
 };
 
 function EmptyModelLoader() {

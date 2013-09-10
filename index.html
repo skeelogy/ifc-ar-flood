@@ -1,21 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>IFC - Augmented Reality Flood Simulation</title>
+	<title>IFC - HTML5 Augmented Reality</title>
 	<meta charset="UTF-8"/>
 
 	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
 	<link rel="stylesheet" href="/css/style.css">
+	<style type="text/css">
+		#stats { position: absolute; top:0; left: 0 }
+		#stats #fps { background: transparent !important }
+		#stats #fps #fpsText { color: #aaa !important }
+		#stats #fps #fpsGraph { display: block }
+	</style>
 
 	<!--load helper libraries-->
 	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
 
-	<!--load webcam streaming libraries-->
-	<script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
-	<script type="text/javascript" src="/js/streamvideo.js"></script>
-
-	<!--load AR and 3D libraries-->
-	<script type="text/javascript" src="/js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
+	<!--load 3D libraries-->
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
 	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
@@ -23,27 +24,125 @@
 	<script type="text/javascript" src="/js/lib/OBJMTLLoader.js"></script>
 	<script type="text/javascript" src="/js/lib/MTLLoader.js"></script>
 	<script type="text/javascript" src="/js/lib/BinaryLoader.js"></script>
+	<script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
+
+	<!--load AR libraries-->
+	<script type="text/javascript" src="/js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
 	<script type="text/javascript" src="/js/skarf.js"></script>
+
+	<!--load webcam streaming libraries-->
+	<script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
+	<script type="text/javascript" src="/js/streamvideo.js"></script>
 
 	<script>
 
-	var g_trackingThreshold = 128;
-	var g_debug = true;
+	var MARKER_SIZE = 25;  //in mm
 
-	function setupGui(skarf) {
+	var clock = new THREE.Clock();
 
-		var options = {
-			trackingThreshold: g_trackingThreshold,
-			displayWireframe: false,
-			displayLocalAxis: false,
-		};
+	function checkWebGl()
+	{
+		//check for WebGL
+		if (!Detector.webgl)
+		{
+			$('div').remove();
+			Detector.addGetWebGLMessage();
+			throw new Error('Your browser does not seem to support WebGL');
+		}
+	}
 
-		var gui = new dat.GUI();
-		gui.close();  //close GUI by default
+	var video, source;
+	function setupVideo()
+	{
+	    video = $('#mainVideo')[0];
+        streamVideo(video);
+        source = video;
+	}
+
+	var skarf;
+	function setupAr()
+	{
+	    //select appropriate JSON file based on situation, for better scales and rotations
+	    var modelsJsonFile = '/resources/models/models_jsartoolkit_main.json';
+
+		//create a SkArF framework
+		skarf = new SkArF({
+
+		    arLibType: 'jsartoolkit',
+		    trackingElem: source,
+		    markerSize: MARKER_SIZE,
+			//NOTE: not using verticalFov for now because the JSARToolKit default projection matrix seems to work better
+		    //verticalFov: 40,  //you will have to estimate this for your camera
+		    threshold: options.trackingThreshold,
+		    debug: false,
+
+		    canvasContainerElem: $canvasContainerElem,
+
+		    rendererType: 'threejs',
+		    rendererContainerElem: $threejsContainerElem,  //container to attach the renderer canvas. If not defined, canvas will just be attached to end of body.
+		    rendererCanvasElemWidth: window.innerWidth,  //width of the display canvas, need not be the same as the tracking element
+			rendererCanvasElemHeight: window.innerHeight-5,  //height of the display canvas, need not be the same as the tracking element
+			modelsJsonFile: modelsJsonFile
+
+		});
+	}
+
+	function setupEvents()
+	{
+		window.addEventListener('resize', window_onResize, false);
+		// window.addEventListener('keyup', window_onKeyUp, false);
+		// window.addEventListener('mousedown', window_onMouseDown, false);
+		// window.addEventListener('mousemove', window_onMouseMove, false);
+		// window.addEventListener('mouseup', window_onMouseUp, false);
+	}
+
+	function window_onResize(event)
+	{
+	    var width, height;
+
+	    //calculate width and height that maintains video aspect ratio
+	    var videoAspect = video.width / video.height;
+	    var windowAspect = window.innerWidth / window.innerHeight;
+	    if (windowAspect > videoAspect)
+	    {
+	        width = window.innerHeight * 4 / 3;
+	        height = window.innerHeight - 5;
+	    }
+	    else
+	    {
+	        width = window.innerWidth;
+	        height = (window.innerWidth * 3 / 4) - 5;
+	    }
+
+		//update renderer size
+		skarf.renderer.renderer.setSize(width, height);
+	}
+
+	function setupStats()
+	{
+		//create a stats monitor
+		stats = new Stats();
+		$('body').append(stats.domElement);
+	}
+
+	var options = {
+        trackingThreshold: 128,
+        displayWireframe: true,
+        displayLocalAxis: true,
+        displayOriginPlane: true,
+    };
+    var gui;
+    var trackingFolder, displayFolder;
+	function setupGui() {
+
+		gui = new dat.GUI();
+		// gui.close();  //close GUI by default
 
 		//Tracking folder
-		var folder = gui.addFolder('Tracking');
-		var control = folder.add(options, 'trackingThreshold', 0, 255).name('Threshold');
+		trackingFolder = gui.addFolder('Tracking');
+		trackingFolder.open();
+
+		var control = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold');
 		function trackingThreshold_onChange(value)
 		{
 			skarf.arLib.threshold = value;
@@ -51,9 +150,10 @@
 		control.onChange(trackingThreshold_onChange);
 
 		//Display folder
-		folder = gui.addFolder('Display');
+		displayFolder = gui.addFolder('Display');
+		displayFolder.open();
 
-		var control = folder.add(options, 'displayWireframe').name('Wireframe');
+		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
 		function toggleWireframe(value)
 		{
 			skarf.renderer.setWireframeVisible(value);
@@ -61,81 +161,57 @@
 		control.onChange(toggleWireframe);
 		toggleWireframe(options.displayWireframe);
 
-		control = folder.add(options, 'displayLocalAxis').name('Local Axis');
+		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
 		function toggleLocalAxis(value)
 		{
 			skarf.renderer.setLocalAxisVisible(value);
 		}
 		control.onChange(toggleLocalAxis);
 		toggleLocalAxis(options.displayLocalAxis);
+
+		control = displayFolder.add(options, 'displayOriginPlane').name('Origin Plane');
+		function toggleOriginPlane(value)
+		{
+			skarf.renderer.setOriginPlaneVisible(value);
+		}
+		control.onChange(toggleOriginPlane);
+		toggleOriginPlane(options.displayOriginPlane);
 	}
 
+	var $canvasContainerElem, $threejsContainerElem;
 	$(document).ready(function()
 	{
 		//check for WebGL
-		if (!Detector.webgl)
-		{
-			$('div').remove();
-			Detector.addGetWebGLMessage();
-			return;
-		}
+		checkWebGl();
 
 		console.log('Document is ready.');
 
-		var canvas = $('#mainCanvas')[0];
+		$threejsContainerElem = $('#threejs-container');
+		$canvasContainerElem = $('#canvas-container');
 
 		//stream to video element
-		var video = $('#mainVideo')[0];
-		streamVideo(video);
-		var source = video;
+		setupVideo();
 
-		//create an AR library
-		var jsArToolKitArLib = new JsArToolKitArLib({
-			canvasElem: canvas,
-			markerWidth: 120,
-			threshold: g_trackingThreshold,
-			debug: g_debug
-		});
+		//setup AR
+		setupAr();
 
-		//get the camera projection matrix from jsArToolKitArLib
-		var camProjMatrixArray = new Float32Array(16);
-		jsArToolKitArLib.flarParam.copyCameraMatrix(camProjMatrixArray, 10, 10000);
+		//setup events
+		setupEvents();
 
-		//create a renderer
-		var $threejsContainerElem = $('#threejs-container');
-		var threeJsRenderer = new ThreeJsRenderer({
-			//container to attach the Three.js-created renderer canvas
-			rendererContainerElem: $threejsContainerElem,
-			//width of the Three.js-created renderer canvas
-			rendererCanvasWidth: canvas.width,
-			//height of the Three.js-created renderer canvas
-			rendererCanvasHeight: canvas.height,
-			//the streaming canvas for background plane
-			streamCanvasElem: canvas,
-			camProjMatrixArray: camProjMatrixArray,
-			modelsJsonFile: '/resources/models/models_jsartoolkit.json'
-		});
-
-		//create a framework
-		var skarf = new SkArF({
-			canvasElem: canvas,
-			videoElem: video,
-			arLib: jsArToolKitArLib,
-			renderer: threeJsRenderer
-		});
-
-		//create a stats monitor
-		stats = new Stats();
-		$threejsContainerElem.append(stats.domElement);
+		//setup stats monitor
+		setupStats();
 
 		//setup GUI
-		setupGui(skarf);
+		setupGui();
 
 		//main loop
 		function loop()
 		{
-			skarf.update();  //this will update the AR lib and renderer too
+			var time = clock.getElapsedTime();
+
+			skarf.update();
 			stats.update();
+
 			requestAnimationFrame(loop);
 		}
 		loop();
@@ -144,21 +220,17 @@
 	</script>
 </head>
 <body>
-	<h2>Augmented reality using HTML5 technologies</h2>
-	<div class="container" id="video-container">
+    <div class="invisible" id="video-container">
 		<div class="caption">&lt;video&gt;</div>
 		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
 	</div>
-	<div class="container" id="canvas-container">
+	<div class="invisible" id="canvas-container">
 		<div class="caption">&lt;canvas&gt;</div>
-		<canvas id="mainCanvas" width="640" height="480"></canvas>
 	</div>
-	<div class="container" id="debugCanvas-container">
+	<div class="invisible" id="debugCanvas-container">
 		<div class="caption">debug &lt;canvas&gt;</div>
 		<canvas id="debugCanvas" width="640" height="480"></canvas>
 	</div>
-	<div class="container" id="threejs-container">
-		<div class="caption">three.js &lt;canvas&gt;</div>
-	</div>
+	<div id="threejs-container"></div>
 </body>
 </html>

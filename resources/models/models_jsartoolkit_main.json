@@ -1,0 +1,18 @@
+{
+    "mainMarkerId": "22",
+	"models": {
+	    "64": {
+			"name": "Origin",
+			"type": "empty"
+		},
+		"22": {
+			"name": "us_police_car",
+			"url": "/resources/models/us_police_car/us_police_car_bin.js",
+			"type": "json_bin",
+			"translate": [0, 0, 0],
+			"rotate": [0, 0, 0],
+			"rotationOrder": "XYZ",
+			"scale": [0.3, 0.3, 0.3]
+		}
+	}
+}
