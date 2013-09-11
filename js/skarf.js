@@ -646,9 +646,6 @@ JsArToolKitArLib.prototype.update = function () {
         this.renderer.setMarkerDetected(keys[i], false);
     }
 
-    //hide ground plane regardless of the originPlaneMeshIsVisible flag
-    this.renderer.originPlaneMesh.visible = false;
-
     // Do marker detection by using the detector object on the raster object.
     // The threshold parameter determines the threshold value
     // for turning the video frame into a 1-bit black-and-white image.
@@ -759,8 +756,6 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
         this.renderer.setMarkerDetected(keys[i], false);
     }
 
-    //hide ground plane regardless of the originPlaneMeshIsVisible flag
-    this.renderer.originPlaneMesh.visible = false;
 
     for (i = 0; i < markers.length; i++) {
         markerId = markers[i].id;
@@ -892,27 +887,25 @@ var RendererFactory = {
 };
 
 function Renderer(options) {
-    if (typeof options.rendererContainerElem === 'undefined') {
-        throw new Error('rendererContainerElem not specified');
+    if (typeof options.renderer === 'undefined') {
+        throw new Error('renderer not specified');
     }
-    this.rendererContainerElem = options.rendererContainerElem;
+    this.renderer = options.renderer;
 
-    if (typeof options.rendererCanvasElemWidth === 'undefined') {
-        throw new Error('rendererCanvasElemWidth not specified');
+    if (typeof options.scene === 'undefined') {
+        throw new Error('scene not specified');
     }
-    this.rendererCanvasElemWidth = options.rendererCanvasElemWidth;
+    this.scene = options.scene;
 
-    if (typeof options.rendererCanvasElemHeight === 'undefined') {
-        throw new Error('rendererCanvasElemHeight not specified');
+    if (typeof options.camera === 'undefined') {
+        throw new Error('camera not specified');
     }
-    this.rendererCanvasElemHeight = options.rendererCanvasElemHeight;
+    this.camera = options.camera;
 
     if (typeof options.markersJsonFile === 'undefined') {
         throw new Error('markersJsonFile not specified');
     }
     this.markersJsonFile = options.markersJsonFile;
-
-    this.useDefaultLights = (typeof options.useDefaultLights === 'undefined') ? true : options.useDefaultLights;
 
     this.isWireframeVisible = (typeof options.displayWireframe === 'undefined') ? false : options.displayWireframe;
     this.isLocalAxisVisible = (typeof options.displayLocalAxis === 'undefined') ? false : options.displayLocalAxis;
@@ -925,34 +918,12 @@ function Renderer(options) {
     this.backgroundCanvasElem = null;
 }
 Renderer.prototype.init = function () {
-    this.setupCamera();
-    this.setupScene();
-    this.createOriginPlane();
-    if (this.useDefaultLights) {
-        this.setupLights();
-    }
-    this.setupRenderer();
     this.setupBackgroundVideo();
 };
 Renderer.prototype.getMainMarkerId = function () {
     return this.markerManager.markerData.mainMarkerId;
 };
 Renderer.prototype.update = function () {
-    throw new Error('Abstract method not implemented');
-};
-Renderer.prototype.setupCamera = function () {
-    throw new Error('Abstract method not implemented');
-};
-Renderer.prototype.setupScene = function () {
-    throw new Error('Abstract method not implemented');
-};
-Renderer.prototype.createOriginPlane = function () {
-    throw new Error('Abstract method not implemented');
-};
-Renderer.prototype.setupLights = function () {
-    throw new Error('Abstract method not implemented');
-};
-Renderer.prototype.setupRenderer = function () {
     throw new Error('Abstract method not implemented');
 };
 Renderer.prototype.setupBackgroundVideo = function () {
@@ -1049,64 +1020,6 @@ ThreeJsRenderer.prototype.loadForMarker = function (markerId, markerTransform, m
 ThreeJsRenderer.prototype.initCameraProjMatrix = function (camProjMatrixArray) {
     this.camera.projectionMatrix.setFromArray(camProjMatrixArray);
 };
-ThreeJsRenderer.prototype.setupCamera = function () {
-    var verticalFov = this.arLib.verticalFov || 30;
-    this.camera = new THREE.PerspectiveCamera(verticalFov, this.rendererCanvasElemWidth / this.rendererCanvasElemHeight, 0.1, 10000);
-    this.camera.matrixAutoUpdate = false;
-};
-ThreeJsRenderer.prototype.setupScene = function () {
-    this.scene = new THREE.Scene();
-};
-ThreeJsRenderer.prototype.createOriginPlane = function () {
-    var originPlaneGeom = new THREE.PlaneGeometry(this.arLib.markerSize * 3, this.arLib.markerSize * 3, 1, 1);
-    originPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-    var originPlaneMaterial = new THREE.MeshPhongMaterial({
-        color: 0x99ff66,
-        side: THREE.DoubleSide,
-        wireframe: false
-    });
-    this.originPlaneMesh = new THREE.Mesh(originPlaneGeom, originPlaneMaterial);
-    this.originPlaneMesh.castShadow = true;
-    this.originPlaneMesh.receiveShadow = true;
-    this.scene.add(this.originPlaneMesh);
-    this.originPlaneMeshIsVisible = false;
-};
-ThreeJsRenderer.prototype.setupLights = function () {
-
-    this.scene.add(new THREE.AmbientLight(0x111111));
-
-    var keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    keyLight.position.set(-50, 75, 75);
-    keyLight.target.position.set(0, 0, 0);
-    keyLight.castShadow = true;
-    keyLight.shadowCameraNear = 60;
-    keyLight.shadowCameraFar = 200;
-    keyLight.shadowCameraRight = 150;
-    keyLight.shadowCameraLeft = -150;
-    keyLight.shadowCameraTop = 150;
-    keyLight.shadowCameraBottom = -150;
-    // keyLight.shadowCameraVisible = true;
-    keyLight.shadowBias = 0.0001;
-    keyLight.shadowDarkness = 0.5;
-    keyLight.shadowMapWidth = 1024;
-    keyLight.shadowMapHeight = 1024;
-    this.scene.add(keyLight);
-
-    var fillLight = new THREE.DirectionalLight(0xffffff, 0.7);
-    fillLight.position.set(25, 75, 75);
-    fillLight.target.position.set(0, 0, 0);
-    this.scene.add(fillLight);
-};
-ThreeJsRenderer.prototype.setupRenderer = function () {
-    this.renderer = new THREE.WebGLRenderer({
-        antialias: true
-    });
-    this.renderer.setSize(this.rendererCanvasElemWidth, this.rendererCanvasElemHeight);
-    this.renderer.shadowMapEnabled = true;
-    this.renderer.shadowMapType = THREE.PCFShadowMap;
-    this.renderer.shadowMapSoft = true;
-    this.rendererContainerElem.append(this.renderer.domElement);
-};
 ThreeJsRenderer.prototype.setupBackgroundVideo = function () {
     //NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
     this.videoTex = new THREE.Texture(this.backgroundCanvasElem);
@@ -1137,9 +1050,6 @@ ThreeJsRenderer.prototype.updateSolvedScene = function (mainMarkerId) {
         this.camera.matrix.copy(this.arLib.compensationMatrix);  //compensate coordinate system and up vector differences
         this.camera.matrix.multiply(this.mainMarkerRootSolvedMatrixInv.getInverse(this.markerTransforms[mainMarkerId].currSolvedMatrix));  //multiply inverse of main marker's matrix will force main marker to be at origin and the camera to transform around this world space
         this.camera.matrixWorldNeedsUpdate = true;
-
-        //also show the ground plane based on the originPlaneMeshIsVisible flag
-        this.originPlaneMesh.visible = this.originPlaneMeshIsVisible;
     }
 
     //for each of the marker root detected, move into the space of the main marker root
@@ -1192,9 +1102,6 @@ ThreeJsRenderer.prototype.setWireframeVisible = function (isVisible) {
             m.wireframe = isVisible;
         }
     }
-
-    //also set the wireframe mode for the ground plane
-    this.originPlaneMesh.material.wireframe = isVisible;
 };
 ThreeJsRenderer.prototype.setLocalAxisVisible = function (isVisible) {
     this.isLocalAxisVisible = isVisible;
@@ -1236,9 +1143,18 @@ function SkArF(options) {
         throw new Error('rendererType not specified');
     }
     this.rendererType = options.rendererType;
-    this.rendererContainerElem = options.rendererContainerElem;
-    this.rendererCanvasElemWidth = options.rendererCanvasElemWidth || 640;
-    this.rendererCanvasElemHeight = options.rendererCanvasElemHeight || 480;
+    if (typeof options.renderer === 'undefined') {
+        throw new Error('renderer not specified');
+    }
+    this.renderer = options.renderer;
+    if (typeof options.scene === 'undefined') {
+        throw new Error('scene not specified');
+    }
+    this.scene = options.scene;
+    if (typeof options.camera === 'undefined') {
+        throw new Error('camera not specified');
+    }
+    this.camera = options.camera;
     if (typeof options.markersJsonFile === 'undefined') {
         throw new Error('markersJsonFile not specified');
     }
@@ -1273,9 +1189,9 @@ SkArF.prototype.init = function () {
 
     //create renderer instance
     this.renderer = RendererFactory.create(this.rendererType, {
-                                               rendererContainerElem: this.rendererContainerElem,
-                                               rendererCanvasElemWidth: this.rendererCanvasElemWidth,
-                                               rendererCanvasElemHeight: this.rendererCanvasElemHeight,
+                                               renderer: this.renderer,
+                                               scene: this.scene,
+                                               camera: this.camera,
                                                markersJsonFile: this.markersJsonFile
                                            });
 

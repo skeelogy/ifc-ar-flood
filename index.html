@@ -39,10 +39,14 @@
 	var MARKER_SIZE = 25;  //in mm
 	var MARKERS_JSON = '/resources/models/models_jsartoolkit_main.json';
 
+	var SHADOW_MAP_RES = 1024;
+	var TERRAIN_RES = 256;
+	var TERRAIN_SIZE = 8;
+
 	var options = {
         trackingThreshold: 128,
         sculptSize: 1.0,
-        displayWireframe: true,
+        displayWireframe: false,
         displayLocalAxis: true,
         displayOriginPlane: true,
     };
@@ -68,6 +72,86 @@
         source = video;
 	}
 
+	var renderer, scene, camera;
+	var keyLight, fillLight;
+	// var worldAxis, localAxis;
+	var materials = [];
+	var groundPlaneMesh;
+	function setupMainScene()
+	{
+		//create renderer
+		renderer = new THREE.WebGLRenderer({
+			antialias : true
+		});
+		renderer.setSize(window.innerWidth, window.innerHeight-5);
+		renderer.setClearColor('#081419', 1);
+		renderer.shadowMapEnabled = true;
+		renderer.shadowMapType = THREE.PCFShadowMap;
+		renderer.shadowMapSoft = true;
+		$threejsContainerElem.append(renderer.domElement);
+
+		//create scene
+		scene = new THREE.Scene();
+
+		//create camera
+		camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
+		camera.position.set(8, 8, 15);
+		camera.lookAt(new THREE.Vector3(0,0,0));
+		camera.matrixAutoUpdate = false;
+
+		//create controls for camera
+		controls = new THREE.OrbitControls(camera);
+		controls.userPanSpeed = 0.2;
+		//controls.autoRotate = true;
+		controls.modifierKey = 'alt';
+
+		//create plane for reference and for intersection test
+		var groundPlaneGeom = new THREE.PlaneGeometry(TERRAIN_SIZE * MARKER_SIZE, TERRAIN_SIZE * MARKER_SIZE, 1, 1);  //much faster for intersection test when there are no divisions
+		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		var groundPlaneMaterial = new THREE.MeshPhongMaterial({
+		    color: 0x99ff66
+		});
+		materials.push(groundPlaneMaterial);
+		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
+		// groundPlaneMesh.position.x = TERRAIN_SIZE * MARKER_SIZE / 2.0;
+		// groundPlaneMesh.position.z = - TERRAIN_SIZE * MARKER_SIZE / 2.0;
+		groundPlaneMesh.castShadow = true;
+		groundPlaneMesh.receiveShadow = true;
+		groundPlaneMesh.visible = true;
+		scene.add(groundPlaneMesh);
+
+		//create axis
+		// worldAxis = new THREE.AxisHelper();
+		// scene.add(worldAxis);
+		// localAxis = new THREE.AxisHelper();
+		// scene.add(localAxis);
+
+		//setup lights
+		scene.add(new THREE.AmbientLight(0x111111));
+
+        var keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        keyLight.position.set(-50, 75, 75);
+        keyLight.target.position.set(0, 0, 0);
+        keyLight.castShadow = true;
+        keyLight.shadowCameraNear = 60;
+        keyLight.shadowCameraFar = 200;
+        keyLight.shadowCameraRight = 150;
+        keyLight.shadowCameraLeft = -150;
+        keyLight.shadowCameraTop = 150;
+        keyLight.shadowCameraBottom = -150;
+        // keyLight.shadowCameraVisible = true;
+        keyLight.shadowBias = 0.0001;
+        keyLight.shadowDarkness = 0.5;
+        keyLight.shadowMapWidth = 1024;
+        keyLight.shadowMapHeight = 1024;
+        scene.add(keyLight);
+
+        var fillLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        fillLight.position.set(25, 75, 75);
+        fillLight.target.position.set(0, 0, 0);
+        scene.add(fillLight);
+	}
+
 	var skarf;
 	function setupAr()
 	{
@@ -85,9 +169,10 @@
 		    canvasContainerElem: $canvasContainerElem,
 
 		    rendererType: 'threejs',
-		    rendererContainerElem: $threejsContainerElem,  //container to attach the renderer canvas. If not defined, canvas will just be attached to end of body.
-		    rendererCanvasElemWidth: window.innerWidth,  //width of the display canvas, need not be the same as the tracking element
-			rendererCanvasElemHeight: window.innerHeight-5,  //height of the display canvas, need not be the same as the tracking element
+			renderer: renderer,
+			scene: scene,
+			camera: camera,
+
 			markersJsonFile: MARKERS_JSON
 
 		});
@@ -149,7 +234,7 @@
 		trackingThresholdControl = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold').listen();
 		changeTrackingThreshold = function (value)
 		{
-		    value = THREE.Math.clamp(value, sculptSizeControl.__min, sculptSizeControl.__max);
+		    value = THREE.Math.clamp(value, trackingThresholdControl.__min, trackingThresholdControl.__max);
 			skarf.arLib.threshold = value;
 			options.trackingThreshold = value;
 		}
@@ -177,6 +262,11 @@
 		toggleWireframe = function (value)
 		{
 			skarf.renderer.setWireframeVisible(value);
+			var i, len;
+			for (i = 0, len = materials.length; i < len; i++)
+			{
+			    materials[i].wireframe = value;
+			}
 			options.displayWireframe = value;
 		}
 		control.onChange(toggleWireframe);
@@ -239,6 +329,9 @@
 
 		//stream to video element
 		setupVideo();
+
+		//setup main scene
+		setupMainScene();
 
 		//setup AR
 		setupAr();

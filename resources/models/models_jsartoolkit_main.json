@@ -5,7 +5,7 @@
 			"name": "Origin",
 			"type": "empty"
 		},
-		"99": {
+		"49": {
 			"name": "us_police_car",
 			"url": "/resources/models/us_police_car/us_police_car_bin.js",
 			"type": "json_bin",
