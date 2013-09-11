@@ -49,6 +49,7 @@
 	var ARLIB = 'jsaruco';
 	// var ARLIB = 'jsartoolkit';
 	var MARKER_SIZE = 1;  //in mm
+	var CAM_VERTICAL_FOV = 40;  //estimate for your camera
 	var JSARTOOLKIT_MARKERS_JSON = '/resources/models/models_jsartoolkit_main.json';
 	var JSARUCO_MARKERS_JSON = '/resources/models/models_jsaruco_main.json';
 
@@ -137,7 +138,7 @@
 		scene = new THREE.Scene();
 
 		//create camera
-		camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
+		camera = new THREE.PerspectiveCamera(CAM_VERTICAL_FOV, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
 		camera.position.set(8, 8, 15);
 		camera.lookAt(new THREE.Vector3(0,0,0));
 		camera.matrixAutoUpdate = false;
@@ -320,7 +321,7 @@
                 trackingElem: source,
                 markerSize: MARKER_SIZE,
                 //NOTE: not using verticalFov for now because the JSARToolKit default projection matrix seems to work better
-                //verticalFov: 40,  //you will have to estimate this for your camera
+                //verticalFov: CAM_VERTICAL_FOV,  //must be the same as the render cam
                 threshold: options.trackingThreshold,
                 debug: false,
 
@@ -340,7 +341,7 @@
                 arLibType: 'jsaruco',
                 trackingElem: source,
                 markerSize: MARKER_SIZE,
-                verticalFov: 40,  //you will have to estimate this for your camera
+                verticalFov: CAM_VERTICAL_FOV,  //must be the same as the render cam
                 debug: false,
 
                 canvasContainerElem: $canvasContainerElem,
@@ -370,20 +371,22 @@
 
 	function window_onResize(event)
 	{
+	    var targetWidth = window.innerWidth;
+	    var targetHeight = window.innerHeight;
 	    var width, height;
 
 	    //calculate width and height that maintains video aspect ratio
 	    var videoAspect = video.width / video.height;
-	    var windowAspect = window.innerWidth / window.innerHeight;
+	    var windowAspect = targetWidth / targetHeight;
 	    if (windowAspect > videoAspect)
 	    {
-	        width = window.innerHeight * 4 / 3;
-	        height = window.innerHeight - 5;
+	        width = targetHeight * 4 / 3;
+	        height = targetHeight - 5;
 	    }
 	    else
 	    {
-	        width = window.innerWidth;
-	        height = (window.innerWidth * 3 / 4) - 5;
+	        width = targetWidth;
+	        height = (targetWidth * 3 / 4) - 5;
 	    }
 
 		//update renderer size
