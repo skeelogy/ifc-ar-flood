@@ -74,14 +74,19 @@ function GuiMarker(options) {
         throw new Error('markerSize not specified');
     }
     this.markerSize = options.markerSize;
-    this.matrix = null;
+
+    this.worldMatrix = null;
+
     // this.detected = false;  //TODO: determine if this is needed
     this.callbackFnName = this.key + 'CB';
     this.callbackFn = undefined;
 }
-GuiMarker.prototype.detected = function (matrix) {
-    // this.detected = true;
-    this.matrix = matrix;
+GuiMarker.prototype.detected = function (worldMatrix) {
+
+    //store the world matrix first
+    this.worldMatrix = worldMatrix;
+
+    //if callback function has not been eval'ed, do it first
     if (typeof this.callbackFn === 'undefined') {
         try {
             this.callbackFn = eval(this.callbackFnName);
@@ -89,12 +94,16 @@ GuiMarker.prototype.detected = function (matrix) {
             this.callbackFn = null;
         }
     }
+
+    //call the callback function if it exists
     if (this.callbackFn) {
         this.callCallbackFunction();
     }
 };
 GuiMarker.prototype.callCallbackFunction = function () {
-    this.callbackFn.call();
+    this.callbackFn.call(this, {
+        worldMatrix: this.worldMatrix
+    });
 }
 GuiMarker.prototype.hidden = function () {
     // this.detected = false;
@@ -113,19 +122,38 @@ function FlashMarker(options) {
 FlashMarker.prototype = Object.create(GuiMarker.prototype);
 FlashMarker.prototype.constructor = FlashMarker;
 //override
-FlashMarker.prototype.detected = function (matrix) {
-    GuiMarker.prototype.detected.call(this, matrix);
+FlashMarker.prototype.detected = function (worldMatrix) {
+    GuiMarker.prototype.detected.call(this, worldMatrix);
     this.flashed = false;  //turn off so that callback will not be called anymore until next flash
 }
 FlashMarker.prototype.hidden = function () {
     this.flashed = true;  //turn on so that callback will be called in next detection
     GuiMarker.prototype.hidden.call(this);
 };
-FlashMarker.prototype.callCallbackFunction = function () {
-    //call the callback function only once when this marker is flashed
-    if (this.flashed) {
-        this.callbackFn.call();
+GuiMarker.prototype.detected = function (worldMatrix) {
+
+    //store the world matrix first
+    this.worldMatrix = worldMatrix;
+
+    //if callback function has not been eval'ed, do it first
+    if (typeof this.callbackFn === 'undefined') {
+        try {
+            this.callbackFn = eval(this.callbackFnName);
+        } catch (err) {
+            this.callbackFn = null;
+        }
     }
+
+    //call the callback function if it exists and flashing has occurred
+    if (this.callbackFn && this.flashed) {
+        this.callCallbackFunction();
+    }
+};
+FlashMarker.prototype.callCallbackFunction = function () {
+    //this method is only called once until marker is flashed again
+    this.callbackFn.call(this, {
+        worldMatrix: this.worldMatrix
+    });
 }
 
 /**
@@ -141,6 +169,33 @@ ButtonMarker.prototype = Object.create(FlashMarker.prototype);
 ButtonMarker.prototype.constructor = ButtonMarker;
 //register with factory
 GuiMarkerFactory.register('button', ButtonMarker);
+
+/**
+ * GuiMarker that toggles a on/off state whenever the marker is shown
+ * @constructor
+ * @extends {FlashMarker}
+ */
+function CheckBoxMarker(options) {
+    FlashMarker.call(this, options);
+    this.activated = true;
+}
+//inherit
+CheckBoxMarker.prototype = Object.create(FlashMarker.prototype);
+CheckBoxMarker.prototype.constructor = CheckBoxMarker;
+//register with factory
+GuiMarkerFactory.register('checkbox', CheckBoxMarker);
+//override
+CheckBoxMarker.prototype.detected = function (worldMatrix) {
+    FlashMarker.prototype.detected.call(this, worldMatrix);
+};
+CheckBoxMarker.prototype.callCallbackFunction = function () {
+    //this method is only called once until marker is flashed again
+    this.activated = !this.activated;
+    this.callbackFn.call(this, {
+        worldMatrix: this.worldMatrix,
+        activated: this.activated
+    });
+}
 
 //===================================
 // Model Loaders

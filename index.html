@@ -141,10 +141,11 @@
 		trackingFolder = gui.addFolder('Tracking');
 		trackingFolder.open();
 
-		var control = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold');
-		function trackingThreshold_onChange(value)
+		var control = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold').listen();
+		trackingThreshold_onChange = function (value)
 		{
 			skarf.arLib.threshold = value;
+			options.trackingThreshold = value;
 		}
 		control.onChange(trackingThreshold_onChange);
 
@@ -152,26 +153,29 @@
 		displayFolder = gui.addFolder('Display');
 		displayFolder.open();
 
-		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
-		function toggleWireframe(value)
+		control = displayFolder.add(options, 'displayWireframe').name('Wireframe').listen();
+		toggleWireframe = function (value)
 		{
 			skarf.renderer.setWireframeVisible(value);
+			options.displayWireframe = value;
 		}
 		control.onChange(toggleWireframe);
 		toggleWireframe(options.displayWireframe);
 
-		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
-		function toggleLocalAxis(value)
+		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis').listen();
+		toggleLocalAxis = function (value)
 		{
 			skarf.renderer.setLocalAxisVisible(value);
+			options.displayLocalAxis = value;
 		}
 		control.onChange(toggleLocalAxis);
 		toggleLocalAxis(options.displayLocalAxis);
 
-		control = displayFolder.add(options, 'displayOriginPlane').name('Origin Plane');
-		function toggleOriginPlane(value)
+		control = displayFolder.add(options, 'displayOriginPlane').name('Origin Plane').listen();
+		toggleOriginPlane = function (value)
 		{
 			skarf.renderer.setOriginPlaneVisible(value);
+			options.displayOriginPlane = value;
 		}
 		control.onChange(toggleOriginPlane);
 		toggleOriginPlane(options.displayOriginPlane);
@@ -180,6 +184,15 @@
 	function setupGuiMarkerCallbacks() {
         clearSculptsButtonCB = function () {
             console.log('clear sculpts');
+        };
+        displayWireframeCB = function (params) {
+            toggleWireframe(params.activated);
+        };
+        displayLocalAxisCB = function (params) {
+            toggleLocalAxis(params.activated);
+        };
+        displayOriginPlaneCB = function (params) {
+            toggleOriginPlane(params.activated);
         };
     }
 
