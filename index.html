@@ -38,25 +38,60 @@
 	<script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
 	<script type="text/javascript" src="/js/streamvideo.js"></script>
 
+	<!--load terrain libraries-->
+	<script type="text/javascript" src="/js/ShaderManager.js"></script>
+	<script type="text/javascript" src="/js/skulptgpu.js"></script>
+	<script type="text/javascript" src="/js/lib/SimplexNoise.js"></script>
+	<script type="text/javascript" src="/js/lib/StackBlur.js"></script>
+
 	<script>
 
 	var ARLIB = 'jsaruco';
 	// var ARLIB = 'jsartoolkit';
-	var MARKER_SIZE = 25;  //in mm
+	var MARKER_SIZE = 1;  //in mm
 	var JSARTOOLKIT_MARKERS_JSON = '/resources/models/models_jsartoolkit_main.json';
 	var JSARUCO_MARKERS_JSON = '/resources/models/models_jsaruco_main.json';
 
 	var SHADOW_MAP_RES = 1024;
 	var TERRAIN_RES = 256;
-	var TERRAIN_SIZE = 8;
+	var TERRAIN_SIZE = 5 * MARKER_SIZE;
+	var TERRAIN_GRID_SIZE = TERRAIN_SIZE / TERRAIN_RES;
+	var USE_TERRAIN_IMAGE = true;
+	var TERRAIN_SCULPT_SIZE = 1.0;
+	var TERRAIN_SCULPT_AMOUNT = 0.1;
+
+	var terrainImages = {
+		'IGMS1':'/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg',
+		'IGMS2':'/resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg',
+		'IGMS3':'/resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg',
+		'IGMS4':'/resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg',
+		'IGMS5':'/resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg',
+		'Clouds':'/resources/images/terrain/clouds_256.png'
+	};
+	var terrainImageSettings = {
+		'/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg': { 'preblur':2, 'height':0.3, 'midGreyIsLowest':true },
+		'/resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg': { 'preblur':1, 'height':0.3, 'midGreyIsLowest':true },
+		'/resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg': { 'preblur':3, 'height':0.3, 'midGreyIsLowest':true },
+		'/resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg': { 'preblur':2, 'height':0.3, 'midGreyIsLowest':true },
+		'/resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg': { 'preblur':3, 'height':0.3, 'midGreyIsLowest':true },
+		'/resources/images/terrain/clouds_256.png': { 'preblur':0, 'height':2, 'midGreyIsLowest':false }
+	}
 
 	var options = {
         trackingThreshold: 128,
+        terrainImage: terrainImages[Object.keys(terrainImages)[0]],
+		terrainShowImage: false,
+		terrainMidGreyIsLowest: true,
+		terrainPreBlur: terrainImageSettings[Object.keys(terrainImageSettings)[0]].preblur,
+		terrainHeight: terrainImageSettings[Object.keys(terrainImageSettings)[0]].height,
         sculptSize: 1.0,
-        displayDebugView: false,
+        sculptAmount: TERRAIN_SCULPT_AMOUNT,
+		sculptClearSculpts: sculptClearSculpts,
+		displayDebugView: false,
         displayWireframe: false,
         displayLocalAxis: true,
         displayOriginPlane: true,
+        displaySimTexture: false
     };
 
 	var clock = new THREE.Clock();
@@ -114,18 +149,18 @@
 		controls.modifierKey = 'alt';
 
 		//create plane for reference and for intersection test
-		var groundPlaneGeom = new THREE.PlaneGeometry(TERRAIN_SIZE * MARKER_SIZE, TERRAIN_SIZE * MARKER_SIZE, 1, 1);  //much faster for intersection test when there are no divisions
+		var groundPlaneGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);  //much faster for intersection test when there are no divisions
 		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 		var groundPlaneMaterial = new THREE.MeshPhongMaterial({
 		    color: 0x99ff66
 		});
 		materials.push(groundPlaneMaterial);
 		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
-		// groundPlaneMesh.position.x = TERRAIN_SIZE * MARKER_SIZE / 2.0;
-		// groundPlaneMesh.position.z = - TERRAIN_SIZE * MARKER_SIZE / 2.0;
+		// groundPlaneMesh.position.x = TERRAIN_SIZE / 2.0;
+		// groundPlaneMesh.position.z = - TERRAIN_SIZE / 2.0;
 		groundPlaneMesh.castShadow = true;
 		groundPlaneMesh.receiveShadow = true;
-		groundPlaneMesh.visible = true;
+		groundPlaneMesh.visible = false;
 		scene.add(groundPlaneMesh);
 
 		//create axis
@@ -158,6 +193,120 @@
         fillLight.position.set(25, 75, 75);
         fillLight.target.position.set(0, 0, 0);
         scene.add(fillLight);
+	}
+
+	var terrainGeom, terrainMaterial, terrainMesh, skulptTerrainMesh;
+	var gpuSkulpt;
+	var visGeom, visMaterial, visMesh;
+	function setupSkulpt()
+	{
+		//create a terrain mesh for sculpting
+		terrainGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_RES-1, TERRAIN_RES-1);
+		terrainGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		terrainGeom.computeFaceNormals();
+	    terrainGeom.computeVertexNormals();
+	    terrainGeom.normalsNeedUpdate = true;
+		terrainMaterial = new THREE.MeshPhongMaterial({
+		    color: 0xffffff,
+		    wireframe: true
+		});
+		materials.push(terrainMaterial);
+		terrainMesh = new THREE.Mesh(terrainGeom, terrainMaterial);
+		terrainMesh.castShadow = true;
+		terrainMesh.receiveShadow = true;
+		terrainMesh.visible = true;
+		scene.add(terrainMesh);
+
+		//create a GpuSkulpt
+		gpuSkulpt = new GpuSkulpt({
+		    renderer: renderer,
+			mesh: terrainMesh,
+			size: TERRAIN_SIZE,
+			res: TERRAIN_RES,
+		});
+
+		//change some parameters
+		gpuSkulpt.mesh.material.uniforms.uPointLightIntensity.value[1] = 0.2;
+
+		//create a RTT visualization plane
+		visGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);
+		visGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+	    visMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuSkulpt.rttCombinedLayer } );
+		materials.push(visMaterial);
+		visMesh = new THREE.Mesh(visGeom, visMaterial);
+		visMesh.position.y = 3 * MARKER_SIZE;
+		visMesh.castShadow = true;
+		visMesh.receiveShadow = true;
+		scene.add(visMesh);
+	}
+
+	var terrainImageData, terrainImageProcessedData;
+	function filterTerrainImageAndGenerateHeight()
+	{
+		//draw image onto canvas
+		//NO NEED TO DO THIS WHEN USING stackBlurImage()
+        //imageCanvasElemContext.drawImage($scaledImageObj, 0, 0, terrainImageWidth, terrainImageHeight);
+
+        //do pre-blur filtering first
+        stackBlurImage('scaledTerrainImage', 'terrainImageCanvas', options.terrainPreBlur, false);
+
+        //get filtered image data
+        terrainImageData = imageCanvasElemContext.getImageData(0, 0, TERRAIN_RES, TERRAIN_RES).data;
+
+		//update skulpt
+		gpuSkulpt.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
+	}
+
+	var $imageCanvasElem, imageCanvasElemContext;
+	var $scaledImageObj, $origImageObj;
+	function prepareTerrainImageElements()
+	{
+		//create canvas that is same size as terrain res so that one vertex maps to one resized pixel
+		$imageCanvasElem = $(document.createElement('canvas'));
+		$imageCanvasElem[0].id = 'terrainImageCanvas';
+		$imageCanvasElem[0].width = TERRAIN_RES;
+		$imageCanvasElem[0].height = TERRAIN_RES;
+		$imageCanvasElem.css({'position':'fixed', 'top':'55px', 'left':0});
+		$('body').append($imageCanvasElem);
+
+		//get canvas context
+        imageCanvasElemContext = $imageCanvasElem[0].getContext('2d');
+
+		//load terrain image
+		$scaledImageObj = $(new Image());
+		$scaledImageObj[0].id = 'scaledTerrainImage';
+		$scaledImageObj[0].onload = function()
+		{
+			//this function is triggered from $origImageObj setting this src
+
+			//start filtering and changing heights
+			filterTerrainImageAndGenerateHeight();
+		};
+		$scaledImageObj.css({'display':'none'});
+		$('body').append($scaledImageObj);
+
+		//load original terrain image, scale it using canvas, then set scaled image to $scaledImageObj
+		$origImageObj = $(new Image());
+		$origImageObj[0].onload = function()
+		{
+			//copy to scaled canvas to scale this image
+			imageCanvasElemContext.drawImage($origImageObj[0], 0, 0, TERRAIN_RES, TERRAIN_RES);
+
+			//get scaled data from canvas and set data for scaledImageObj
+			$scaledImageObj[0].src = $imageCanvasElem[0].toDataURL();
+		};
+	}
+
+	function loadTerrainImage(image)
+	{
+		console.log('Loading terrain image: ' + image);
+		$origImageObj[0].src = image;
+	}
+
+	function sculptClearSculpts()
+	{
+		// gpuSkulpt.getMesh('terrainMesh').clearCurrLayer();
+		gpuSkulpt.clear();
 	}
 
 	var skarf;
@@ -213,10 +362,10 @@
 	function setupEvents()
 	{
 		window.addEventListener('resize', window_onResize, false);
-		// window.addEventListener('keyup', window_onKeyUp, false);
-		// window.addEventListener('mousedown', window_onMouseDown, false);
-		// window.addEventListener('mousemove', window_onMouseMove, false);
-		// window.addEventListener('mouseup', window_onMouseUp, false);
+		window.addEventListener('keyup', window_onKeyUp, false);
+		window.addEventListener('mousedown', window_onMouseDown, false);
+		window.addEventListener('mousemove', window_onMouseMove, false);
+		window.addEventListener('mouseup', window_onMouseUp, false);
 	}
 
 	function window_onResize(event)
@@ -241,6 +390,145 @@
 		skarf.renderer.renderer.setSize(width, height);
 	}
 
+	function window_onKeyUp(event)
+	{
+		if (event.keyCode === 16 || event.keyCode === 17)  //shift or ctrl
+		{
+			//hide cursor when shift or ctrl key is up
+			gpuSkulpt.hideCursor();
+		}
+	}
+
+	var isSculpting = false;
+	var sculptUvPos = new THREE.Vector2();
+	function window_onMouseDown(event)
+	{
+		if (event.ctrlKey)
+		{
+			//detect intersection and show cursor
+			detectIntersectionAndShowSculptCursor();
+            if (intersectPoint)
+            {
+                //do actual sculpting if clicked
+                if (event.button === 0)  //LMB
+                {
+                    isSculpting = true;
+                    gpuSkulpt.sculpt(GpuSkulpt.ADD, intersectPoint, options.sculptAmount);
+                }
+                else if (event.button === 2)  //RMB
+                {
+                    isSculpting = true;
+                    gpuSkulpt.sculpt(GpuSkulpt.REMOVE, intersectPoint, options.sculptAmount);
+                }
+            }
+		}
+		else if (event.shiftKey)
+		{
+			//detect intersection and show cursor
+			detectIntersectionAndShowSculptCursor();
+            if (intersectPoint)
+            {
+                //do actual sculpting if clicked
+                if (event.button === 0)  //LMB
+                {
+                    // isSculpting = true;
+                    // sculptTerrain('flatten');
+                }
+            }
+		}
+	}
+
+	function window_onMouseMove(event)
+	{
+		event.preventDefault();
+
+		if (event.ctrlKey)
+		{
+			//detect intersection and show cursor
+			detectIntersectionAndShowSculptCursor();
+			if (intersectPoint && isSculpting)
+			{
+                if (event.button === 0)  //LMB
+                {
+                    gpuSkulpt.sculpt(GpuSkulpt.ADD, intersectPoint, options.sculptAmount);
+                }
+                else if (event.button === 2)  //RMB
+                {
+                    gpuSkulpt.sculpt(GpuSkulpt.REMOVE, intersectPoint, options.sculptAmount);
+                }
+            }
+		}
+		else if (event.shiftKey)
+		{
+			//detect intersection and show cursor
+			detectIntersectionAndShowSculptCursor();
+			if (intersectPoint && isSculpting)
+			{
+                if (event.button === 0)  //LMB
+                {
+                    // sculptTerrain('flatten');
+                }
+            }
+		}
+	}
+
+	function window_onMouseUp(event)
+	{
+		isSculpting = false;
+	}
+
+	var worldPos = new THREE.Vector3();
+	var camPos = new THREE.Vector3();
+	var projector = new THREE.Projector();
+	var raycaster = new THREE.Raycaster();
+	var intersectPoint = new THREE.Vector3();
+	var mousePosNorm = new THREE.Vector2();
+	function detectIntersection()
+	{
+	    //get normalized [-1, 1] mouse position
+		mousePosNorm.x = (event.clientX / $threejsCanvasElem.width()) * 2 - 1;
+		mousePosNorm.y = -(event.clientY / $threejsCanvasElem.height()) * 2 + 1;
+
+		//unproject 2d point to get 3d point
+		worldPos.set(mousePosNorm.x, mousePosNorm.y, 1);
+		projector.unprojectVector(worldPos, camera);
+
+		//get camera position
+		// var camPos = camera.position;
+		camPos.getPositionFromMatrix(camera.matrixWorld);
+
+		//do raycasting
+		raycaster.set(camPos, worldPos.sub(camPos).normalize());
+		var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
+
+		//get intersection point
+		if (intersectInfo && intersectInfo[0])
+		{
+			return intersectInfo[0].point;
+		}
+		else
+		{
+			return null;
+		}
+	}
+
+	function detectIntersectionAndShowSculptCursor()
+	{
+		//detect intersection and show cursor
+		intersectPoint = detectIntersection();
+		if (intersectPoint)
+		{
+			//show cursor at intersection point
+			gpuSkulpt.updateCursor(intersectPoint);
+			gpuSkulpt.showCursor();
+		}
+		else
+		{
+			//cursor is out of terrain, so hide it, otherwise it will remain at the edge
+			gpuSkulpt.hideCursor();
+		}
+	}
+
 	function setupStats()
 	{
 		//create a stats monitor
@@ -249,7 +537,7 @@
 	}
 
     var gui;
-    var trackingFolder, sculptFolder, displayFolder;
+    var terrainFolder, sculptFolder, renderingFolder, displayFolder;
     var trackingThresholdControl;
     var sculptSizeControl;
 	function setupGui() {
@@ -272,6 +560,72 @@
 		}
 		trackingThresholdControl.onChange(changeTrackingThreshold);
 
+		//Terrain folder
+		terrainFolder = gui.addFolder('Terrain');
+		terrainFolder.open();
+
+		var control = terrainFolder.add(options, 'terrainImage', terrainImages).name('Image');
+		function changeTerrainImage(value)
+		{
+			terrainImage = value;
+			loadTerrainImage(value);
+
+			//load some presets so that the loaded terrain looks nicer
+			options.terrainPreBlur = terrainImageSettings[value].preblur;
+			options.terrainHeight = terrainImageSettings[value].height;
+			options.terrainMidGreyIsLowest = terrainImageSettings[value].midGreyIsLowest;
+
+			//update display
+			for (var i in terrainFolder.__controllers) {
+				terrainFolder.__controllers[i].updateDisplay();
+			}
+		}
+		control.onChange(changeTerrainImage);
+		//changeTerrainPreBlur('/resources/images/clouds_256.png');
+
+		control = terrainFolder.add(options, 'terrainShowImage').name('Show Image');
+		function changeTerrainShowImage(value)
+		{
+			terrainShowImage = value;
+			if (value)
+			{
+				$imageCanvasElem.css({'display':'block'});
+			}
+			else
+			{
+				$imageCanvasElem.css({'display':'none'});
+			}
+		}
+		control.onChange(changeTerrainShowImage);
+		changeTerrainShowImage(options.terrainShowImage);
+
+		control = terrainFolder.add(options, 'terrainMidGreyIsLowest').name('Mid Grey Lowest');
+		function changeTerrainMidGreyIsLowest(value)
+		{
+			terrainMidGreyIsLowest = value;
+			gpuSkulpt.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
+		}
+		control.onChange(changeTerrainMidGreyIsLowest);
+		//changeTerrainMidGreyIsLowest(options.terrainMidGreyIsLowest);
+
+		control = terrainFolder.add(options, 'terrainPreBlur', 0, 10).name('Pre-Blur');
+		function changeTerrainPreBlur(value)
+		{
+			terrainPreBlur = value;
+			filterTerrainImageAndGenerateHeight(value);
+		}
+		control.onChange(changeTerrainPreBlur);
+		//changeTerrainPreBlur(options.terrainPreBlur);
+
+		control = terrainFolder.add(options, 'terrainHeight', 0, 4).name('Height');
+		function changeTerrainHeight(value)
+		{
+			terrainHeight = value;
+			gpuSkulpt.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
+		}
+		control.onChange(changeTerrainHeight);
+		//changeTerrainHeight(options.terrainHeight);
+
 		//Sculpt folder
 		sculptFolder = gui.addFolder('Sculpt');
 		sculptFolder.open();
@@ -285,6 +639,16 @@
 		}
 		sculptSizeControl.onChange(changeSculptSize);
 		changeSculptSize(options.sculptSize);
+
+		control = sculptFolder.add(options, 'sculptAmount', 0.01, 1.0).name('Amount');
+		function changeSculptAmount(value)
+		{
+			gpuSkulpt.setBrushAmount(value);
+		}
+		control.onChange(changeSculptAmount);
+		changeSculptAmount(options.sculptAmount);
+
+		control = sculptFolder.add(options, 'sculptClearSculpts').name('Clear Sculpts');
 
 		//Display folder
 		displayFolder = gui.addFolder('Display');
@@ -308,6 +672,7 @@
 			    materials[i].wireframe = value;
 			}
 			options.displayWireframe = value;
+			gpuSkulpt.displayWireframe = value;
 		}
 		control.onChange(toggleWireframe);
 		toggleWireframe(options.displayWireframe);
@@ -329,6 +694,14 @@
 		}
 		control.onChange(toggleOriginPlane);
 		toggleOriginPlane(options.displayOriginPlane);
+
+		control = displayFolder.add(options, 'displaySimTexture').name('Sim Texture');
+		function toggleSimTexture(value)
+		{
+            visMesh.visible = value;
+		}
+		control.onChange(toggleSimTexture);
+		toggleSimTexture(options.displaySimTexture);
 	}
 
 	function setupGuiMarkerCallbacks() {
@@ -373,6 +746,13 @@
 		//setup main scene
 		setupMainScene();
 
+		//setup Skulpt
+		setupSkulpt()
+
+		//setup terrain image
+		prepareTerrainImageElements();
+        loadTerrainImage(options.terrainImage);
+
 		//setup AR
 		setupAr();
 
@@ -393,6 +773,9 @@
 		{
 			var time = clock.getElapsedTime();
 
+			visMaterial.map = gpuSkulpt.rttCombinedLayer;
+
+			gpuSkulpt.update();
 			skarf.update();
 			stats.update();
 
