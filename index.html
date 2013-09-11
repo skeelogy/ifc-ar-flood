@@ -41,6 +41,7 @@
 
 	var options = {
         trackingThreshold: 128,
+        sculptSize: 1.0,
         displayWireframe: true,
         displayLocalAxis: true,
         displayOriginPlane: true,
@@ -131,23 +132,42 @@
 	}
 
     var gui;
-    var trackingFolder, displayFolder;
+    var trackingFolder, sculptFolder, displayFolder;
+    var trackingThresholdControl;
+    var sculptSizeControl;
 	function setupGui() {
 
 		gui = new dat.GUI();
 		// gui.close();  //close GUI by default
 
+		var control;
+
 		//Tracking folder
 		trackingFolder = gui.addFolder('Tracking');
 		trackingFolder.open();
 
-		var control = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold').listen();
-		trackingThreshold_onChange = function (value)
+		trackingThresholdControl = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold').listen();
+		changeTrackingThreshold = function (value)
 		{
+		    value = THREE.Math.clamp(value, sculptSizeControl.__min, sculptSizeControl.__max);
 			skarf.arLib.threshold = value;
 			options.trackingThreshold = value;
 		}
-		control.onChange(trackingThreshold_onChange);
+		trackingThresholdControl.onChange(changeTrackingThreshold);
+
+		//Sculpt folder
+		sculptFolder = gui.addFolder('Sculpt');
+		sculptFolder.open();
+
+		sculptSizeControl = sculptFolder.add(options, 'sculptSize', 0.1, 10.0).name('Size').listen();
+		changeSculptSize = function (value)
+		{
+		    value = THREE.Math.clamp(value, sculptSizeControl.__min, sculptSizeControl.__max);
+			// gpuSkulpt.setBrushSize(value);
+			options.sculptSize = value;
+		}
+		sculptSizeControl.onChange(changeSculptSize);
+		changeSculptSize(options.sculptSize);
 
 		//Display folder
 		displayFolder = gui.addFolder('Display');
@@ -182,7 +202,17 @@
 	}
 
 	function setupGuiMarkerCallbacks() {
-        clearSculptsButtonCB = function () {
+
+	    //NOTE: not allowing changing of tracking threshold using marker
+	    //because once you get into an undetectable threshold, you can't use the marker to control anymore
+	    // trackingThresholdSliderCB = function (params) {
+            // changeTrackingThreshold(options.trackingThreshold + params.dy * 2.0);
+        // };
+
+	    sculptSizeSliderCB = function (params) {
+            changeSculptSize(options.sculptSize + params.dy * 2.0);
+        };
+        clearSculptsButtonCB = function (params) {
             console.log('clear sculpts');
         };
         displayWireframeCB = function (params) {

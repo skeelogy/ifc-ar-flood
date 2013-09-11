@@ -17,9 +17,29 @@
 	},
 	"guiMarkers": {
 		"64": {
+			"name": "Sculpt Size",
+			"key": "sculptSizeSlider",
+			"type": "slider"
+		},
+		"614": {
 			"name": "Clear Sculpts",
 			"key": "clearSculptsButton",
 			"type": "button"
+		},
+		"624": {
+			"name": "Display Wireframe",
+			"key": "displayWireframe",
+			"type": "checkbox"
+		},
+		"634": {
+			"name": "Display Local Axis",
+			"key": "displayLocalAxis",
+			"type": "checkbox"
+		},
+		"644": {
+			"name": "Display Origin Plane",
+			"key": "displayOriginPlane",
+			"type": "checkbox"
 		}
 	}
 }

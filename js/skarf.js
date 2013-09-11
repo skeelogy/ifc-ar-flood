@@ -75,6 +75,8 @@ function GuiMarker(options) {
     }
     this.markerSize = options.markerSize;
 
+    this.flashed = true;
+
     this.worldMatrix = null;
 
     // this.detected = false;  //TODO: determine if this is needed
@@ -97,105 +99,135 @@ GuiMarker.prototype.detected = function (worldMatrix) {
 
     //call the callback function if it exists
     if (this.callbackFn) {
-        this.callCallbackFunction();
+        this.invokeCallback();
     }
+
+    //turn off flashed
+    this.flashed = false;
 };
-GuiMarker.prototype.callCallbackFunction = function () {
+GuiMarker.prototype.invokeCallback = function () {
     this.callbackFn.call(this, {
         worldMatrix: this.worldMatrix
     });
 }
 GuiMarker.prototype.hidden = function () {
     // this.detected = false;
+
+    //turn on flashed, for the next detection
+    this.flashed = true;
 };
 
 /**
- * GuiMarker that activates only once until marker is next shown
+ * GuiMarker that activates once until the marker is next shown
  * @constructor
  * @extends {GuiMarker}
  */
-function FlashMarker(options) {
-    this.flashed = true;
+function ButtonMarker(options) {
     GuiMarker.call(this, options);
 }
 //inherit
-FlashMarker.prototype = Object.create(GuiMarker.prototype);
-FlashMarker.prototype.constructor = FlashMarker;
-//override
-FlashMarker.prototype.detected = function (worldMatrix) {
-    GuiMarker.prototype.detected.call(this, worldMatrix);
-    this.flashed = false;  //turn off so that callback will not be called anymore until next flash
-}
-FlashMarker.prototype.hidden = function () {
-    this.flashed = true;  //turn on so that callback will be called in next detection
-    GuiMarker.prototype.hidden.call(this);
-};
-GuiMarker.prototype.detected = function (worldMatrix) {
-
-    //store the world matrix first
-    this.worldMatrix = worldMatrix;
-
-    //if callback function has not been eval'ed, do it first
-    if (typeof this.callbackFn === 'undefined') {
-        try {
-            this.callbackFn = eval(this.callbackFnName);
-        } catch (err) {
-            this.callbackFn = null;
-        }
-    }
-
-    //call the callback function if it exists and flashing has occurred
-    if (this.callbackFn && this.flashed) {
-        this.callCallbackFunction();
-    }
-};
-FlashMarker.prototype.callCallbackFunction = function () {
-    //this method is only called once until marker is flashed again
-    this.callbackFn.call(this, {
-        worldMatrix: this.worldMatrix
-    });
-}
-
-/**
- * GuiMarker that activates once when marker is shown
- * @constructor
- * @extends {FlashMarker}
- */
-function ButtonMarker(options) {
-    FlashMarker.call(this, options);
-}
-//inherit
-ButtonMarker.prototype = Object.create(FlashMarker.prototype);
+ButtonMarker.prototype = Object.create(GuiMarker.prototype);
 ButtonMarker.prototype.constructor = ButtonMarker;
 //register with factory
 GuiMarkerFactory.register('button', ButtonMarker);
+//override
+ButtonMarker.prototype.invokeCallback = function () {
+    if (this.flashed) {
+        this.callbackFn.call(this, {
+            worldMatrix: this.worldMatrix
+        });
+    }
+};
 
 /**
- * GuiMarker that toggles a on/off state whenever the marker is shown
+ * GuiMarker that toggles an on/off state once until the marker is next shown
  * @constructor
- * @extends {FlashMarker}
+ * @extends {GuiMarker}
  */
 function CheckBoxMarker(options) {
-    FlashMarker.call(this, options);
+    GuiMarker.call(this, options);
     this.activated = true;
 }
 //inherit
-CheckBoxMarker.prototype = Object.create(FlashMarker.prototype);
+CheckBoxMarker.prototype = Object.create(GuiMarker.prototype);
 CheckBoxMarker.prototype.constructor = CheckBoxMarker;
 //register with factory
 GuiMarkerFactory.register('checkbox', CheckBoxMarker);
 //override
-CheckBoxMarker.prototype.detected = function (worldMatrix) {
-    FlashMarker.prototype.detected.call(this, worldMatrix);
-};
-CheckBoxMarker.prototype.callCallbackFunction = function () {
+CheckBoxMarker.prototype.invokeCallback = function () {
     //this method is only called once until marker is flashed again
-    this.activated = !this.activated;
+    if (this.flashed) {
+        this.activated = !this.activated;
+        this.callbackFn.call(this, {
+            worldMatrix: this.worldMatrix,
+            activated: this.activated
+        });
+    }
+};
+
+/**
+ * GuiMarker that emulates an attribute-changing slider by rotating
+ * @constructor
+ * @extends {GuiMarker}
+ */
+function SliderMarker(options) {
+
+    GuiMarker.call(this, options);
+
+    this.prevXAxis = new THREE.Vector3();
+    this.prevYAxis = new THREE.Vector3();
+    this.currXAxis = new THREE.Vector3();
+    this.dy = 0;
+
+    //set limits to control the values during a crazy solve
+    this.thresholdLow = 0.02;  //to ignore slight flickerings
+    this.thresholdHigh = 0.5;  //in case axes flip and a large change occurs
+}
+//inherit
+SliderMarker.prototype = Object.create(GuiMarker.prototype);
+SliderMarker.prototype.constructor = SliderMarker;
+//register with factory
+GuiMarkerFactory.register('slider', SliderMarker);
+//override
+SliderMarker.prototype.detected = function (worldMatrix) {
+
+    //NOTE: tried to extract the Euler Y rotation and then take the difference but can't seem to get it to work.
+    //So I'm storing the X and Y axes in previous frame.
+    //Compare current X axis against previous X axis to find angle.
+    //Compare current X axis against previous XY plane to get sign.
+
+    //get the current X axis
+    this.currXAxis.getColumnFromMatrix(0, worldMatrix).normalize();
+
+    //first find the changed angle
+    this.dy = Math.acos(this.currXAxis.dot(this.prevXAxis));
+    var absDy = Math.abs(this.dy);
+    if (isNaN(this.dy) || absDy < this.thresholdLow || absDy > this.thresholdHigh) {
+        this.dy = 0;
+    }
+
+    //then determine the sign
+    if (this.dy > 0) {
+        var sign = this.prevXAxis.cross(this.prevYAxis).dot(this.currXAxis);
+        if (sign < 0) {
+            this.dy = -this.dy;
+        }
+    }
+
+    //store the previous axes first
+    this.prevXAxis.copy(this.currXAxis);
+    this.prevYAxis.getColumnFromMatrix(1, worldMatrix).normalize();
+
+    //call superclass detected (have to call this at the end because this will invoke the callback)
+    GuiMarker.prototype.detected.call(this, worldMatrix);
+};
+SliderMarker.prototype.invokeCallback = function () {
     this.callbackFn.call(this, {
         worldMatrix: this.worldMatrix,
-        activated: this.activated
+        dy: this.dy
     });
-}
+};
+
 
 //===================================
 // Model Loaders
@@ -451,7 +483,7 @@ MarkerManager.prototype.loadForMarker = function (markerId, markerTransform, mar
             markerTransform.guiMarker = guiMarker;
         }
     } else {
-        console.warning('Unable to find data for marker id ' + markerId);
+        console.warn('Unable to find data for marker id ' + markerId);
     }
 
 };
