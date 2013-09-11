@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>IFC - HTML5 Augmented Reality</title>
+	<title>IFC - HTML5 Augmented Reality Flood Simulation</title>
 	<meta charset="UTF-8"/>
 
 	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
@@ -28,6 +28,10 @@
 
 	<!--load AR libraries-->
 	<script type="text/javascript" src="/js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
+	<script type="text/javascript" src="/js/lib/ar/js-aruco/svd.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/posit1.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/cv.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/aruco.js"></script>
 	<script type="text/javascript" src="/js/skarf.js"></script>
 
 	<!--load webcam streaming libraries-->
@@ -36,8 +40,11 @@
 
 	<script>
 
+	var ARLIB = 'jsaruco';
+	// var ARLIB = 'jsartoolkit';
 	var MARKER_SIZE = 25;  //in mm
-	var MARKERS_JSON = '/resources/models/models_jsartoolkit_main.json';
+	var JSARTOOLKIT_MARKERS_JSON = '/resources/models/models_jsartoolkit_main.json';
+	var JSARUCO_MARKERS_JSON = '/resources/models/models_jsaruco_main.json';
 
 	var SHADOW_MAP_RES = 1024;
 	var TERRAIN_RES = 256;
@@ -156,26 +163,50 @@
 	function setupAr()
 	{
 		//create a SkArF framework
-		skarf = new SkArF({
+		if (ARLIB === 'jsartoolkit') {
+		    skarf = new SkArF({
 
-		    arLibType: 'jsartoolkit',
-		    trackingElem: source,
-		    markerSize: MARKER_SIZE,
-			//NOTE: not using verticalFov for now because the JSARToolKit default projection matrix seems to work better
-		    //verticalFov: 40,  //you will have to estimate this for your camera
-		    threshold: options.trackingThreshold,
-		    debug: false,
+                arLibType: 'jsartoolkit',
+                trackingElem: source,
+                markerSize: MARKER_SIZE,
+                //NOTE: not using verticalFov for now because the JSARToolKit default projection matrix seems to work better
+                //verticalFov: 40,  //you will have to estimate this for your camera
+                threshold: options.trackingThreshold,
+                debug: false,
 
-		    canvasContainerElem: $canvasContainerElem,
+                canvasContainerElem: $canvasContainerElem,
 
-		    rendererType: 'threejs',
-			renderer: renderer,
-			scene: scene,
-			camera: camera,
+                rendererType: 'threejs',
+                renderer: renderer,
+                scene: scene,
+                camera: camera,
 
-			markersJsonFile: MARKERS_JSON
+                markersJsonFile: JSARTOOLKIT_MARKERS_JSON
 
-		});
+            });
+		} else if (ARLIB === 'jsaruco') {
+		    skarf = new SkArF({
+
+                arLibType: 'jsaruco',
+                trackingElem: source,
+                markerSize: MARKER_SIZE,
+                verticalFov: 40,  //you will have to estimate this for your camera
+                debug: false,
+
+                canvasContainerElem: $canvasContainerElem,
+
+                rendererType: 'threejs',
+                renderer: renderer,
+                scene: scene,
+                camera: camera,
+
+                markersJsonFile: JSARUCO_MARKERS_JSON
+
+            });
+		} else {
+		    throw new Error('ARLIB type not recognised: ' + ARLIB);
+		}
+
 	}
 
 	function setupEvents()

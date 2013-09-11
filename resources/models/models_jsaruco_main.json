@@ -1,0 +1,35 @@
+{
+    "mainMarkerId": "1001",
+	"models": {
+	    "1001": {
+			"name": "Origin",
+			"type": "empty"
+		},
+		"923": {
+			"name": "us_police_car",
+			"url": "/resources/models/us_police_car/us_police_car_bin.js",
+			"type": "json_bin",
+			"translate": [0, 0, 0],
+			"rotate": [0, 0, 0],
+			"rotationOrder": "XYZ",
+			"scale": [0.3, 0.3, 0.3]
+		}
+	},
+	"guiMarkers": {
+		"446": {
+			"name": "Sculpt Size",
+			"key": "sculptSizeSlider",
+			"type": "slider"
+		},
+		"614": {
+			"name": "Clear Sculpts",
+			"key": "clearSculptsButton",
+			"type": "button"
+		},
+		"624": {
+			"name": "Display Wireframe",
+			"key": "displayWireframe",
+			"type": "checkbox"
+		}
+	}
+}
