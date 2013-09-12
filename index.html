@@ -132,6 +132,7 @@
 		renderer.shadowMapEnabled = true;
 		renderer.shadowMapType = THREE.PCFShadowMap;
 		renderer.shadowMapSoft = true;
+		renderer.domElement.id = 'threejs-canvas';
 		$threejsContainerElem.append(renderer.domElement);
 
 		//create scene
@@ -360,13 +361,17 @@
 
 	}
 
+	var $threejsCanvasElem;
 	function setupEvents()
 	{
 		window.addEventListener('resize', window_onResize, false);
 		window.addEventListener('keyup', window_onKeyUp, false);
-		window.addEventListener('mousedown', window_onMouseDown, false);
-		window.addEventListener('mousemove', window_onMouseMove, false);
-		window.addEventListener('mouseup', window_onMouseUp, false);
+
+		//attach events to the canvas so that we can get the relative mouse coordinates inside it
+		$threejsCanvasElem = $('#threejs-canvas');
+		$threejsCanvasElem[0].addEventListener('mousedown', window_onMouseDown, false);
+		$threejsCanvasElem[0].addEventListener('mousemove', window_onMouseMove, false);
+		$threejsCanvasElem[0].addEventListener('mouseup', window_onMouseUp, false);
 	}
 
 	function window_onResize(event)
