@@ -913,12 +913,28 @@ function Renderer(options) {
     this.markerManager = new MarkerManager(this.markersJsonFile);
     this.localAxes = [];
 
+    this.callbacks = {};
+
     //variables to be assigned by skarf
     this.arLib = null;
     this.backgroundCanvasElem = null;
 }
 Renderer.prototype.init = function () {
     this.setupBackgroundVideo();
+};
+Renderer.prototype.addCallback = function (type, callbackFn) {
+    if (!this.callbacks.hasOwnProperty(type)) {
+        this.callbacks[type] = [];
+    }
+    if (callbackFn) {
+        if (typeof callbackFn === 'function') {
+            this.callbacks[type].push(callbackFn);
+        } else {
+            throw new Error('Specified callbackFn is not a function');
+        }
+    } else {
+        throw new Error('Callback function not defined');
+    }
 };
 Renderer.prototype.getMainMarkerId = function () {
     return this.markerManager.markerData.mainMarkerId;
@@ -966,9 +982,24 @@ RendererFactory.register('threejs', ThreeJsRenderer);
 
 //override methods
 ThreeJsRenderer.prototype.update = function () {
+
+    //mark texture for update
     this.videoTex.needsUpdate = true;
+
+    //clear renderer first
     this.renderer.autoClear = false;
     this.renderer.clear();
+
+    //check for the callback of type 'render'
+    if (this.callbacks.hasOwnProperty('render')) {
+        var renderCallbacks = this.callbacks['render'];
+        var i, len;
+        for (i = 0, len = renderCallbacks.length; i < len; i++) {
+            renderCallbacks[i]();
+        }
+    }
+
+    //finally, render actual scene
     this.renderer.render(this.videoScene, this.videoCam);
     this.renderer.render(this.scene, this.camera);
 };
@@ -1230,4 +1261,9 @@ SkArF.prototype.update = function () {
         this.arLib.update();
         this.renderer.update();
     // }
+};
+SkArF.prototype.addCallback = function (type, callbackFn) {
+    //pass all callbacks to renderer for now
+    //TODO: manage callbacks better
+    this.renderer.addCallback(type, callbackFn);
 };

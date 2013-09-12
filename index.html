@@ -359,6 +359,10 @@
 		    throw new Error('ARLIB type not recognised: ' + ARLIB);
 		}
 
+		//Create callback that will call gpuSkulpt.update after clearing renderer but before rendering the main scene
+		skarf.addCallback('render', function () {
+		    gpuSkulpt.update();
+		});
 	}
 
 	var $threejsCanvasElem;
@@ -642,7 +646,7 @@
 		changeSculptSize = function (value)
 		{
 		    value = THREE.Math.clamp(value, sculptSizeControl.__min, sculptSizeControl.__max);
-			// gpuSkulpt.setBrushSize(value);
+			gpuSkulpt.setBrushSize(value);
 			options.sculptSize = value;
 		}
 		sculptSizeControl.onChange(changeSculptSize);
@@ -783,7 +787,6 @@
 
 			visMaterial.map = gpuSkulpt.rttCombinedLayer;
 
-			gpuSkulpt.update();
 			skarf.update();
 			stats.update();
 
