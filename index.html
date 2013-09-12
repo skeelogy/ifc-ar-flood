@@ -80,6 +80,7 @@
 
 	var options = {
         trackingThreshold: 128,
+        trackingDebugView: false,
         terrainImage: terrainImages[Object.keys(terrainImages)[0]],
 		terrainShowImage: false,
 		terrainMidGreyIsLowest: true,
@@ -88,11 +89,10 @@
         sculptSize: 1.0,
         sculptAmount: TERRAIN_SCULPT_AMOUNT,
 		sculptClearSculpts: sculptClearSculpts,
-		displayDebugView: false,
+		sculptShowSimTexture: false,
         displayWireframe: false,
         displayLocalAxis: true,
-        displayOriginPlane: true,
-        displaySimTexture: false
+        displayOriginPlane: true
     };
 
 	var clock = new THREE.Clock();
@@ -117,6 +117,7 @@
 	}
 
 	var renderer, scene, camera;
+	// var controls;
 	var keyLight, fillLight;
 	// var worldAxis, localAxis;
 	var materials = [];
@@ -144,11 +145,10 @@
 		camera.lookAt(new THREE.Vector3(0,0,0));
 		camera.matrixAutoUpdate = false;
 
-		//create controls for camera
-		controls = new THREE.OrbitControls(camera);
-		controls.userPanSpeed = 0.2;
-		//controls.autoRotate = true;
-		controls.modifierKey = 'alt';
+		// //create controls for camera
+		// controls = new THREE.OrbitControls(camera);
+		// controls.userPanSpeed = 0.2;
+		// controls.modifierKey = 'alt';
 
 		//create plane for reference and for intersection test
 		var groundPlaneGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);  //much faster for intersection test when there are no divisions
@@ -550,8 +550,11 @@
 
     var gui;
     var terrainFolder, sculptFolder, renderingFolder, displayFolder;
-    var trackingThresholdControl;
-    var sculptSizeControl;
+    var terrainPreBlurControl, terrainHeightControl
+    var toggleTerrainShowImage, toggleTerrainMidGreyIsLowest, changeTerrainPreBlur, changeTerrainHeight
+    var sculptSizeControl, sculptAmountControl, toggleSculptShowSimTexture;
+    var changeSculptSize, changeSculptAmount;
+    var toggleWireframe, toggleLocalAxis, toggleOriginPlane;
 	function setupGui() {
 
 		gui = new dat.GUI();
@@ -563,14 +566,20 @@
 		trackingFolder = gui.addFolder('Tracking');
 		trackingFolder.open();
 
-		trackingThresholdControl = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold').listen();
+		control = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold');
 		changeTrackingThreshold = function (value)
 		{
-		    value = THREE.Math.clamp(value, trackingThresholdControl.__min, trackingThresholdControl.__max);
 			skarf.arLib.threshold = value;
-			options.trackingThreshold = value;
 		}
-		trackingThresholdControl.onChange(changeTrackingThreshold);
+		control.onChange(changeTrackingThreshold);
+
+		control = trackingFolder.add(options, 'trackingDebugView').name('Debug View');
+		toggleTrackingDebugView = function (value)
+		{
+			skarf.arLib.debug = value;
+		}
+		control.onChange(toggleTrackingDebugView);
+		toggleTrackingDebugView(options.trackingDebugView);
 
 		//Terrain folder
 		terrainFolder = gui.addFolder('Terrain');
@@ -579,7 +588,6 @@
 		var control = terrainFolder.add(options, 'terrainImage', terrainImages).name('Image');
 		function changeTerrainImage(value)
 		{
-			terrainImage = value;
 			loadTerrainImage(value);
 
 			//load some presets so that the loaded terrain looks nicer
@@ -593,12 +601,11 @@
 			}
 		}
 		control.onChange(changeTerrainImage);
-		//changeTerrainPreBlur('/resources/images/clouds_256.png');
+		//changeTerrainImage('/resources/images/clouds_256.png');
 
-		control = terrainFolder.add(options, 'terrainShowImage').name('Show Image');
-		function changeTerrainShowImage(value)
+		control = terrainFolder.add(options, 'terrainShowImage').name('Show Image').listen();
+		toggleTerrainShowImage = function(value)
 		{
-			terrainShowImage = value;
 			if (value)
 			{
 				$imageCanvasElem.css({'display':'block'});
@@ -607,35 +614,39 @@
 			{
 				$imageCanvasElem.css({'display':'none'});
 			}
+			options.terrainShowImage = value;
 		}
-		control.onChange(changeTerrainShowImage);
-		changeTerrainShowImage(options.terrainShowImage);
+		control.onChange(toggleTerrainShowImage);
+		toggleTerrainShowImage(options.terrainShowImage);
 
-		control = terrainFolder.add(options, 'terrainMidGreyIsLowest').name('Mid Grey Lowest');
-		function changeTerrainMidGreyIsLowest(value)
+		control = terrainFolder.add(options, 'terrainMidGreyIsLowest').name('Mid Grey Lowest').listen();
+		toggleTerrainMidGreyIsLowest = function(value)
 		{
-			terrainMidGreyIsLowest = value;
 			gpuSkulpt.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
+			options.terrainMidGreyIsLowest = value;
+			console.log(value);
 		}
-		control.onChange(changeTerrainMidGreyIsLowest);
-		//changeTerrainMidGreyIsLowest(options.terrainMidGreyIsLowest);
+		control.onChange(toggleTerrainMidGreyIsLowest);
+		//toggleTerrainMidGreyIsLowest(options.terrainMidGreyIsLowest);
 
-		control = terrainFolder.add(options, 'terrainPreBlur', 0, 10).name('Pre-Blur');
-		function changeTerrainPreBlur(value)
+		terrainPreBlurControl = terrainFolder.add(options, 'terrainPreBlur', 0, 10).name('Pre-Blur').listen();
+		changeTerrainPreBlur = function(value)
 		{
-			terrainPreBlur = value;
+		    value = THREE.Math.clamp(value, terrainPreBlurControl.__min, terrainPreBlurControl.__max);
 			filterTerrainImageAndGenerateHeight(value);
+			options.terrainPreBlur = value;
 		}
-		control.onChange(changeTerrainPreBlur);
+		terrainPreBlurControl.onChange(changeTerrainPreBlur);
 		//changeTerrainPreBlur(options.terrainPreBlur);
 
-		control = terrainFolder.add(options, 'terrainHeight', 0, 4).name('Height');
-		function changeTerrainHeight(value)
+		terrainHeightControl = terrainFolder.add(options, 'terrainHeight', 0, 4).name('Height').listen();
+		changeTerrainHeight = function(value)
 		{
-			terrainHeight = value;
+		    value = THREE.Math.clamp(value, terrainHeightControl.__min, terrainHeightControl.__max);
 			gpuSkulpt.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
+			options.terrainHeight = value;
 		}
-		control.onChange(changeTerrainHeight);
+		terrainHeightControl.onChange(changeTerrainHeight);
 		//changeTerrainHeight(options.terrainHeight);
 
 		//Sculpt folder
@@ -652,27 +663,30 @@
 		sculptSizeControl.onChange(changeSculptSize);
 		changeSculptSize(options.sculptSize);
 
-		control = sculptFolder.add(options, 'sculptAmount', 0.01, 1.0).name('Amount');
-		function changeSculptAmount(value)
+		sculptAmountControl = sculptFolder.add(options, 'sculptAmount', 0.01, 1.0).name('Amount');
+		changeSculptAmount = function (value)
 		{
+			value = THREE.Math.clamp(value, sculptAmountControl.__min, sculptAmountControl.__max);
 			gpuSkulpt.setBrushAmount(value);
+			options.sculptAmount = value;
 		}
-		control.onChange(changeSculptAmount);
+		sculptAmountControl.onChange(changeSculptAmount);
 		changeSculptAmount(options.sculptAmount);
 
 		control = sculptFolder.add(options, 'sculptClearSculpts').name('Clear Sculpts');
 
+		control = sculptFolder.add(options, 'sculptShowSimTexture').name('Sim Texture').listen();
+		toggleSculptShowSimTexture = function(value)
+		{
+            visMesh.visible = value;
+            options.sculptShowSimTexture = value;
+		}
+		control.onChange(toggleSculptShowSimTexture);
+		toggleSculptShowSimTexture(options.sculptShowSimTexture);
+
 		//Display folder
 		displayFolder = gui.addFolder('Display');
 		displayFolder.open();
-
-		control = displayFolder.add(options, 'displayDebugView').name('Debug View');
-		function toggleDebugView(value)
-		{
-			skarf.arLib.debug = value;
-		}
-		control.onChange(toggleDebugView);
-		toggleDebugView(options.displayDebugView);
 
 		control = displayFolder.add(options, 'displayWireframe').name('Wireframe').listen();
 		toggleWireframe = function (value)
@@ -706,37 +720,48 @@
 		}
 		control.onChange(toggleOriginPlane);
 		toggleOriginPlane(options.displayOriginPlane);
-
-		control = displayFolder.add(options, 'displaySimTexture').name('Sim Texture');
-		function toggleSimTexture(value)
-		{
-            visMesh.visible = value;
-		}
-		control.onChange(toggleSimTexture);
-		toggleSimTexture(options.displaySimTexture);
 	}
 
 	function setupGuiMarkerCallbacks() {
 
-	    //NOTE: not allowing changing of tracking threshold using marker
-	    //because once you get into an undetectable threshold, you can't use the marker to control anymore
-	    // trackingThresholdSliderCB = function (params) {
-            // changeTrackingThreshold(options.trackingThreshold + params.dy * 2.0);
-        // };
+	    //NOTE: not allowing changing of any options under the Tracking GUI folder using AR markers, because it just does not make sense
 
+	    //terrain
+	    terrainShowImageCheckboxCB = function (params) {
+            toggleTerrainShowImage(params.activated);
+        };
+        terrainMidGreyLowestCheckboxCB = function (params) {
+            toggleTerrainMidGreyIsLowest(params.activated);
+        };
+        terrainPreBlurImageSliderCB = function (params) {
+            changeTerrainPreBlur(options.terrainPreBlur + params.dy * 2.0);
+        };
+        terrainImageHeightSliderCB = function (params) {
+            changeTerrainHeight(options.terrainHeight + params.dy * 2.0);
+        };
+
+	    //sculpt
 	    sculptSizeSliderCB = function (params) {
             changeSculptSize(options.sculptSize + params.dy * 2.0);
         };
-        clearSculptsButtonCB = function (params) {
-            console.log('clear sculpts');
+        sculptAmountSliderCB = function (params) {
+            changeSculptAmount(options.sculptAmount + params.dy * 2.0);
         };
-        displayWireframeCB = function (params) {
+        sculptClearButtonCB = function (params) {
+            sculptClearSculpts();
+        };
+        sculptShowSimTextureCheckboxCB = function (params) {
+            toggleSculptShowSimTexture(params.activated);
+        };
+
+        //display
+        displayWireframeCheckboxCB = function (params) {
             toggleWireframe(params.activated);
         };
-        displayLocalAxisCB = function (params) {
+        displayLocalAxisCheckboxCB = function (params) {
             toggleLocalAxis(params.activated);
         };
-        displayOriginPlaneCB = function (params) {
+        displayOriginPlaneCheckboxCB = function (params) {
             toggleOriginPlane(params.activated);
         };
     }
@@ -787,6 +812,7 @@
 
 			visMaterial.map = gpuSkulpt.rttCombinedLayer;
 
+            // controls.update();
 			skarf.update();
 			stats.update();
 

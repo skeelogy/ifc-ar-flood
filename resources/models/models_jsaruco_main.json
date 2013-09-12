@@ -16,19 +16,49 @@
 		}
 	},
 	"guiMarkers": {
-		"446": {
-			"name": "Sculpt Size",
-			"key": "sculptSizeSlider",
+	    "22": {
+			"name": "Show Terrain Image",
+			"key": "terrainShowImageCheckbox",
+			"type": "checkbox"
+		},
+		"23": {
+			"name": "Mid Grey Lowest",
+			"key": "terrainMidGreyLowestCheckbox",
+			"type": "checkbox"
+		},
+		"24": {
+			"name": "Pre-Blur Terrain Image",
+			"key": "terrainPreBlurImageSlider",
 			"type": "slider"
 		},
-		"614": {
+		"25": {
+			"name": "Terrain Image Height",
+			"key": "terrainImageHeightSlider",
+			"type": "slider"
+		},
+		"33": {
 			"name": "Clear Sculpts",
-			"key": "clearSculptsButton",
+			"key": "sculptClearButton",
 			"type": "button"
 		},
-		"624": {
+		"34": {
+			"name": "Show Sim Texture",
+			"key": "sculptShowSimTextureCheckbox",
+			"type": "checkbox"
+		},
+		"71": {
 			"name": "Display Wireframe",
-			"key": "displayWireframe",
+			"key": "displayWireframeCheckbox",
+			"type": "checkbox"
+		},
+		"72": {
+			"name": "Display Local Axis",
+			"key": "displayLocalAxisCheckbox",
+			"type": "checkbox"
+		},
+		"73": {
+			"name": "Display Origin Plane",
+			"key": "displayOriginPlaneCheckbox",
 			"type": "checkbox"
 		}
 	}
