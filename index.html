@@ -48,14 +48,13 @@
 
 	var ARLIB = 'jsaruco';
 	// var ARLIB = 'jsartoolkit';
-	var MARKER_SIZE = 1;  //in mm
 	var CAM_VERTICAL_FOV = 40;  //estimate for your camera
 	var JSARTOOLKIT_MARKERS_JSON = '/resources/models/models_jsartoolkit_main.json';
 	var JSARUCO_MARKERS_JSON = '/resources/models/models_jsaruco_main.json';
 
 	var SHADOW_MAP_RES = 1024;
 	var TERRAIN_RES = 256;
-	var TERRAIN_SIZE = 5 * MARKER_SIZE;
+	var TERRAIN_SIZE = 5;
 	var TERRAIN_GRID_SIZE = TERRAIN_SIZE / TERRAIN_RES;
 	var USE_TERRAIN_IMAGE = true;
 	var TERRAIN_SCULPT_SIZE = 1.0;
@@ -236,7 +235,7 @@
 	    visMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuSkulpt.rttCombinedLayer } );
 		materials.push(visMaterial);
 		visMesh = new THREE.Mesh(visGeom, visMaterial);
-		visMesh.position.y = 3 * MARKER_SIZE;
+		visMesh.position.y = 3;
 		visMesh.castShadow = true;
 		visMesh.receiveShadow = true;
 		scene.add(visMesh);
@@ -320,7 +319,7 @@
 
                 arLibType: 'jsartoolkit',
                 trackingElem: source,
-                markerSize: MARKER_SIZE,
+                markerSize: 1,  //this is an overall scale, just set to 1 for now
                 //NOTE: not using verticalFov for now because the JSARToolKit default projection matrix seems to work better
                 //verticalFov: CAM_VERTICAL_FOV,  //must be the same as the render cam
                 threshold: options.trackingThreshold,
@@ -341,7 +340,7 @@
 
                 arLibType: 'jsaruco',
                 trackingElem: source,
-                markerSize: MARKER_SIZE,
+                markerSize: 1,  //this is an overall scale, just set to 1 for now
                 verticalFov: CAM_VERTICAL_FOV,  //must be the same as the render cam
                 debug: false,
 
