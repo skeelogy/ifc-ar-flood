@@ -54,7 +54,7 @@
 
 	var SHADOW_MAP_RES = 1024;
 	var TERRAIN_RES = 256;
-	var TERRAIN_SIZE = 5;
+	var TERRAIN_SIZE = 10;
 	var TERRAIN_GRID_SIZE = TERRAIN_SIZE / TERRAIN_RES;
 	var USE_TERRAIN_IMAGE = true;
 	var TERRAIN_SCULPT_SIZE = 1.0;
@@ -752,7 +752,20 @@
             toggleSculptShowSimTexture(params.checked);
         };
         sculptAddGeneric_moved = function (params) {
-            console.log(params.position);
+            gpuSkulpt.updateCursor(params.position);
+            gpuSkulpt.showCursor();
+            gpuSkulpt.sculpt(GpuSkulpt.ADD, params.position, options.sculptAmount);
+        }
+        sculptAddGeneric_hidden = function (params) {
+            gpuSkulpt.hideCursor();
+        }
+        sculptRemoveGeneric_moved = function (params) {
+            gpuSkulpt.updateCursor(params.position);
+            gpuSkulpt.showCursor();
+            gpuSkulpt.sculpt(GpuSkulpt.REMOVE, params.position, options.sculptAmount);
+        }
+        sculptRemoveGeneric_hidden = function (params) {
+            gpuSkulpt.hideCursor();
         }
 
         //display

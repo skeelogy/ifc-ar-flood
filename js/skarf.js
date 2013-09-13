@@ -83,7 +83,7 @@ function GuiMarker(options) {
     this.position = new THREE.Vector3();
     this.prevPosition = new THREE.Vector3();
     this.dPosition = new THREE.Vector3();
-    this.moveThresholdLow = 0.1;  //to ignore slight flickerings
+    this.moveThresholdLow = 0.02;  //to ignore slight flickerings
     this.moveThresholdHigh = 0.5;  //in case axes flip and a large change occurs
 
     //variables for rotation

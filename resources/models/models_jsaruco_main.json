@@ -51,6 +51,11 @@
 			"key": "sculptAddGeneric",
 			"type": "generic"
 		},
+		"36": {
+			"name": "Sculpt Remove",
+			"key": "sculptRemoveGeneric",
+			"type": "generic"
+		},
 		"71": {
 			"name": "Display Wireframe",
 			"key": "displayWireframeCheckbox",
