@@ -78,21 +78,21 @@
 	}
 
 	var options = {
-	    trackingTurnOnAr: false,
-        trackingThreshold: 128,
-        trackingDebugView: false,
+	    arOn: false,
+        arTrackingThreshold: 128,
         terrainImage: terrainImages[Object.keys(terrainImages)[0]],
-		terrainShowImage: false,
 		terrainMidGreyIsLowest: true,
 		terrainPreBlur: terrainImageSettings[Object.keys(terrainImageSettings)[0]].preblur,
 		terrainHeight: terrainImageSettings[Object.keys(terrainImageSettings)[0]].height,
         sculptSize: 1.0,
         sculptAmount: TERRAIN_SCULPT_AMOUNT,
 		sculptClearSculpts: sculptClearSculpts,
-		sculptShowSimTexture: false,
         displayWireframe: false,
         displayLocalAxis: true,
-        displayOriginPlane: true
+        displayOriginPlane: true,
+        debugTrackingInfo: false,
+        debugTerrainImage: false,
+        debugSculptTexture: false
     };
 
 	var clock = new THREE.Clock();
@@ -322,7 +322,7 @@
                 markerSize: 1,  //this is an overall scale, just set to 1 for now
                 //NOTE: not using verticalFov for now because the JSARToolKit default projection matrix seems to work better
                 //verticalFov: CAM_VERTICAL_FOV,  //must be the same as the render cam
-                threshold: options.trackingThreshold,
+                threshold: options.arTrackingThreshold,
                 debug: false,
 
                 canvasContainerElem: $canvasContainerElem,
@@ -548,39 +548,31 @@
 	}
 
     var gui;
-    var terrainFolder, sculptFolder, renderingFolder, displayFolder;
+    var arFolder, terrainFolder, sculptFolder, renderingFolder, displayFolder, debugFolder;
     var terrainPreBlurControl, terrainHeightControl
-    var changeTerrainImage, toggleTerrainShowImage, toggleTerrainMidGreyIsLowest, changeTerrainPreBlur, changeTerrainHeight
-    var sculptSizeControl, sculptAmountControl, toggleSculptShowSimTexture;
+    var changeTerrainImage, toggleDebugTerrainImage, toggleTerrainMidGreyIsLowest, changeTerrainPreBlur, changeTerrainHeight
+    var sculptSizeControl, sculptAmountControl, toggleSculptTexture;
     var changeSculptSize, changeSculptAmount;
     var toggleWireframe, toggleLocalAxis, toggleOriginPlane;
 	function setupGui() {
 
-		gui = new dat.GUI();
+		gui = new dat.GUI({width: 300});
 		// gui.close();  //close GUI by default
 
 		var control;
 
 		//Tracking folder
-		trackingFolder = gui.addFolder('Tracking');
-		trackingFolder.open();
+		arFolder = gui.addFolder('Augmented Reality');
+		arFolder.open();
 
-		control = trackingFolder.add(options, 'trackingTurnOnAr').name('Turn on AR').listen();
+		control = arFolder.add(options, 'arOn').name('On').listen();
 
-		control = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold');
+		control = arFolder.add(options, 'arTrackingThreshold', 0, 255).name('Tracking Threshold');
 		changeTrackingThreshold = function (value)
 		{
 			skarf.arLib.threshold = value;
 		}
 		control.onChange(changeTrackingThreshold);
-
-		control = trackingFolder.add(options, 'trackingDebugView').name('Debug View');
-		toggleTrackingDebugView = function (value)
-		{
-			skarf.arLib.debug = value;
-		}
-		control.onChange(toggleTrackingDebugView);
-		toggleTrackingDebugView(options.trackingDebugView);
 
 		//Terrain folder
 		terrainFolder = gui.addFolder('Terrain');
@@ -604,22 +596,6 @@
 		}
 		control.onChange(changeTerrainImage);
 		//changeTerrainImage('/resources/images/clouds_256.png');
-
-		control = terrainFolder.add(options, 'terrainShowImage').name('Show Image').listen();
-		toggleTerrainShowImage = function(value)
-		{
-			if (value)
-			{
-				$imageCanvasElem.css({'display':'block'});
-			}
-			else
-			{
-				$imageCanvasElem.css({'display':'none'});
-			}
-			options.terrainShowImage = value;
-		}
-		control.onChange(toggleTerrainShowImage);
-		toggleTerrainShowImage(options.terrainShowImage);
 
 		control = terrainFolder.add(options, 'terrainMidGreyIsLowest').name('Mid Grey Lowest').listen();
 		toggleTerrainMidGreyIsLowest = function(value)
@@ -676,15 +652,6 @@
 
 		control = sculptFolder.add(options, 'sculptClearSculpts').name('Clear Sculpts');
 
-		control = sculptFolder.add(options, 'sculptShowSimTexture').name('Sim Texture').listen();
-		toggleSculptShowSimTexture = function(value)
-		{
-            visMesh.visible = value;
-            options.sculptShowSimTexture = value;
-		}
-		control.onChange(toggleSculptShowSimTexture);
-		toggleSculptShowSimTexture(options.sculptShowSimTexture);
-
 		//Display folder
 		displayFolder = gui.addFolder('Display');
 		displayFolder.open();
@@ -721,6 +688,43 @@
 		}
 		control.onChange(toggleOriginPlane);
 		toggleOriginPlane(options.displayOriginPlane);
+
+		//Debug folder
+		debugFolder = gui.addFolder('Debug View');
+		// debugFolder.open();
+
+		control = debugFolder.add(options, 'debugTrackingInfo').name('Tracking Info');
+		toggleDebugTrackingInfo = function (value)
+		{
+			skarf.arLib.debug = value;
+		}
+		control.onChange(toggleDebugTrackingInfo);
+		toggleDebugTrackingInfo(options.debugTrackingInfo);
+
+		control = debugFolder.add(options, 'debugTerrainImage').name('Terrain Image').listen();
+		toggleDebugTerrainImage = function(value)
+		{
+			if (value)
+			{
+				$imageCanvasElem.css({'display':'block'});
+			}
+			else
+			{
+				$imageCanvasElem.css({'display':'none'});
+			}
+			options.debugTerrainImage = value;
+		}
+		control.onChange(toggleDebugTerrainImage);
+		toggleDebugTerrainImage(options.debugTerrainImage);
+
+		control = debugFolder.add(options, 'debugSculptTexture').name('Sculpt Texture').listen();
+		toggleSculptTexture = function(value)
+		{
+            visMesh.visible = value;
+            options.debugSculptTexture = value;
+		}
+		control.onChange(toggleSculptTexture);
+		toggleSculptTexture(options.debugSculptTexture);
 	}
 
 	function setupGuiMarkerCallbacks() {
@@ -732,7 +736,7 @@
 	        changeTerrainImage(terrainImages[Object.keys(terrainImages)[params.selectedId]]);
 	    };
 	    terrainShowImageCheckbox_toggled = function (params) {
-            toggleTerrainShowImage(params.checked);
+            toggleDebugTerrainImage(params.checked);
         };
         terrainMidGreyLowestCheckbox_toggled = function (params) {
             toggleTerrainMidGreyIsLowest(params.checked);
@@ -755,7 +759,7 @@
             sculptClearSculpts();
         };
         sculptShowSimTextureCheckbox_toggled = function (params) {
-            toggleSculptShowSimTexture(params.checked);
+            toggleSculptTexture(params.checked);
         };
         sculptAddGeneric_moved = function (params) {
             gpuSkulpt.updateCursor(params.position);
@@ -832,11 +836,11 @@
 
 			visMaterial.map = gpuSkulpt.rttCombinedLayer;
 
-			if (options.trackingTurnOnAr) {
+			if (options.arOn) {
 
 			    //if user is using AR:
 
-			    //do not allow user to control the camera anymore
+			    //do not allow user to control the camera
 			    camera.matrixAutoUpdate = false;
 
 			    //get skarf to update (this has callbacks to call update for gpuSkulpt etc too)
