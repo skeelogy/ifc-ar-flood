@@ -735,19 +735,19 @@
         terrainMidGreyLowestCheckbox_toggled = function (params) {
             toggleTerrainMidGreyIsLowest(params.checked);
         };
-        terrainPreBlurImageSlider_rotated = function (params) {
-            changeTerrainPreBlur(options.terrainPreBlur + params.dRotation * 0.04);
+        terrainPreBlurImageSlider_changed = function (params) {
+            changeTerrainPreBlur(options.terrainPreBlur + params.delta);
         };
-        terrainImageHeightSlider_rotated = function (params) {
-            changeTerrainHeight(options.terrainHeight + params.dRotation * 0.04);
+        terrainImageHeightSlider_changed = function (params) {
+            changeTerrainHeight(options.terrainHeight + params.delta);
         };
 
 	    //sculpt
-	    sculptSizeSlider_rotated = function (params) {
-            changeSculptSize(options.sculptSize + params.dRotation * 0.04);
+	    sculptSizeSlider_changed = function (params) {
+            changeSculptSize(options.sculptSize + params.delta);
         };
-        sculptAmountSlider_rotated = function (params) {
-            changeSculptAmount(options.sculptAmount + params.dRotation * 0.04);
+        sculptAmountSlider_changed = function (params) {
+            changeSculptAmount(options.sculptAmount + params.delta);
         };
         sculptClearButton_clicked = function (params) {
             sculptClearSculpts();

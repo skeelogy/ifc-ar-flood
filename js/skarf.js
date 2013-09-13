@@ -265,12 +265,22 @@ CheckBoxMarker.prototype.processCallbacks = function () {
  */
 function SliderMarker(options) {
     GuiMarker.call(this, options);
+    this.speed = options.params && options.params.speed ? options.params.speed : 1.0;
+    this.callbackObjs['changed'] = {name: this.key+'_changed', fn: undefined};
 }
 //inherit
 SliderMarker.prototype = Object.create(GuiMarker.prototype);
 SliderMarker.prototype.constructor = SliderMarker;
 //register with factory
 GuiMarkerFactory.register('slider', SliderMarker);
+//override
+SliderMarker.prototype.processCallbacks = function () {
+    var absDRot = Math.abs(this.dRotation);
+    if (!isNaN(this.dRotation) && absDRot >= this.rotThresholdLow && absDRot <= this.rotThresholdHigh) {
+        this.invokeCallback('changed', {delta: this.dRotation * this.speed});
+    }
+    GuiMarker.prototype.processCallbacks.call(this);
+};
 
 /**
  * GuiMarker that emulates a combo box. Select by rotating.
@@ -280,8 +290,11 @@ GuiMarkerFactory.register('slider', SliderMarker);
 function ComboBoxMarker(options) {
     GuiMarker.call(this, options);
     this.callbackObjs['changed'] = {name: this.key+'_changed', fn: undefined};
+    if (!(options.params && options.params.numChoices)) {
+        throw new Error('numChoices not specified as a parameter');
+    }
+    this.numChoices = options.params.numChoices;
     this.currId = 0;
-    this.numChoices = 6;
 }
 //inherit
 ComboBoxMarker.prototype = Object.create(GuiMarker.prototype);
@@ -548,7 +561,8 @@ MarkerManager.prototype.loadForMarker = function (markerId, markerTransform, mar
                 key: guiMarker.key,
                 markerId: markerId,
                 markerTransform: markerTransform,
-                markerSize: markerSize
+                markerSize: markerSize,
+                params: guiMarker.params
             });
             markerTransform.guiMarker = guiMarker;
         }

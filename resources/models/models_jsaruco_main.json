@@ -19,7 +19,10 @@
 	    "21": {
 			"name": "Terrain Image",
 			"key": "terrainImageComboBox",
-			"type": "combobox"
+			"type": "combobox",
+			"params": {
+			     "numChoices": 6
+			}
 		},
 	    "22": {
 			"name": "Show Terrain Image",
@@ -34,12 +37,18 @@
 		"24": {
 			"name": "Pre-Blur Terrain Image",
 			"key": "terrainPreBlurImageSlider",
-			"type": "slider"
+			"type": "slider",
+			"params": {
+			     "speed": 0.1
+			}
 		},
 		"25": {
 			"name": "Terrain Image Height",
 			"key": "terrainImageHeightSlider",
-			"type": "slider"
+			"type": "slider",
+			"params": {
+			     "speed": 0.1
+			}
 		},
 		"33": {
 			"name": "Clear Sculpts",
