@@ -770,6 +770,11 @@ JsArToolKitArLib.prototype.update = function () {
 
             //delay-load the model
             this.renderer.loadForMarker(currId, transform, this.markerSize);
+
+            //if this is the main marker id, turn on flag
+            if (markerId == this.mainMarkerId) {  //double equals for auto type conversion
+                this.mainMarkerHasEverBeenDetected = true;
+            }
         }
 
         try
