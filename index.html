@@ -116,7 +116,7 @@
 	}
 
 	var renderer, scene, camera;
-	// var controls;
+	var controls;
 	var keyLight, fillLight;
 	// var worldAxis, localAxis;
 	var materials = [];
@@ -142,12 +142,11 @@
 		camera = new THREE.PerspectiveCamera(CAM_VERTICAL_FOV, video.width / video.height, 0.1, 1000);
 		camera.position.set(8, 8, 15);
 		camera.lookAt(new THREE.Vector3(0,0,0));
-		camera.matrixAutoUpdate = false;
 
-		// //create controls for camera
-		// controls = new THREE.OrbitControls(camera);
-		// controls.userPanSpeed = 0.2;
-		// controls.modifierKey = 'alt';
+		//create controls for camera
+		controls = new THREE.OrbitControls(camera);
+		controls.userPanSpeed = 0.2;
+		controls.modifierKey = 'alt';
 
 		//create plane for reference and for intersection test
 		var groundPlaneGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);  //much faster for intersection test when there are no divisions
@@ -830,7 +829,13 @@
 
 			visMaterial.map = gpuSkulpt.rttCombinedLayer;
 
-            // controls.update();
+			if (skarf.mainMarkerDetected()) {
+			    camera.matrixAutoUpdate = false;
+			} else {
+			    camera.matrixAutoUpdate = true;
+			    controls.update();
+			}
+
 			skarf.update();
 			stats.update();
 

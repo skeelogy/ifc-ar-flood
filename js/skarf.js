@@ -656,6 +656,8 @@ function ArLib(options) {
 
     this.compensationMatrix = new THREE.Matrix4();
 
+    this.mainMarkerHasEverBeenDetected = false;
+
     //temp matrix for calculations later
     this.tmpMat = new THREE.Matrix4();
 
@@ -858,6 +860,11 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
 
             //delay-load the model
             this.renderer.loadForMarker(markerId, transform, this.markerSize);
+
+            //if this is the main marker id, turn on flag
+            if (markerId == this.mainMarkerId) {  //double equals for auto type conversion
+                this.mainMarkerHasEverBeenDetected = true;
+            }
         }
 
         //align corners to center of canvas
@@ -1170,7 +1177,7 @@ ThreeJsRenderer.prototype.updateSolvedScene = function (mainMarkerId) {
     //for each of the marker root detected, move into the space of the main marker root
     var that = this;
     Object.keys(this.markerTransforms).forEach(function (key) {
-        if (mainMarkerIdDetected && that.markerTransforms[key].detected) {
+        if (that.markerTransforms[key].detected) {
 
             //transform and compensate
             that.markerTransforms[key].matrix.copy(that.camera.matrix);  //transform into new camera world space first
@@ -1350,4 +1357,7 @@ SkArF.prototype.addCallback = function (type, callbackFn) {
     //pass all callbacks to renderer for now
     //TODO: manage callbacks better
     this.renderer.addCallback(type, callbackFn);
+};
+SkArF.prototype.mainMarkerDetected = function () {
+    return this.arLib.mainMarkerHasEverBeenDetected;
 };
