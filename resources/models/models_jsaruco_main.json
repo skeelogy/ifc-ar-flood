@@ -16,6 +16,14 @@
 		}
 	},
 	"guiMarkers": {
+	    "446": {
+			"name": "Timer",
+			"key": "testTimer",
+			"type": "timer",
+			"params": {
+			     "time": 2
+			}
+		},
 	    "21": {
 			"name": "Terrain Image",
 			"key": "terrainImageComboBox",

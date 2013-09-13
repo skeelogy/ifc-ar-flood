@@ -731,6 +731,11 @@
 
 	    //NOTE: not allowing changing of any options under the Tracking GUI folder using AR markers, because it just does not make sense
 
+	    //test timer
+	    testTimer_reached = function (params) {
+	        console.log('timer reached');
+	    };
+
 	    //terrain
 	    terrainImageComboBox_changed = function (params) {
 	        changeTerrainImage(terrainImages[Object.keys(terrainImages)[params.selectedId]]);
@@ -832,6 +837,7 @@
 		//main loop
 		function loop()
 		{
+			var dt = clock.getDelta();  //have to call this before getElapsedTime()
 			var time = clock.getElapsedTime();
 
 			visMaterial.map = gpuSkulpt.rttCombinedLayer;
@@ -844,7 +850,7 @@
 			    camera.matrixAutoUpdate = false;
 
 			    //get skarf to update (this has callbacks to call update for gpuSkulpt etc too)
-			    skarf.update();
+			    skarf.update(dt);
 
 			} else {
 

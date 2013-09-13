@@ -11,7 +11,7 @@
  * var skarf = new SkArF({...});
  *
  * //within the main loop, call:
- * skarf.update();
+ * skarf.update(dt);
  *
  * If you wish to use your own AR library (e.g. JsArToolKitArLib):
  * 1) Subclass ArLib
@@ -104,7 +104,7 @@ function GuiMarker(options) {
     this.callbackObjs['detected'] = {name: this.key+'_detected', fn: undefined};
     this.callbackObjs['hidden'] = {name: this.key+'_hidden', fn: undefined};
 }
-GuiMarker.prototype.detected = function (worldMatrix) {
+GuiMarker.prototype.detected = function (dt, worldMatrix) {
 
     //store world matrix first
     this.worldMatrix = worldMatrix;
@@ -283,7 +283,7 @@ SliderMarker.prototype.processCallbacks = function () {
 };
 
 /**
- * GuiMarker that emulates a combo box. Select by rotating.
+ * GuiMarker that emulates a combo box. Selection is based on orientation of marker.
  * @constructor
  * @extends {GuiMarker}
  */
@@ -309,6 +309,41 @@ ComboBoxMarker.prototype.processCallbacks = function () {
         this.currId = newId;
     }
     GuiMarker.prototype.processCallbacks.call(this);
+};
+
+/**
+ * GuiMarker that activates after a certain amount of time
+ * @constructor
+ * @extends {GuiMarker}
+ */
+function TimerMarker(options) {
+    GuiMarker.call(this, options);
+    this.callbackObjs['reached'] = {name: this.key+'_reached', fn: undefined};
+    this.time = options.params && options.params.time || 2.0;
+    this.currTime = 0;
+    this.reached = false;
+}
+//inherit
+TimerMarker.prototype = Object.create(GuiMarker.prototype);
+TimerMarker.prototype.constructor = TimerMarker;
+//register with factory
+GuiMarkerFactory.register('timer', TimerMarker);
+//override
+TimerMarker.prototype.detected = function (dt, worldMatrix) {
+    GuiMarker.prototype.detected.call(this, dt, worldMatrix);
+    this.currTime += dt;
+    if (!this.reached && this.currTime >= this.time) {
+        this.reached = true;
+        this.invokeCallback('reached', {});
+    }
+};
+TimerMarker.prototype.hidden = function () {
+
+    //reset if marker disappears
+    this.currTime = 0;
+    this.reached = false;
+
+    GuiMarker.prototype.hidden.call(this);
 };
 
 
@@ -670,7 +705,7 @@ function ArLib(options) {
 ArLib.prototype.init = function () {
     throw new Error('Abstract method not implemented');
 };
-ArLib.prototype.update = function () {
+ArLib.prototype.update = function (dt) {
     throw new Error('Abstract method not implemented');
 };
 
@@ -721,7 +756,7 @@ JsArToolKitArLib.prototype.init = function () {
     this.flarParam.copyCameraMatrix(camProjMatrixArray, 0.1, 10000);
     this.renderer.initCameraProjMatrix(camProjMatrixArray);
 };
-JsArToolKitArLib.prototype.update = function () {
+JsArToolKitArLib.prototype.update = function (dt) {
 
     DEBUG = this.debug;
 
@@ -800,7 +835,7 @@ JsArToolKitArLib.prototype.update = function () {
     }
 
     //update the solved scene
-    this.renderer.updateSolvedScene(this.mainMarkerId);
+    this.renderer.updateSolvedScene(dt, this.mainMarkerId);
 };
 
 //create a class to handle js-aruco
@@ -826,7 +861,7 @@ JsArucoArLib.prototype.init = function () {
 
     this.context = this.canvasElem.getContext('2d');
 };
-JsArucoArLib.prototype.update = function () {
+JsArucoArLib.prototype.update = function (dt) {
     var imageData = this.context.getImageData(0, 0, this.canvasElem.width, this.canvasElem.height);
     var markers = this.detector.detect(imageData);
     if (this.debug) {
@@ -835,9 +870,9 @@ JsArucoArLib.prototype.update = function () {
     }
 
     //update scene
-    this.__updateScenes(markers);
+    this.__updateScenes(dt, markers);
 };
-JsArucoArLib.prototype.__updateScenes = function (markers) {
+JsArucoArLib.prototype.__updateScenes = function (dt, markers) {
     var corners, corner, pose, i, markerId;
 
     //set all markers detected to false first
@@ -901,7 +936,7 @@ JsArucoArLib.prototype.__updateScenes = function (markers) {
     }
 
     //update the solved scene
-    this.renderer.updateSolvedScene(this.mainMarkerId);
+    this.renderer.updateSolvedScene(dt, this.mainMarkerId);
 };
 JsArucoArLib.prototype.updateMatrix4FromRotAndTrans = function (rotationMat, translationVec) {
     this.tmpMat.set(
@@ -1035,7 +1070,7 @@ Renderer.prototype.addCallback = function (type, callbackFn) {
 Renderer.prototype.getMainMarkerId = function () {
     return this.markerManager.markerData.mainMarkerId;
 };
-Renderer.prototype.update = function () {
+Renderer.prototype.update = function (dt) {
     throw new Error('Abstract method not implemented');
 };
 Renderer.prototype.setupBackgroundVideo = function () {
@@ -1077,7 +1112,7 @@ ThreeJsRenderer.prototype.constructor = ThreeJsRenderer;
 RendererFactory.register('threejs', ThreeJsRenderer);
 
 //override methods
-ThreeJsRenderer.prototype.update = function () {
+ThreeJsRenderer.prototype.update = function (dt) {
 
     //mark texture for update
     this.videoTex.needsUpdate = true;
@@ -1168,7 +1203,7 @@ ThreeJsRenderer.prototype.setCurrSolvedMatrixValues = function (markerId, matrix
 ThreeJsRenderer.prototype.setMarkerDetected = function (markerId, detected) {
     this.markerTransforms[markerId].detected = detected;
 };
-ThreeJsRenderer.prototype.updateSolvedScene = function (mainMarkerId) {
+ThreeJsRenderer.prototype.updateSolvedScene = function (dt, mainMarkerId) {
 
     var mainMarkerIdDetected = this.markerTransforms[mainMarkerId] && this.markerTransforms[mainMarkerId].detected;
     if (mainMarkerIdDetected) {
@@ -1195,7 +1230,7 @@ ThreeJsRenderer.prototype.updateSolvedScene = function (mainMarkerId) {
 
             //call detected() on the GUI markers
             if (that.markerTransforms[key].guiMarker) {
-                that.markerTransforms[key].guiMarker.detected(that.markerTransforms[key].matrix);
+                that.markerTransforms[key].guiMarker.detected(dt, that.markerTransforms[key].matrix);
             }
         } else {
 
@@ -1347,15 +1382,15 @@ SkArF.prototype.init = function () {
 /**
  * Draws tracking data to canvas, and then updates both the AR lib and renderer
  */
-SkArF.prototype.update = function () {
+SkArF.prototype.update = function (dt) {
     //draw the video/img to canvas
     // if (this.videoElem.readyState === this.videoElem.HAVE_ENOUGH_DATA) {
         this.context.drawImage(this.trackingElem, 0, 0, this.canvasElem.width, this.canvasElem.height);
         this.canvasElem.changed = true;
 
         //call updates
-        this.arLib.update();
-        this.renderer.update();
+        this.arLib.update(dt);
+        this.renderer.update(dt);
     // }
 };
 SkArF.prototype.addCallback = function (type, callbackFn) {
