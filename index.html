@@ -550,7 +550,7 @@
     var gui;
     var terrainFolder, sculptFolder, renderingFolder, displayFolder;
     var terrainPreBlurControl, terrainHeightControl
-    var toggleTerrainShowImage, toggleTerrainMidGreyIsLowest, changeTerrainPreBlur, changeTerrainHeight
+    var changeTerrainImage, toggleTerrainShowImage, toggleTerrainMidGreyIsLowest, changeTerrainPreBlur, changeTerrainHeight
     var sculptSizeControl, sculptAmountControl, toggleSculptShowSimTexture;
     var changeSculptSize, changeSculptAmount;
     var toggleWireframe, toggleLocalAxis, toggleOriginPlane;
@@ -584,10 +584,11 @@
 		terrainFolder = gui.addFolder('Terrain');
 		terrainFolder.open();
 
-		var control = terrainFolder.add(options, 'terrainImage', terrainImages).name('Image');
-		function changeTerrainImage(value)
+		var control = terrainFolder.add(options, 'terrainImage', terrainImages).name('Image').listen();
+		changeTerrainImage = function(value)
 		{
 			loadTerrainImage(value);
+			options.terrainImage = value;
 
 			//load some presets so that the loaded terrain looks nicer
 			options.terrainPreBlur = terrainImageSettings[value].preblur;
@@ -725,6 +726,9 @@
 	    //NOTE: not allowing changing of any options under the Tracking GUI folder using AR markers, because it just does not make sense
 
 	    //terrain
+	    terrainImageComboBox_changed = function (params) {
+	        changeTerrainImage(terrainImages[Object.keys(terrainImages)[params.selectedId]]);
+	    };
 	    terrainShowImageCheckbox_toggled = function (params) {
             toggleTerrainShowImage(params.checked);
         };
@@ -732,18 +736,18 @@
             toggleTerrainMidGreyIsLowest(params.checked);
         };
         terrainPreBlurImageSlider_rotated = function (params) {
-            changeTerrainPreBlur(options.terrainPreBlur + params.dRotation * 2.0);
+            changeTerrainPreBlur(options.terrainPreBlur + params.dRotation * 0.04);
         };
         terrainImageHeightSlider_rotated = function (params) {
-            changeTerrainHeight(options.terrainHeight + params.dRotation * 2.0);
+            changeTerrainHeight(options.terrainHeight + params.dRotation * 0.04);
         };
 
 	    //sculpt
 	    sculptSizeSlider_rotated = function (params) {
-            changeSculptSize(options.sculptSize + params.dRotation * 2.0);
+            changeSculptSize(options.sculptSize + params.dRotation * 0.04);
         };
         sculptAmountSlider_rotated = function (params) {
-            changeSculptAmount(options.sculptAmount + params.dRotation * 2.0);
+            changeSculptAmount(options.sculptAmount + params.dRotation * 0.04);
         };
         sculptClearButton_clicked = function (params) {
             sculptClearSculpts();

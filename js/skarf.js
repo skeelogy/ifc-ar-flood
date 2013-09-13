@@ -87,12 +87,14 @@ function GuiMarker(options) {
     this.moveThresholdHigh = 0.5;  //in case axes flip and a large change occurs
 
     //variables for rotation
-    this.prevXAxis = new THREE.Vector3();
-    this.prevYAxis = new THREE.Vector3();
-    this.currXAxis = new THREE.Vector3();
+    this.worldZAxis = new THREE.Vector3(0, 0, 1);
+    this.worldYAxis = new THREE.Vector3(0, 1, 0);
+    this.currZAxis = new THREE.Vector3();
+    this.rotation = 0;
+    this.prevRotation = 0;
     this.dRotation = 0;
-    this.rotThresholdLow = 0.02;  //to ignore slight flickerings
-    this.rotThresholdHigh = 0.5;  //in case axes flip and a large change occurs
+    this.rotThresholdLow = 1.0;  //to ignore slight flickerings
+    this.rotThresholdHigh = 10.0;  //in case axes flip and a large change occurs
 
     //callback objects
     this.callbackObjs = {};
@@ -135,35 +137,29 @@ GuiMarker.prototype.processPosition = function (worldMatrix) {
 GuiMarker.prototype.processRotation = function (worldMatrix) {
 
     //NOTE: tried to extract the Euler Y rotation and then take the difference but can't seem to get it to work.
-    //So I'm storing the X and Y axes in previous frame.
-    //Compare current X axis against previous X axis to find angle.
-    //Compare current X axis against previous XY plane to get sign.
+    //So I'm finding the angle between local Z and world Z manually
 
     //get the current X axis
-    this.currXAxis.getColumnFromMatrix(0, worldMatrix).normalize();
+    this.currZAxis.getColumnFromMatrix(2, worldMatrix).normalize();
 
-    //find the changed angle first
-    this.dRotation = Math.acos(this.currXAxis.dot(this.prevXAxis));
-    var absDRot = Math.abs(this.dRotation);
+    //find the current angle (against world Z)
+    this.rotation = THREE.Math.radToDeg(Math.acos(this.currZAxis.dot(this.worldZAxis)));
 
-    //process if is valid and within threshold
-    if (!isNaN(this.dRotation) && absDRot >= this.rotThresholdLow && absDRot <= this.rotThresholdHigh) {
-
-        //determine the sign
-        if (this.dRotation > 0) {
-            var sign = this.prevXAxis.cross(this.prevYAxis).dot(this.currXAxis);
-            if (sign < 0) {
-                this.dRotation = -this.dRotation;
-            }
-        }
-
-        //call the rotated callback
-        this.invokeCallback('rotated', {dRotation: this.dRotation});
+    //check cross product against world Y
+    var orthoAxis = new THREE.Vector3().crossVectors(this.currZAxis, this.worldZAxis);
+    var orthoAngle = orthoAxis.dot(this.worldYAxis);
+    if (orthoAngle < 0) {  //opposite side
+        this.rotation = 360 - this.rotation;
     }
 
-    //store the previous axes for the next round
-    this.prevXAxis.copy(this.currXAxis);
-    this.prevYAxis.getColumnFromMatrix(1, worldMatrix).normalize();
+    this.dRotation = this.rotation - this.prevRotation;
+    var absDRot = Math.abs(this.dRotation);
+    if (!isNaN(this.dRotation) && absDRot >= this.rotThresholdLow && absDRot <= this.rotThresholdHigh) {
+        this.invokeCallback('rotated', {rotation: this.rotation, dRotation: this.dRotation});
+    }
+
+    //store prev rotation
+    this.prevRotation = this.rotation;
 };
 GuiMarker.prototype.processCallbacks = function () {
 
@@ -275,6 +271,32 @@ SliderMarker.prototype = Object.create(GuiMarker.prototype);
 SliderMarker.prototype.constructor = SliderMarker;
 //register with factory
 GuiMarkerFactory.register('slider', SliderMarker);
+
+/**
+ * GuiMarker that emulates a combo box. Select by rotating.
+ * @constructor
+ * @extends {GuiMarker}
+ */
+function ComboBoxMarker(options) {
+    GuiMarker.call(this, options);
+    this.callbackObjs['changed'] = {name: this.key+'_changed', fn: undefined};
+    this.currId = 0;
+    this.numChoices = 6;
+}
+//inherit
+ComboBoxMarker.prototype = Object.create(GuiMarker.prototype);
+ComboBoxMarker.prototype.constructor = ComboBoxMarker;
+//register with factory
+GuiMarkerFactory.register('combobox', ComboBoxMarker);
+//override
+ComboBoxMarker.prototype.processCallbacks = function () {
+    var newId = Math.floor(this.rotation / 360.0 * this.numChoices);
+    if (newId !== this.currId) {
+        this.invokeCallback('changed', {selectedId: newId, rotation: this.rotation});
+        this.currId = newId;
+    }
+    GuiMarker.prototype.processCallbacks.call(this);
+};
 
 
 //===================================

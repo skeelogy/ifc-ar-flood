@@ -16,6 +16,11 @@
 		}
 	},
 	"guiMarkers": {
+	    "21": {
+			"name": "Terrain Image",
+			"key": "terrainImageComboBox",
+			"type": "combobox"
+		},
 	    "22": {
 			"name": "Show Terrain Image",
 			"key": "terrainShowImageCheckbox",
