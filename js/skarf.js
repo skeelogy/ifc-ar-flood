@@ -752,6 +752,9 @@ JsArToolKitArLib.prototype.init = function () {
     this.detector.setContinueMode(true);
 
     //set the camera projection matrix in the renderer
+    this.initCameraProjMatrix();
+};
+JsArToolKitArLib.prototype.initCameraProjMatrix = function () {
     var camProjMatrixArray = new Float32Array(16);
     this.flarParam.copyCameraMatrix(camProjMatrixArray, 0.1, 10000);
     this.renderer.initCameraProjMatrix(camProjMatrixArray);
@@ -807,7 +810,7 @@ JsArToolKitArLib.prototype.update = function (dt) {
             this.renderer.loadForMarker(currId, transform, this.markerSize);
 
             //if this is the main marker id, turn on flag
-            if (markerId == this.mainMarkerId) {  //double equals for auto type conversion
+            if (currId == this.mainMarkerId) {  //double equals for auto type conversion
                 this.mainMarkerHasEverBeenDetected = true;
             }
         }
@@ -1401,3 +1404,9 @@ SkArF.prototype.addCallback = function (type, callbackFn) {
 SkArF.prototype.mainMarkerDetected = function () {
     return this.arLib.mainMarkerHasEverBeenDetected;
 };
+SkArF.prototype.initCameraProjMatrix = function () {
+    if (this.arLib instanceof JsArToolKitArLib) {
+        this.arLib.initCameraProjMatrix();
+    }
+};
+

@@ -16,29 +16,81 @@
 		}
 	},
 	"guiMarkers": {
-		"64": {
-			"name": "Sculpt Size",
-			"key": "sculptSizeSlider",
-			"type": "slider"
+	    "81": {
+			"name": "Timer",
+			"key": "testTimer",
+			"type": "timer",
+			"params": {
+			     "time": 2
+			}
 		},
-		"614": {
+	    "21": {
+			"name": "Terrain Image",
+			"key": "terrainImageComboBox",
+			"type": "combobox",
+			"params": {
+			     "numChoices": 6
+			}
+		},
+	    "22": {
+			"name": "Show Terrain Image",
+			"key": "terrainShowImageCheckbox",
+			"type": "checkbox"
+		},
+		"23": {
+			"name": "Mid Grey Lowest",
+			"key": "terrainMidGreyLowestCheckbox",
+			"type": "checkbox"
+		},
+		"24": {
+			"name": "Pre-Blur Terrain Image",
+			"key": "terrainPreBlurImageSlider",
+			"type": "slider",
+			"params": {
+			     "speed": 0.1
+			}
+		},
+		"25": {
+			"name": "Terrain Image Height",
+			"key": "terrainImageHeightSlider",
+			"type": "slider",
+			"params": {
+			     "speed": 0.1
+			}
+		},
+		"33": {
 			"name": "Clear Sculpts",
-			"key": "clearSculptsButton",
+			"key": "sculptClearButton",
 			"type": "button"
 		},
-		"624": {
+		"34": {
+			"name": "Show Sim Texture",
+			"key": "sculptShowSimTextureCheckbox",
+			"type": "checkbox"
+		},
+		"35": {
+			"name": "Sculpt Add",
+			"key": "sculptAddGeneric",
+			"type": "generic"
+		},
+		"36": {
+			"name": "Sculpt Remove",
+			"key": "sculptRemoveGeneric",
+			"type": "generic"
+		},
+		"71": {
 			"name": "Display Wireframe",
-			"key": "displayWireframe",
+			"key": "displayWireframeCheckbox",
 			"type": "checkbox"
 		},
-		"634": {
+		"72": {
 			"name": "Display Local Axis",
-			"key": "displayLocalAxis",
+			"key": "displayLocalAxisCheckbox",
 			"type": "checkbox"
 		},
-		"644": {
+		"73": {
 			"name": "Display Origin Plane",
-			"key": "displayOriginPlane",
+			"key": "displayOriginPlaneCheckbox",
 			"type": "checkbox"
 		}
 	}
