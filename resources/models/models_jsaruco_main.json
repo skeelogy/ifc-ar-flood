@@ -58,6 +58,22 @@
 			     "speed": 0.1
 			}
 		},
+		"31": {
+			"name": "Sculpt Size",
+			"key": "sculptSizeSlider",
+			"type": "slider",
+			"params": {
+			     "speed": 0.1
+			}
+		},
+		"32": {
+			"name": "Sculpt Amount",
+			"key": "sculptAmountSlider",
+			"type": "slider",
+			"params": {
+			     "speed": 0.1
+			}
+		},
 		"33": {
 			"name": "Clear Sculpts",
 			"key": "sculptClearButton",

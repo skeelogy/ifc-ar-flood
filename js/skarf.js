@@ -242,7 +242,7 @@ ButtonMarker.prototype.processCallbacks = function () {
 function CheckBoxMarker(options) {
     GuiMarker.call(this, options);
     this.callbackObjs['toggled'] = {name: this.key+'_toggled', fn: undefined};
-    this.checked = true;
+    this.checked = false;
 }
 //inherit
 CheckBoxMarker.prototype = Object.create(GuiMarker.prototype);

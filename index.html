@@ -54,7 +54,7 @@
 
 	var SHADOW_MAP_RES = 1024;
 	var TERRAIN_RES = 256;
-	var TERRAIN_SIZE = 10;
+	var TERRAIN_SIZE = 6;
 	var TERRAIN_GRID_SIZE = TERRAIN_SIZE / TERRAIN_RES;
 	var USE_TERRAIN_IMAGE = true;
 	var TERRAIN_SCULPT_SIZE = 1.0;
@@ -88,8 +88,7 @@
         sculptAmount: TERRAIN_SCULPT_AMOUNT,
 		sculptClearSculpts: sculptClearSculpts,
         displayWireframe: false,
-        displayLocalAxis: true,
-        displayOriginPlane: true,
+        displayLocalAxis: false,
         debugTrackingInfo: false,
         debugTerrainImage: false,
         debugSculptTexture: false
@@ -398,6 +397,12 @@
 
 		//update renderer size
 		skarf.renderer.renderer.setSize(width, height);
+
+		//centralize
+		$threejsContainerElem.css({
+		    'width': (width*1.25)+'px',
+		    'margin': '0 auto'
+		});
 	}
 
 	function window_onKeyUp(event)
@@ -683,7 +688,7 @@
 
 		//Debug folder
 		debugFolder = gui.addFolder('Debug View');
-		// debugFolder.open();
+		debugFolder.open();
 
 		control = debugFolder.add(options, 'debugTrackingInfo').name('Tracking Info');
 		toggleDebugTrackingInfo = function (value)
@@ -725,7 +730,7 @@
 
 	    //test timer
 	    testTimer_reached = function (params) {
-	        console.log('timer reached');
+	        alert('Time is up!');
 	    };
 
 	    //terrain
@@ -891,7 +896,7 @@
 	});
 	</script>
 </head>
-<body>
+<body style='background-color: #081419'>
     <div class="invisible" id="video-container">
 		<div class="caption">&lt;video&gt;</div>
 		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>

@@ -5,7 +5,7 @@
 			"name": "Origin",
 			"type": "empty"
 		},
-		"49": {
+		"23": {
 			"name": "us_police_car",
 			"url": "/resources/models/us_police_car/us_police_car_bin.js",
 			"type": "json_bin",
@@ -16,7 +16,7 @@
 		}
 	},
 	"guiMarkers": {
-	    "81": {
+	    "31": {
 			"name": "Timer",
 			"key": "testTimer",
 			"type": "timer",
@@ -24,7 +24,7 @@
 			     "time": 2
 			}
 		},
-	    "21": {
+	    "81": {
 			"name": "Terrain Image",
 			"key": "terrainImageComboBox",
 			"type": "combobox",
@@ -32,7 +32,7 @@
 			     "numChoices": 6
 			}
 		},
-	    "22": {
+	    "49": {
 			"name": "Show Terrain Image",
 			"key": "terrainShowImageCheckbox",
 			"type": "checkbox"
@@ -58,7 +58,23 @@
 			     "speed": 0.1
 			}
 		},
-		"33": {
+		"42": {
+			"name": "Sculpt Size",
+			"key": "sculptSizeSlider",
+			"type": "slider",
+			"params": {
+			     "speed": 0.1
+			}
+		},
+		"32": {
+			"name": "Sculpt Amount",
+			"key": "sculptAmountSlider",
+			"type": "slider",
+			"params": {
+			     "speed": 0.1
+			}
+		},
+		"64": {
 			"name": "Clear Sculpts",
 			"key": "sculptClearButton",
 			"type": "button"
@@ -68,7 +84,7 @@
 			"key": "sculptShowSimTextureCheckbox",
 			"type": "checkbox"
 		},
-		"35": {
+		"63": {
 			"name": "Sculpt Add",
 			"key": "sculptAddGeneric",
 			"type": "generic"
