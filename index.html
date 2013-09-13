@@ -112,7 +112,6 @@
 	function setupVideo()
 	{
 	    video = $('#mainVideo')[0];
-        streamVideo(video);
         source = video;
 	}
 
@@ -841,8 +840,12 @@
 
 			    //if user is using AR:
 
-			    //init skarf camera again and do not allow user to control the camera
 			    if (arJustOn) {
+
+			        //stream webcam video
+			        streamVideo(video);
+
+			        //init skarf camera again and do not allow user to control the camera
 			        skarf.initCameraProjMatrix();
 			        camera.matrixAutoUpdate = false;
 			    }
@@ -857,8 +860,11 @@
 
 			    //otherwise, have to do manual updates as per normal
 
-			    //update cam projection matrix
 			    if (arJustOff) {
+
+			        //TODO: turn off video streaming
+
+			        //updat cam projection matrix
                     camera.updateProjectionMatrix();
                     camera.matrixAutoUpdate = true;
                 }
