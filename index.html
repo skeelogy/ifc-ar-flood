@@ -78,6 +78,7 @@
 	}
 
 	var options = {
+	    trackingTurnOnAr: false,
         trackingThreshold: 128,
         trackingDebugView: false,
         terrainImage: terrainImages[Object.keys(terrainImages)[0]],
@@ -564,6 +565,8 @@
 		trackingFolder = gui.addFolder('Tracking');
 		trackingFolder.open();
 
+		control = trackingFolder.add(options, 'trackingTurnOnAr').name('Turn on AR').listen();
+
 		control = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold');
 		changeTrackingThreshold = function (value)
 		{
@@ -829,14 +832,31 @@
 
 			visMaterial.map = gpuSkulpt.rttCombinedLayer;
 
-			if (skarf.mainMarkerDetected()) {
+			if (options.trackingTurnOnAr) {
+
+			    //if user is using AR:
+
+			    //do not allow user to control the camera anymore
 			    camera.matrixAutoUpdate = false;
+
+			    //get skarf to update (this has callbacks to call update for gpuSkulpt etc too)
+			    skarf.update();
+
 			} else {
+
+			    //otherwise, have to do manual updates as per normal
+
+			    //take back control of camera
 			    camera.matrixAutoUpdate = true;
 			    controls.update();
+
+			    //render
+                renderer.autoClear = false;
+                renderer.clear();
+                gpuSkulpt.update();
+                renderer.render(scene, camera);
 			}
 
-			skarf.update();
 			stats.update();
 
 			requestAnimationFrame(loop);
