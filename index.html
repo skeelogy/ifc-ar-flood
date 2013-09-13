@@ -623,7 +623,6 @@
 		{
 			gpuSkulpt.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
 			options.terrainMidGreyIsLowest = value;
-			console.log(value);
 		}
 		control.onChange(toggleTerrainMidGreyIsLowest);
 		//toggleTerrainMidGreyIsLowest(options.terrainMidGreyIsLowest);
@@ -726,42 +725,45 @@
 	    //NOTE: not allowing changing of any options under the Tracking GUI folder using AR markers, because it just does not make sense
 
 	    //terrain
-	    terrainShowImageCheckboxCB = function (params) {
-            toggleTerrainShowImage(params.activated);
+	    terrainShowImageCheckbox_toggled = function (params) {
+            toggleTerrainShowImage(params.checked);
         };
-        terrainMidGreyLowestCheckboxCB = function (params) {
-            toggleTerrainMidGreyIsLowest(params.activated);
+        terrainMidGreyLowestCheckbox_toggled = function (params) {
+            toggleTerrainMidGreyIsLowest(params.checked);
         };
-        terrainPreBlurImageSliderCB = function (params) {
-            changeTerrainPreBlur(options.terrainPreBlur + params.dy * 2.0);
+        terrainPreBlurImageSlider_rotated = function (params) {
+            changeTerrainPreBlur(options.terrainPreBlur + params.dRotation * 2.0);
         };
-        terrainImageHeightSliderCB = function (params) {
-            changeTerrainHeight(options.terrainHeight + params.dy * 2.0);
+        terrainImageHeightSlider_rotated = function (params) {
+            changeTerrainHeight(options.terrainHeight + params.dRotation * 2.0);
         };
 
 	    //sculpt
-	    sculptSizeSliderCB = function (params) {
-            changeSculptSize(options.sculptSize + params.dy * 2.0);
+	    sculptSizeSlider_rotated = function (params) {
+            changeSculptSize(options.sculptSize + params.dRotation * 2.0);
         };
-        sculptAmountSliderCB = function (params) {
-            changeSculptAmount(options.sculptAmount + params.dy * 2.0);
+        sculptAmountSlider_rotated = function (params) {
+            changeSculptAmount(options.sculptAmount + params.dRotation * 2.0);
         };
-        sculptClearButtonCB = function (params) {
+        sculptClearButton_clicked = function (params) {
             sculptClearSculpts();
         };
-        sculptShowSimTextureCheckboxCB = function (params) {
-            toggleSculptShowSimTexture(params.activated);
+        sculptShowSimTextureCheckbox_toggled = function (params) {
+            toggleSculptShowSimTexture(params.checked);
         };
+        sculptAddGeneric_moved = function (params) {
+            console.log(params.position);
+        }
 
         //display
-        displayWireframeCheckboxCB = function (params) {
-            toggleWireframe(params.activated);
+        displayWireframeCheckbox_toggled = function (params) {
+            toggleWireframe(params.checked);
         };
-        displayLocalAxisCheckboxCB = function (params) {
-            toggleLocalAxis(params.activated);
+        displayLocalAxisCheckbox_toggled = function (params) {
+            toggleLocalAxis(params.checked);
         };
-        displayOriginPlaneCheckboxCB = function (params) {
-            toggleOriginPlane(params.activated);
+        displayOriginPlaneCheckbox_toggled = function (params) {
+            toggleOriginPlane(params.checked);
         };
     }
 

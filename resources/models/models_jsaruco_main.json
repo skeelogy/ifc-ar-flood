@@ -46,6 +46,11 @@
 			"key": "sculptShowSimTextureCheckbox",
 			"type": "checkbox"
 		},
+		"35": {
+			"name": "Sculpt Add",
+			"key": "sculptAddGeneric",
+			"type": "generic"
+		},
 		"71": {
 			"name": "Display Wireframe",
 			"key": "displayWireframeCheckbox",
