@@ -44,6 +44,9 @@
 	<script type="text/javascript" src="/js/lib/SimplexNoise.js"></script>
 	<script type="text/javascript" src="/js/lib/StackBlur.js"></script>
 
+	<!--load RBD libraries-->
+	<script type="text/javascript" src="/js/lib/physics/physi.js"></script>
+
 	<script>
 
 	// var ARLIB = 'jsaruco';
@@ -59,6 +62,10 @@
 	var USE_TERRAIN_IMAGE = true;
 	var TERRAIN_SCULPT_SIZE = 1.0;
 	var TERRAIN_SCULPT_AMOUNT = 0.1;
+
+	var PROXY_TERRAIN_RES = 32;  //Physijs will slow down if height field mesh is too large
+	var TERRAIN_FRICTION = 0.8;
+    var TERRAIN_RESTITUTION = 0.2;
 
 	var terrainHalfSize = TERRAIN_SIZE / 2.0;
 
@@ -106,6 +113,10 @@
 
 	var clock = new THREE.Clock();
 
+	//config Physijs
+	Physijs.scripts.worker = '/js/lib/physics/physijs_worker.js';
+	Physijs.scripts.ammo = '/js/lib/physics/ammo.js';
+
 	function checkWebGl()
 	{
 		//check for WebGL
@@ -146,7 +157,22 @@
 		$threejsContainerElem.append(renderer.domElement);
 
 		//create scene
-		scene = new THREE.Scene();
+		scene = new Physijs.Scene();
+		scene.addEventListener(
+			'ready',
+			function() {
+				console.log('Physijs scene is ready');
+				setupDynamicAttributes();
+			}
+		);
+		scene.addEventListener(  //https://github.com/chandlerprall/Physijs/issues/19
+			'update',
+			function() {
+				scene.simulate(undefined, 1);
+				physijsStats.update();
+			}
+		);
+		// scene.setGravity(new THREE.Vector3(0, -5, 0));
 
 		//create camera
 		camera = new THREE.PerspectiveCamera(CAM_VERTICAL_FOV, video.width / video.height, 0.1, 1000);
@@ -166,8 +192,6 @@
 		});
 		materials.push(groundPlaneMaterial);
 		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
-		// groundPlaneMesh.position.x = TERRAIN_SIZE / 2.0;
-		// groundPlaneMesh.position.z = - TERRAIN_SIZE / 2.0;
 		groundPlaneMesh.castShadow = true;
 		groundPlaneMesh.receiveShadow = true;
 		groundPlaneMesh.visible = false;
@@ -220,9 +244,21 @@
         markerManager.load();
 	}
 
+	function setupDynamicAttributes()
+	{
+		//setup attributes that need scene.world to be created first
+		// var dynMesh;
+		// for (dynMeshId in dynMeshes)
+		// {
+			// dynMesh = dynMeshes[dynMeshId];
+			// dynMesh.setDamping(0.9, 0.9);
+		// }
+	}
+
 	var terrainGeom, terrainMaterial, terrainMesh, skulptTerrainMesh;
 	var gpuSkulpt;
 	var visGeom, visMaterial, visMesh;
+	var rbdGeom, rbdMaterial, rbdMesh;
 	function setupSkulpt()
 	{
 		//create a terrain mesh for sculpting
@@ -263,6 +299,27 @@
 		visMesh.castShadow = true;
 		visMesh.receiveShadow = true;
 		scene.add(visMesh);
+
+		//also create a proxy mesh for Physijs collision
+		rbdGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, PROXY_TERRAIN_RES-1, PROXY_TERRAIN_RES-1);
+		rbdGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		rbdGeom.computeFaceNormals();
+	    rbdGeom.computeVertexNormals();
+	    rbdGeom.normalsNeedUpdate = true;
+		rbdMaterial = Physijs.createMaterial(
+		    new THREE.MeshPhongMaterial({
+                color: 0xffffff,
+                wireframe: false
+            }),
+            TERRAIN_FRICTION,
+            TERRAIN_RESTITUTION
+        );
+		materials.push(rbdMaterial);
+		rbdMesh = new Physijs.HeightfieldMesh(rbdGeom, rbdMaterial, 0);
+		rbdMesh.castShadow = true;
+		rbdMesh.receiveShadow = true;
+		rbdMesh.visible = true;
+		scene.add(rbdMesh);
 	}
 
 	var terrainImageData, terrainImageProcessedData;
@@ -438,6 +495,30 @@
 			//hide cursor when shift or ctrl key is up
 			gpuSkulpt.hideCursor();
 		}
+		if (event.keyCode === 66)
+		{
+		    createPhysijsCube();
+		}
+	}
+
+	function createPhysijsCube()
+	{
+	    var boxFriction = 0.8;
+		var boxRestitution = 0.2;
+		var width = 0.3;
+		var widthSegments = 20;
+	    var cubeGeom = new THREE.CubeGeometry(width, width, width, widthSegments, widthSegments, widthSegments);
+		var cubeMaterial = Physijs.createMaterial(
+			new THREE.MeshPhongMaterial(),
+			boxFriction,
+			boxRestitution
+		);
+		materials.push(cubeMaterial);
+		var cubeDynMesh = new Physijs.BoxMesh(cubeGeom, cubeMaterial);
+        cubeDynMesh.position.x = 1.0;
+        cubeDynMesh.position.y = 2.0;
+        cubeDynMesh.position.z = 1.0;
+        scene.add(cubeDynMesh);
 	}
 
 	var isSculpting = false;
@@ -607,11 +688,19 @@
 		}
 	}
 
+	var renderStats, physijsStats;
 	function setupStats()
 	{
 		//create a stats monitor
-		stats = new Stats();
-		$('body').append(stats.domElement);
+		renderStats = new Stats();
+		$('body').append(renderStats.domElement);
+
+		//create a stats monitor for Physijs
+		physijsStats = new Stats();
+		$('body').append(physijsStats.domElement);
+		physijsStats.domElement.style.position = 'absolute';
+		physijsStats.domElement.style.left = '0px';
+		physijsStats.domElement.style.top = '50px';
 	}
 
     var gui;
@@ -1024,6 +1113,9 @@
 		//setup GUI
 		setupGui();
 
+		//start Physijs sim
+		scene.simulate();
+
 		//main loop
 		function loop()
 		{
@@ -1078,7 +1170,7 @@
                 arJustOff = false;
 			}
 
-			stats.update();
+			renderStats.update();
 
 			requestAnimationFrame(loop);
 		}
