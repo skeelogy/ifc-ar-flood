@@ -60,6 +60,8 @@
 	var TERRAIN_SCULPT_SIZE = 1.0;
 	var TERRAIN_SCULPT_AMOUNT = 0.1;
 
+	var terrainHalfSize = TERRAIN_SIZE / 2.0;
+
 	var terrainImages = {
 		'IGMS1':'/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg',
 		'IGMS2':'/resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg',
@@ -886,7 +888,17 @@
     {
         transform.position.copy(position);
 
-        //TODO: read in terrain height and shift up in Y
+        //read in terrain height and shift up in Y
+        var pixelData = gpuSkulpt.getPixelData();
+        var index = getPixelIndex(position);
+        transform.position.y = pixelData[4 * index + 0] / 255.0;  //just read the red channel
+    }
+
+    function getPixelIndex(position)
+    {
+        var row = Math.floor((-position.z + terrainHalfSize) / TERRAIN_SIZE * TERRAIN_RES);
+        var col = Math.floor((position.x + terrainHalfSize) / TERRAIN_SIZE * TERRAIN_RES);
+        return (row * TERRAIN_RES) + col;
     }
 
     function objectsAddObjectConfirm()

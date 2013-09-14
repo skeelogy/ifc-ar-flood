@@ -278,6 +278,32 @@ GpuSkulpt.prototype.showCursor = function () {
 GpuSkulpt.prototype.hideCursor = function () {
     this.mesh.material.uniforms.uShowCursor.value = 0;
 };
+/**
+ * Returns the pixel data for the render target texture
+ */
+GpuSkulpt.prototype.getPixelData = function () {
+
+    //I need to read in pixel data from WebGLRenderTarget but there seems to be no direct way.
+    //Seems like I have to do some native WebGL stuff with readPixels().
+
+    var pixelData = new Uint8Array(this.res * this.res * 4);
+
+    gl = this.renderer.getContext();
+
+    //bind texture to gl context
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.rttCombinedLayer.__webglFramebuffer);
+
+    //attach texture
+    // gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.rttCombinedLayer.__webglTexture, 0);
+
+    //read pixels
+    gl.readPixels(0, 0, this.res, this.res, gl.RGBA, gl.UNSIGNED_BYTE, pixelData);
+
+    //unbind
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    return pixelData;
+};
 
 GpuSkulpt.ADD = 1;
 GpuSkulpt.REMOVE = 2;
