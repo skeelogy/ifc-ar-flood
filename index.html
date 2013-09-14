@@ -63,7 +63,7 @@
 	var TERRAIN_SCULPT_SIZE = 1.0;
 	var TERRAIN_SCULPT_AMOUNT = 0.1;
 
-	var PROXY_TERRAIN_RES = 32;  //Physijs will slow down if height field mesh is too large
+	var PROXY_TERRAIN_RES = 64;  //Physijs will slow down if height field mesh is too large
 	var TERRAIN_FRICTION = 0.8;
     var TERRAIN_RESTITUTION = 0.2;
 
@@ -157,7 +157,7 @@
 		$threejsContainerElem.append(renderer.domElement);
 
 		//create scene
-		scene = new Physijs.Scene();
+		scene = new Physijs.Scene({ fixedTimeStep: 1 / 60 });
 		scene.addEventListener(
 			'ready',
 			function() {
@@ -257,8 +257,10 @@
 
 	var terrainGeom, terrainMaterial, terrainMesh, skulptTerrainMesh;
 	var gpuSkulpt;
+	var $sculptedTerrainTextureCanvasElem, $sculptedTerrainTextureCanvasContainer, sculptedTerrainTextureContext, sculptedTerrainTextureImage;
+	var $proxyTerrainTextureCanvasElem, $proxyTerrainTextureCanvasContainer, proxyTerrainTextureContext;
 	var visGeom, visMaterial, visMesh;
-	var rbdGeom, rbdMaterial, rbdMesh;
+	var proxyTerrainGeom, proxyTerrainMaterial, proxyTerrainMesh;
 	function setupSkulpt()
 	{
 		//create a terrain mesh for sculpting
@@ -289,6 +291,25 @@
 		//change some parameters
 		gpuSkulpt.mesh.material.uniforms.uPointLightIntensity.value[1] = 0.2;
 
+		//create a canvas to handle the texture obtained from the sculpted terrain
+		$sculptedTerrainTextureCanvasElem = $(document.createElement('canvas'));
+		$sculptedTerrainTextureCanvasElem[0].id = 'sculptedTerrainImageCanvas';
+		$sculptedTerrainTextureCanvasElem[0].width = TERRAIN_RES;
+		$sculptedTerrainTextureCanvasElem[0].height = TERRAIN_RES;
+		$sculptedTerrainTextureCanvasContainer = $('#sculptedTerrainTextureCanvas-container');
+		$sculptedTerrainTextureCanvasContainer.append($sculptedTerrainTextureCanvasElem);
+		sculptedTerrainTextureContext = $sculptedTerrainTextureCanvasElem[0].getContext('2d');
+		sculptedTerrainTextureImage = sculptedTerrainTextureContext.createImageData(TERRAIN_RES, TERRAIN_RES);
+
+		//create a scaled-down canvas to scale (and flip) the texture obtained from the sculpted terrain
+		$proxyTerrainTextureCanvasElem = $(document.createElement('canvas'));
+		$proxyTerrainTextureCanvasElem[0].id = 'proxyTerrainImageCanvas';
+		$proxyTerrainTextureCanvasElem[0].width = PROXY_TERRAIN_RES;
+		$proxyTerrainTextureCanvasElem[0].height = PROXY_TERRAIN_RES;
+		$sculptedTerrainTextureCanvasContainer.append($proxyTerrainTextureCanvasElem);
+		proxyTerrainTextureContext = $proxyTerrainTextureCanvasElem[0].getContext('2d');
+		proxyTerrainTextureContext.scale(1, -1);  //flip the image veritcally
+
 		//create a RTT visualization plane
 		visGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);
 		visGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
@@ -301,12 +322,17 @@
 		scene.add(visMesh);
 
 		//also create a proxy mesh for Physijs collision
-		rbdGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, PROXY_TERRAIN_RES-1, PROXY_TERRAIN_RES-1);
-		rbdGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-		rbdGeom.computeFaceNormals();
-	    rbdGeom.computeVertexNormals();
-	    rbdGeom.normalsNeedUpdate = true;
-		rbdMaterial = Physijs.createMaterial(
+		proxyTerrainGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, PROXY_TERRAIN_RES-1, PROXY_TERRAIN_RES-1);
+		var v = proxyTerrainGeom.vertices;
+		var i, len;
+		for (i = 0, len = v.length; i < len; i++)
+		{
+			v[i].z = 0.5 * Math.cos(3 * v[i].x);
+		}
+		// proxyTerrainGeom.computeFaceNormals();
+	    // proxyTerrainGeom.computeVertexNormals();
+	    // proxyTerrainGeom.normalsNeedUpdate = true;
+		proxyTerrainMaterial = Physijs.createMaterial(
 		    new THREE.MeshPhongMaterial({
                 color: 0xffffff,
                 wireframe: false
@@ -314,12 +340,25 @@
             TERRAIN_FRICTION,
             TERRAIN_RESTITUTION
         );
-		materials.push(rbdMaterial);
-		rbdMesh = new Physijs.HeightfieldMesh(rbdGeom, rbdMaterial, 0);
-		rbdMesh.castShadow = true;
-		rbdMesh.receiveShadow = true;
-		rbdMesh.visible = true;
-		scene.add(rbdMesh);
+		materials.push(proxyTerrainMaterial);
+		createPhysijsHeightfieldMesh();
+
+		scene.remove(proxyTerrainMesh);
+		for (i = 0, len = v.length; i < len; i++)
+		{
+			v[i].z = 0.0;
+		}
+		createPhysijsHeightfieldMesh();
+	}
+
+	function createPhysijsHeightfieldMesh()
+	{
+	    proxyTerrainMesh = new Physijs.HeightfieldMesh(proxyTerrainGeom, proxyTerrainMaterial, 0);
+		proxyTerrainMesh.rotation.x = -Math.PI/2;
+		proxyTerrainMesh.castShadow = true;
+		proxyTerrainMesh.receiveShadow = true;
+		proxyTerrainMesh.visible = true;
+		scene.add(proxyTerrainMesh);
 	}
 
 	var terrainImageData, terrainImageProcessedData;
@@ -535,12 +574,12 @@
                 if (event.button === 0)  //LMB
                 {
                     isSculpting = true;
-                    gpuSkulpt.sculpt(GpuSkulpt.ADD, intersectPoint, options.sculptAmount);
+                    sculptTerrain(GpuSkulpt.ADD, intersectPoint, options.sculptAmount);
                 }
                 else if (event.button === 2)  //RMB
                 {
                     isSculpting = true;
-                    gpuSkulpt.sculpt(GpuSkulpt.REMOVE, intersectPoint, options.sculptAmount);
+                    sculptTerrain(GpuSkulpt.REMOVE, intersectPoint, options.sculptAmount);
                 }
             }
 		}
@@ -590,11 +629,11 @@
 			{
                 if (event.button === 0)  //LMB
                 {
-                    gpuSkulpt.sculpt(GpuSkulpt.ADD, intersectPoint, options.sculptAmount);
+                    sculptTerrain(GpuSkulpt.ADD, intersectPoint, options.sculptAmount);
                 }
                 else if (event.button === 2)  //RMB
                 {
-                    gpuSkulpt.sculpt(GpuSkulpt.REMOVE, intersectPoint, options.sculptAmount);
+                    sculptTerrain(GpuSkulpt.REMOVE, intersectPoint, options.sculptAmount);
                 }
             }
 		}
@@ -688,7 +727,66 @@
 		}
 	}
 
-	var renderStats, physijsStats;
+	function sculptTerrain(type, position, amount)
+	{
+	    //sculpt the gpu terrain
+	    gpuSkulpt.sculpt(type, position, amount);
+
+	    //update the proxy geometry
+	    var pixelData = gpuSkulpt.getPixelData();
+	    pixelData = resizeAndFlipData(pixelData);
+	    updateProxyTerrain(pixelData);
+
+	    //update Physijs heightfield mesh
+	    //NOTE: have to recreate a new Physijs.HeightfieldMesh every time we change the vertex positions
+	    scene.remove(proxyTerrainMesh);  //TODO: check if there is a need to delete the mesh to free the memory
+	    createPhysijsHeightfieldMesh();
+	}
+
+	function resizeAndFlipData(pixelData)
+	{
+	    //draw pixelData to full-size canvas first
+	    drawDataToCanvas(pixelData, $sculptedTerrainTextureCanvasElem[0]);
+
+	    //draw pixelData to a scaled and vertically-flipped canvas
+        proxyTerrainTextureContext.drawImage($sculptedTerrainTextureCanvasElem[0], 0, 0, PROXY_TERRAIN_RES, -PROXY_TERRAIN_RES);
+
+	    //get data from the scaled canvas
+	    return proxyTerrainTextureContext.getImageData(0, 0, PROXY_TERRAIN_RES, PROXY_TERRAIN_RES).data;
+	}
+
+	function drawDataToCanvas(pixelData, canvas)
+	{
+        var context = canvas.getContext('2d');
+        imageData = context.getImageData(0, 0, canvas.width, canvas.height);  //assume that image data has already been created
+
+        var i, len;
+        for (i = 0, len = imageData.data.length; i < len; i += 4)
+        {
+            imageData.data[i + 0] = pixelData[i + 0];
+            imageData.data[i + 1] = pixelData[i + 1];
+            imageData.data[i + 2] = pixelData[i + 2];
+            imageData.data[i + 3] = 255;
+        }
+
+        context.putImageData(imageData, 0, 0);
+    };
+
+	function updateProxyTerrain(pixelData)
+	{
+	    var v = proxyTerrainGeom.vertices;
+	    var i, len;
+	    for (i = 0, len = v.length; i < len; i++)
+	    {
+	        v[i].z = pixelData[4 * i] / 255.0;
+	    }
+	    proxyTerrainGeom.verticesNeedUpdate = true;
+	    proxyTerrainGeom.computeFaceNormals();
+	    proxyTerrainGeom.computeVertexNormals();
+	    proxyTerrainGeom.normalsNeedUpdate = true;
+	}
+
+	var renderStats, physijsStats, glStats;
 	function setupStats()
 	{
 		//create a stats monitor
@@ -1152,7 +1250,7 @@
 
 			        //TODO: turn off video streaming
 
-			        //updat cam projection matrix
+			        //update cam projection matrix
                     camera.updateProjectionMatrix();
                     camera.matrixAutoUpdate = true;
                 }
@@ -1192,5 +1290,6 @@
 		<canvas id="debugCanvas" width="640" height="480"></canvas>
 	</div>
 	<div id="threejs-container"></div>
+	<div class="invisible" id="sculptedTerrainTextureCanvas-container"></div>
 </body>
 </html>
