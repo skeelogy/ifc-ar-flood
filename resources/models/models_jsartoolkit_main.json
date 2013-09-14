@@ -1,11 +1,11 @@
 {
-    "mainMarkerId": "22",
+	"mainMarkerId": "64",
 	"models": {
-	    "22": {
+		"64": {
 			"name": "Origin",
 			"type": "empty"
 		},
-		"23": {
+		"31": {
 			"name": "us_police_car",
 			"url": "/resources/models/us_police_car/us_police_car_bin.js",
 			"type": "json_bin",
@@ -13,57 +13,70 @@
 			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
 			"scale": [0.3, 0.3, 0.3]
+		},
+		"49": {
+			"name": "park_bench",
+			"url": "/resources/models/park_bench/park_bench.js",
+			"type": "json",
+			"translate": [0, 0, 0],
+			"rotate": [0, 0, 0],
+			"rotationOrder": "XYZ",
+			"scale": [0.5, 0.5, 0.5]
+		},
+		"63": {
+			"name": "house_15",
+			"url": "/resources/models/house_15/house_15.js",
+			"type": "json",
+			"translate": [0, 0, 0],
+			"rotate": [0, 0, 0],
+			"rotationOrder": "XYZ",
+			"scale": [0.1, 0.1, 0.1]
 		}
 	},
 	"guiMarkers": {
-	    "31": {
+		"1": {
 			"name": "Timer",
 			"key": "testTimer",
 			"type": "timer",
 			"params": {
-			     "time": 2
+				 "time": 2
 			}
 		},
-	    "81": {
+		"21": {
 			"name": "Terrain Image",
 			"key": "terrainImageComboBox",
 			"type": "combobox",
 			"params": {
-			     "numChoices": 6
+				 "numChoices": 6
 			}
 		},
-	    "49": {
-			"name": "Show Terrain Image",
-			"key": "terrainShowImageCheckbox",
-			"type": "checkbox"
-		},
-		"23": {
+		"22": {
 			"name": "Mid Grey Lowest",
 			"key": "terrainMidGreyLowestCheckbox",
 			"type": "checkbox"
 		},
-		"24": {
+		"23": {
 			"name": "Pre-Blur Terrain Image",
 			"key": "terrainPreBlurImageSlider",
 			"type": "slider",
 			"params": {
-			     "speed": 0.1
+				 "speed": 0.1
 			}
 		},
-		"25": {
+		"24": {
 			"name": "Terrain Image Height",
 			"key": "terrainImageHeightSlider",
 			"type": "slider",
 			"params": {
-			     "speed": 0.1
+				 "speed": 0.1
 			}
 		},
-		"42": {
+		"31": {
 			"name": "Sculpt Size",
 			"key": "sculptSizeSlider",
 			"type": "slider",
 			"params": {
-			     "speed": 0.1
+				 "speed": 0.1
 			}
 		},
 		"32": {
@@ -71,25 +84,20 @@
 			"key": "sculptAmountSlider",
 			"type": "slider",
 			"params": {
-			     "speed": 0.1
+				 "speed": 0.1
 			}
 		},
-		"64": {
+		"33": {
 			"name": "Clear Sculpts",
 			"key": "sculptClearButton",
 			"type": "button"
 		},
 		"34": {
-			"name": "Show Sim Texture",
-			"key": "sculptShowSimTextureCheckbox",
-			"type": "checkbox"
-		},
-		"63": {
 			"name": "Sculpt Add",
 			"key": "sculptAddGeneric",
 			"type": "generic"
 		},
-		"36": {
+		"35": {
 			"name": "Sculpt Remove",
 			"key": "sculptRemoveGeneric",
 			"type": "generic"
@@ -104,9 +112,14 @@
 			"key": "displayLocalAxisCheckbox",
 			"type": "checkbox"
 		},
-		"73": {
-			"name": "Display Origin Plane",
-			"key": "displayOriginPlaneCheckbox",
+		"81": {
+			"name": "Show Terrain Image",
+			"key": "terrainShowImageCheckbox",
+			"type": "checkbox"
+		},
+		"82": {
+			"name": "Show Sim Texture",
+			"key": "sculptShowSimTextureCheckbox",
 			"type": "checkbox"
 		}
 	}

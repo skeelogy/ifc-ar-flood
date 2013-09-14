@@ -406,6 +406,9 @@ ModelLoader.prototype.transformAndParent = function (model, object, markerTransf
         //store the material in markerManager
         markerManager.materials.push(object.material);
 
+        //compute bounding box
+        object.geometry.computeBoundingBox();
+
         //also set objects to cast shadows
         object.castShadow = true;
         object.receiveShadow = true;
