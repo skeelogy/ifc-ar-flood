@@ -1148,6 +1148,7 @@
 		toggleDebugWaterTexture = function(value)
 		{
             waterVisMesh.visible = value;
+            gpuWater.shouldDisplaySimTexture = value;
             options.debugWaterTexture = value;
 		}
 		control.onChange(toggleDebugWaterTexture);
