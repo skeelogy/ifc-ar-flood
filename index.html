@@ -328,11 +328,8 @@
 		var i, len;
 		for (i = 0, len = v.length; i < len; i++)
 		{
-			v[i].z = 0.5 * Math.cos(3 * v[i].x);
+			v[i].z = 0.5 * Math.cos(3 * v[i].x);  //I created this sin wave thing during testing. Without this, cubes seem to fall through the terrain, so I'm leaving this here.
 		}
-		// proxyTerrainGeom.computeFaceNormals();
-	    // proxyTerrainGeom.computeVertexNormals();
-	    // proxyTerrainGeom.normalsNeedUpdate = true;
 		proxyTerrainMaterial = Physijs.createMaterial(
 		    new THREE.MeshPhongMaterial({
                 color: 0xffffff,
@@ -344,12 +341,10 @@
 		materials.push(proxyTerrainMaterial);
 		createPhysijsHeightfieldMesh();
 
-		scene.remove(proxyTerrainMesh);
-		for (i = 0, len = v.length; i < len; i++)
-		{
-			v[i].z = 0.0;
-		}
-		createPhysijsHeightfieldMesh();
+		//finally, create a callback that updates the proxy geometry automatically when GPU skulpt updates texture
+		gpuSkulpt.addCallback('update', function () {
+            matchProxyToActualTerrain();
+        });
 	}
 
 	function createPhysijsHeightfieldMesh()
@@ -730,10 +725,12 @@
 
 	function sculptTerrain(type, position, amount)
 	{
-	    //sculpt the gpu terrain
 	    gpuSkulpt.sculpt(type, position, amount);
+	}
 
-	    //update the proxy geometry
+	function matchProxyToActualTerrain()
+	{
+	    //get pixel data from gpu skulpt and update the proxy geometry
 	    var pixelData = gpuSkulpt.getPixelData();
 	    pixelData = resizeAndFlipData(pixelData);
 	    updateProxyTerrain(pixelData);
@@ -782,9 +779,6 @@
 	        v[i].z = pixelData[4 * i] / 255.0;
 	    }
 	    proxyTerrainGeom.verticesNeedUpdate = true;
-	    proxyTerrainGeom.computeFaceNormals();
-	    proxyTerrainGeom.computeVertexNormals();
-	    proxyTerrainGeom.normalsNeedUpdate = true;
 	}
 
 	var renderStats, physijsStats, glStats;

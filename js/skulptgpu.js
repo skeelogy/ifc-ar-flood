@@ -55,6 +55,8 @@ function GpuSkulpt(options) {
 
     this.pixelData = new Uint8Array(this.res * this.res * 4);
 
+    this.callbacks = {};
+
     this.init();
 }
 GpuSkulpt.prototype.init = function () {
@@ -205,6 +207,15 @@ GpuSkulpt.prototype.update = function () {
 
         //need to rebind rttCombinedLayer to uTexture
         this.mesh.material.uniforms.uTexture.value = this.rttCombinedLayer;
+
+        //check for the callback of type 'update'
+        if (this.callbacks.hasOwnProperty('update')) {
+            var renderCallbacks = this.callbacks['update'];
+            var i, len;
+            for (i = 0, len = renderCallbacks.length; i < len; i++) {
+                renderCallbacks[i]();
+            }
+        }
     }
 };
 GpuSkulpt.prototype.swapRenderTargets = function () {
@@ -303,6 +314,20 @@ GpuSkulpt.prototype.getPixelData = function () {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     return this.pixelData;
+};
+GpuSkulpt.prototype.addCallback = function (type, callbackFn) {
+    if (!this.callbacks.hasOwnProperty(type)) {
+        this.callbacks[type] = [];
+    }
+    if (callbackFn) {
+        if (typeof callbackFn === 'function') {
+            this.callbacks[type].push(callbackFn);
+        } else {
+            throw new Error('Specified callbackFn is not a function');
+        }
+    } else {
+        throw new Error('Callback function not defined');
+    }
 };
 
 GpuSkulpt.ADD = 1;
