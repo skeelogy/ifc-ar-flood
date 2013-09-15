@@ -20,6 +20,7 @@
 	<script type="text/javascript" src="/js/lib/three.min.js"></script>
 	<script type="text/javascript" src="/js/lib/Detector.js"></script>
 	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
+	<script type="text/javascript" src="/js/lib/threex.rendererstats.js"></script>
 	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
 	<script type="text/javascript" src="/js/lib/OBJMTLLoader.js"></script>
 	<script type="text/javascript" src="/js/lib/MTLLoader.js"></script>
@@ -789,7 +790,7 @@
 	var renderStats, physijsStats, glStats;
 	function setupStats()
 	{
-		//create a stats monitor
+		//create a stats monitor for rendering
 		renderStats = new Stats();
 		$('body').append(renderStats.domElement);
 
@@ -799,6 +800,13 @@
 		physijsStats.domElement.style.position = 'absolute';
 		physijsStats.domElement.style.left = '0px';
 		physijsStats.domElement.style.top = '50px';
+
+		//create a stats monitor for more details
+		glStats = new THREEx.RendererStats();
+		$('body').append(glStats.domElement);
+		glStats.domElement.style.position = 'absolute';
+		glStats.domElement.style.left = '0px';
+		glStats.domElement.style.top = '100px';
 	}
 
     var gui;
@@ -1269,6 +1277,7 @@
 			}
 
 			renderStats.update();
+			glStats.update(renderer);
 
 			requestAnimationFrame(loop);
 		}
