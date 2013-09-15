@@ -655,7 +655,7 @@ GpuPipeModelWater.prototype.source = function (position, amount, radius) {
 };
 GpuPipeModelWater.prototype.flood = function (volume) {
     this.isFlooding = true;
-    this.floodAmount = volume / (this.res * this.res);
+    this.floodAmount = volume / (this.size * this.size);
 };
 GpuPipeModelWater.prototype.disturbPass = function () {
     var shouldRender = false;

@@ -42,7 +42,7 @@
 	var TERRAIN_SCULPT_SIZE = 1.0;
 	var TERRAIN_SCULPT_AMOUNT = 0.1;
 	var MEAN_WATER_HEIGHT = 0.0;
-	var WATER_FLOOD_RATE = 0.0;
+	var WATER_FLOOD_VOL_RATE = 0.0;
 
 	var WATER_SIZE = 10;
 	var WATER_RES = 256;
@@ -101,7 +101,7 @@
 	};
 	var options = {
 		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
-		waterSimFloodRate: WATER_FLOOD_RATE,
+		waterSimFloodVolRate: WATER_FLOOD_VOL_RATE,
 		terrainImage: terrainImages[Object.keys(terrainImages)[0]],
 		terrainShowImage: false,
 		terrainMidGreyIsLowest: true,
@@ -484,7 +484,7 @@
 		control.onChange(changeWaterSimType);
 		changeWaterSimType(options.waterSimType);
 
-		control = waterSimFolder.add(options, 'waterSimFloodRate', -10000, 10000).step(10).name('Flood Rate');
+		control = waterSimFolder.add(options, 'waterSimFloodVolRate', -20, 20).step(0.1).name('Flood Vol Rate');
 
 		//Terrain folder
 		terrainFolder = gui.addFolder('Terrain');
@@ -1031,7 +1031,7 @@
 			}
 
 			//change water height based on flood levels
-			dV = options.waterSimFloodRate * dt
+			dV = options.waterSimFloodVolRate * dt
 			hfWater.flood(dV);
 
 			requestAnimationFrame(loop);

@@ -112,6 +112,8 @@
 		objectsObject: objects[Object.keys(objects)[0]],
 		objectsAddObject: objectsAddObject,
 		objectsRemoveObject: objectsRemoveObject,
+		waterFloodVolRate: 0.0,
+		waterResetFloodRate: waterResetFloodRate,
 		waterSourceRadius: 0.5,
 		waterSourceAmount: 0.08,
 		waterSinkRadius: 0.5,
@@ -472,6 +474,11 @@
 		waterVisMesh = new THREE.Mesh(waterVisGeom, waterVisMaterial);
 		waterVisMesh.position.y = 2;
 		scene.add(waterVisMesh);
+	}
+
+	function waterResetFloodRate()
+	{
+	    options.waterFloodVolRate = 0.0;
 	}
 
 	var skarf;
@@ -1034,6 +1041,17 @@
 		waterFolder = gui.addFolder('Water');
 		waterFolder.open();
 
+		waterFloodVolRateControl = waterFolder.add(options, 'waterFloodVolRate', -10, 10).name('Flood Vol Rate').step(0.1).listen();
+		changeWaterFloodRate = function (value)
+		{
+		    value = THREE.Math.clamp(value, waterFloodVolRateControl.__min, waterFloodVolRateControl.__max);
+			options.waterFloodVolRate = value;
+		}
+		waterFloodVolRateControl.onChange(changeWaterFloodRate);
+		changeWaterFloodRate(options.waterFloodVolRate);
+
+		control = waterFolder.add(options, 'waterResetFloodRate').name('Reset Flood Rate');
+
 		waterSourceRadiusControl = waterFolder.add(options, 'waterSourceRadius', 0.1, 2.0).name('Source Radius').listen();
 		changeWaterSourceRadius = function (value)
 		{
@@ -1360,6 +1378,7 @@
 	var $canvasContainerElem, $threejsContainerElem;
 	var arJustOn = true;
 	var arJustOff = true;
+	var dWaterVol;
 	$(document).ready(function()
 	{
 		//check for WebGL
@@ -1462,6 +1481,10 @@
 
 			renderStats.update();
 			glStats.update(renderer);
+
+			//change water height based on flood levels
+			dWaterVol = options.waterFloodVolRate * dt
+			gpuWater.flood(dWaterVol);
 
 			requestAnimationFrame(loop);
 		}

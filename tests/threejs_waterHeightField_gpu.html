@@ -450,7 +450,7 @@
 	};
 	var options = {
 		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
-		waterSimFloodRate: WATER_FLOOD_RATE,
+		waterSimFloodVolRate: WATER_FLOOD_RATE,
 		obstaclesActive: true,
 		obstaclesSeed: 1,
 		obstaclesShowObstacles: true,
@@ -496,7 +496,7 @@
 		control.onChange(changeWaterSimType);
 		changeWaterSimType(options.waterSimType);
 
-		control = waterSimFolder.add(options, 'waterSimFloodRate', -10000, 10000).step(10).name('Flood Rate');
+		control = waterSimFolder.add(options, 'waterSimFloodVolRate', -20, 20).step(0.1).name('Flood Vol Rate');
 
 		// //Obstacles folder
 		// obstaclesFolder = gui.addFolder('Obstacles');
@@ -668,7 +668,7 @@
 			// }
 
 			//change water height based on flood levels
-			dV = options.waterSimFloodRate * dt;
+			dV = options.waterSimFloodVolRate * dt;
 			hfWater.flood(dV);
 
 			requestAnimationFrame(loop);
