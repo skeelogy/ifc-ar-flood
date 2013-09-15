@@ -109,7 +109,9 @@
         displayLocalAxis: false,
         debugTrackingInfo: false,
         debugTerrainImage: false,
-        debugSculptTexture: false
+        debugTerrainProxy: false,
+        debugSculptTexture: false,
+        debugGlStats: true
     };
 
 	var clock = new THREE.Clock();
@@ -353,7 +355,7 @@
 		proxyTerrainMesh.rotation.x = -Math.PI/2;
 		proxyTerrainMesh.castShadow = true;
 		proxyTerrainMesh.receiveShadow = true;
-		proxyTerrainMesh.visible = true;
+		proxyTerrainMesh.visible = options.debugTerrainProxy;
 		scene.add(proxyTerrainMesh);
 	}
 
@@ -383,7 +385,7 @@
 		$imageCanvasElem[0].id = 'terrainImageCanvas';
 		$imageCanvasElem[0].width = TERRAIN_RES;
 		$imageCanvasElem[0].height = TERRAIN_RES;
-		$imageCanvasElem.css({'position':'fixed', 'top':'55px', 'left':0});
+		$imageCanvasElem.css({'position':'fixed', 'top':'0px', 'left':'80px'});
 		$('body').append($imageCanvasElem);
 
 		//get canvas context
@@ -779,6 +781,9 @@
 	        v[i].z = pixelData[4 * i] / 255.0;
 	    }
 	    proxyTerrainGeom.verticesNeedUpdate = true;
+	    // proxyTerrainGeom.computeFaceNormals();
+	    // proxyTerrainGeom.computeVertexNormals();
+	    // proxyTerrainGeom.normalsNeedUpdate = true;
 	}
 
 	var renderStats, physijsStats, glStats;
@@ -807,7 +812,7 @@
     var arFolder, terrainFolder, sculptFolder, objectsFolder, renderingFolder, displayFolder, debugFolder;
     var terrainPreBlurControl, terrainHeightControl
     var changeTerrainImage, toggleDebugTerrainImage, toggleTerrainMidGreyIsLowest, changeTerrainPreBlur, changeTerrainHeight
-    var sculptSizeControl, sculptAmountControl, toggleSculptTexture;
+    var sculptSizeControl, sculptAmountControl, toggleDebugSculptTexture;
     var changeSculptSize, changeSculptAmount;
     var toggleWireframe, toggleLocalAxis, toggleOriginPlane;
 	function setupGui() {
@@ -976,14 +981,39 @@
 		control.onChange(toggleDebugTerrainImage);
 		toggleDebugTerrainImage(options.debugTerrainImage);
 
+		control = debugFolder.add(options, 'debugTerrainProxy').name('Terrain Proxy').listen();
+		toggleDebugTerrainProxy = function(value)
+		{
+			proxyTerrainMesh.visible = value;
+			options.debugTerrainProxy = value;
+		}
+		control.onChange(toggleDebugTerrainProxy);
+		toggleDebugTerrainProxy(options.debugTerrainProxy);
+
 		control = debugFolder.add(options, 'debugSculptTexture').name('Sculpt Texture').listen();
-		toggleSculptTexture = function(value)
+		toggleDebugSculptTexture = function(value)
 		{
             visMesh.visible = value;
             options.debugSculptTexture = value;
 		}
-		control.onChange(toggleSculptTexture);
-		toggleSculptTexture(options.debugSculptTexture);
+		control.onChange(toggleDebugSculptTexture);
+		toggleDebugSculptTexture(options.debugSculptTexture);
+
+		control = debugFolder.add(options, 'debugGlStats').name('GL Stats').listen();
+		toggleDebugGlStats = function(value)
+		{
+            if (value)
+			{
+				glStats.domElement.style.display = 'block';
+			}
+			else
+			{
+				glStats.domElement.style.display = 'none';
+			}
+            options.debugGlStats = value;
+		}
+		control.onChange(toggleDebugGlStats);
+		toggleDebugGlStats(options.debugGlStats);
 	}
 
 	function setupGuiMarkerCallbacks() {
@@ -1023,7 +1053,7 @@
             sculptClearSculpts();
         };
         sculptShowSimTextureCheckbox_toggled = function (params) {
-            toggleSculptTexture(params.checked);
+            toggleDebugSculptTexture(params.checked);
         };
         sculptAddGeneric_moved = function (params) {
             gpuSkulpt.updateCursor(params.position);
