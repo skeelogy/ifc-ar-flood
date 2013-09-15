@@ -53,6 +53,8 @@ function GpuSkulpt(options) {
         type: THREE.FloatType
     };
 
+    this.pixelData = new Uint8Array(this.res * this.res * 4);
+
     this.init();
 }
 GpuSkulpt.prototype.init = function () {
@@ -286,8 +288,6 @@ GpuSkulpt.prototype.getPixelData = function () {
     //I need to read in pixel data from WebGLRenderTarget but there seems to be no direct way.
     //Seems like I have to do some native WebGL stuff with readPixels().
 
-    var pixelData = new Uint8Array(this.res * this.res * 4);
-
     gl = this.renderer.getContext();
 
     //bind texture to gl context
@@ -297,12 +297,12 @@ GpuSkulpt.prototype.getPixelData = function () {
     // gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.rttCombinedLayer.__webglTexture, 0);
 
     //read pixels
-    gl.readPixels(0, 0, this.res, this.res, gl.RGBA, gl.UNSIGNED_BYTE, pixelData);
+    gl.readPixels(0, 0, this.res, this.res, gl.RGBA, gl.UNSIGNED_BYTE, this.pixelData);
 
     //unbind
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-    return pixelData;
+    return this.pixelData;
 };
 
 GpuSkulpt.ADD = 1;
