@@ -1132,7 +1132,7 @@ ThreeJsRenderer.prototype.update = function (dt) {
         var renderCallbacks = this.callbacks['render'];
         var i, len;
         for (i = 0, len = renderCallbacks.length; i < len; i++) {
-            renderCallbacks[i]();
+            renderCallbacks[i](dt);
         }
     }
 

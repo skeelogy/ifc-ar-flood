@@ -48,6 +48,9 @@
 	<!--load RBD libraries-->
 	<script type="text/javascript" src="/js/lib/physics/physi.js"></script>
 
+	<!--load water libraries-->
+	<script type="text/javascript" src="/js/skheightfieldwatergpu.js"></script>
+
 	<script>
 
 	// var ARLIB = 'jsaruco';
@@ -67,6 +70,16 @@
 	var PROXY_TERRAIN_RES = 64;  //Physijs will slow down if height field mesh is too large
 	var TERRAIN_FRICTION = 0.8;
     var TERRAIN_RESTITUTION = 0.2;
+
+    var WATER_RES = TERRAIN_RES;
+    var WATER_SIZE = TERRAIN_SIZE;
+	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
+	var WATER_SOURCE_AMOUNT = 0.2;
+	var WATER_SOURCE_RADIUS = 0.7;
+	var WATER_SINK_AMOUNT = 0.2;
+	var WATER_SINK_RADIUS = 0.7;
+	var waterDisturbAmount = 0.15;
+	var waterDisturbRadius = 0.25;
 
 	var terrainHalfSize = TERRAIN_SIZE / 2.0;
 
@@ -262,7 +275,7 @@
 	var gpuSkulpt;
 	var $sculptedTerrainTextureCanvasElem, $sculptedTerrainTextureCanvasContainer, sculptedTerrainTextureContext, sculptedTerrainTextureImage;
 	var $proxyTerrainTextureCanvasElem, $proxyTerrainTextureCanvasContainer, proxyTerrainTextureContext;
-	var visGeom, visMaterial, visMesh;
+	var terrainVisGeom, terrainVisMaterial, terrainVisMesh;
 	var proxyTerrainGeom, proxyTerrainMaterial, proxyTerrainMesh;
 	function setupSkulpt()
 	{
@@ -314,15 +327,15 @@
 		proxyTerrainTextureContext.scale(1, -1);  //flip the image veritcally
 
 		//create a RTT visualization plane
-		visGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);
-		visGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-	    visMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuSkulpt.rttCombinedLayer } );
-		materials.push(visMaterial);
-		visMesh = new THREE.Mesh(visGeom, visMaterial);
-		visMesh.position.y = 3;
-		visMesh.castShadow = true;
-		visMesh.receiveShadow = true;
-		scene.add(visMesh);
+		terrainVisGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);
+		terrainVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+	    terrainVisMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuSkulpt.rttCombinedLayer } );
+		materials.push(terrainVisMaterial);
+		terrainVisMesh = new THREE.Mesh(terrainVisGeom, terrainVisMaterial);
+		terrainVisMesh.position.y = 3;
+		terrainVisMesh.castShadow = true;
+		terrainVisMesh.receiveShadow = true;
+		scene.add(terrainVisMesh);
 
 		//also create a proxy mesh for Physijs collision
 		proxyTerrainGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, PROXY_TERRAIN_RES-1, PROXY_TERRAIN_RES-1);
@@ -428,6 +441,44 @@
 		gpuSkulpt.clear();
 	}
 
+	var waterMesh;
+	var gpuWater;
+	var waterVisGeom, waterVisMaterial, waterVisMesh;
+	function setupWater()
+	{
+	    //create a plane for height field water sim
+		var waterGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_RES-1, WATER_RES-1);
+		waterGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+		var waterMaterial = new THREE.MeshPhongMaterial({emissive:'#113366'});
+		materials.push(waterMaterial);
+		waterMesh = new THREE.Mesh(waterGeom, waterMaterial);
+		waterMesh.castShadow = true;
+		waterMesh.receiveShadow = true;
+		scene.add(waterMesh);
+
+		//create a pipe model water as the height field water sim
+		gpuWater = new GpuPipeModelWater({
+		    renderer: renderer,
+			mesh: waterMesh,
+			size: WATER_SIZE,
+			res: WATER_RES,
+			dampingFactor: 0.995,
+			initialWaterHeight: 0.1,
+			terrainTexture: gpuSkulpt.rttCombinedLayer
+		});
+
+		//create a RTT visualization plane
+		waterVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
+		waterVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+	    waterVisMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuWater.rttRenderTarget1 } );
+		materials.push(waterVisMaterial);
+		waterVisMesh = new THREE.Mesh(waterVisGeom, waterVisMaterial);
+		waterVisMesh.position.y = 3;
+		waterVisMesh.castShadow = true;
+		waterVisMesh.receiveShadow = true;
+		scene.add(waterVisMesh);
+	}
+
 	var skarf;
 	function setupAr()
 	{
@@ -477,8 +528,9 @@
 		}
 
 		//Create callback that will call gpuSkulpt.update after clearing renderer but before rendering the main scene
-		skarf.addCallback('render', function () {
+		skarf.addCallback('render', function (dt) {
 		    gpuSkulpt.update();
+		    gpuWater.update(dt);
 		});
 	}
 
@@ -486,6 +538,7 @@
 	function setupEvents()
 	{
 		window.addEventListener('resize', window_onResize, false);
+		window.addEventListener('keydown', window_onKeyDown, false);
 		window.addEventListener('keyup', window_onKeyUp, false);
 
 		//attach events to the canvas so that we can get the relative mouse coordinates inside it
@@ -525,12 +578,25 @@
 		});
 	}
 
+	var activateDisturb = false;
+	function window_onKeyDown(event)
+	{
+		if (event.keyCode === 32)  //space
+		{
+			activateDisturb = true;
+		}
+	}
+
 	function window_onKeyUp(event)
 	{
 		if (event.keyCode === 16 || event.keyCode === 17)  //shift or ctrl
 		{
 			//hide cursor when shift or ctrl key is up
 			gpuSkulpt.hideCursor();
+		}
+		if (event.keyCode === 32)  //space
+		{
+			activateDisturb = false;
 		}
 		if (event.keyCode === 66)
 		{
@@ -560,6 +626,7 @@
 
 	var isSculpting = false;
 	var sculptUvPos = new THREE.Vector2();
+	var isDisturbing = false;
 	function window_onMouseDown(event)
 	{
 		if (event.ctrlKey)
@@ -602,6 +669,30 @@
 		}
 		else
 		{
+		    //for water
+			if (activateDisturb) {
+
+			    //detect intersection
+                intersectPoint = detectIntersection();
+                if (intersectPoint)
+                {
+                    isDisturbing = true;
+                    if (event.button === 0)  //LMB
+                    {
+                        gpuWater.disturb(intersectPoint, waterDisturbAmount, waterDisturbRadius);
+                    }
+                    else if (event.button === 1)  //MMB
+                    {
+                        gpuWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
+                    }
+                    else if (event.button === 2)  //RMB
+                    {
+                        gpuWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
+                    }
+                }
+            }
+
+            //for objects
 		    if (isAddingObject)
 		    {
 		        objectsAddObjectConfirm();
@@ -649,6 +740,29 @@
 		}
 		else
 		{
+		    //for water
+			if (activateDisturb && isDisturbing) {
+
+			    //detect intersection
+                intersectPoint = detectIntersection();
+                if (intersectPoint)
+                {
+                    if (event.button === 0)  //LMB
+                    {
+                        gpuWater.disturb(intersectPoint, waterDisturbAmount, waterDisturbRadius);
+                    }
+                    else if (event.button === 1)  //MMB
+                    {
+                        gpuWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
+                    }
+                    else if (event.button === 2)  //LMB
+                    {
+                        gpuWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
+                    }
+                }
+            }
+
+		    //for objects
 		    if (isAddingObject)
 		    {
 		        intersectPoint = detectIntersection();
@@ -671,6 +785,7 @@
 	function window_onMouseUp(event)
 	{
 		isSculpting = false;
+		isDisturbing = false;
 	}
 
 	var worldPos = new THREE.Vector3();
@@ -993,7 +1108,7 @@
 		control = debugFolder.add(options, 'debugSculptTexture').name('Sculpt Texture').listen();
 		toggleDebugSculptTexture = function(value)
 		{
-            visMesh.visible = value;
+            terrainVisMesh.visible = value;
             options.debugSculptTexture = value;
 		}
 		control.onChange(toggleDebugSculptTexture);
@@ -1222,11 +1337,14 @@
 		setupMainScene();
 
 		//setup Skulpt
-		setupSkulpt()
+		setupSkulpt();
 
 		//setup terrain image
 		prepareTerrainImageElements();
         loadTerrainImage(options.terrainImage);
+
+        //setup water
+        setupWater();
 
 		//setup AR
 		setupAr();
@@ -1252,7 +1370,8 @@
 			var dt = clock.getDelta();  //have to call this before getElapsedTime()
 			var time = clock.getElapsedTime();
 
-			visMaterial.map = gpuSkulpt.rttCombinedLayer;
+			terrainVisMaterial.map = gpuSkulpt.rttCombinedLayer;
+			waterVisMaterial.map = gpuWater.rttDisplay;
 
 			if (options.arOn) {
 
@@ -1294,6 +1413,7 @@
                 renderer.autoClear = false;
                 renderer.clear();
                 gpuSkulpt.update();
+                gpuWater.update(dt);
                 renderer.render(scene, camera);
 
                 arJustOn = true;
