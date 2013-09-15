@@ -60,12 +60,10 @@
 	var JSARUCO_MARKERS_JSON = '/resources/models/models_jsaruco_main.json';
 
 	var SHADOW_MAP_RES = 1024;
+
 	var TERRAIN_RES = 256;
 	var TERRAIN_SIZE = 6;
 	var TERRAIN_GRID_SIZE = TERRAIN_SIZE / TERRAIN_RES;
-	var USE_TERRAIN_IMAGE = true;
-	var TERRAIN_SCULPT_SIZE = 1.0;
-	var TERRAIN_SCULPT_AMOUNT = 0.1;
 
 	var PROXY_TERRAIN_RES = 64;  //Physijs will slow down if height field mesh is too large
 	var TERRAIN_FRICTION = 0.8;
@@ -74,12 +72,8 @@
     var WATER_RES = TERRAIN_RES;
     var WATER_SIZE = TERRAIN_SIZE;
 	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
-	var WATER_SOURCE_AMOUNT = 0.2;
-	var WATER_SOURCE_RADIUS = 0.7;
-	var WATER_SINK_AMOUNT = 0.2;
-	var WATER_SINK_RADIUS = 0.7;
-	var waterDisturbAmount = 0.15;
-	var waterDisturbRadius = 0.25;
+	var WATER_DISTURB_AMOUNT = 0.04;
+	var WATER_DISTURB_RADIUS = 0.25;
 
 	var terrainHalfSize = TERRAIN_SIZE / 2.0;
 
@@ -113,17 +107,22 @@
 		terrainPreBlur: terrainImageSettings[Object.keys(terrainImageSettings)[0]].preblur,
 		terrainHeight: terrainImageSettings[Object.keys(terrainImageSettings)[0]].height,
         sculptSize: 1.0,
-        sculptAmount: TERRAIN_SCULPT_AMOUNT,
+        sculptAmount: 0.1,
 		sculptClearSculpts: sculptClearSculpts,
 		objectsObject: objects[Object.keys(objects)[0]],
 		objectsAddObject: objectsAddObject,
 		objectsRemoveObject: objectsRemoveObject,
+		waterSourceRadius: 0.5,
+		waterSourceAmount: 0.08,
+		waterSinkRadius: 0.5,
+		waterSinkAmount: 0.2,
         displayWireframe: false,
         displayLocalAxis: false,
         debugTrackingInfo: false,
         debugTerrainImage: false,
         debugTerrainProxy: false,
         debugSculptTexture: false,
+        debugWaterTexture: false,
         debugGlStats: true
     };
 
@@ -332,9 +331,7 @@
 	    terrainVisMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuSkulpt.rttCombinedLayer } );
 		materials.push(terrainVisMaterial);
 		terrainVisMesh = new THREE.Mesh(terrainVisGeom, terrainVisMaterial);
-		terrainVisMesh.position.y = 3;
-		terrainVisMesh.castShadow = true;
-		terrainVisMesh.receiveShadow = true;
+		terrainVisMesh.position.y = 2;
 		scene.add(terrainVisMesh);
 
 		//also create a proxy mesh for Physijs collision
@@ -470,12 +467,10 @@
 		//create a RTT visualization plane
 		waterVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
 		waterVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-	    waterVisMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuWater.rttRenderTarget1 } );
+	    waterVisMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuWater.rttDisplay } );
 		materials.push(waterVisMaterial);
 		waterVisMesh = new THREE.Mesh(waterVisGeom, waterVisMaterial);
-		waterVisMesh.position.y = 3;
-		waterVisMesh.castShadow = true;
-		waterVisMesh.receiveShadow = true;
+		waterVisMesh.position.y = 2;
 		scene.add(waterVisMesh);
 	}
 
@@ -679,15 +674,15 @@
                     isDisturbing = true;
                     if (event.button === 0)  //LMB
                     {
-                        gpuWater.disturb(intersectPoint, waterDisturbAmount, waterDisturbRadius);
+                        gpuWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT, WATER_DISTURB_RADIUS);
                     }
                     else if (event.button === 1)  //MMB
                     {
-                        gpuWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
+                        gpuWater.source(intersectPoint, -options.waterSinkAmount, options.waterSinkRadius);
                     }
                     else if (event.button === 2)  //RMB
                     {
-                        gpuWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
+                        gpuWater.source(intersectPoint, options.waterSourceAmount, options.waterSourceRadius);
                     }
                 }
             }
@@ -749,15 +744,15 @@
                 {
                     if (event.button === 0)  //LMB
                     {
-                        gpuWater.disturb(intersectPoint, waterDisturbAmount, waterDisturbRadius);
+                        gpuWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT, WATER_DISTURB_RADIUS);
                     }
                     else if (event.button === 1)  //MMB
                     {
-                        gpuWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
+                        gpuWater.source(intersectPoint, -options.waterSinkAmount, options.waterSinkRadius);
                     }
                     else if (event.button === 2)  //LMB
                     {
-                        gpuWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
+                        gpuWater.source(intersectPoint, options.waterSourceAmount, options.waterSourceRadius);
                     }
                 }
             }
@@ -924,12 +919,7 @@
 	}
 
     var gui;
-    var arFolder, terrainFolder, sculptFolder, objectsFolder, renderingFolder, displayFolder, debugFolder;
-    var terrainPreBlurControl, terrainHeightControl
-    var changeTerrainImage, toggleDebugTerrainImage, toggleTerrainMidGreyIsLowest, changeTerrainPreBlur, changeTerrainHeight
-    var sculptSizeControl, sculptAmountControl, toggleDebugSculptTexture;
-    var changeSculptSize, changeSculptAmount;
-    var toggleWireframe, toggleLocalAxis, toggleOriginPlane;
+    var arFolder, terrainFolder, sculptFolder, waterFolder, objectsFolder, renderingFolder, displayFolder, debugFolder;
 	function setupGui() {
 
 		gui = new dat.GUI({width: 300});
@@ -1018,7 +1008,7 @@
 		sculptSizeControl.onChange(changeSculptSize);
 		changeSculptSize(options.sculptSize);
 
-		sculptAmountControl = sculptFolder.add(options, 'sculptAmount', 0.01, 1.0).name('Amount');
+		sculptAmountControl = sculptFolder.add(options, 'sculptAmount', 0.01, 0.5).name('Amount');
 		changeSculptAmount = function (value)
 		{
 			value = THREE.Math.clamp(value, sculptAmountControl.__min, sculptAmountControl.__max);
@@ -1039,6 +1029,46 @@
 		control = objectsFolder.add(options, 'objectsAddObject').name('Add From Selection');
 
 		control = objectsFolder.add(options, 'objectsRemoveObject').name('Remove');
+
+		//Water folder
+		waterFolder = gui.addFolder('Water');
+		waterFolder.open();
+
+		waterSourceRadiusControl = waterFolder.add(options, 'waterSourceRadius', 0.1, 2.0).name('Source Radius').listen();
+		changeWaterSourceRadius = function (value)
+		{
+		    value = THREE.Math.clamp(value, waterSourceRadiusControl.__min, waterSourceRadiusControl.__max);
+			options.waterSourceRadius = value;
+		}
+		waterSourceRadiusControl.onChange(changeWaterSourceRadius);
+		changeWaterSourceRadius(options.waterSourceRadius);
+
+		waterSourceAmountControl = waterFolder.add(options, 'waterSourceAmount', 0.01, 0.2).name('Source Amount').listen();
+		changeWaterSourceAmount = function (value)
+		{
+		    value = THREE.Math.clamp(value, waterSourceAmountControl.__min, waterSourceAmountControl.__max);
+			options.waterSourceAmount = value;
+		}
+		waterSourceAmountControl.onChange(changeWaterSourceAmount);
+		changeWaterSourceAmount(options.waterSourceAmount);
+
+		waterSinkRadiusControl = waterFolder.add(options, 'waterSinkRadius', 0.1, 2.0).name('Sink Radius').listen();
+		changeWaterSinkRadius = function (value)
+		{
+		    value = THREE.Math.clamp(value, waterSinkRadiusControl.__min, waterSinkRadiusControl.__max);
+			options.waterSinkRadius = value;
+		}
+		waterSinkRadiusControl.onChange(changeWaterSinkRadius);
+		changeWaterSinkRadius(options.waterSinkRadius);
+
+		waterSinkAmountControl = waterFolder.add(options, 'waterSinkAmount', 0.01, 2.0).name('Sink Amount').listen();
+		changeWaterSinkAmount = function (value)
+		{
+		    value = THREE.Math.clamp(value, waterSinkAmountControl.__min, waterSinkAmountControl.__max);
+			options.waterSinkAmount = value;
+		}
+		waterSinkAmountControl.onChange(changeWaterSinkAmount);
+		changeWaterSinkAmount(options.waterSinkAmount);
 
 		//Display folder
 		displayFolder = gui.addFolder('Display');
@@ -1113,6 +1143,15 @@
 		}
 		control.onChange(toggleDebugSculptTexture);
 		toggleDebugSculptTexture(options.debugSculptTexture);
+
+		control = debugFolder.add(options, 'debugWaterTexture').name('Water Texture').listen();
+		toggleDebugWaterTexture = function(value)
+		{
+            waterVisMesh.visible = value;
+            options.debugWaterTexture = value;
+		}
+		control.onChange(toggleDebugWaterTexture);
+		toggleDebugWaterTexture(options.debugWaterTexture);
 
 		control = debugFolder.add(options, 'debugGlStats').name('GL Stats').listen();
 		toggleDebugGlStats = function(value)
