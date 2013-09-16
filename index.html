@@ -124,6 +124,7 @@
         debugTerrainImage: false,
         debugTerrainProxy: false,
         debugSculptTexture: false,
+        debugObstaclesTexture: false,
         debugWaterTexture: false,
         debugGlStats: true
     };
@@ -443,7 +444,7 @@
 	var waterMesh;
 	var gpuWater;
 	var waterVisGeom, waterVisMaterial, waterVisMesh;
-	var obstacleVisGeom, obstacleVisMaterial, obstacleVisMesh;
+	var obstaclesVisGeom, obstaclesVisMaterial, obstaclesVisMesh;
 	// var obstacles = [];
 	var obstacleMesh1, obstacleMesh2;
 	function setupWater()
@@ -520,13 +521,13 @@
 
 
 		//create a RTT visualization plane for obstacles
-		obstacleVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
-		obstacleVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-	    obstacleVisMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuWater.rttObstaclesRenderTarget } );
-		materials.push(obstacleVisMaterial);
-		obstacleVisMesh = new THREE.Mesh(obstacleVisGeom, obstacleVisMaterial);
-		obstacleVisMesh.position.y = 2;
-		scene.add(obstacleVisMesh);
+		obstaclesVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
+		obstaclesVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+	    obstaclesVisMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuWater.rttObstaclesRenderTarget } );
+		materials.push(obstaclesVisMaterial);
+		obstaclesVisMesh = new THREE.Mesh(obstaclesVisGeom, obstaclesVisMaterial);
+		obstaclesVisMesh.position.y = 2;
+		scene.add(obstaclesVisMesh);
 	}
 
 	function waterResetFloodRate()
@@ -1225,6 +1226,16 @@
 		}
 		control.onChange(toggleDebugSculptTexture);
 		toggleDebugSculptTexture(options.debugSculptTexture);
+
+		control = debugFolder.add(options, 'debugObstaclesTexture').name('Obstacles Texture').listen();
+		toggleDebugObstaclesTexture = function(value)
+		{
+            obstaclesVisMesh.visible = value;
+            gpuWater.shouldDisplaySimTexture = value;
+            options.debugObstaclesTexture = value;
+		}
+		control.onChange(toggleDebugObstaclesTexture);
+		toggleDebugObstaclesTexture(options.debugObstaclesTexture);
 
 		control = debugFolder.add(options, 'debugWaterTexture').name('Water Texture').listen();
 		toggleDebugWaterTexture = function(value)
