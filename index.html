@@ -445,7 +445,6 @@
 	var gpuWater;
 	var waterVisGeom, waterVisMaterial, waterVisMesh;
 	var obstaclesVisGeom, obstaclesVisMaterial, obstaclesVisMesh;
-	// var obstacles = [];
 	var obstacleMesh1, obstacleMesh2;
 	function setupWater()
 	{
@@ -470,7 +469,7 @@
 			terrainTexture: gpuSkulpt.rttCombinedLayer
 		});
 
-		//create a RTT visualization plane
+		//create a RTT visualization plane for the water
 		waterVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
 		waterVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 	    waterVisMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuWater.rttDisplay } );
@@ -480,10 +479,7 @@
 		scene.add(waterVisMesh);
 
 		//create obstacles
-		// var obstacleGeom = new THREE.CubeGeometry(1, 1, 1);
-		// var obstacleGeom = new THREE.TorusKnotGeometry(0.5, 0.2, 32, 8);
-		// var obstacleGeom = new THREE.TetrahedronGeometry(1);
-		var obstacleGeom = new THREE.CubeGeometry(0.5, 0.5, 0.5);
+		var obstacleGeom = new THREE.CubeGeometry(1.0, 1.0, 1.0);
 		obstacleGeom.vertices[0].x = 0;
 		obstacleGeom.vertices[0].z = 0;
 		obstacleGeom.vertices[1].x = 0;
@@ -505,20 +501,15 @@
         // obstacleMesh1.visible = false;
         scene.add(obstacleMesh1);
         gpuWater.addMeshAsObstacle(obstacleMesh1);
-        // obstacles.push(obstacle);
 
         obstacleMesh2 = new THREE.Mesh(obstacleGeom, obstacleMaterial);
         obstacleMesh2.castShadow = true;
         obstacleMesh2.receiveShadow = true;
         obstacleMesh2.position.x = 1.0;
         obstacleMesh2.position.z = 2.0;
-        // obstacleMesh2.rotation.x = THREE.Math.degToRad(45);
         // obstacleMesh2.visible = false;
         scene.add(obstacleMesh2);
         gpuWater.addMeshAsObstacle(obstacleMesh2);
-        // obstacles.push(obstacle);
-
-
 
 		//create a RTT visualization plane for obstacles
 		obstaclesVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
@@ -689,6 +680,8 @@
         cubeDynMesh.position.y = 2.0;
         cubeDynMesh.position.z = 1.0;
         scene.add(cubeDynMesh);
+
+        gpuWater.addMeshAsObstacle(cubeDynMesh);
 	}
 
 	var isSculpting = false;
