@@ -294,7 +294,7 @@
 		terrainMesh = new THREE.Mesh(terrainGeom, terrainMaterial);
 		terrainMesh.castShadow = true;
 		terrainMesh.receiveShadow = true;
-		terrainMesh.visible = true;
+		// terrainMesh.visible = false;
 		scene.add(terrainMesh);
 
 		//create a GpuSkulpt
@@ -443,6 +443,9 @@
 	var waterMesh;
 	var gpuWater;
 	var waterVisGeom, waterVisMaterial, waterVisMesh;
+	var obstacleVisGeom, obstacleVisMaterial, obstacleVisMesh;
+	// var obstacles = [];
+	var obstacleMesh1, obstacleMesh2;
 	function setupWater()
 	{
 	    //create a plane for height field water sim
@@ -474,6 +477,56 @@
 		waterVisMesh = new THREE.Mesh(waterVisGeom, waterVisMaterial);
 		waterVisMesh.position.y = 2;
 		scene.add(waterVisMesh);
+
+		//create obstacles
+		// var obstacleGeom = new THREE.CubeGeometry(1, 1, 1);
+		// var obstacleGeom = new THREE.TorusKnotGeometry(0.5, 0.2, 32, 8);
+		// var obstacleGeom = new THREE.TetrahedronGeometry(1);
+		var obstacleGeom = new THREE.CubeGeometry(0.5, 0.5, 0.5);
+		obstacleGeom.vertices[0].x = 0;
+		obstacleGeom.vertices[0].z = 0;
+		obstacleGeom.vertices[1].x = 0;
+		obstacleGeom.vertices[1].z = 0;
+		obstacleGeom.vertices[4].x = 0;
+		obstacleGeom.vertices[4].z = 0;
+		obstacleGeom.vertices[5].x = 0;
+		obstacleGeom.vertices[5].z = 0;
+		obstacleGeom.verticesNeedUpdate = true;
+        var obstacleMaterial = new THREE.MeshPhongMaterial();
+        materials.push(obstacleMaterial);
+
+        obstacleMesh1 = new THREE.Mesh(obstacleGeom, obstacleMaterial);
+        obstacleMesh1.castShadow = true;
+        obstacleMesh1.receiveShadow = true;
+        obstacleMesh1.position.x = -2.0;
+        obstacleMesh1.position.z = 1.0;
+        obstacleMesh1.rotation.x = THREE.Math.degToRad(45);
+        // obstacleMesh1.visible = false;
+        scene.add(obstacleMesh1);
+        gpuWater.addMeshAsObstacle(obstacleMesh1);
+        // obstacles.push(obstacle);
+
+        obstacleMesh2 = new THREE.Mesh(obstacleGeom, obstacleMaterial);
+        obstacleMesh2.castShadow = true;
+        obstacleMesh2.receiveShadow = true;
+        obstacleMesh2.position.x = 1.0;
+        obstacleMesh2.position.z = 2.0;
+        // obstacleMesh2.rotation.x = THREE.Math.degToRad(45);
+        // obstacleMesh2.visible = false;
+        scene.add(obstacleMesh2);
+        gpuWater.addMeshAsObstacle(obstacleMesh2);
+        // obstacles.push(obstacle);
+
+
+
+		//create a RTT visualization plane for obstacles
+		obstacleVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
+		obstacleVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+	    obstacleVisMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuWater.rttObstaclesRenderTarget } );
+		materials.push(obstacleVisMaterial);
+		obstacleVisMesh = new THREE.Mesh(obstacleVisGeom, obstacleVisMaterial);
+		obstacleVisMesh.position.y = 2;
+		scene.add(obstacleVisMesh);
 	}
 
 	function waterResetFloodRate()
@@ -586,6 +639,17 @@
 		if (event.keyCode === 32)  //space
 		{
 			activateDisturb = true;
+		}
+
+		if (event.keyCode === 65)  //a
+		{
+		    obstacleMesh1.position.y += 0.1;
+		    obstacleMesh2.position.y += 0.1;
+		}
+		else if (event.keyCode === 67)  //c
+		{
+		    obstacleMesh1.position.y -= 0.1;
+		    obstacleMesh2.position.y -= 0.1;
 		}
 	}
 
@@ -1472,6 +1536,7 @@
                 renderer.autoClear = false;
                 renderer.clear();
                 gpuSkulpt.update();
+                gpuWater.updateObstacleTexture(scene);  //TODO: determine if this should be called automatically in gpu water's update()
                 gpuWater.update(dt);
                 renderer.render(scene, camera);
 

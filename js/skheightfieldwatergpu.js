@@ -82,8 +82,14 @@ function GpuHeightFieldWater(options) {
     this.emptyTexture = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatParams);
     this.emptyTexture.generateMipmaps = false;
 
+    //camera depth range (for obstacles)
+    this.rttObstaclesCameraRange = 50.0;
+
     this.__initCounter = 5;
     this.init();
+
+    //setup obstacles
+    this.__setupObstaclesScene();
 }
 /**
  * Initializes the sim
@@ -149,6 +155,20 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/setSolidAlpha.frag')
+    });
+
+    THREE.ShaderManager.addShader('/glsl/hfWater_obstacles.frag');
+    this.obstaclesMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uObstaclesTexture: { type: 't', value: this.emptyTexture },
+            uObstacleTopTexture: { type: 't', value: this.emptyTexture },
+            uObstacleBottomTexture: { type: 't', value: this.emptyTexture },
+            uWaterTexture: { type: 't', value: this.emptyTexture },
+            uTerrainTexture: { type: 't', value: this.emptyTexture },
+            uHalfRange: { type: 'f', value: this.rttObstaclesCameraRange / 2.0 }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_obstacles.frag')
     });
 
 };
@@ -264,6 +284,34 @@ GpuHeightFieldWater.prototype.__initDataAndTextures = function () {
     this.boundaryTexture.image.data = this.boundaryData;
     this.boundaryTexture.needsUpdate = true;
 };
+GpuHeightFieldWater.prototype.__setupObstaclesScene = function () {
+
+    //create top and bottom cameras
+    this.rttObstaclesTopCamera = new THREE.OrthographicCamera(-this.halfSize, this.halfSize, -this.halfSize, this.halfSize, 0, this.rttObstaclesCameraRange);
+    this.rttObstaclesTopCamera.position.y = -this.rttObstaclesCameraRange / 2;
+    this.rttObstaclesTopCamera.rotation.x = THREE.Math.degToRad(90);
+    this.rttObstaclesBottomCamera = new THREE.OrthographicCamera(-this.halfSize, this.halfSize, -this.halfSize, this.halfSize, 0, this.rttObstaclesCameraRange);
+    this.rttObstaclesBottomCamera.position.y = this.rttObstaclesCameraRange / 2;
+    this.rttObstaclesBottomCamera.rotation.x = THREE.Math.degToRad(-90);
+
+    //create an obstacles render target and two more for top and bottom views
+    this.rttObstaclesRenderTarget = this.rttRenderTarget1.clone();
+    this.rttObstacleTopRenderTarget = this.rttRenderTarget1.clone();
+    this.rttObstacleBottomRenderTarget = this.rttRenderTarget1.clone();
+    this.rttObstacleAlphaRenderTarget = this.rttRenderTarget1.clone();
+
+    //create materials for rendering the obstacles
+    THREE.ShaderManager.addShader('/glsl/pass.vert');
+    THREE.ShaderManager.addShader('/glsl/depth.frag');
+    this.rttObstaclesDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uNear: { type: 'f', value: 0 },
+            uFar: { type: 'f', value: this.rttObstaclesCameraRange },
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/pass.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/depth.frag')
+    });
+};
 GpuHeightFieldWater.prototype.reset = function () {
     this.__initCounter = 5;
 };
@@ -368,6 +416,66 @@ GpuHeightFieldWater.prototype.swapRenderTargets = function () {
     this.rttRenderTarget1 = this.rttRenderTarget2;
     this.rttRenderTarget2 = temp;
     // this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTarget2;
+};
+GpuHeightFieldWater.prototype.addMeshAsObstacle = function (mesh) {
+
+    if (!(mesh instanceof THREE.Mesh)) {
+        throw new Error('mesh must be of type THREE.Mesh');
+    }
+    mesh.isObstacle = true;
+};
+GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
+
+    //clear obstacle textures
+    this.rttQuadMesh.material = this.resetMaterial;
+    this.resetMaterial.uniforms.uColor.value.set(0, 0, 0, 0);
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttObstaclesRenderTarget, false);
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttObstacleTopRenderTarget, false);
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttObstacleBottomRenderTarget, false);
+
+    var that = this;
+
+    //hide everything in scene
+    scene.traverse(function (object) {
+        object.visibleStore = object.visible;
+        object.visible = false;
+    });
+
+    //set an override depth map material for the scene
+    scene.overrideMaterial = this.rttObstaclesDepthMaterial;
+
+    //render top & bottom of each obstacle and compare to current water texture
+    scene.traverse(function (object) {
+        if (object instanceof THREE.Mesh && object.isObstacle) {
+
+            //show current mesh
+            object.visible = true;
+
+            //render top and bottom depth maps
+            that.renderer.render(scene, that.rttObstaclesTopCamera, that.rttObstacleTopRenderTarget, false);
+            that.renderer.render(scene, that.rttObstaclesBottomCamera, that.rttObstacleBottomRenderTarget, false);
+
+            //update obstacle texture
+            that.rttQuadMesh.material = that.obstaclesMaterial;
+            that.obstaclesMaterial.uniforms.uObstaclesTexture.value = that.rttObstaclesRenderTarget;
+            that.obstaclesMaterial.uniforms.uObstacleTopTexture.value = that.rttObstacleTopRenderTarget;
+            that.obstaclesMaterial.uniforms.uObstacleBottomTexture.value = that.rttObstacleBottomRenderTarget;
+            that.obstaclesMaterial.uniforms.uWaterTexture.value = that.rttRenderTarget2;
+            that.obstaclesMaterial.uniforms.uTerrainTexture.value = that.terrainTexture;
+            that.renderer.render(that.rttScene, that.rttCamera, that.rttObstaclesRenderTarget, false);
+
+            //hide current mesh
+            object.visible = false;
+        }
+    });
+
+    //remove scene override material
+    scene.overrideMaterial = null;
+
+    //restore visibility in the scene
+    scene.traverse(function (object) {
+        object.visible = object.visibleStore;
+    });
 };
 
 /**
