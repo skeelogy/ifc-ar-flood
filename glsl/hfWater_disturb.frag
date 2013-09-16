@@ -2,6 +2,7 @@
 //author: Skeel Lee <skeel@skeelogy.com>
 
 uniform sampler2D uTexture;
+uniform sampler2D uObstaclesTexture;
 
 //disturb is masked by obstacles
 uniform int uIsDisturbing;
@@ -23,16 +24,18 @@ varying vec2 vUv;
 
 void main() {
 
-    //r channel: height
-
     //read texture from previous step
+    //r channel: height
     vec4 t = texture2D(uTexture, vUv);
 
-    //add disturb
-    //TODO: this should be masked by obstacles
+    //read obstacles texture
+    //r channel: whether water is in obstacle
+    vec4 tObstacles = texture2D(uObstaclesTexture, vUv);
+
+    //add disturb (will be masked by obstacles)
     if (uIsDisturbing == 1) {
         float len = length(vUv - vec2(uDisturbPos.x, 1.0 - uDisturbPos.y));
-        t.r += uDisturbAmount * (1.0 - smoothstep(0.0, uDisturbRadius, len));
+        t.r += uDisturbAmount * (1.0 - smoothstep(0.0, uDisturbRadius, len)) * (1.0 - tObstacles.r);
     }
 
     //add source (will not be masked by obstacles)

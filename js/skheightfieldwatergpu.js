@@ -112,6 +112,7 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
     this.disturbAndSourceMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: this.emptyTexture },
+            uObstaclesTexture: { type: 't', value: this.emptyTexture },
             uIsDisturbing: { type: 'i', value: 0 },
             uDisturbPos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
             uDisturbAmount: { type: 'f', value: this.disturbAmount },
@@ -298,7 +299,6 @@ GpuHeightFieldWater.prototype.__setupObstaclesScene = function () {
     this.rttObstaclesRenderTarget = this.rttRenderTarget1.clone();
     this.rttObstacleTopRenderTarget = this.rttRenderTarget1.clone();
     this.rttObstacleBottomRenderTarget = this.rttRenderTarget1.clone();
-    this.rttObstacleAlphaRenderTarget = this.rttRenderTarget1.clone();
 
     //create materials for rendering the obstacles
     THREE.ShaderManager.addShader('/glsl/pass.vert');
@@ -336,6 +336,7 @@ GpuHeightFieldWater.prototype.disturbPass = function () {
     if (this.isDisturbing) {
         this.rttQuadMesh.material = this.disturbAndSourceMaterial;
         this.disturbAndSourceMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
+        this.disturbAndSourceMaterial.uniforms.uObstaclesTexture.value = this.rttObstaclesRenderTarget;
         this.disturbAndSourceMaterial.uniforms.uIsDisturbing.value = this.isDisturbing;
         this.disturbAndSourceMaterial.uniforms.uDisturbPos.value.copy(this.disturbUvPos);
         this.disturbAndSourceMaterial.uniforms.uDisturbAmount.value = this.disturbAmount;
@@ -692,6 +693,7 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
             uTerrainTexture: { type: 't', value: this.emptyTexture },
             uWaterTexture: { type: 't', value: this.emptyTexture },
             uFluxTexture: { type: 't', value: this.emptyTexture },
+            uObstaclesTexture: { type: 't', value: this.emptyTexture },
             uBoundaryTexture: { type: 't', value: this.emptyTexture },
             uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
             uDampingFactor: { type: 'f', value: this.__dampingFactor },
@@ -770,6 +772,7 @@ GpuPipeModelWater.prototype.disturbPass = function () {
     if (this.isDisturbing) {
         this.rttQuadMesh.material = this.disturbAndSourceMaterial;
         this.disturbAndSourceMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
+        this.disturbAndSourceMaterial.uniforms.uObstaclesTexture.value = this.rttObstaclesRenderTarget;
         this.disturbAndSourceMaterial.uniforms.uIsDisturbing.value = this.isDisturbing;
         this.disturbAndSourceMaterial.uniforms.uDisturbPos.value.copy(this.disturbUvPos);
         this.disturbAndSourceMaterial.uniforms.uDisturbAmount.value = this.disturbAmount;
@@ -824,6 +827,7 @@ GpuPipeModelWater.prototype.waterSimPass = function (substepDt) {
     this.waterSimMaterial.uniforms.uTerrainTexture.value = this.terrainTexture;
     this.waterSimMaterial.uniforms.uWaterTexture.value = this.rttRenderTarget2;
     this.waterSimMaterial.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
+    this.waterSimMaterial.uniforms.uObstaclesTexture.value = this.rttObstaclesRenderTarget;
     this.waterSimMaterial.uniforms.uBoundaryTexture.value = this.boundaryTexture;
     this.waterSimMaterial.uniforms.uHeightToFluxFactor.value = this.heightToFluxFactorNoDt * substepDt;
     this.waterSimMaterial.uniforms.uDt.value = substepDt;

@@ -5,6 +5,7 @@
 uniform sampler2D uTerrainTexture;
 uniform sampler2D uWaterTexture;
 uniform sampler2D uFluxTexture;
+uniform sampler2D uObstaclesTexture;
 uniform sampler2D uBoundaryTexture;
 uniform vec2 uTexelSize;
 uniform float uDampingFactor;
@@ -59,7 +60,13 @@ void main() {
     //multiply flux with boundary texture to mask out fluxes
     tFlux *= tBoundary;
 
-    //TODO: stop flow velocity if pipe flows to an obstacle
+    //read obstacle texture
+    //r channel: whether water is in obstacle
+    vec4 tObstacle = texture2D(uObstaclesTexture, vUv);
+
+    //stop flow velocity if pipe flows to an obstacle
+    //FIXME: fix the fuzzy edges. Enable this only when anti-aliasing of obstacle map is done. Also need to move obstructed water vertices to average of surrounding vertices.
+    // tFlux *= 1.0 - tObstacle.r;
 
     //scale down outflow if it is more than available volume in the column
     float currVol = (waterHeight - uMinWaterHeight) * uSegmentSizeSquared;
