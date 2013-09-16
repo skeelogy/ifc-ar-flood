@@ -28,7 +28,8 @@ void main() {
     float waterHeight = tWater.r + tTerrain.r;
 
     //compare the top and bottom depths to determine if water is in obstacle
-    t.r = (float(tBottom.r < uHalfRange + waterHeight) * tBottom.a) * (float(tTop.r < uHalfRange - waterHeight) * tTop.a);
+    //have to do a max operation to prevent later non-intersecting obstacles from masking a hole out of the accumulated texture
+    t.r = max(t.r, (float(tBottom.r < uHalfRange + waterHeight) * tBottom.a) * (float(tTop.r < uHalfRange - waterHeight) * tTop.a));
 
     //write out to texture for next step
     gl_FragColor = vec4(t.r, 0, 0, 1);
