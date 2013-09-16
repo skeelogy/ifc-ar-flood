@@ -14,8 +14,9 @@ varying vec2 vUv;
 void main() {
 
     //read texture from previous step
-    //r channel: whether in obstacle or not
-    //b channel: height of water displaced
+    //r channel: whether in obstacle or not (accumulated)
+    //g channel: height of water displaced (accumulated)
+    //b channel: height of water displaced (only for current rendered object)
     vec4 t = texture2D(uObstaclesTexture, vUv);
 
     //read texture for obstacle
@@ -36,21 +37,21 @@ void main() {
     float topHeight = (uHalfRange - waterHeight - tTop.r) * tTop.a;
 
     //compare the top and bottom depths to determine if water is in obstacle
-    //have to do a max operation to prevent later non-intersecting obstacles from masking a hole out of the accumulated texture
-    t.r = max(t.r, float(bottomHeight < 0.0 && topHeight > 0.0));
+    bool inObstacle = bottomHeight < 0.0 && topHeight > 0.0;
 
     //also calculate amount of water displaced
+    float displacedHeight;
     if (bottomHeight > 0.0) {
         //totally above water, so there is no water displaced
-        t.b = 0.0;
+        displacedHeight = 0.0;
     } else if (topHeight < 0.0) {
         //totally below water, so water displaced height is top minus bottom
-        t.b = topHeight - bottomHeight;
+        displacedHeight = topHeight - bottomHeight;
     } else {
         //partially submerged, so water displaced is water level minus bottom (which is just negative of bottom)
-        t.b = -bottomHeight;
+        displacedHeight = -bottomHeight;
     }
 
     //write out to texture for next step
-    gl_FragColor = vec4(t.r, t.b, 0, 1);
+    gl_FragColor = vec4(max(t.r, float(inObstacle)), t.g + displacedHeight, displacedHeight, 1);
 }

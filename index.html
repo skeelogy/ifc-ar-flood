@@ -74,8 +74,12 @@
 	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
 	var WATER_DISTURB_AMOUNT = 0.04;
 	var WATER_DISTURB_RADIUS = 0.25;
+    var WATER_DENSITY = 1000;  //1000 kg per cubic metres, for dual coupling
+
+    var GRAVITATIONAL_ACC = -9.81;  //m per squared second
 
 	var terrainHalfSize = TERRAIN_SIZE / 2.0;
+	var waterHalfSize = WATER_SIZE / 2.0;
 
 	var terrainImages = {
 		'IGMS1':'/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg',
@@ -265,11 +269,10 @@
 	function setupDynamicAttributes()
 	{
 		//setup attributes that need scene.world to be created first
-		// var dynMesh;
-		// for (dynMeshId in dynMeshes)
+		// var i, len;
+		// for (i = 0, len = dynMeshes; i < len; i++)
 		// {
-			// dynMesh = dynMeshes[dynMeshId];
-			// dynMesh.setDamping(0.9, 0.9);
+			// dynMeshes[i].setDamping(0.9, 0.9);
 		// }
 	}
 
@@ -456,6 +459,7 @@
 		waterMesh = new THREE.Mesh(waterGeom, waterMaterial);
 		waterMesh.castShadow = true;
 		waterMesh.receiveShadow = true;
+		// waterMesh.visible = false;
 		scene.add(waterMesh);
 
 		//create a pipe model water as the height field water sim
@@ -499,8 +503,8 @@
         obstacleMesh1.position.z = 1.0;
         obstacleMesh1.rotation.x = THREE.Math.degToRad(45);
         // obstacleMesh1.visible = false;
-        scene.add(obstacleMesh1);
-        gpuWater.addMeshAsObstacle(obstacleMesh1);
+        // scene.add(obstacleMesh1);
+        // gpuWater.addMeshAsObstacle(obstacleMesh1);
 
         obstacleMesh2 = new THREE.Mesh(obstacleGeom, obstacleMaterial);
         obstacleMesh2.castShadow = true;
@@ -508,8 +512,8 @@
         obstacleMesh2.position.x = 1.0;
         obstacleMesh2.position.z = 2.0;
         // obstacleMesh2.visible = false;
-        scene.add(obstacleMesh2);
-        gpuWater.addMeshAsObstacle(obstacleMesh2);
+        // scene.add(obstacleMesh2);
+        // gpuWater.addMeshAsObstacle(obstacleMesh2);
 
 		//create a RTT visualization plane for obstacles
 		obstaclesVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
@@ -520,6 +524,24 @@
 		obstaclesVisMesh.position.y = 2;
 		scene.add(obstaclesVisMesh);
 	}
+
+	function handleDualCoupling()
+    {
+        var i, len, object;
+        for (i = 0, len = dynMeshes.length; i < len; i++)
+        {
+            object = dynMeshes[i];
+            if (object instanceof THREE.Mesh && object.isObstacle && object.totalDisplacedHeight > 0.0) {
+                var totalDisplacedVol = object.totalDisplacedHeight * (WATER_GRID_SIZE * WATER_GRID_SIZE); //cubic metres
+                var buoyancyForce = - totalDisplacedVol * WATER_DENSITY * GRAVITATIONAL_ACC;
+
+                // acceleration.multiplyScalar(1.0 / dt);  //divide by dt to get acceleration
+                // force.set(acceleration.x, buoyancyForce, acceleration.z);
+                var force = new THREE.Vector3(0, buoyancyForce, 0);
+                object.applyCentralForce(force);
+            }
+        }
+    }
 
 	function waterResetFloodRate()
 	{
@@ -656,13 +678,18 @@
 		{
 			activateDisturb = false;
 		}
-		if (event.keyCode === 66)
+		if (event.keyCode === 66)  //b
 		{
-		    createPhysijsCube();
+		    createPhysijsCube(1.0, 2.0, 1.0);
+		}
+		else if (event.keyCode === 82)  //r
+		{
+		    createPhysijsCube(0.8 * (WATER_SIZE * Math.random() - waterHalfSize), 2.0, 0.8 * (WATER_SIZE * Math.random() - waterHalfSize));
 		}
 	}
 
-	function createPhysijsCube()
+	var dynMeshes = [];
+	function createPhysijsCube(x, y, z)
 	{
 	    var boxFriction = 0.8;
 		var boxRestitution = 0.2;
@@ -675,13 +702,15 @@
 			boxRestitution
 		);
 		materials.push(cubeMaterial);
-		var cubeDynMesh = new Physijs.BoxMesh(cubeGeom, cubeMaterial);
-        cubeDynMesh.position.x = 1.0;
-        cubeDynMesh.position.y = 2.0;
-        cubeDynMesh.position.z = 1.0;
+
+		var cubeMass = 10;  //kg
+		var cubeDynMesh = new Physijs.BoxMesh(cubeGeom, cubeMaterial, cubeMass);
+        cubeDynMesh.position.set(x, y, z);
         scene.add(cubeDynMesh);
+        cubeDynMesh.setDamping(0.9, 0.9);  //can only call this after adding to scene
 
         gpuWater.addMeshAsObstacle(cubeDynMesh);
+        dynMeshes.push(cubeDynMesh);
 	}
 
 	var isSculpting = false;
@@ -1542,6 +1571,7 @@
                 gpuSkulpt.update();
                 gpuWater.updateObstacleTexture(scene);  //TODO: determine if this should be called automatically in gpu water's update()
                 gpuWater.update(dt);
+                handleDualCoupling(dt);
                 renderer.render(scene, camera);
 
                 arJustOn = true;

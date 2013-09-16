@@ -431,15 +431,16 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
     this.rttQuadMesh.material = this.resetMaterial;
     this.resetMaterial.uniforms.uColor.value.set(0, 0, 0, 0);
     this.renderer.render(this.rttScene, this.rttCamera, this.rttObstaclesRenderTarget, false);
-    this.renderer.render(this.rttScene, this.rttCamera, this.rttObstacleTopRenderTarget, false);
-    this.renderer.render(this.rttScene, this.rttCamera, this.rttObstacleBottomRenderTarget, false);
 
     var that = this;
 
-    //hide everything in scene
+    //hide and reset everything in scene
     scene.traverse(function (object) {
         object.visibleStore = object.visible;
         object.visible = false;
+        if (object instanceof THREE.Mesh && object.isObstacle) {
+            object.totalDisplacedHeight = 0;
+        }
     });
 
     //set an override depth map material for the scene
@@ -451,6 +452,12 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
 
             //show current mesh
             object.visible = true;
+
+            //clear top and bottom render targets
+            that.rttQuadMesh.material = that.resetMaterial;
+            that.resetMaterial.uniforms.uColor.value.set(0, 0, 0, 0);
+            that.renderer.render(that.rttScene, that.rttCamera, that.rttObstacleTopRenderTarget, false);
+            that.renderer.render(that.rttScene, that.rttCamera, that.rttObstacleBottomRenderTarget, false);
 
             //render top and bottom depth maps
             that.renderer.render(scene, that.rttObstaclesTopCamera, that.rttObstacleTopRenderTarget, false);
@@ -465,6 +472,16 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
             that.obstaclesMaterial.uniforms.uTerrainTexture.value = that.terrainTexture;
             that.renderer.render(that.rttScene, that.rttCamera, that.rttObstaclesRenderTarget, false);
 
+            //find total water displaced (from B channel data)
+            var pixelData = that.getPixelData(that.rttObstaclesRenderTarget);
+            var i, len;
+            var sum = 0;
+            for (i = 0, len = pixelData.length; i < len; i += 4)
+            {
+                sum += pixelData[i + 2] / 255.0;
+            }
+            object.totalDisplacedHeight = sum;
+
             //hide current mesh
             object.visible = false;
         }
@@ -477,6 +494,32 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
     scene.traverse(function (object) {
         object.visible = object.visibleStore;
     });
+};
+/**
+ * Returns the pixel data for the render target texture
+ */
+GpuHeightFieldWater.prototype.getPixelData = function (renderTarget) {
+
+    //I need to read in pixel data from WebGLRenderTarget but there seems to be no direct way.
+    //Seems like I have to do some native WebGL stuff with readPixels().
+
+    var pixelData = new Uint8Array(this.res * this.res * 4);
+
+    gl = this.renderer.getContext();
+
+    //bind texture to gl context
+    gl.bindFramebuffer(gl.FRAMEBUFFER, renderTarget.__webglFramebuffer);
+
+    //attach texture
+    // gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, renderTarget.__webglTexture, 0);
+
+    //read pixels
+    gl.readPixels(0, 0, this.res, this.res, gl.RGBA, gl.UNSIGNED_BYTE, pixelData);
+
+    //unbind
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    return pixelData;
 };
 
 /**
