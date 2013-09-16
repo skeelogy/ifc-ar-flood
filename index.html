@@ -270,9 +270,9 @@
 	{
 		//setup attributes that need scene.world to be created first
 		// var i, len;
-		// for (i = 0, len = dynMeshes; i < len; i++)
+		// for (i = 0, len = dynObstacleMeshes; i < len; i++)
 		// {
-			// dynMeshes[i].setDamping(0.9, 0.9);
+			// dynObstacleMeshes[i].setDamping(0.9, 0.9);
 		// }
 	}
 
@@ -448,7 +448,8 @@
 	var gpuWater;
 	var waterVisGeom, waterVisMaterial, waterVisMesh;
 	var obstaclesVisGeom, obstaclesVisMaterial, obstaclesVisMesh;
-	var obstacleMesh1, obstacleMesh2;
+	var staticObstacleMesh1, staticObstacleMesh2;
+	var staticObstacleMeshes = [];
 	function setupWater()
 	{
 	    //create a plane for height field water sim
@@ -482,8 +483,8 @@
 		waterVisMesh.position.y = 2;
 		scene.add(waterVisMesh);
 
-		//create obstacles
-		var obstacleGeom = new THREE.CubeGeometry(1.0, 1.0, 1.0);
+		//create static obstacles
+		var obstacleGeom = new THREE.CubeGeometry(2.0, 2.0, 2.0);
 		obstacleGeom.vertices[0].x = 0;
 		obstacleGeom.vertices[0].z = 0;
 		obstacleGeom.vertices[1].x = 0;
@@ -496,24 +497,28 @@
         var obstacleMaterial = new THREE.MeshPhongMaterial();
         materials.push(obstacleMaterial);
 
-        obstacleMesh1 = new THREE.Mesh(obstacleGeom, obstacleMaterial);
-        obstacleMesh1.castShadow = true;
-        obstacleMesh1.receiveShadow = true;
-        obstacleMesh1.position.x = -2.0;
-        obstacleMesh1.position.z = 1.0;
-        obstacleMesh1.rotation.x = THREE.Math.degToRad(45);
-        // obstacleMesh1.visible = false;
-        // scene.add(obstacleMesh1);
-        // gpuWater.addMeshAsObstacle(obstacleMesh1);
+        staticObstacleMesh1 = new THREE.Mesh(obstacleGeom, obstacleMaterial);
+        staticObstacleMesh1.castShadow = true;
+        staticObstacleMesh1.receiveShadow = true;
+        staticObstacleMesh1.position.x = -2.0;
+        staticObstacleMesh1.position.z = 1.0;
+        staticObstacleMesh1.rotation.x = THREE.Math.degToRad(45);
+        // staticObstacleMesh1.visible = false;
+        scene.add(staticObstacleMesh1);
+        staticObstacleMesh1.__dirtyPosition = true;
+        staticObstacleMeshes.push(staticObstacleMesh1);
+        gpuWater.addStaticObstacle(staticObstacleMesh1);
 
-        obstacleMesh2 = new THREE.Mesh(obstacleGeom, obstacleMaterial);
-        obstacleMesh2.castShadow = true;
-        obstacleMesh2.receiveShadow = true;
-        obstacleMesh2.position.x = 1.0;
-        obstacleMesh2.position.z = 2.0;
-        // obstacleMesh2.visible = false;
-        // scene.add(obstacleMesh2);
-        // gpuWater.addMeshAsObstacle(obstacleMesh2);
+        staticObstacleMesh2 = new THREE.Mesh(obstacleGeom, obstacleMaterial);
+        staticObstacleMesh2.castShadow = true;
+        staticObstacleMesh2.receiveShadow = true;
+        staticObstacleMesh2.position.x = 1.0;
+        staticObstacleMesh2.position.z = 2.0;
+        // staticObstacleMesh2.visible = false;
+        scene.add(staticObstacleMesh2);
+        staticObstacleMesh2.__dirtyPosition = true;
+        staticObstacleMeshes.push(staticObstacleMesh2);
+        gpuWater.addStaticObstacle(staticObstacleMesh2);
 
 		//create a RTT visualization plane for obstacles
 		obstaclesVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
@@ -527,18 +532,18 @@
 
 	function handleDualCoupling()
     {
-        var i, len, object;
-        for (i = 0, len = dynMeshes.length; i < len; i++)
+        var i, len, dynObstacleMesh;
+        for (i = 0, len = dynObstacleMeshes.length; i < len; i++)
         {
-            object = dynMeshes[i];
-            if (object instanceof THREE.Mesh && object.isObstacle && object.totalDisplacedHeight > 0.0) {
-                var totalDisplacedVol = object.totalDisplacedHeight * (WATER_GRID_SIZE * WATER_GRID_SIZE); //cubic metres
+            dynObstacleMesh = dynObstacleMeshes[i];
+            if (dynObstacleMesh instanceof THREE.Mesh && dynObstacleMesh.isObstacle && dynObstacleMesh.isDynamic && dynObstacleMesh.totalDisplacedHeight > 0.0) {
+                var totalDisplacedVol = dynObstacleMesh.totalDisplacedHeight * (WATER_GRID_SIZE * WATER_GRID_SIZE); //cubic metres
                 var buoyancyForce = - totalDisplacedVol * WATER_DENSITY * GRAVITATIONAL_ACC;
 
                 // acceleration.multiplyScalar(1.0 / dt);  //divide by dt to get acceleration
                 // force.set(acceleration.x, buoyancyForce, acceleration.z);
                 var force = new THREE.Vector3(0, buoyancyForce, 0);
-                object.applyCentralForce(force);
+                dynObstacleMesh.applyCentralForce(force);
             }
         }
     }
@@ -657,13 +662,13 @@
 
 		if (event.keyCode === 65)  //a
 		{
-		    obstacleMesh1.position.y += 0.1;
-		    obstacleMesh2.position.y += 0.1;
+		    staticObstacleMesh1.position.y += 0.1;
+		    staticObstacleMesh2.position.y += 0.1;
 		}
 		else if (event.keyCode === 67)  //c
 		{
-		    obstacleMesh1.position.y -= 0.1;
-		    obstacleMesh2.position.y -= 0.1;
+		    staticObstacleMesh1.position.y -= 0.1;
+		    staticObstacleMesh2.position.y -= 0.1;
 		}
 	}
 
@@ -688,7 +693,7 @@
 		}
 	}
 
-	var dynMeshes = [];
+	var dynObstacleMeshes = [];
 	function createPhysijsCube(x, y, z)
 	{
 	    var boxFriction = 0.8;
@@ -704,13 +709,13 @@
 		materials.push(cubeMaterial);
 
 		var cubeMass = 10;  //kg
-		var cubeDynMesh = new Physijs.BoxMesh(cubeGeom, cubeMaterial, cubeMass);
-        cubeDynMesh.position.set(x, y, z);
-        scene.add(cubeDynMesh);
-        cubeDynMesh.setDamping(0.9, 0.9);  //can only call this after adding to scene
+		var cubeDynObstacleMesh = new Physijs.BoxMesh(cubeGeom, cubeMaterial, cubeMass);
+        cubeDynObstacleMesh.position.set(x, y, z);
+        scene.add(cubeDynObstacleMesh);
+        cubeDynObstacleMesh.setDamping(0.9, 0.9);  //can only call this after adding to scene
 
-        gpuWater.addMeshAsObstacle(cubeDynMesh);
-        dynMeshes.push(cubeDynMesh);
+        gpuWater.addDynamicObstacle(cubeDynObstacleMesh);
+        dynObstacleMeshes.push(cubeDynObstacleMesh);
 	}
 
 	var isSculpting = false;

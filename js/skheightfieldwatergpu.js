@@ -418,12 +418,19 @@ GpuHeightFieldWater.prototype.swapRenderTargets = function () {
     this.rttRenderTarget2 = temp;
     // this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTarget2;
 };
-GpuHeightFieldWater.prototype.addMeshAsObstacle = function (mesh) {
-
+GpuHeightFieldWater.prototype.addStaticObstacle = function (mesh) {
     if (!(mesh instanceof THREE.Mesh)) {
         throw new Error('mesh must be of type THREE.Mesh');
     }
     mesh.isObstacle = true;
+    mesh.isDynamic = false;
+};
+GpuHeightFieldWater.prototype.addDynamicObstacle = function (mesh) {
+    if (!(mesh instanceof THREE.Mesh)) {
+        throw new Error('mesh must be of type THREE.Mesh');
+    }
+    mesh.isObstacle = true;
+    mesh.isDynamic = true;
 };
 GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
 
@@ -445,6 +452,8 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
 
     //set an override depth map material for the scene
     scene.overrideMaterial = this.rttObstaclesDepthMaterial;
+
+    //TODO: do not need to update static obstacles every frame
 
     //render top & bottom of each obstacle and compare to current water texture
     scene.traverse(function (object) {
@@ -472,15 +481,17 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
             that.obstaclesMaterial.uniforms.uTerrainTexture.value = that.terrainTexture;
             that.renderer.render(that.rttScene, that.rttCamera, that.rttObstaclesRenderTarget, false);
 
-            //find total water displaced (from B channel data)
-            var pixelData = that.getPixelData(that.rttObstaclesRenderTarget);
-            var i, len;
-            var sum = 0;
-            for (i = 0, len = pixelData.length; i < len; i += 4)
-            {
-                sum += pixelData[i + 2] / 255.0;
+            //if object is dynamic, find total water displaced (from B channel data)
+            if (object.isDynamic) {
+                var pixelData = that.getPixelData(that.rttObstaclesRenderTarget);
+                var i, len;
+                var sum = 0;
+                for (i = 0, len = pixelData.length; i < len; i += 4)
+                {
+                    sum += pixelData[i + 2] / 255.0;
+                }
+                object.totalDisplacedHeight = sum;
             }
-            object.totalDisplacedHeight = sum;
 
             //hide current mesh
             object.visible = false;
