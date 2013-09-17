@@ -29,7 +29,7 @@ function GpuSkulpt(options) {
     this.res = options.res;
     this.proxyRes = options.proxyRes || this.res;
 
-    this.proxyDownScale = this.res / this.proxyRes;
+    this.actualToProxyRatio = this.res / this.proxyRes;
     this.gridSize = this.size / this.res;
     this.texelSize = 1.0 / this.res;
 
@@ -50,7 +50,7 @@ function GpuSkulpt(options) {
         magFilter: THREE.LinearFilter,
         wrapS: THREE.ClampToEdgeWrapping,
         wrapT: THREE.ClampToEdgeWrapping,
-        format: THREE.RGBAFormat,  //TODO: change this back to RGB
+        format: THREE.RGBFormat,
         stencilBuffer: false,
         depthBuffer: false,
         type: THREE.FloatType
@@ -68,6 +68,7 @@ function GpuSkulpt(options) {
     };
 
     this.pixelByteData = new Uint8Array(this.res * this.res * 4);
+    this.proxyPixelByteData = new Uint8Array(this.proxyRes * this.proxyRes * 4);
 
     this.callbacks = {};
 
@@ -131,7 +132,7 @@ GpuSkulpt.prototype.__setupShaders = function () {
     THREE.ShaderManager.addShader('/glsl/encodeFloat.frag');
     this.rttEncodeFloatMaterial = new THREE.ShaderMaterial({
         uniforms: {
-            uTexture: { type: 't', value: null },
+            uTexture: { type: 't', value: null }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/encodeFloat.frag')
@@ -250,7 +251,7 @@ GpuSkulpt.prototype.update = function () {
 
         //check for the callback of type 'update'
         if (this.callbacks.hasOwnProperty('update')) {
-            var renderCallbacks = this.callbacks['update'];
+            var renderCallbacks = this.callbacks.update;
             var i, len;
             for (i = 0, len = renderCallbacks.length; i < len; i++) {
                 renderCallbacks[i]();
@@ -332,19 +333,16 @@ GpuSkulpt.prototype.hideCursor = function () {
     this.mesh.material.uniforms.uShowCursor.value = 0;
 };
 /**
- * Returns the pixel data for the render target texture
+ * Returns the pixel unsigned byte data for the render target texture (readPixels() can only return unsigned byte data)
  */
 GpuSkulpt.prototype.__getPixelByteDataForRenderTarget = function (renderTarget, pixelByteData, width, height) {
 
     //I need to read in pixel data from WebGLRenderTarget but there seems to be no direct way.
     //Seems like I have to do some native WebGL stuff with readPixels().
 
-
-
-    gl = this.renderer.getContext();
+    var gl = this.renderer.getContext();
 
     //bind texture to gl context
-    // gl.bindFramebuffer(gl.FRAMEBUFFER, this.rttFloatEncoderRenderTarget.__webglFramebuffer);
     gl.bindFramebuffer(gl.FRAMEBUFFER, renderTarget.__webglFramebuffer);
 
     //attach texture
@@ -356,43 +354,38 @@ GpuSkulpt.prototype.__getPixelByteDataForRenderTarget = function (renderTarget, 
     //unbind
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-    // return pixelByteData;
 };
 GpuSkulpt.prototype.__getPixelEncodedByteData = function (renderTarget, pixelByteData, width, height) {
 
     //encode the float data into an unsigned byte RGBA texture
     this.rttQuadMesh.material = this.rttEncodeFloatMaterial;
-    this.rttEncodeFloatMaterial.uniforms['uTexture'].value = renderTarget;
+    this.rttEncodeFloatMaterial.uniforms.uTexture.value = renderTarget;
     this.renderer.render(this.rttScene, this.rttCamera, this.rttFloatEncoderRenderTarget, false);
 
     this.__getPixelByteDataForRenderTarget(this.rttFloatEncoderRenderTarget, pixelByteData, width, height);
 };
 GpuSkulpt.prototype.getPixelFloatData = function () {
 
-    var pixelByteData = new Uint8Array(this.res * this.res * 4);
-
     //get the encoded byte data first
-    this.__getPixelEncodedByteData(this.rttCombinedLayer, pixelByteData, this.res, this.res);
+    this.__getPixelEncodedByteData(this.rttCombinedLayer, this.pixelByteData, this.res, this.res);
 
     //cast to float
-    var pixelFloatData = new Float32Array(pixelByteData.buffer);
+    var pixelFloatData = new Float32Array(this.pixelByteData.buffer);
     return pixelFloatData;
 };
 GpuSkulpt.prototype.getProxyPixelFloatData = function () {
 
-    var proxyPixelByteData = new Uint8Array(this.proxyRes * this.proxyRes * 4);
-
     //render to proxy render target
     this.rttQuadMesh.material = this.rttProxyMaterial;
-    this.rttProxyMaterial.uniforms['uTexture'].value = this.rttCombinedLayer;
-    this.rttProxyMaterial.uniforms['uScale'].value = this.proxyDownScale;
+    this.rttProxyMaterial.uniforms.uTexture.value = this.rttCombinedLayer;
+    this.rttProxyMaterial.uniforms.uScale.value = this.actualToProxyRatio;
     this.renderer.render(this.rttScene, this.rttCamera, this.rttProxyRenderTarget, false);
 
     //get the encoded byte data first
-    this.__getPixelEncodedByteData(this.rttProxyRenderTarget, proxyPixelByteData, this.proxyRes, this.proxyRes);
+    this.__getPixelEncodedByteData(this.rttProxyRenderTarget, this.proxyPixelByteData, this.proxyRes, this.proxyRes);
 
     //cast to float
-    var pixelFloatData = new Float32Array(proxyPixelByteData.buffer);
+    var pixelFloatData = new Float32Array(this.proxyPixelByteData.buffer);
     return pixelFloatData;
 };
 GpuSkulpt.prototype.addCallback = function (type, callbackFn) {

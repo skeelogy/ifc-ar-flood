@@ -278,8 +278,6 @@
 
 	var terrainGeom, terrainMaterial, terrainMesh, skulptTerrainMesh;
 	var gpuSkulpt;
-	var $sculptedTerrainTextureCanvasElem, $sculptedTerrainTextureCanvasContainer, sculptedTerrainTextureContext, sculptedTerrainTextureImage;
-	var $proxyTerrainTextureCanvasElem, $proxyTerrainTextureCanvasContainer, proxyTerrainTextureContext;
 	var terrainVisGeom, terrainVisMaterial, terrainVisMesh;
 	var proxyTerrainGeom, proxyTerrainMaterial, proxyTerrainMesh;
 	function setupSkulpt()
@@ -312,25 +310,6 @@
 
 		//change some parameters
 		gpuSkulpt.mesh.material.uniforms.uPointLightIntensity.value[1] = 0.2;
-
-		//create a canvas to handle the texture obtained from the sculpted terrain
-		$sculptedTerrainTextureCanvasElem = $(document.createElement('canvas'));
-		$sculptedTerrainTextureCanvasElem[0].id = 'sculptedTerrainImageCanvas';
-		$sculptedTerrainTextureCanvasElem[0].width = TERRAIN_RES;
-		$sculptedTerrainTextureCanvasElem[0].height = TERRAIN_RES;
-		$sculptedTerrainTextureCanvasContainer = $('#sculptedTerrainTextureCanvas-container');
-		$sculptedTerrainTextureCanvasContainer.append($sculptedTerrainTextureCanvasElem);
-		sculptedTerrainTextureContext = $sculptedTerrainTextureCanvasElem[0].getContext('2d');
-		sculptedTerrainTextureImage = sculptedTerrainTextureContext.createImageData(TERRAIN_RES, TERRAIN_RES);
-
-		//create a scaled-down canvas to scale (and flip) the texture obtained from the sculpted terrain
-		$proxyTerrainTextureCanvasElem = $(document.createElement('canvas'));
-		$proxyTerrainTextureCanvasElem[0].id = 'proxyTerrainImageCanvas';
-		$proxyTerrainTextureCanvasElem[0].width = PROXY_TERRAIN_RES;
-		$proxyTerrainTextureCanvasElem[0].height = PROXY_TERRAIN_RES;
-		$sculptedTerrainTextureCanvasContainer.append($proxyTerrainTextureCanvasElem);
-		proxyTerrainTextureContext = $proxyTerrainTextureCanvasElem[0].getContext('2d');
-		proxyTerrainTextureContext.scale(1, -1);  //flip the image veritcally
 
 		//create a RTT visualization plane
 		terrainVisGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);
@@ -943,10 +922,7 @@
 
 	function matchProxyToActualTerrain()
 	{
-	    //get pixel data from gpu skulpt and update the proxy geometry
-	    // var pixelEncodedByteData = gpuSkulpt.getPixelEncodedByteData();
-	    // // pixelEncodedByteData = resizeAndFlipData(pixelEncodedByteData);
-	    // var pixelFloatData = new Float32Array(pixelEncodedByteData.buffer);
+	    //get pixel float data from gpu skulpt and update the proxy geometry
 	    var pixelFloatData = gpuSkulpt.getProxyPixelFloatData();
 	    updateProxyTerrain(pixelFloatData);
 
@@ -955,35 +931,6 @@
 	    scene.remove(proxyTerrainMesh);  //TODO: check if there is a need to delete the mesh to free the memory
 	    createPhysijsHeightfieldMesh();
 	}
-
-	function resizeAndFlipData(pixelData)
-	{
-	    //draw pixelData to full-size canvas first
-	    drawDataToCanvas(pixelData, $sculptedTerrainTextureCanvasElem[0]);
-
-	    //draw pixelData to a scaled and vertically-flipped canvas
-        proxyTerrainTextureContext.drawImage($sculptedTerrainTextureCanvasElem[0], 0, 0, PROXY_TERRAIN_RES, -PROXY_TERRAIN_RES);
-
-	    //get data from the scaled canvas
-	    return proxyTerrainTextureContext.getImageData(0, 0, PROXY_TERRAIN_RES, PROXY_TERRAIN_RES).data;
-	}
-
-	function drawDataToCanvas(pixelData, canvas)
-	{
-        var context = canvas.getContext('2d');
-        imageData = context.getImageData(0, 0, canvas.width, canvas.height);  //assume that image data has already been created
-
-        var i, len;
-        for (i = 0, len = imageData.data.length; i < len; i += 4)
-        {
-            imageData.data[i + 0] = pixelData[i + 0];
-            imageData.data[i + 1] = pixelData[i + 1];
-            imageData.data[i + 2] = pixelData[i + 2];
-            imageData.data[i + 3] = pixelData[i + 3];
-        }
-
-        context.putImageData(imageData, 0, 0);
-    };
 
 	function updateProxyTerrain(pixelData)
 	{
@@ -1614,6 +1561,5 @@
 		<canvas id="debugCanvas" width="640" height="480"></canvas>
 	</div>
 	<div id="threejs-container"></div>
-	<div class="invisible" id="sculptedTerrainTextureCanvas-container"></div>
 </body>
 </html>
