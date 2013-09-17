@@ -307,6 +307,7 @@
 			mesh: terrainMesh,
 			size: TERRAIN_SIZE,
 			res: TERRAIN_RES,
+			proxyRes: PROXY_TERRAIN_RES
 		});
 
 		//change some parameters
@@ -943,9 +944,11 @@
 	function matchProxyToActualTerrain()
 	{
 	    //get pixel data from gpu skulpt and update the proxy geometry
-	    var pixelData = gpuSkulpt.getPixelData();
-	    pixelData = resizeAndFlipData(pixelData);
-	    updateProxyTerrain(pixelData);
+	    // var pixelEncodedByteData = gpuSkulpt.getPixelEncodedByteData();
+	    // // pixelEncodedByteData = resizeAndFlipData(pixelEncodedByteData);
+	    // var pixelFloatData = new Float32Array(pixelEncodedByteData.buffer);
+	    var pixelFloatData = gpuSkulpt.getProxyPixelFloatData();
+	    updateProxyTerrain(pixelFloatData);
 
 	    //update Physijs heightfield mesh
 	    //NOTE: have to recreate a new Physijs.HeightfieldMesh every time we change the vertex positions
@@ -976,7 +979,7 @@
             imageData.data[i + 0] = pixelData[i + 0];
             imageData.data[i + 1] = pixelData[i + 1];
             imageData.data[i + 2] = pixelData[i + 2];
-            imageData.data[i + 3] = 255;
+            imageData.data[i + 3] = pixelData[i + 3];
         }
 
         context.putImageData(imageData, 0, 0);
@@ -988,7 +991,7 @@
 	    var i, len;
 	    for (i = 0, len = v.length; i < len; i++)
 	    {
-	        v[i].z = pixelData[4 * i] / 255.0;
+	        v[i].z = pixelData[i];
 	    }
 	    proxyTerrainGeom.verticesNeedUpdate = true;
 	    // proxyTerrainGeom.computeFaceNormals();
