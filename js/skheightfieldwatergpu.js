@@ -63,9 +63,20 @@ function GpuHeightFieldWater(options) {
     this.sourceAmount = 0;
     this.sourceRadius = 0.0025 * this.size;
 
-    this.linearFloatParams = {
+    this.linearFloatRGBAParams = {
         minFilter: THREE.LinearFilter,
         magFilter: THREE.LinearFilter,
+        wrapS: THREE.ClampToEdgeWrapping,
+        wrapT: THREE.ClampToEdgeWrapping,
+        format: THREE.RGBAFormat,
+        stencilBuffer: false,
+        depthBuffer: false,
+        type: THREE.FloatType
+    };
+
+    this.nearestFloatRGBAParams = {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
         wrapS: THREE.ClampToEdgeWrapping,
         wrapT: THREE.ClampToEdgeWrapping,
         format: THREE.RGBAFormat,
@@ -79,11 +90,14 @@ function GpuHeightFieldWater(options) {
     this.boundaryTexture = new THREE.DataTexture(null, this.res, this.res, THREE.RGBAFormat, THREE.FloatType);
 
     //create an empty texture because the default value of textures does not seem to be 0?
-    this.emptyTexture = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatParams);
+    this.emptyTexture = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatRGBAParams);
     this.emptyTexture.generateMipmaps = false;
 
     //camera depth range (for obstacles)
     this.rttObstaclesCameraRange = 50.0;
+
+    this.pixelByteData = new Uint8Array(this.res * this.res * 4);
+    this.obstaclePixelByteData = new Uint8Array(this.res * this.res * 4);
 
     this.__initCounter = 5;
     this.init();
@@ -172,6 +186,15 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_obstacles.frag')
     });
 
+    THREE.ShaderManager.addShader('/glsl/encodeFloat.frag');
+    this.rttEncodeFloatMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTexture: { type: 't', value: null },
+            uChannelId: { type: 'i', value: 0 }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/encodeFloat.frag')
+    });
 };
 /**
  * Sets up the render-to-texture scene (2 render targets by default)
@@ -194,12 +217,16 @@ GpuHeightFieldWater.prototype.__setupRttScene = function () {
     this.rttScene.add(this.rttQuadMesh);
 
     //create RTT render targets (we need two to do feedback)
-    this.rttRenderTarget1 = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatParams);
+    this.rttRenderTarget1 = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatRGBAParams);
     this.rttRenderTarget1.generateMipmaps = false;
     this.rttRenderTarget2 = this.rttRenderTarget1.clone();
 
     //create a render target purely for display purposes
     this.rttDisplay = this.rttRenderTarget1.clone();
+
+    //create another RTT render target encoding float to 4-byte data
+    this.rttFloatEncoderRenderTarget = new THREE.WebGLRenderTarget(this.res, this.res, this.nearestFloatRGBAParams);
+    this.rttFloatEncoderRenderTarget.generateMipmaps = false;
 };
 /**
  * Sets up the vertex-texture-fetch for the given mesh
@@ -499,12 +526,13 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
             if (object.isDynamic) {
 
                 //find total water displaced (from B channel data)
-                var obstaclePixelData = that.__getPixelDataForRenderTarget(that.rttObstaclesRenderTarget);
+                that.__getPixelEncodedByteData(that.rttObstaclesRenderTarget, that.obstaclePixelByteData, 2, that.res, that.res);  //B channel
+                var obstaclePixelFloatData = new Float32Array(that.obstaclePixelByteData.buffer);
                 var i, len;
                 var sum = 0;
-                for (i = 0, len = obstaclePixelData.length; i < len; i += 4)
+                for (i = 0, len = obstaclePixelFloatData.length; i < len; i++)
                 {
-                    sum += obstaclePixelData[i + 2] / 255.0;  //B channel
+                    sum += obstaclePixelFloatData[i];
                 }
                 object.totalDisplacedHeight = sum;
 
@@ -542,16 +570,14 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
     });
 };
 /**
- * Returns the pixel data for the render target texture
+ * Returns the pixel unsigned byte data for the render target texture (readPixels() can only return unsigned byte data)
  */
-GpuHeightFieldWater.prototype.__getPixelDataForRenderTarget = function (renderTarget) {
+GpuHeightFieldWater.prototype.__getPixelByteDataForRenderTarget = function (renderTarget, pixelByteData, width, height) {
 
     //I need to read in pixel data from WebGLRenderTarget but there seems to be no direct way.
     //Seems like I have to do some native WebGL stuff with readPixels().
 
-    var pixelData = new Uint8Array(this.res * this.res * 4);
-
-    gl = this.renderer.getContext();
+    var gl = this.renderer.getContext();
 
     //bind texture to gl context
     gl.bindFramebuffer(gl.FRAMEBUFFER, renderTarget.__webglFramebuffer);
@@ -560,15 +586,33 @@ GpuHeightFieldWater.prototype.__getPixelDataForRenderTarget = function (renderTa
     // gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, renderTarget.__webglTexture, 0);
 
     //read pixels
-    gl.readPixels(0, 0, this.res, this.res, gl.RGBA, gl.UNSIGNED_BYTE, pixelData);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixelByteData);
 
     //unbind
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-    return pixelData;
 };
-GpuHeightFieldWater.prototype.getPixelData = function () {
-    return this.__getPixelDataForRenderTarget(this.rttRenderTarget1);
+GpuHeightFieldWater.prototype.__getPixelEncodedByteData = function (renderTarget, pixelByteData, channelId, width, height) {
+
+    //encode the float data into an unsigned byte RGBA texture
+    this.rttQuadMesh.material = this.rttEncodeFloatMaterial;
+    this.rttEncodeFloatMaterial.uniforms.uTexture.value = renderTarget;
+    this.rttEncodeFloatMaterial.uniforms.uChannelId.value = channelId;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttFloatEncoderRenderTarget, false);
+
+    this.__getPixelByteDataForRenderTarget(this.rttFloatEncoderRenderTarget, pixelByteData, width, height);
+};
+/**
+ * Returns the pixel float data for the main render target (R channel)
+ */
+GpuHeightFieldWater.prototype.getPixelFloatData = function () {
+
+    //get the encoded byte data first
+    this.__getPixelEncodedByteData(this.rttRenderTarget1, this.pixelByteData, 0, this.res, this.res);
+
+    //cast to float
+    var pixelFloatData = new Float32Array(this.pixelByteData.buffer);
+    return pixelFloatData;
 };
 
 /**
@@ -841,7 +885,7 @@ GpuPipeModelWater.prototype.__setupRttScene = function () {
     GpuHeightFieldWater.prototype.__setupRttScene.call(this);
 
     //create RTT render targets for flux (we need two to do feedback)
-    this.rttRenderTargetFlux1 = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatParams);
+    this.rttRenderTargetFlux1 = new THREE.WebGLRenderTarget(this.res, this.res, this.linearFloatRGBAParams);
     this.rttRenderTargetFlux1.generateMipmaps = false;
     this.rttRenderTargetFlux2 = this.rttRenderTargetFlux1.clone();
 

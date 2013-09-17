@@ -132,7 +132,8 @@ GpuSkulpt.prototype.__setupShaders = function () {
     THREE.ShaderManager.addShader('/glsl/encodeFloat.frag');
     this.rttEncodeFloatMaterial = new THREE.ShaderMaterial({
         uniforms: {
-            uTexture: { type: 't', value: null }
+            uTexture: { type: 't', value: null },
+            uChannelId: { type: 'i', value: 0 }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/encodeFloat.frag')
@@ -355,11 +356,12 @@ GpuSkulpt.prototype.__getPixelByteDataForRenderTarget = function (renderTarget, 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
 };
-GpuSkulpt.prototype.__getPixelEncodedByteData = function (renderTarget, pixelByteData, width, height) {
+GpuSkulpt.prototype.__getPixelEncodedByteData = function (renderTarget, pixelByteData, channelId, width, height) {
 
     //encode the float data into an unsigned byte RGBA texture
     this.rttQuadMesh.material = this.rttEncodeFloatMaterial;
     this.rttEncodeFloatMaterial.uniforms.uTexture.value = renderTarget;
+    this.rttEncodeFloatMaterial.uniforms.uChannelId.value = channelId;
     this.renderer.render(this.rttScene, this.rttCamera, this.rttFloatEncoderRenderTarget, false);
 
     this.__getPixelByteDataForRenderTarget(this.rttFloatEncoderRenderTarget, pixelByteData, width, height);
@@ -367,7 +369,7 @@ GpuSkulpt.prototype.__getPixelEncodedByteData = function (renderTarget, pixelByt
 GpuSkulpt.prototype.getPixelFloatData = function () {
 
     //get the encoded byte data first
-    this.__getPixelEncodedByteData(this.rttCombinedLayer, this.pixelByteData, this.res, this.res);
+    this.__getPixelEncodedByteData(this.rttCombinedLayer, this.pixelByteData, 0, this.res, this.res);  //R channel
 
     //cast to float
     var pixelFloatData = new Float32Array(this.pixelByteData.buffer);
@@ -382,7 +384,7 @@ GpuSkulpt.prototype.getProxyPixelFloatData = function () {
     this.renderer.render(this.rttScene, this.rttCamera, this.rttProxyRenderTarget, false);
 
     //get the encoded byte data first
-    this.__getPixelEncodedByteData(this.rttProxyRenderTarget, this.proxyPixelByteData, this.proxyRes, this.proxyRes);
+    this.__getPixelEncodedByteData(this.rttProxyRenderTarget, this.proxyPixelByteData, 0, this.proxyRes, this.proxyRes);  //R channel
 
     //cast to float
     var pixelFloatData = new Float32Array(this.proxyPixelByteData.buffer);
