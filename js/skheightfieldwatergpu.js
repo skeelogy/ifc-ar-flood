@@ -542,18 +542,25 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
                 that.maskWaterMaterial.uniforms.uTexture2.value = that.rttObstacleTopRenderTarget;
                 that.renderer.render(that.rttScene, that.rttCamera, that.rttObstaclesRenderTarget, false);
 
-                //find total velocity
-                // var waterPixelData = that.__getPixelDataForRenderTarget(that.rttMaskedWaterRenderTarget);
-                // var sumX = 0;
-                // var sumZ = 0;
-                // for (i = 0, len = waterPixelData.length; i < len; i += 4)
-                // {
-                    // sumX += waterPixelData[i + 1] / 255.0;  //G channel
-                    // sumZ += waterPixelData[i + 2] / 255.0;  //B channel
-                // }
-                // object.totalVelocityX = sumX;
-                // object.totalVelocityZ = sumZ;
-                // console.log(sumX);
+                //find total velocity in X
+                that.__getPixelEncodedByteData(that.rttObstaclesRenderTarget, that.obstaclePixelByteData, 1, that.res, that.res);  //G channel
+                obstaclePixelFloatData = new Float32Array(that.obstaclePixelByteData.buffer);
+                var sumX = 0;
+                for (i = 0, len = obstaclePixelFloatData.length; i < len; i++)
+                {
+                    sumX += obstaclePixelFloatData[i];
+                }
+                object.totalVelocityX = sumX;
+
+                //find total velocity in Z
+                that.__getPixelEncodedByteData(that.rttObstaclesRenderTarget, that.obstaclePixelByteData, 2, that.res, that.res);  //B channel
+                obstaclePixelFloatData = new Float32Array(that.obstaclePixelByteData.buffer);
+                var sumZ = 0;
+                for (i = 0, len = obstaclePixelFloatData.length; i < len; i++)
+                {
+                    sumZ += obstaclePixelFloatData[i];
+                }
+                object.totalVelocityZ = sumZ;
             }
 
             //hide current mesh

@@ -75,6 +75,7 @@
 	var WATER_DISTURB_AMOUNT = 0.04;
 	var WATER_DISTURB_RADIUS = 0.25;
     var WATER_DENSITY = 1000;  //1000 kg per cubic metres, for dual coupling
+    var WATER_HORIZ_VEL_SCALE = 0.01;
 
     var GRAVITATIONAL_ACC = -9.81;  //m per squared second
 
@@ -521,7 +522,8 @@
             if (dynObstacleMesh instanceof THREE.Mesh && dynObstacleMesh.isObstacle && dynObstacleMesh.isDynamic && dynObstacleMesh.totalDisplacedHeight > 0.0) {
                 totalDisplacedVol = dynObstacleMesh.totalDisplacedHeight * (WATER_GRID_SIZE * WATER_GRID_SIZE); //cubic metres
                 buoyancyForce = - totalDisplacedVol * WATER_DENSITY * GRAVITATIONAL_ACC;
-                force.set(dynObstacleMesh.totalVelocityX / dt, buoyancyForce, dynObstacleMesh.totalVelocityZ / dt);
+                var mass = dynObstacleMesh._physijs.mass;
+                force.set(dynObstacleMesh.totalVelocityX / dt * mass * WATER_HORIZ_VEL_SCALE, buoyancyForce, dynObstacleMesh.totalVelocityZ / dt * mass * WATER_HORIZ_VEL_SCALE);
                 dynObstacleMesh.applyCentralForce(force);
             }
         }
