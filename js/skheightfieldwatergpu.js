@@ -300,7 +300,10 @@ GpuHeightFieldWater.prototype.__setupObstaclesScene = function () {
     this.rttObstacleTopRenderTarget = this.rttRenderTarget1.clone();
     this.rttObstacleBottomRenderTarget = this.rttRenderTarget1.clone();
 
-    //create materials for rendering the obstacles
+    //create render target for masking out water areas based on obstacle's alpha
+    this.rttMaskedWaterRenderTarget = this.rttRenderTarget1.clone();
+
+    //create material for rendering the obstacles
     THREE.ShaderManager.addShader('/glsl/pass.vert');
     THREE.ShaderManager.addShader('/glsl/depth.frag');
     this.rttObstaclesDepthMaterial = new THREE.ShaderMaterial({
@@ -310,6 +313,17 @@ GpuHeightFieldWater.prototype.__setupObstaclesScene = function () {
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/pass.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/depth.frag')
+    });
+
+    //create material for masking out water texture
+    THREE.ShaderManager.addShader('/glsl/combineTexturesMask.frag');
+    this.maskWaterMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTexture1: { type: 't', value: this.emptyTexture },
+            uTexture2: { type: 't', value: this.emptyTexture },
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTexturesMask.frag')
     });
 };
 GpuHeightFieldWater.prototype.reset = function () {
@@ -481,16 +495,37 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
             that.obstaclesMaterial.uniforms.uTerrainTexture.value = that.terrainTexture;
             that.renderer.render(that.rttScene, that.rttCamera, that.rttObstaclesRenderTarget, false);
 
-            //if object is dynamic, find total water displaced (from B channel data)
+            //if object is dynamic, store some info
             if (object.isDynamic) {
-                var pixelData = that.getPixelData(that.rttObstaclesRenderTarget);
+
+                //find total water displaced (from B channel data)
+                var obstaclePixelData = that.__getPixelDataForRenderTarget(that.rttObstaclesRenderTarget);
                 var i, len;
                 var sum = 0;
-                for (i = 0, len = pixelData.length; i < len; i += 4)
+                for (i = 0, len = obstaclePixelData.length; i < len; i += 4)
                 {
-                    sum += pixelData[i + 2] / 255.0;
+                    sum += obstaclePixelData[i + 2] / 255.0;  //B channel
                 }
                 object.totalDisplacedHeight = sum;
+
+                //mask out velocity field using object's alpha
+                that.rttQuadMesh.material = that.maskWaterMaterial;
+                that.maskWaterMaterial.uniforms.uTexture1.value = that.rttRenderTarget1;
+                that.maskWaterMaterial.uniforms.uTexture2.value = that.rttObstacleTopRenderTarget;
+                that.renderer.render(that.rttScene, that.rttCamera, that.rttObstaclesRenderTarget, false);
+
+                //find total velocity
+                // var waterPixelData = that.__getPixelDataForRenderTarget(that.rttMaskedWaterRenderTarget);
+                // var sumX = 0;
+                // var sumZ = 0;
+                // for (i = 0, len = waterPixelData.length; i < len; i += 4)
+                // {
+                    // sumX += waterPixelData[i + 1] / 255.0;  //G channel
+                    // sumZ += waterPixelData[i + 2] / 255.0;  //B channel
+                // }
+                // object.totalVelocityX = sumX;
+                // object.totalVelocityZ = sumZ;
+                // console.log(sumX);
             }
 
             //hide current mesh
@@ -509,7 +544,7 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
 /**
  * Returns the pixel data for the render target texture
  */
-GpuHeightFieldWater.prototype.getPixelData = function (renderTarget) {
+GpuHeightFieldWater.prototype.__getPixelDataForRenderTarget = function (renderTarget) {
 
     //I need to read in pixel data from WebGLRenderTarget but there seems to be no direct way.
     //Seems like I have to do some native WebGL stuff with readPixels().
@@ -531,6 +566,9 @@ GpuHeightFieldWater.prototype.getPixelData = function (renderTarget) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     return pixelData;
+};
+GpuHeightFieldWater.prototype.getPixelData = function () {
+    return this.__getPixelDataForRenderTarget(this.rttRenderTarget1);
 };
 
 /**
@@ -765,7 +803,7 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
             uWaterTexture: { type: 't', value: this.emptyTexture },
             uFluxTexture: { type: 't', value: this.emptyTexture },
             uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
-            uSegmentSizeSquared: { type: 'f', value: this.segmentSizeSquared },
+            uSegmentSize: { type: 'f', value: this.segmentSize },
             uDt: { type: 'f', value: 0.0 },
             uMinWaterHeight: { type: 'f', value: this.minWaterHeight }
         },
