@@ -280,7 +280,7 @@
         // rttQuadMeshes[0].visible = false;
 	// }
 
-	function getPixelData() {
+	function getPixelData(width) {
 
         //I need to read in pixel data from WebGLRenderTarget but there seems to be no direct way.
         //Seems like I have to do some native WebGL stuff with readPixels().
@@ -293,7 +293,7 @@
         renderer.render(rttScene, rttCamera, rttRenderTarget1, false);
         rttQuadMeshes[0].visible = false;
 
-        var output = new Uint8Array(WIDTH * WIDTH * 4);
+        var output = new Uint8Array(width * width * 4);
 
         gl = renderer.getContext();
 
@@ -301,7 +301,7 @@
         gl.bindFramebuffer(gl.FRAMEBUFFER, rttRenderTarget1.__webglFramebuffer);
 
         //read pixels
-        gl.readPixels(0, 0, WIDTH, WIDTH, gl.RGBA, gl.UNSIGNED_BYTE, output);
+        gl.readPixels(0, WIDTH - width, width, width, gl.RGBA, gl.UNSIGNED_BYTE, output);
 
         //unbind
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -341,15 +341,11 @@
         // renderer.render(scene, rttCamera);
 
         //read data from bottom-left square (based on final level) and print out the results
-        var pixelData = getPixelData();
-        var i, j;
-        for (j = WIDTH-1; j >= WIDTH-currWidth; j--)
+        var pixelData = getPixelData(currWidth);
+        var i, len;
+        for (i = 0, len = pixelData.length; i < len; i++)
         {
-            for (i = 0; i < currWidth; i++)
-            {
-                var index = j * WIDTH + i;
-                gpuSum += pixelData[index];
-            }
+            gpuSum += pixelData[i];
         }
         var end = new Date().getTime();
         var timeTaken = (end - start) / 1000;
