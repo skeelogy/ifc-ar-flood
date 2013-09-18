@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>IFC - GLSL Parallel Sum Reduction Test</title>
+	<meta charset="UTF-8"/>
+
+	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" href="/css/style.css">
+	<style type="text/css">
+		#stats { position: absolute; top:0; left: 0 }
+		#stats #fps { background: transparent !important }
+		#stats #fps #fpsText { color: #aaa !important }
+		#stats #fps #fpsGraph { display: block }
+	</style>
+
+	<!--load helper libraries-->
+	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+
+	<!--load AR and 3D libraries-->
+	<script type="text/javascript" src="/js/lib/three.min.js"></script>
+	<script type="text/javascript" src="/js/lib/Detector.js"></script>
+	<script type="text/javascript" src="/js/ShaderManager.js"></script>
+
+	<script>
+
+	var WIDTH = 1024;
+	var stopWidth = 2;  //min of 2
+
+	var clock = new THREE.Clock();
+
+	function checkWebGl()
+	{
+		//check for WebGL
+		if (!Detector.webgl)
+		{
+			$('div').remove();
+			Detector.addGetWebGLMessage();
+			throw new Error('Your browser does not seem to support WebGL');
+		}
+	}
+
+	function checkExtensions(renderer)
+	{
+	    var context = renderer.context;
+        if (!context.getExtension('OES_texture_float_linear')) {
+            throw new Error('Extension not available: OES_texture_float_linear');
+        }
+	}
+
+	var renderer, scene;
+	var rttScene, rttCamera, rttRenderTarget1, rttRenderTarget2;
+	var rttParallelSumMaterial, rttEncodeFloatMaterial;
+	var size = 1;  //doesn't really matter what this value is
+	var rttQuadMeshes = [];
+	// var quadMeshes = [];
+	function setupRttScene()
+	{
+	    //create renderer
+		renderer = new THREE.WebGLRenderer();
+		renderer.setSize(320, 320);
+		renderer.setClearColor('#000000', 0);
+		checkExtensions(renderer);
+		// var $container = $('#threejs-container');
+		// $container.append(renderer.domElement);
+
+		scene = new THREE.Scene();
+
+	    //create a RTT scene
+	    rttScene = new THREE.Scene();
+
+	    //create an orthographic RTT camera
+	    var halfSize = size / 2.0;
+	    var far = 10000;
+	    var near = -far;
+	    rttCamera = new THREE.OrthographicCamera(-halfSize, halfSize, halfSize, -halfSize, near, far);
+
+	    // //quad material for quads that are meant for viewing (debugging)
+	    // var quadMeshMaterial = new THREE.MeshBasicMaterial({
+            // color:'#3366FF',
+            // map: THREE.ImageUtils.loadTexture('/resources/images/uv_checker.png')
+        // })
+
+	    //create quads of different sizes to invoke the shaders
+	    var w;
+	    var newMaxUv = 1.0;
+	    var scale = 1.0;
+	    var dummyTexture = new THREE.Texture();
+	    for (w = WIDTH; w > 1; w /= 2)
+	    {
+	        //generate the plane geom
+	        var rttQuadGeom = new THREE.PlaneGeometry(size, size);
+            rttQuadGeom.faceVertexUvs[0][0][0].set(0.0, 1.0);
+            rttQuadGeom.faceVertexUvs[0][0][1].set(0.0, 1.0 - newMaxUv);
+            rttQuadGeom.faceVertexUvs[0][0][2].set(newMaxUv, 1.0 - newMaxUv);
+            rttQuadGeom.faceVertexUvs[0][0][3].set(newMaxUv, 1.0);
+            rttQuadGeom.applyMatrix(new THREE.Matrix4().makeTranslation(0.5 * size, -0.5 * size, 0.0));
+            rttQuadGeom.applyMatrix(new THREE.Matrix4().makeScale(scale, scale, scale));
+            rttQuadGeom.applyMatrix(new THREE.Matrix4().makeTranslation(-0.5 * size, 0.5 * size, 0.0));
+
+            //add mesh
+            //have to load with a dummy map, or else we will get this WebGL error when we swap to another material with a texture:
+            //"glDrawElements: attempt to access out of range vertices in attribute"
+            //http://stackoverflow.com/questions/16531759/three-js-map-material-causes-webgl-warning
+            var rttQuadMesh = new THREE.Mesh(rttQuadGeom, new THREE.MeshBasicMaterial({map: dummyTexture}));
+            rttQuadMesh.visible = false;
+            rttScene.add(rttQuadMesh);
+            rttQuadMeshes.push(rttQuadMesh);
+
+            // //also add the same quad to the main scene to see how much it covers the screen
+            // quadMesh = new THREE.Mesh(rttQuadGeom, quadMeshMaterial);
+            // quadMesh.visible = false;
+            // scene.add(quadMesh);
+            // quadMeshes.push(quadMesh);
+
+            newMaxUv /= 2.0;
+            scale /= 2.0;
+	    }
+
+	    // quadMeshes[1].visible = true;
+
+	    //create shader materials
+	    THREE.ShaderManager.addShader('/glsl/passUv.vert');
+		THREE.ShaderManager.addShader('/glsl/parallelSum.frag');
+	    rttParallelSumMaterial = new THREE.ShaderMaterial({
+	        uniforms: {
+	            uTexture: { type: 't', value: null },
+	            uTexelSize: { type: 'f', value: 0 },
+	            uHalfTexelSize: { type: 'f', value: 0 }
+	        },
+	        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/parallelSum.frag')
+	    });
+
+	    THREE.ShaderManager.addShader('/glsl/passUv.vert');
+	    THREE.ShaderManager.addShader('/glsl/encodeFloat.frag');
+	    rttEncodeFloatMaterial = new THREE.ShaderMaterial({
+	        uniforms: {
+	            uTexture: { type: 't', value: null },
+	        },
+	        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/encodeFloat.frag')
+	    });
+
+	    //create RTT render targets (we need two to do feedback)
+	    var linearFloatParams = {
+            minFilter: THREE.NearestFilter,
+            magFilter: THREE.NearestFilter,
+            wrapS: THREE.ClampToEdgeWrapping,
+            wrapT: THREE.ClampToEdgeWrapping,
+            format: THREE.RGBAFormat,
+            stencilBuffer: false,
+            depthBuffer: false,
+            type: THREE.FloatType
+        };
+	    rttRenderTarget1 = new THREE.WebGLRenderTarget(WIDTH, WIDTH, linearFloatParams);
+	    rttRenderTarget1.generateMipmaps = false;
+	    rttRenderTarget2 = rttRenderTarget1.clone();
+	}
+
+	function swapRenderTargets()
+	{
+	    var temp = rttRenderTarget1;
+	    rttRenderTarget1 = rttRenderTarget2;
+	    rttRenderTarget2 = temp;
+	}
+
+	var numValues = WIDTH * WIDTH;
+	var values = [];
+	var cpuSum = gpuSum = 0;
+	var dataTexture;
+	function setupNumbers()
+	{
+	    var text = 'Num values: ' + WIDTH + ' x ' + WIDTH;
+	    $('#results-container').append('<p>'+text+'</p>');
+	    console.log(text);
+
+	    //create numbers and find their sum using CPU
+	    var i, j;
+	    for (i = 0; i < numValues; i++)
+	    {
+	        values.push(i);
+	    }
+	    // for (i = 0; i < WIDTH / 2.0; i++)
+	    // {
+	        // for (j = 0; j < WIDTH / 2.0; j++)
+	        // {
+	            // var index = j * WIDTH + i;
+	            // values[index] = index;
+	        // }
+	    // }
+
+	    //calulate the sum and time it
+	    var start = new Date().getTime();
+	    for (i = 0; i < numValues; i++)
+	    {
+	        cpuSum += values[i];
+	    }
+	    var end = new Date().getTime();
+	    var timeTaken = (end - start) / 1000;
+	    text = 'CPU sum: ' + cpuSum.toFixed(2) + ' (' + timeTaken.toFixed(3) + ' seconds)';
+	    $('#results-container').append('<p>'+text+'</p>');
+	    console.log(text);
+
+	    //pack these data into array
+	    dataTextureData = new Float32Array(4 * numValues);
+	    for (i = 0; i < numValues; i++)
+	    {
+	        dataTextureData[4 * i] = values[i];  //store in R channel will do
+	    }
+
+	    //create a DataTexture to feed into the RTT system
+        dataTexture = new THREE.DataTexture(dataTextureData, WIDTH, WIDTH, THREE.RGBAFormat, THREE.FloatType);
+        dataTexture.needsUpdate = true;
+
+        // console.log(dataTexture.image.data);
+	}
+
+	var currWidth;
+	function doParallelReduction()
+	{
+	    var firstIteration = true;
+	    var texture;
+	    var newMaxUv = 1.0;
+	    currWidth = WIDTH;
+	    var texelSize = 1.0 / WIDTH;
+	    var level = 1;
+	    while (currWidth > stopWidth)
+	    {
+	        //reduce width by half
+            currWidth /= 2;
+	        console.log('currWidth: ' + currWidth);
+
+            //render to do parallel reduction
+            swapRenderTargets();
+            texture = firstIteration ? dataTexture : rttRenderTarget2;
+            rttQuadMeshes[level].visible = true;
+	        rttQuadMeshes[level].material = rttParallelSumMaterial;
+	        rttParallelSumMaterial.uniforms['uTexture'].value = texture;
+	        rttParallelSumMaterial.uniforms['uTexelSize'].value = texelSize;
+	        rttParallelSumMaterial.uniforms['uHalfTexelSize'].value = texelSize / 2.0;
+            renderer.render(rttScene, rttCamera, rttRenderTarget1, false);
+            rttQuadMeshes[level].visible = false;
+
+            level += 1;
+
+            firstIteration = false;
+	    }
+	}
+
+	// function oneIteration()  //for debugging purposes only
+	// {
+        // rttQuadMeshes[1].visible = true;
+        // rttQuadMeshes[1].material = rttParallelSumMaterial;
+        // rttParallelSumMaterial.uniforms['uTexture'].value = dataTexture;
+        // rttParallelSumMaterial.uniforms['uTexelSize'].value = 1.0 / WIDTH;
+        // rttParallelSumMaterial.uniforms['uHalfTexelSize'].value = 1.0 / WIDTH / 2.0;
+        // renderer.render(rttScene, rttCamera, rttRenderTarget1, false);
+        // rttQuadMeshes[1].visible = false;
+	// }
+
+	// function oneIterationStartingFromQuarterQuad()  //for debugging purposes only
+	// {
+        // rttQuadMeshes[2].visible = true;
+        // rttQuadMeshes[2].material = rttParallelSumMaterial;
+        // rttParallelSumMaterial.uniforms['uTexture'].value = dataTexture;
+        // rttParallelSumMaterial.uniforms['uTexelSize'].value = 1.0 / WIDTH;
+        // rttParallelSumMaterial.uniforms['uHalfTexelSize'].value = 1.0 / WIDTH / 2.0;
+        // renderer.render(rttScene, rttCamera, rttRenderTarget1, false);
+        // rttQuadMeshes[2].visible = false;
+	// }
+
+	// function fullScreenRead()  //for debugging purposes only
+	// {
+        // rttQuadMeshes[0].visible = true;
+        // rttQuadMeshes[0].material = rttParallelSumMaterial;
+        // rttParallelSumMaterial.uniforms['uTexture'].value = dataTexture;
+        // rttParallelSumMaterial.uniforms['uTexelSize'].value = 1.0 / WIDTH;
+        // rttParallelSumMaterial.uniforms['uTexelSize'].value = 1.0 / WIDTH / 2.0;
+        // renderer.render(rttScene, rttCamera, rttRenderTarget1, false);
+        // rttQuadMeshes[0].visible = false;
+	// }
+
+	function getPixelData() {
+
+        //I need to read in pixel data from WebGLRenderTarget but there seems to be no direct way.
+        //Seems like I have to do some native WebGL stuff with readPixels().
+
+        //need to first render the float data into an unsigned byte RGBA texture
+        swapRenderTargets();
+        rttQuadMeshes[0].visible = true;
+        rttQuadMeshes[0].material = rttEncodeFloatMaterial;
+        rttEncodeFloatMaterial.uniforms['uTexture'].value = rttRenderTarget2;
+        renderer.render(rttScene, rttCamera, rttRenderTarget1, false);
+        rttQuadMeshes[0].visible = false;
+
+        var output = new Uint8Array(WIDTH * WIDTH * 4);
+
+        gl = renderer.getContext();
+
+        //bind texture to gl context
+        gl.bindFramebuffer(gl.FRAMEBUFFER, rttRenderTarget1.__webglFramebuffer);
+
+        //read pixels
+        gl.readPixels(0, 0, WIDTH, WIDTH, gl.RGBA, gl.UNSIGNED_BYTE, output);
+
+        //unbind
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        //cast to float
+        var floatData = new Float32Array(output.buffer);
+
+        return floatData;
+    };
+
+	var x, z;
+	$(document).ready(function()
+	{
+		//check for WebGL
+		checkWebGl();
+
+		console.log('Document is ready.');
+
+		//setup RTT scene
+		setupRttScene();
+
+		//setup numbers
+		setupNumbers();
+
+		//do parallel reduction
+        renderer.autoClear = false;
+        renderer.clear();
+        renderer.clearTarget(rttRenderTarget1);
+        renderer.clearTarget(rttRenderTarget2);
+        var start = new Date().getTime();
+        doParallelReduction();
+        // oneIteration();
+        // oneIterationStartingFromQuarterQuad();
+        // fullScreenRead();
+
+        //render main scene to check coverage of the quad
+        // renderer.render(scene, rttCamera);
+
+        //read data from bottom-left square (based on final level) and print out the results
+        var pixelData = getPixelData();
+        var i, j;
+        for (j = WIDTH-1; j >= WIDTH-currWidth; j--)
+        {
+            for (i = 0; i < currWidth; i++)
+            {
+                var index = j * WIDTH + i;
+                gpuSum += pixelData[index];
+            }
+        }
+        var end = new Date().getTime();
+        var timeTaken = (end - start) / 1000;
+	    var text = 'GPU sum: ' + gpuSum.toFixed(2) + ' (' + timeTaken.toFixed(3) + ' seconds)';
+	    $('#results-container').append('<p>'+text+'</p>');
+	    console.log(text);
+	    // console.log(pixelData);
+
+        var percentageError = (gpuSum - cpuSum) / cpuSum * 100;
+        var text = 'Percentage error: ' + percentageError.toFixed(5) + '%';
+	    $('#results-container').append('<p>'+text+'</p>');
+	    console.log(text);
+
+        //main loop
+		// function loop()
+		// {
+		    // //render the scene
+		    // renderer.autoClear = false;
+		    // renderer.clear();
+		    // renderer.render(scene, rttCamera);
+            // requestAnimationFrame(loop);
+		// }
+		// loop();
+	});
+	</script>
+</head>
+<body>
+    <h1>GLSL Parallel Sum Reduction in Three.js</h1>
+	<div id="threejs-container"></div>
+	<div><h2 id="results-container" class="container"></h2></div>
+	<div>
+	    <canvas id="mainCanvas" WIDTH="128" height="128"></canvas>
+	</div>
+</body>
+</html>
