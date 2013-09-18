@@ -23,8 +23,8 @@
 
 	<script>
 
-	var WIDTH = 1024;
-	var stopWidth = 2;  //min of 2
+	var WIDTH = 1024;  //must be power of 2
+	var stopWidth = 1;  //min of 1
 
 	var clock = new THREE.Clock();
 
@@ -85,7 +85,7 @@
 	    var newMaxUv = 1.0;
 	    var scale = 1.0;
 	    var dummyTexture = new THREE.Texture();
-	    for (w = WIDTH; w > 1; w /= 2)
+	    for (w = WIDTH; w >= 1; w /= 2)
 	    {
 	        //generate the plane geom
 	        var rttQuadGeom = new THREE.PlaneGeometry(size, size);
