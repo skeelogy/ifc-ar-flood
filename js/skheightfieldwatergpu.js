@@ -540,7 +540,7 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
 
                 //TODO: reduce the number of texture reads to speed up (getPixels() is very expensive)
 
-                //find total water volume displaced (from B channel data)
+                //find total water volume displaced by this object (from B channel data)
                 ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 2);  //B channel
                 object.__skhfwater.totalDisplacedVol = ParallelReducer.getPixelFloatData(2)[0] * that.segmentSizeSquared;  //cubic metres
 
@@ -548,19 +548,19 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
                 that.rttQuadMesh.material = that.maskWaterMaterial;
                 that.maskWaterMaterial.uniforms.uTexture1.value = that.rttRenderTarget1;
                 that.maskWaterMaterial.uniforms.uTexture2.value = that.rttObstacleTopRenderTarget;
-                that.renderer.render(that.rttScene, that.rttCamera, that.rttObstaclesRenderTarget, false);
+                that.renderer.render(that.rttScene, that.rttCamera, that.rttMaskedWaterRenderTarget, false);
 
-                //find total horizontal velocities
-                ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 1);  //G channel
+                //find total horizontal velocities affecting this object
+                ParallelReducer.reduce(that.rttMaskedWaterRenderTarget, 'sum', 1);  //G channel
                 object.__skhfwater.totalVelocityX = ParallelReducer.getPixelFloatData(1)[0];
-                ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 2);  //B channel
+                ParallelReducer.reduce(that.rttMaskedWaterRenderTarget, 'sum', 2);  //B channel
                 object.__skhfwater.totalVelocityZ = ParallelReducer.getPixelFloatData(2)[0];
 
-                //calculate total area covered
+                //calculate total area covered by this object
                 ParallelReducer.reduce(that.rttObstacleTopRenderTarget, 'sum', 4);  //A channel
                 object.__skhfwater.totalArea = ParallelReducer.getPixelFloatData(4)[0];
 
-                //calculate average velocities
+                //calculate average velocities affecting this object
                 if (object.__skhfwater.totalArea === 0.0) {
                     object.__skhfwater.averageVelocityX = 0;
                     object.__skhfwater.averageVelocityZ = 0;
@@ -569,7 +569,7 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
                     object.__skhfwater.averageVelocityZ = object.__skhfwater.totalVelocityZ / object.__skhfwater.totalArea;
                 }
 
-                //finally, calculate forces
+                //finally, calculate forces that should be exerted on this object
                 object.__skhfwater.forceX = object.__skhfwater.averageVelocityX / dt * object.__skhfwater.mass;
                 object.__skhfwater.forceY = object.__skhfwater.totalDisplacedVol * that.density * that.gravity;
                 object.__skhfwater.forceZ = object.__skhfwater.averageVelocityZ / dt * object.__skhfwater.mass;
