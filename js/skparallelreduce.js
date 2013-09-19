@@ -5,12 +5,14 @@
  *
  * Example Usage:
  * ParallelReducer.init(myWebGLRenderer, 1024, 1);
- * ParallelReducer.reduce(myRenderTarget, 'sum');
+ * ParallelReducer.reduce(renderTargetToReduce, 'sum', 0);  //reduce data in the R channel
  * var resultArray = ParallelReducer.getPixelFloatData();
+ * (sum data from resultArray...)
+ *
  */
 
-//FIXME: pixel access still has some problems, causing interpolated values to appear. Does not matter to 'sum' mode for some reason, but other modes like 'max' not work.
-//TODO: do a vertical flip of UVs before going into shaders, so that there's no need to constantly flip the V coordinates
+//FIXME: pixel access still has some problems, causing interpolated values to appear. Does not matter to 'sum' mode for some reason, but other modes like 'max' will not work.
+//TODO: do a vertical flip of UVs before going into shaders, so that there's no need to constantly flip the v coordinates
 
 var ParallelReducer = {
 
@@ -109,7 +111,8 @@ var ParallelReducer = {
 	        uniforms: {
 	            uTexture: { type: 't', value: null },
 	            uTexelSize: { type: 'f', value: 0 },
-	            uHalfTexelSize: { type: 'f', value: 0 }
+	            uHalfTexelSize: { type: 'f', value: 0 },
+	            uChannelId: { type: 'i', value: 0 }
 	        },
 	        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
 	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/parallelSum.frag')
@@ -118,7 +121,8 @@ var ParallelReducer = {
 	    THREE.ShaderManager.addShader('/glsl/encodeFloat.frag');
 	    this.rttEncodeFloatMaterial = new THREE.ShaderMaterial({
 	        uniforms: {
-	            uTexture: { type: 't', value: null }
+	            uTexture: { type: 't', value: null },
+	            uChannelId: { type: 'i', value: 0 }
 	        },
 	        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
 	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/encodeFloat.frag')
@@ -146,7 +150,7 @@ var ParallelReducer = {
 	    this.rttRenderTarget2 = temp;
 	},
 
-	reduce: function (texture, type) {
+	reduce: function (texture, type, channelId) {
 	    var currMaterial = this.rttMaterials[type];
 	    var firstIteration = true;
 	    var texelSize = 1.0 / this.res;
@@ -165,6 +169,7 @@ var ParallelReducer = {
 	        currMaterial.uniforms.uTexture.value = firstIteration ? texture : this.rttRenderTarget2;
 	        currMaterial.uniforms.uTexelSize.value = texelSize;
 	        currMaterial.uniforms.uHalfTexelSize.value = texelSize / 2.0;
+	        currMaterial.uniforms.uChannelId.value = channelId;
             this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
             this.rttQuadMeshes[level].visible = false;
 
@@ -174,7 +179,7 @@ var ParallelReducer = {
 	    }
 	},
 
-	getPixelFloatData: function () {
+	getPixelFloatData: function (channelId) {
 
         //I need to read in pixel data from WebGLRenderTarget but there seems to be no direct way.
         //Seems like I have to do some native WebGL stuff with readPixels().
@@ -184,6 +189,7 @@ var ParallelReducer = {
         this.rttQuadMeshes[0].visible = true;
         this.rttQuadMeshes[0].material = this.rttEncodeFloatMaterial;
         this.rttEncodeFloatMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
+        this.rttEncodeFloatMaterial.uniforms.uChannelId.value = channelId;
         this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
         this.rttQuadMeshes[0].visible = false;
 

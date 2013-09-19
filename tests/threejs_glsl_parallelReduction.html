@@ -107,8 +107,8 @@
         var i, len;
         gpuSum = 0;
         var start = new Date().getTime();
-        ParallelReducer.reduce(dataTexture, 'sum');
-        var pixelFloatData = ParallelReducer.getPixelFloatData();
+        ParallelReducer.reduce(dataTexture, 'sum', 0);
+        var pixelFloatData = ParallelReducer.getPixelFloatData(0);
         for (i = 0, len = pixelFloatData.length; i < len; i++)
         {
             gpuSum += pixelFloatData[i];
