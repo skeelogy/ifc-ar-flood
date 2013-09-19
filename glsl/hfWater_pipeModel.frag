@@ -44,15 +44,15 @@ void main() {
 
     avgWaterHeight = 0.5 * (avgWaterHeight + tWater.r);  //this will get the average height of that from before and after the change
 
-    //calculate horizontal velocities
-    //horizontal velocity comes from amount of water passing through per unit time
+    //calculate horizontal velocities, from amount of water passing through per unit time
     if (avgWaterHeight == 0.0) {  //prevent division by 0
         tWater.g = 0.0;
         tWater.b = 0.0;
     } else {
+        float threshold = float(tWater.r > 0.2);  //0/1 threshold value for masking out weird velocities at terrain edges
         float segmentSizeTimesAvgWaterHeight = uSegmentSize * avgWaterHeight;
-        tWater.g = 0.5 * (tFluxPixelLeft.r - tFlux.g + tFlux.r - tFluxPixelRight.g) / segmentSizeTimesAvgWaterHeight;
-        tWater.b = 0.5 * (tFluxPixelTop.b - tFlux.a + tFlux.b - tFluxPixelBottom.a) / segmentSizeTimesAvgWaterHeight;
+        tWater.g = threshold * 0.5 * (tFluxPixelLeft.r - tFlux.g + tFlux.r - tFluxPixelRight.g) / segmentSizeTimesAvgWaterHeight;
+        tWater.b = threshold * 0.5 * (tFluxPixelTop.b - tFlux.a + tFlux.b - tFluxPixelBottom.a) / segmentSizeTimesAvgWaterHeight;
     }
 
     //write out to texture for next step
