@@ -467,15 +467,27 @@ GpuHeightFieldWater.prototype.addStaticObstacle = function (mesh) {
     if (!(mesh instanceof THREE.Mesh)) {
         throw new Error('mesh must be of type THREE.Mesh');
     }
-    mesh.isObstacle = true;
-    mesh.isDynamic = false;
+
+    if (!mesh.__skhfwater) {
+        mesh.__skhfwater = {};
+    }
+    mesh.__skhfwater.isObstacle = true;
+    mesh.__skhfwater.isDynamic = false;
+    mesh.__skhfwater.mass = 0;
 };
-GpuHeightFieldWater.prototype.addDynamicObstacle = function (mesh) {
+GpuHeightFieldWater.prototype.addDynamicObstacle = function (mesh, mass) {
     if (!(mesh instanceof THREE.Mesh)) {
         throw new Error('mesh must be of type THREE.Mesh');
     }
-    mesh.isObstacle = true;
-    mesh.isDynamic = true;
+    if (typeof mass === 'undefined') {
+        throw new Error('mass not specified');
+    }
+    if (!mesh.__skhfwater) {
+        mesh.__skhfwater = {};
+    }
+    mesh.__skhfwater.isObstacle = true;
+    mesh.__skhfwater.isDynamic = true;
+    mesh.__skhfwater.mass = mass;
 };
 GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
 
@@ -490,9 +502,6 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
     scene.traverse(function (object) {
         object.visibleStore = object.visible;
         object.visible = false;
-        if (object instanceof THREE.Mesh && object.isObstacle) {
-            object.totalDisplacedHeight = 0;
-        }
     });
 
     //set an override depth map material for the scene
@@ -502,7 +511,7 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
 
     //render top & bottom of each obstacle and compare to current water texture
     scene.traverse(function (object) {
-        if (object instanceof THREE.Mesh && object.isObstacle) {
+        if (object instanceof THREE.Mesh && object.__skhfwater && object.__skhfwater.isObstacle) {
 
             //show current mesh
             object.visible = true;
@@ -527,11 +536,13 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
             that.renderer.render(that.rttScene, that.rttCamera, that.rttObstaclesRenderTarget, false);
 
             //if object is dynamic, store additional info
-            if (object.isDynamic) {
+            if (object.__skhfwater.isDynamic) {
+
+                //TODO: reduce the number of texture reads to speed up (getPixels() is very expensive)
 
                 //find total water volume displaced (from B channel data)
                 ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 2);  //B channel
-                object.totalDisplacedVol = ParallelReducer.getPixelFloatData(2)[0] * that.segmentSizeSquared;  //cubic metres
+                object.__skhfwater.totalDisplacedVol = ParallelReducer.getPixelFloatData(2)[0] * that.segmentSizeSquared;  //cubic metres
 
                 //mask out velocity field using object's alpha
                 that.rttQuadMesh.material = that.maskWaterMaterial;
@@ -541,27 +552,27 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
 
                 //find total horizontal velocities
                 ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 1);  //G channel
-                object.totalVelocityX = ParallelReducer.getPixelFloatData(1)[0];
+                object.__skhfwater.totalVelocityX = ParallelReducer.getPixelFloatData(1)[0];
                 ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 2);  //B channel
-                object.totalVelocityZ = ParallelReducer.getPixelFloatData(2)[0];
+                object.__skhfwater.totalVelocityZ = ParallelReducer.getPixelFloatData(2)[0];
 
                 //calculate total area covered
                 ParallelReducer.reduce(that.rttObstacleTopRenderTarget, 'sum', 4);  //A channel
-                object.totalArea = ParallelReducer.getPixelFloatData(4)[0];
+                object.__skhfwater.totalArea = ParallelReducer.getPixelFloatData(4)[0];
 
                 //calculate average velocities
-                if (object.totalArea === 0.0) {
-                    object.averageVelocityX = 0;
-                    object.averageVelocityZ = 0;
+                if (object.__skhfwater.totalArea === 0.0) {
+                    object.__skhfwater.averageVelocityX = 0;
+                    object.__skhfwater.averageVelocityZ = 0;
                 } else {
-                    object.averageVelocityX = object.totalVelocityX / object.totalArea;
-                    object.averageVelocityZ = object.totalVelocityZ / object.totalArea;
+                    object.__skhfwater.averageVelocityX = object.__skhfwater.totalVelocityX / object.__skhfwater.totalArea;
+                    object.__skhfwater.averageVelocityZ = object.__skhfwater.totalVelocityZ / object.__skhfwater.totalArea;
                 }
 
                 //finally, calculate forces
-                object.forceX = object.averageVelocityX / dt * object.skhfMass;
-                object.forceY = object.totalDisplacedVol * that.density * that.gravity;
-                object.forceZ = object.averageVelocityZ / dt * object.skhfMass;
+                object.__skhfwater.forceX = object.__skhfwater.averageVelocityX / dt * object.__skhfwater.mass;
+                object.__skhfwater.forceY = object.__skhfwater.totalDisplacedVol * that.density * that.gravity;
+                object.__skhfwater.forceZ = object.__skhfwater.averageVelocityZ / dt * object.__skhfwater.mass;
 
             }
 
