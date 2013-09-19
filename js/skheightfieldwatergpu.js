@@ -40,6 +40,7 @@ function GpuHeightFieldWater(options) {
         }
     });
     this.meanHeight = options.meanHeight || 0;
+    this.density = options.density || 1000;  //default to 1000 kg per cubic metres
 
     //number of full steps to take per frame, to speed up some of algorithms that are slow to propagate at high mesh resolutions.
     //this is different from substeps which are reduces dt per step for stability.
@@ -476,7 +477,7 @@ GpuHeightFieldWater.prototype.addDynamicObstacle = function (mesh) {
     mesh.isObstacle = true;
     mesh.isDynamic = true;
 };
-GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
+GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
 
     //clear obstacle textures
     this.rttQuadMesh.material = this.resetMaterial;
@@ -525,20 +526,12 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
             that.obstaclesMaterial.uniforms.uTerrainTexture.value = that.terrainTexture;
             that.renderer.render(that.rttScene, that.rttCamera, that.rttObstaclesRenderTarget, false);
 
-            //if object is dynamic, store some info
+            //if object is dynamic, store additional info
             if (object.isDynamic) {
 
-                //find total water displaced (from B channel data)
-                // that.__getPixelEncodedByteData(that.rttObstaclesRenderTarget, that.obstaclePixelByteData, 2, that.res, that.res);  //B channel
-                // var obstaclePixelFloatData = new Float32Array(that.obstaclePixelByteData.buffer);
-                // var i, len;
-                // var sum = 0;
-                // for (i = 0, len = obstaclePixelFloatData.length; i < len; i++) {
-                    // sum += obstaclePixelFloatData[i];
-                // }
-                // object.totalDisplacedHeight = sum;
+                //find total water volume displaced (from B channel data)
                 ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 2);  //B channel
-                object.totalDisplacedHeight = ParallelReducer.getPixelFloatData(2)[0];
+                object.totalDisplacedVol = ParallelReducer.getPixelFloatData(2)[0] * that.segmentSizeSquared;  //cubic metres
 
                 //mask out velocity field using object's alpha
                 that.rttQuadMesh.material = that.maskWaterMaterial;
@@ -546,27 +539,29 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
                 that.maskWaterMaterial.uniforms.uTexture2.value = that.rttObstacleTopRenderTarget;
                 that.renderer.render(that.rttScene, that.rttCamera, that.rttObstaclesRenderTarget, false);
 
-                //find total velocity in X
-                // that.__getPixelEncodedByteData(that.rttObstaclesRenderTarget, that.obstaclePixelByteData, 1, that.res, that.res);  //G channel
-                // obstaclePixelFloatData = new Float32Array(that.obstaclePixelByteData.buffer);
-                // var sumX = 0;
-                // for (i = 0, len = obstaclePixelFloatData.length; i < len; i++) {
-                    // sumX += obstaclePixelFloatData[i];
-                // }
-                // object.totalVelocityX = sumX;
+                //find total horizontal velocities
                 ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 1);  //G channel
                 object.totalVelocityX = ParallelReducer.getPixelFloatData(1)[0];
-
-                //find total velocity in Z
-                // that.__getPixelEncodedByteData(that.rttObstaclesRenderTarget, that.obstaclePixelByteData, 2, that.res, that.res);  //B channel
-                // obstaclePixelFloatData = new Float32Array(that.obstaclePixelByteData.buffer);
-                // var sumZ = 0;
-                // for (i = 0, len = obstaclePixelFloatData.length; i < len; i++) {
-                    // sumZ += obstaclePixelFloatData[i];
-                // }
-                // object.totalVelocityZ = sumZ;
                 ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 2);  //B channel
                 object.totalVelocityZ = ParallelReducer.getPixelFloatData(2)[0];
+
+                //calculate total area covered
+                ParallelReducer.reduce(that.rttObstacleTopRenderTarget, 'sum', 4);  //A channel
+                object.totalArea = ParallelReducer.getPixelFloatData(4)[0];
+
+                //calculate average velocities
+                if (object.totalArea === 0.0) {
+                    object.averageVelocityX = 0;
+                    object.averageVelocityZ = 0;
+                } else {
+                    object.averageVelocityX = object.totalVelocityX / object.totalArea;
+                    object.averageVelocityZ = object.totalVelocityZ / object.totalArea;
+                }
+
+                //finally, calculate forces
+                object.forceX = object.averageVelocityX / dt * object.skhfMass;
+                object.forceY = object.totalDisplacedVol * that.density * that.gravity;
+                object.forceZ = object.averageVelocityZ / dt * object.skhfMass;
 
             }
 
@@ -815,7 +810,6 @@ function GpuPipeModelWater(options) {
     this.terrainTexture = options.terrainTexture || this.emptyTexture;
 
     //some constants
-    this.density = 1;
     this.atmosPressure = 0;  //assume one constant atmos pressure throughout
     this.pipeLength = this.segmentSize;
     this.pipeCrossSectionArea = this.pipeLength * this.pipeLength;  //square cross-section area

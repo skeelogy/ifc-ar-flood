@@ -78,7 +78,6 @@
 	var WATER_DISTURB_AMOUNT = 0.04;
 	var WATER_DISTURB_RADIUS = 0.25;
     var WATER_DENSITY = 1000;  //1000 kg per cubic metres, for dual coupling
-    var WATER_HORIZ_VEL_SCALE = 0.01;
 
     var GRAVITATIONAL_ACC = -9.81;  //m per squared second
 
@@ -455,7 +454,8 @@
 			res: WATER_RES,
 			dampingFactor: 0.995,
 			initialWaterHeight: 0.1,
-			terrainTexture: gpuSkulpt.rttCombinedLayer
+			terrainTexture: gpuSkulpt.rttCombinedLayer,
+			density: WATER_DENSITY
 		});
 
 		//create a RTT visualization plane for the water
@@ -522,11 +522,9 @@
         for (i = 0, len = dynObstacleMeshes.length; i < len; i++)
         {
             dynObstacleMesh = dynObstacleMeshes[i];
-            if (dynObstacleMesh instanceof THREE.Mesh && dynObstacleMesh.isObstacle && dynObstacleMesh.isDynamic && dynObstacleMesh.totalDisplacedHeight > 0.0) {
-                totalDisplacedVol = dynObstacleMesh.totalDisplacedHeight * (WATER_GRID_SIZE * WATER_GRID_SIZE); //cubic metres
-                buoyancyForce = - totalDisplacedVol * WATER_DENSITY * GRAVITATIONAL_ACC;
-                var mass = dynObstacleMesh._physijs.mass;
-                force.set(dynObstacleMesh.totalVelocityX / dt * mass * WATER_HORIZ_VEL_SCALE, buoyancyForce, dynObstacleMesh.totalVelocityZ / dt * mass * WATER_HORIZ_VEL_SCALE);
+            if (dynObstacleMesh instanceof THREE.Mesh && dynObstacleMesh.isObstacle && dynObstacleMesh.isDynamic && dynObstacleMesh.totalDisplacedVol > 0.0) {
+
+                force.set(dynObstacleMesh.forceX, dynObstacleMesh.forceY, dynObstacleMesh.forceZ);
                 dynObstacleMesh.applyCentralForce(force);
             }
         }
@@ -699,6 +697,7 @@
         cubeDynObstacleMesh.position.set(x, y, z);
         scene.add(cubeDynObstacleMesh);
         cubeDynObstacleMesh.setDamping(0.9, 0.9);  //can only call this after adding to scene
+        cubeDynObstacleMesh.skhfMass = cubeMass;  //this is for dual coupling with water sim
 
         gpuWater.addDynamicObstacle(cubeDynObstacleMesh);
         dynObstacleMeshes.push(cubeDynObstacleMesh);
@@ -1530,7 +1529,7 @@
                 renderer.autoClear = false;
                 renderer.clear();
                 gpuSkulpt.update();
-                gpuWater.updateObstacleTexture(scene);  //TODO: determine if this should be called automatically in gpu water's update()
+                gpuWater.updateObstacleTexture(dt, scene);  //TODO: determine if this should be called automatically in gpu water's update()
                 gpuWater.update(dt);
                 handleDualCoupling(dt);
                 renderer.render(scene, camera);
