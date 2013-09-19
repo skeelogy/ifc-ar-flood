@@ -114,6 +114,9 @@ GpuHeightFieldWater.prototype.init = function () {
     this.__setupRttScene();
     this.__setupVtf();
     this.__initDataAndTextures();
+
+    //init parallel reducer
+    ParallelReducer.init(this.renderer, this.res, 1);
 };
 GpuHeightFieldWater.prototype.getWaterFragmentShaderUrl = function () {
     throw new Error('Abstract method not implemented');
@@ -526,15 +529,16 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
             if (object.isDynamic) {
 
                 //find total water displaced (from B channel data)
-                that.__getPixelEncodedByteData(that.rttObstaclesRenderTarget, that.obstaclePixelByteData, 2, that.res, that.res);  //B channel
-                var obstaclePixelFloatData = new Float32Array(that.obstaclePixelByteData.buffer);
-                var i, len;
-                var sum = 0;
-                for (i = 0, len = obstaclePixelFloatData.length; i < len; i++)
-                {
-                    sum += obstaclePixelFloatData[i];
-                }
-                object.totalDisplacedHeight = sum;
+                // that.__getPixelEncodedByteData(that.rttObstaclesRenderTarget, that.obstaclePixelByteData, 2, that.res, that.res);  //B channel
+                // var obstaclePixelFloatData = new Float32Array(that.obstaclePixelByteData.buffer);
+                // var i, len;
+                // var sum = 0;
+                // for (i = 0, len = obstaclePixelFloatData.length; i < len; i++) {
+                    // sum += obstaclePixelFloatData[i];
+                // }
+                // object.totalDisplacedHeight = sum;
+                ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 2);  //B channel
+                object.totalDisplacedHeight = ParallelReducer.getPixelFloatData(2)[0];
 
                 //mask out velocity field using object's alpha
                 that.rttQuadMesh.material = that.maskWaterMaterial;
@@ -543,24 +547,27 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (scene) {
                 that.renderer.render(that.rttScene, that.rttCamera, that.rttObstaclesRenderTarget, false);
 
                 //find total velocity in X
-                that.__getPixelEncodedByteData(that.rttObstaclesRenderTarget, that.obstaclePixelByteData, 1, that.res, that.res);  //G channel
-                obstaclePixelFloatData = new Float32Array(that.obstaclePixelByteData.buffer);
-                var sumX = 0;
-                for (i = 0, len = obstaclePixelFloatData.length; i < len; i++)
-                {
-                    sumX += obstaclePixelFloatData[i];
-                }
-                object.totalVelocityX = sumX;
+                // that.__getPixelEncodedByteData(that.rttObstaclesRenderTarget, that.obstaclePixelByteData, 1, that.res, that.res);  //G channel
+                // obstaclePixelFloatData = new Float32Array(that.obstaclePixelByteData.buffer);
+                // var sumX = 0;
+                // for (i = 0, len = obstaclePixelFloatData.length; i < len; i++) {
+                    // sumX += obstaclePixelFloatData[i];
+                // }
+                // object.totalVelocityX = sumX;
+                ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 1);  //G channel
+                object.totalVelocityX = ParallelReducer.getPixelFloatData(1)[0];
 
                 //find total velocity in Z
-                that.__getPixelEncodedByteData(that.rttObstaclesRenderTarget, that.obstaclePixelByteData, 2, that.res, that.res);  //B channel
-                obstaclePixelFloatData = new Float32Array(that.obstaclePixelByteData.buffer);
-                var sumZ = 0;
-                for (i = 0, len = obstaclePixelFloatData.length; i < len; i++)
-                {
-                    sumZ += obstaclePixelFloatData[i];
-                }
-                object.totalVelocityZ = sumZ;
+                // that.__getPixelEncodedByteData(that.rttObstaclesRenderTarget, that.obstaclePixelByteData, 2, that.res, that.res);  //B channel
+                // obstaclePixelFloatData = new Float32Array(that.obstaclePixelByteData.buffer);
+                // var sumZ = 0;
+                // for (i = 0, len = obstaclePixelFloatData.length; i < len; i++) {
+                    // sumZ += obstaclePixelFloatData[i];
+                // }
+                // object.totalVelocityZ = sumZ;
+                ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 2);  //B channel
+                object.totalVelocityZ = ParallelReducer.getPixelFloatData(2)[0];
+
             }
 
             //hide current mesh
