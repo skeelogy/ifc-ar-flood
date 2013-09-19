@@ -112,7 +112,7 @@ var ParallelReducer = {
 	            uTexture: { type: 't', value: null },
 	            uTexelSize: { type: 'f', value: 0 },
 	            uHalfTexelSize: { type: 'f', value: 0 },
-	            uChannelId: { type: 'i', value: 0 }
+	            uChannelId: { type: 'v4', value: new THREE.Vector4() }
 	        },
 	        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
 	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/parallelSum.frag')
@@ -122,11 +122,18 @@ var ParallelReducer = {
 	    this.rttEncodeFloatMaterial = new THREE.ShaderMaterial({
 	        uniforms: {
 	            uTexture: { type: 't', value: null },
-	            uChannelId: { type: 'i', value: 0 }
+	            uChannelId: { type: 'v4', value: new THREE.Vector4() }
 	        },
 	        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
 	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/encodeFloat.frag')
 	    });
+
+	    this.channelVectors = {
+            'r': new THREE.Vector4(1, 0, 0, 0),
+            'g': new THREE.Vector4(0, 1, 0, 0),
+            'b': new THREE.Vector4(0, 0, 1, 0),
+            'a': new THREE.Vector4(0, 0, 0, 1)
+        };
 
 	    //create RTT render targets
 	    this.nearestFloatRGBAParams = {
@@ -169,7 +176,7 @@ var ParallelReducer = {
 	        currMaterial.uniforms.uTexture.value = firstIteration ? texture : this.rttRenderTarget2;
 	        currMaterial.uniforms.uTexelSize.value = texelSize;
 	        currMaterial.uniforms.uHalfTexelSize.value = texelSize / 2.0;
-	        currMaterial.uniforms.uChannelId.value = channelId;
+	        currMaterial.uniforms.uChannelId.value.copy(this.channelVectors[channelId]);
             this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
             this.rttQuadMeshes[level].visible = false;
 
@@ -189,7 +196,7 @@ var ParallelReducer = {
         this.rttQuadMeshes[0].visible = true;
         this.rttQuadMeshes[0].material = this.rttEncodeFloatMaterial;
         this.rttEncodeFloatMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
-        this.rttEncodeFloatMaterial.uniforms.uChannelId.value = channelId;
+        this.rttEncodeFloatMaterial.uniforms.uChannelId.value.copy(this.channelVectors[channelId]);
         this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
         this.rttQuadMeshes[0].visible = false;
 

@@ -1,10 +1,11 @@
 //Fragment shader that encodes float value in input R channel to 4 unsigned bytes in output RGBA channels
-//Original GLSL codes from Piotr Janik:
+//author: Skeel Lee <skeel@skeelogy.com>
+//Most of this code is from original GLSL codes from Piotr Janik, only slight modifications are done to fit my needs
 //http://concord-consortium.github.io/lab/experiments/webgl-gpgpu/script.js
 //Using method 1 of the code.
 
 uniform sampler2D uTexture;
-uniform int uChannelId;
+uniform vec4 uChannelId;
 
 varying vec2 vUv;
 
@@ -52,7 +53,6 @@ vec4 encode_float(float val) {
 }
 
 void main() {
-    vec4 data = texture2D(uTexture, vUv);
-    float dataToEncode = uChannelId == 0 ? data.r : (uChannelId == 1 ? data.g : (uChannelId == 2 ? data.b : data.a));
-    gl_FragColor = encode_float(dataToEncode);
+    vec4 t = texture2D(uTexture, vUv);
+    gl_FragColor = encode_float(dot(t, uChannelId));
 }

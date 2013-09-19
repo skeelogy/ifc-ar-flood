@@ -194,11 +194,18 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
     this.rttEncodeFloatMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: null },
-            uChannelId: { type: 'i', value: 0 }
+            uChannelId: { type: 'v4', value: new THREE.Vector4() }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/encodeFloat.frag')
     });
+
+    this.channelVectors = {
+        'r': new THREE.Vector4(1, 0, 0, 0),
+        'g': new THREE.Vector4(0, 1, 0, 0),
+        'b': new THREE.Vector4(0, 0, 1, 0),
+        'a': new THREE.Vector4(0, 0, 0, 1)
+    };
 };
 /**
  * Sets up the render-to-texture scene (2 render targets by default)
@@ -540,9 +547,9 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
 
                 //TODO: reduce the number of texture reads to speed up (getPixels() is very expensive)
 
-                //find total water volume displaced by this object (from B channel data)
-                ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 2);  //B channel
-                object.__skhfwater.totalDisplacedVol = ParallelReducer.getPixelFloatData(2)[0] * that.segmentSizeSquared;  //cubic metres
+                //find total water volume displaced by this object (from A channel data)
+                ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 'a');
+                object.__skhfwater.totalDisplacedVol = ParallelReducer.getPixelFloatData('a')[0] * that.segmentSizeSquared;  //cubic metres
 
                 //mask out velocity field using object's alpha
                 that.rttQuadMesh.material = that.maskWaterMaterial;
@@ -551,14 +558,14 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
                 that.renderer.render(that.rttScene, that.rttCamera, that.rttMaskedWaterRenderTarget, false);
 
                 //find total horizontal velocities affecting this object
-                ParallelReducer.reduce(that.rttMaskedWaterRenderTarget, 'sum', 1);  //G channel
-                object.__skhfwater.totalVelocityX = ParallelReducer.getPixelFloatData(1)[0];
-                ParallelReducer.reduce(that.rttMaskedWaterRenderTarget, 'sum', 2);  //B channel
-                object.__skhfwater.totalVelocityZ = ParallelReducer.getPixelFloatData(2)[0];
+                ParallelReducer.reduce(that.rttMaskedWaterRenderTarget, 'sum', 'g');
+                object.__skhfwater.totalVelocityX = ParallelReducer.getPixelFloatData('g')[0];
+                ParallelReducer.reduce(that.rttMaskedWaterRenderTarget, 'sum', 'b');
+                object.__skhfwater.totalVelocityZ = ParallelReducer.getPixelFloatData('b')[0];
 
                 //calculate total area covered by this object
-                ParallelReducer.reduce(that.rttObstacleTopRenderTarget, 'sum', 4);  //A channel
-                object.__skhfwater.totalArea = ParallelReducer.getPixelFloatData(4)[0];
+                ParallelReducer.reduce(that.rttObstacleTopRenderTarget, 'sum', 'a');
+                object.__skhfwater.totalArea = ParallelReducer.getPixelFloatData('a')[0];
 
                 //calculate average velocities affecting this object
                 if (object.__skhfwater.totalArea === 0.0) {
@@ -617,7 +624,7 @@ GpuHeightFieldWater.prototype.__getPixelEncodedByteData = function (renderTarget
     //encode the float data into an unsigned byte RGBA texture
     this.rttQuadMesh.material = this.rttEncodeFloatMaterial;
     this.rttEncodeFloatMaterial.uniforms.uTexture.value = renderTarget;
-    this.rttEncodeFloatMaterial.uniforms.uChannelId.value = channelId;
+    this.rttEncodeFloatMaterial.uniforms.uChannelId.value.copy(this.channelVectors[channelId]);
     this.renderer.render(this.rttScene, this.rttCamera, this.rttFloatEncoderRenderTarget, false);
 
     this.__getPixelByteDataForRenderTarget(this.rttFloatEncoderRenderTarget, pixelByteData, width, height);
@@ -628,7 +635,7 @@ GpuHeightFieldWater.prototype.__getPixelEncodedByteData = function (renderTarget
 GpuHeightFieldWater.prototype.getPixelFloatData = function () {
 
     //get the encoded byte data first
-    this.__getPixelEncodedByteData(this.rttRenderTarget1, this.pixelByteData, 0, this.res, this.res);
+    this.__getPixelEncodedByteData(this.rttRenderTarget1, this.pixelByteData, 'r', this.res, this.res);
 
     //cast to float
     var pixelFloatData = new Float32Array(this.pixelByteData.buffer);
