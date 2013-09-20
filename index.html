@@ -101,9 +101,10 @@
 		'/resources/images/terrain/clouds_256.png': { 'preblur':0, 'height':2, 'midGreyIsLowest':false }
 	}
 	var objects = {
-		'Bench': 49,
+		'Dice': 66,
 		'Police Car': 31,
-		'House': 63
+		'Bench': 49,
+		'House': 63,
 	};
 
 	var options = {
@@ -807,7 +808,7 @@
             //for objects
 		    if (isAddingObject)
 		    {
-		        objectsAddObjectConfirm();
+		        objectsAddObjectConfirm(currTransform);
 		        isAddingObject = false;
 		    }
 		    else if (isRemovingObject)
@@ -1113,6 +1114,8 @@
 
 		control = objectsFolder.add(options, 'objectsObject', objects).name('Object');
 
+		control = objectsFolder.add(options, 'objectsIsDynamic').name('Dynamic').listen();
+
 		control = objectsFolder.add(options, 'objectsAddObject').name('Add From Selection');
 
 		control = objectsFolder.add(options, 'objectsRemoveObject').name('Remove');
@@ -1370,10 +1373,19 @@
     {
         transform.position.copy(position);
 
-        //read in terrain height and shift up in Y
-        var pixelFloatData = gpuSkulpt.getPixelFloatData();
+        //read in terrain height
+        //TODO: read this in once until terrain has been sculpted
+        var terrainPixelFloatData = gpuSkulpt.getPixelFloatData();
         var index = getPixelIndex(position);
-        transform.position.y = pixelFloatData[index];
+
+        //shift up in Y
+        transform.position.y = terrainPixelFloatData[index];
+        if (options.objectsIsDynamic)
+        {
+            //for dynamic objects, shift object N units above water level
+            var waterPixelFloatData = gpuWater.getPixelFloatData();
+            transform.position.y += waterPixelFloatData[index] + 0.5;
+        }
     }
 
     function getPixelIndex(position)
@@ -1383,9 +1395,69 @@
         return (row * TERRAIN_RES) + col;
     }
 
-    function objectsAddObjectConfirm()
+    function objectsAddObjectConfirm(transform)
     {
         isAddingObject = false;
+
+        //for dynamic objects:
+        if (options.objectsIsDynamic)  //TODO: this should be stored in object when created
+        {
+            var origMesh = transform.children[0];
+
+            //remove from Object3D
+            transform.remove(origMesh);
+
+            //convert into Physijs mesh
+            //TODO: these should be read in from JSON file
+            var friction = 0.8;
+            var restitution = 0.1;
+            var mass = 50;
+            var linearDamping = 0.95;
+            var angularDamping = 0.5;
+            var physijsMesh = createPhysijsMeshFromThreejsMesh(origMesh, transform.position, {
+                mass: mass,
+                friction: friction,
+                restitution: restitution,
+                linearDamping: linearDamping,
+                angularDamping: angularDamping
+            });
+            dynObstacleMeshes.push(physijsMesh);
+
+            //register this mesh as a dynamic obstacle with gpu water
+            gpuWater.addDynamicObstacle(physijsMesh, mass);
+
+            //TODO: delete origMesh
+        }
+    }
+
+    function createPhysijsMeshFromThreejsMesh(mesh, position, params)
+    {
+        //TODO: check for defaults
+        var mass = params.mass;
+        var friction = params.friction;
+        var restitution = params.restitution;
+        var linearDamping = params.linearDamping;
+        var angularDamping = params.angularDamping;
+
+        //get geometry
+        var geometry = mesh.geometry;
+
+        //create Physijs material out of the existing material
+		var material = Physijs.createMaterial(
+			mesh.material,
+			friction,
+			restitution
+		);
+		// materials.push(material);
+
+		//create the Physijs mesh (assume everything is using ConvexMesh)
+		var physijsMesh = new Physijs.ConvexMesh(geometry, material, mass);
+        physijsMesh.position.copy(position);
+        // physijsMesh.visible = false;
+        scene.add(physijsMesh);
+        physijsMesh.setDamping(linearDamping, angularDamping);  //can only call this after adding to scene
+
+        return physijsMesh;
     }
 
     var isRemovingObject = false;

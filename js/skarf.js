@@ -400,7 +400,7 @@ ModelLoader.prototype.transformAndParent = function (model, object, markerTransf
 
     //apply the transforms
     if (object) {
-        object.applyMatrix(m);
+        object.geometry.applyMatrix(m);
         markerTransform.add(object);
 
         //store the material in markerManager
