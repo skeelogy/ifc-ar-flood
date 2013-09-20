@@ -16,7 +16,8 @@ void main() {
     //read texture from previous step
     //r channel: whether in obstacle or not (accumulated)
     //g channel: height of water displaced (accumulated)
-    //b channel: height of water displaced (only for current rendered object)
+    //b channel: height of water displaced from previous step (accumulated)
+    //a channel: height of water displaced (only for current rendered object)
     vec4 t = texture2D(uObstaclesTexture, vUv);
 
     //read texture for obstacle
@@ -53,5 +54,5 @@ void main() {
     }
 
     //write out to texture for next step
-    gl_FragColor = vec4(max(t.r, float(inObstacle)), t.g + displacedHeight, displacedHeight, 1);
+    gl_FragColor = vec4(max(t.r, float(inObstacle)), t.g + displacedHeight, t.b, displacedHeight);
 }

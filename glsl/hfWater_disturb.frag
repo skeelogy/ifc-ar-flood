@@ -3,6 +3,7 @@
 
 uniform sampler2D uTexture;
 uniform sampler2D uObstaclesTexture;
+uniform sampler2D uDisturbTexture;
 
 //disturb is masked by obstacles
 uniform int uIsDisturbing;
@@ -43,6 +44,11 @@ void main() {
         float len = length(vUv - vec2(uSourcePos.x, 1.0 - uSourcePos.y));
         t.r += uSourceAmount * (1.0 - smoothstep(0.0, uSourceRadius, len));
     }
+
+    //read disturb texture and just add this amount into the system
+    //r channel: disturb amount
+    vec4 tDisturb = texture2D(uDisturbTexture, vUv);
+    t.r += tDisturb.r; // * (1.0 - tObstacles.r);  //but still has to mask the insides of obstacles
 
     if (uIsFlooding == 1) {
         t.r += uFloodAmount;
