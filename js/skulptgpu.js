@@ -376,7 +376,7 @@ GpuSkulpt.prototype.__getPixelEncodedByteData = function (renderTarget, pixelByt
 GpuSkulpt.prototype.getPixelFloatData = function () {
 
     //get the encoded byte data first
-    this.__getPixelEncodedByteData(this.rttCombinedLayer, this.pixelByteData, 0, this.res, this.res);  //R channel
+    this.__getPixelEncodedByteData(this.rttCombinedLayer, this.pixelByteData, 'r', this.res, this.res);
 
     //cast to float
     var pixelFloatData = new Float32Array(this.pixelByteData.buffer);
@@ -391,7 +391,7 @@ GpuSkulpt.prototype.getProxyPixelFloatData = function () {
     this.renderer.render(this.rttScene, this.rttCamera, this.rttProxyRenderTarget, false);
 
     //get the encoded byte data first
-    this.__getPixelEncodedByteData(this.rttProxyRenderTarget, this.proxyPixelByteData, 'r', this.proxyRes, this.proxyRes);  //R channel
+    this.__getPixelEncodedByteData(this.rttProxyRenderTarget, this.proxyPixelByteData, 'r', this.proxyRes, this.proxyRes);
 
     //cast to float
     var pixelFloatData = new Float32Array(this.proxyPixelByteData.buffer);
