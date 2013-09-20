@@ -48,7 +48,7 @@ void main() {
     //read disturb texture and just add this amount into the system
     //r channel: disturb amount
     vec4 tDisturb = texture2D(uDisturbTexture, vUv);
-    t.r += tDisturb.r; // * (1.0 - tObstacles.r);  //but still has to mask the insides of obstacles
+    t.r += tDisturb.r; // * (1.0 - tObstacles.r);  //masking with obstacles look more choppy?
 
     if (uIsFlooding == 1) {
         t.r += uFloodAmount;

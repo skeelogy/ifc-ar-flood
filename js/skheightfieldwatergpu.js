@@ -206,7 +206,7 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
     THREE.ShaderManager.addShader('/glsl/encodeFloat.frag');
     this.rttEncodeFloatMaterial = new THREE.ShaderMaterial({
         uniforms: {
-            uTexture: { type: 't', value: null },
+            uTexture: { type: 't', value: this.emptyTexture },
             uChannelId: { type: 'v4', value: new THREE.Vector4() }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
@@ -216,7 +216,7 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
     THREE.ShaderManager.addShader('/glsl/copyChannels.frag');
     this.copyChannelsMaterial = new THREE.ShaderMaterial({
         uniforms: {
-            uTexture: { type: 't', value: null },
+            uTexture: { type: 't', value: this.emptyTexture },
             uOriginChannelId: { type: 'v4', value: new THREE.Vector4() },
             uDestChannelId: { type: 'v4', value: new THREE.Vector4() }
         },
@@ -227,11 +227,41 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
     THREE.ShaderManager.addShader('/glsl/hfWater_calcDisturbMap.frag');
     this.calcDisturbMapMaterial = new THREE.ShaderMaterial({
         uniforms: {
-            uTexture: { type: 't', value: null },
+            uTexture: { type: 't', value: this.emptyTexture },
             uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_calcDisturbMap.frag')
+    });
+
+    THREE.ShaderManager.addShader('/glsl/gaussianBlurX.frag');
+    this.gaussianBlurXMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTexture: { type: 't', value: this.emptyTexture },
+            uTexelSize: { type: 'f', value: this.texelSize }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/gaussianBlurX.frag')
+    });
+
+    THREE.ShaderManager.addShader('/glsl/gaussianBlurY.frag');
+    this.gaussianBlurYMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTexture: { type: 't', value: this.emptyTexture },
+            uTexelSize: { type: 'f', value: this.texelSize }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/gaussianBlurY.frag')
+    });
+
+    THREE.ShaderManager.addShader('/glsl/combineTextures.frag');
+    this.combineTexturesMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTexture1: { type: 't', value: this.emptyTexture },
+            uTexture2: { type: 't', value: this.emptyTexture },
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTextures.frag')
     });
 
     this.channelVectors = {
@@ -272,6 +302,10 @@ GpuHeightFieldWater.prototype.__setupRttScene = function () {
     //create another RTT render target encoding float to 4-byte data
     this.rttFloatEncoderRenderTarget = new THREE.WebGLRenderTarget(this.res, this.res, this.nearestFloatRGBAParams);
     this.rttFloatEncoderRenderTarget.generateMipmaps = false;
+
+    //some render targets for blurred textures
+    this.rttCombinedHeightsBlurredRenderTarget = this.rttRenderTarget1.clone();
+    this.rttObstaclesBlurredRenderTarget = this.rttRenderTarget1.clone();
 
     //create render target for storing the disturbed map (due to interaction with rigid bodes)
     this.rttDisturbMapRenderTarget = this.rttRenderTarget1.clone();
@@ -550,6 +584,20 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
     this.resetMaskedMaterial.uniforms.uChannelMask.value.set(1, 1, 0, 1);  //don't clear B channel which stores previous displaced vol
     this.renderer.render(this.rttScene, this.rttCamera, this.rttObstaclesRenderTarget, false);
 
+    //combine water and terrain heights into one and then blur it
+    this.rttQuadMesh.material = this.combineTexturesMaterial;
+    this.combineTexturesMaterial.uniforms.uTexture1.value = this.rttRenderTarget2;
+    this.combineTexturesMaterial.uniforms.uTexture2.value = this.terrainTexture;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttCombinedHeightsBlurredRenderTarget, false);
+    this.rttQuadMesh.material = this.gaussianBlurXMaterial;
+    this.gaussianBlurXMaterial.uniforms.uTexture.value = this.rttCombinedHeightsBlurredRenderTarget;
+    this.gaussianBlurXMaterial.uniforms.uTexelSize.value = 1.0 / this.res;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttCombinedHeightsBlurredRenderTarget, false);
+    this.rttQuadMesh.material = this.gaussianBlurYMaterial;
+    this.gaussianBlurYMaterial.uniforms.uTexture.value = this.rttCombinedHeightsBlurredRenderTarget;
+    this.gaussianBlurYMaterial.uniforms.uTexelSize.value = 1.0 / this.res;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttCombinedHeightsBlurredRenderTarget, false);
+
     var that = this;
 
     //hide and reset everything in scene
@@ -585,8 +633,8 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
             that.obstaclesMaterial.uniforms.uObstaclesTexture.value = that.rttObstaclesRenderTarget;
             that.obstaclesMaterial.uniforms.uObstacleTopTexture.value = that.rttObstacleTopRenderTarget;
             that.obstaclesMaterial.uniforms.uObstacleBottomTexture.value = that.rttObstacleBottomRenderTarget;
-            that.obstaclesMaterial.uniforms.uWaterTexture.value = that.rttRenderTarget2;
-            that.obstaclesMaterial.uniforms.uTerrainTexture.value = that.terrainTexture;
+            that.obstaclesMaterial.uniforms.uWaterTexture.value = that.rttCombinedHeightsBlurredRenderTarget;  //use blurred heights
+            that.obstaclesMaterial.uniforms.uTerrainTexture.value = that.emptyTexture;
             that.renderer.render(that.rttScene, that.rttCamera, that.rttObstaclesRenderTarget, false);
 
             //if object is dynamic, store additional info
@@ -645,9 +693,19 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
 
     //post process the accumulated texture data:
 
+    //blur the obstacles map
+    this.rttQuadMesh.material = this.gaussianBlurXMaterial;
+    this.gaussianBlurXMaterial.uniforms.uTexture.value = this.rttObstaclesRenderTarget;
+    this.gaussianBlurXMaterial.uniforms.uTexelSize.value = 1.0 / this.res;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttObstaclesBlurredRenderTarget, false);  //need to render to another target to avoid corrupting original accumulated
+    this.rttQuadMesh.material = this.gaussianBlurYMaterial;
+    this.gaussianBlurYMaterial.uniforms.uTexture.value = this.rttObstaclesBlurredRenderTarget;
+    this.gaussianBlurYMaterial.uniforms.uTexelSize.value = 1.0 / this.res;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttObstaclesBlurredRenderTarget, false);
+
     //calculate a map with additional heights to disturb water, based on differences in water volumes between frames
     this.rttQuadMesh.material = this.calcDisturbMapMaterial;
-    this.calcDisturbMapMaterial.uniforms.uTexture.value = this.rttObstaclesRenderTarget;
+    this.calcDisturbMapMaterial.uniforms.uTexture.value = this.rttObstaclesBlurredRenderTarget;  //use blurred obstacle maps
     this.renderer.render(this.rttScene, this.rttCamera, this.rttDisturbMapRenderTarget, false);
     this.disturbMapHasUpdated = true;
 
@@ -947,7 +1005,7 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
     });
 
     THREE.ShaderManager.addShader('/glsl/combineTexturesPostMult.frag');
-    this.combineTexturesMaterial = new THREE.ShaderMaterial({
+    this.combineTexturesPostMultMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTexture1: { type: 't', value: this.emptyTexture },
             uTexture2: { type: 't', value: this.emptyTexture },
@@ -1027,11 +1085,11 @@ GpuPipeModelWater.prototype.disturbPass = function () {
         this.disturbMapHasUpdated = false;
         this.disturbAndSourceMaterial.uniforms.uDisturbTexture.value = this.emptyTexture;
         this.isDisturbing = false;
-        this.rttQuadMesh.material.uniforms.uIsDisturbing.value = false;
+        this.disturbAndSourceMaterial.uniforms.uIsDisturbing.value = false;
         this.isSourcing = false;
-        this.rttQuadMesh.material.uniforms.uIsSourcing.value = false;
+        this.disturbAndSourceMaterial.uniforms.uIsSourcing.value = false;
         this.isFlooding = false;
-        this.rttQuadMesh.material.uniforms.uIsFlooding.value = false;
+        this.disturbAndSourceMaterial.uniforms.uIsFlooding.value = false;
     }
 };
 GpuPipeModelWater.prototype.calculateSubsteps = function (dt) {
@@ -1073,10 +1131,10 @@ GpuPipeModelWater.prototype.waterSimPass = function (substepDt) {
 GpuPipeModelWater.prototype.postStepPass = function () {
 
     //combine terrain and water heights
-    this.rttQuadMesh.material = this.combineTexturesMaterial;
-    this.combineTexturesMaterial.uniforms.uTexture1.value = this.terrainTexture;
-    this.combineTexturesMaterial.uniforms.uTexture2.value = this.rttRenderTarget2;
-    this.combineTexturesMaterial.uniforms.uMultiplyTexture.value = this.boundaryTexture;
+    this.rttQuadMesh.material = this.combineTexturesPostMultMaterial;
+    this.combineTexturesPostMultMaterial.uniforms.uTexture1.value = this.terrainTexture;
+    this.combineTexturesPostMultMaterial.uniforms.uTexture2.value = this.rttRenderTarget2;
+    this.combineTexturesPostMultMaterial.uniforms.uMultiplyTexture.value = this.boundaryTexture;
     this.renderer.render(this.rttScene, this.rttCamera, this.rttCombinedHeight, false);
 
     //rebind render target to water mesh to ensure vertex shader gets the right texture

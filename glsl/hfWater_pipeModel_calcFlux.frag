@@ -65,8 +65,20 @@ void main() {
     vec4 tObstacle = texture2D(uObstaclesTexture, vUv);
 
     //stop flow velocity if pipe flows to an obstacle
-    //FIXME: fix the fuzzy edges. Enable this only when anti-aliasing of obstacle map is done. Also need to move obstructed water vertices to average of surrounding vertices.
+    //TODO: obstacles for pipe model water
     // tFlux *= 1.0 - tObstacle.r;
+    // if (texture2D(uObstaclesTexture, vUv + du).r > 0.1) {
+        // tFlux.r = 0.0;
+    // }
+    // if (texture2D(uObstaclesTexture, vUv - du).r > 0.1) {
+        // tFlux.g = 0.0;
+    // }
+    // if (texture2D(uObstaclesTexture, vUv - dv).r > 0.1) {
+        // tFlux.b = 0.0;
+    // }
+    // if (texture2D(uObstaclesTexture, vUv + dv).r > 0.1) {
+        // tFlux.a = 0.0;
+    // }
 
     //scale down outflow if it is more than available volume in the column
     float currVol = (waterHeight - uMinWaterHeight) * uSegmentSizeSquared;

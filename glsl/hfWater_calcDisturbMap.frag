@@ -23,7 +23,6 @@ void main() {
 
     //receive a quarter of displaced volume differences from neighbours
     float result = 0.25 * ( (tLeft.g-tLeft.b) + (tRight.g-tRight.b) + (tTop.g-tTop.b) + (tBottom.g-tBottom.b) );
-    result = abs(result);  //FIXME: this makes it more stable but is not correct
 
-    gl_FragColor = vec4(result, -result, 0.0, 1.0);
+    gl_FragColor = vec4(result, -result, 0.0, 1.0);  //g channel is there just to visualize negative displaced volumes
 }
