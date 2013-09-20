@@ -541,25 +541,14 @@
 		obstaclesVisMesh = new THREE.Mesh(obstaclesVisGeom, obstaclesVisMaterial);
 		obstaclesVisMesh.position.y = 2;
 		scene.add(obstaclesVisMesh);
-	}
 
-	function handleDualCoupling(dt)
-    {
-        //water push dynamic obstacle
-        var i, len, dynObstacleMesh, totalDisplacedVol, buoyancyForce;
-        var force = new THREE.Vector3();
-        for (i = 0, len = dynObstacleMeshes.length; i < len; i++)
-        {
-            dynObstacleMesh = dynObstacleMeshes[i];
-            if (dynObstacleMesh instanceof THREE.Mesh && dynObstacleMesh.__skhfwater && dynObstacleMesh.__skhfwater.isObstacle && dynObstacleMesh.__skhfwater.isDynamic && dynObstacleMesh.__skhfwater.totalDisplacedVol > 0.0) {
+		//create a callback that exerts forces on dynamic meshes for dual coupling
+		gpuWater.addCallback('exertForce', function (object, force) {
+		    //apply force on Physijs object
+            object.applyCentralForce(force);
+        });
 
-                force.set(dynObstacleMesh.__skhfwater.forceX, dynObstacleMesh.__skhfwater.forceY, dynObstacleMesh.__skhfwater.forceZ);
-                dynObstacleMesh.applyCentralForce(force);
-            }
-        }
 
-        //TODO: dynamic obstacle push water
-    }
 
 	function waterResetFloodRate()
 	{
@@ -1576,7 +1565,6 @@
                 gpuSkulpt.update();
                 gpuWater.updateObstacleTexture(dt, scene);  //TODO: determine if this should be called automatically in gpu water's update()
                 gpuWater.update(dt);
-                handleDualCoupling(dt);
                 renderer.render(scene, camera);
 
                 arJustOn = true;

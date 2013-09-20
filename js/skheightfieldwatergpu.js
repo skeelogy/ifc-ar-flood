@@ -100,6 +100,8 @@ function GpuHeightFieldWater(options) {
 
     this.pixelByteData = new Uint8Array(this.res * this.res * 4);
 
+    this.callbacks = {};
+
     this.__initCounter = 5;
     this.init();
 
@@ -670,10 +672,19 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
                     object.__skhfwater.averageVelocityZ = object.__skhfwater.totalVelocityZ / object.__skhfwater.totalArea;
                 }
 
-                //finally, calculate forces that should be exerted on this object
+                //calculate forces that should be exerted on this object
                 object.__skhfwater.forceX = object.__skhfwater.averageVelocityX / dt * object.__skhfwater.mass;
                 object.__skhfwater.forceY = object.__skhfwater.totalDisplacedVol * that.density * that.gravity;
                 object.__skhfwater.forceZ = object.__skhfwater.averageVelocityZ / dt * object.__skhfwater.mass;
+
+                //call exertForce callbacks
+                if (that.callbacks.hasOwnProperty('exertForce')) {
+                    var renderCallbacks = that.callbacks.exertForce;
+                    var i, len;
+                    for (i = 0, len = renderCallbacks.length; i < len; i++) {
+                        renderCallbacks[i](object, new THREE.Vector3(object.__skhfwater.forceX, object.__skhfwater.forceY, object.__skhfwater.forceZ));
+                    }
+                }
 
             }
 
@@ -690,7 +701,9 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
         object.visible = object.visibleStore;
     });
 
-    //post process the accumulated texture data:
+    //---------------------------------------------
+    //calculate rigid bodies' influence on water:
+    //---------------------------------------------
 
     //blur the obstacles map
     this.rttQuadMesh.material = this.gaussianBlurXMaterial;
@@ -753,6 +766,20 @@ GpuHeightFieldWater.prototype.getPixelFloatData = function () {
     //cast to float
     var pixelFloatData = new Float32Array(this.pixelByteData.buffer);
     return pixelFloatData;
+};
+GpuHeightFieldWater.prototype.addCallback = function (type, callbackFn) {
+    if (!this.callbacks.hasOwnProperty(type)) {
+        this.callbacks[type] = [];
+    }
+    if (callbackFn) {
+        if (typeof callbackFn === 'function') {
+            this.callbacks[type].push(callbackFn);
+        } else {
+            throw new Error('Specified callbackFn is not a function');
+        }
+    } else {
+        throw new Error('Callback function not defined');
+    }
 };
 
 /**
