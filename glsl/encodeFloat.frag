@@ -5,7 +5,7 @@
 //Using method 1 of the code.
 
 uniform sampler2D uTexture;
-uniform vec4 uChannelId;
+uniform vec4 uChannelMask;
 
 varying vec2 vUv;
 
@@ -54,5 +54,5 @@ vec4 encode_float(float val) {
 
 void main() {
     vec4 t = texture2D(uTexture, vUv);
-    gl_FragColor = encode_float(dot(t, uChannelId));
+    gl_FragColor = encode_float(dot(t, uChannelMask));
 }

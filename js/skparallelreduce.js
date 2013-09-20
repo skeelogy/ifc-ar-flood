@@ -112,7 +112,7 @@ var ParallelReducer = {
 	            uTexture: { type: 't', value: null },
 	            uTexelSize: { type: 'f', value: 0 },
 	            uHalfTexelSize: { type: 'f', value: 0 },
-	            uChannelId: { type: 'v4', value: new THREE.Vector4() }
+	            uChannelMask: { type: 'v4', value: new THREE.Vector4() }
 	        },
 	        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
 	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/parallelSum.frag')
@@ -122,7 +122,7 @@ var ParallelReducer = {
 	    this.rttEncodeFloatMaterial = new THREE.ShaderMaterial({
 	        uniforms: {
 	            uTexture: { type: 't', value: null },
-	            uChannelId: { type: 'v4', value: new THREE.Vector4() }
+	            uChannelMask: { type: 'v4', value: new THREE.Vector4() }
 	        },
 	        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
 	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/encodeFloat.frag')
@@ -176,7 +176,7 @@ var ParallelReducer = {
 	        currMaterial.uniforms.uTexture.value = firstIteration ? texture : this.rttRenderTarget2;
 	        currMaterial.uniforms.uTexelSize.value = texelSize;
 	        currMaterial.uniforms.uHalfTexelSize.value = texelSize / 2.0;
-	        currMaterial.uniforms.uChannelId.value.copy(this.channelVectors[channelId]);
+	        currMaterial.uniforms.uChannelMask.value.copy(this.channelVectors[channelId]);
             this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
             this.rttQuadMeshes[level].visible = false;
 
@@ -196,7 +196,7 @@ var ParallelReducer = {
         this.rttQuadMeshes[0].visible = true;
         this.rttQuadMeshes[0].material = this.rttEncodeFloatMaterial;
         this.rttEncodeFloatMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
-        this.rttEncodeFloatMaterial.uniforms.uChannelId.value.copy(this.channelVectors[channelId]);
+        this.rttEncodeFloatMaterial.uniforms.uChannelMask.value.copy(this.channelVectors[channelId]);
         this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
         this.rttQuadMeshes[0].visible = false;
 

@@ -99,7 +99,6 @@ function GpuHeightFieldWater(options) {
     this.rttObstaclesCameraRange = 50.0;
 
     this.pixelByteData = new Uint8Array(this.res * this.res * 4);
-    this.obstaclePixelByteData = new Uint8Array(this.res * this.res * 4);
 
     this.__initCounter = 5;
     this.init();
@@ -207,7 +206,7 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
     this.rttEncodeFloatMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: this.emptyTexture },
-            uChannelId: { type: 'v4', value: new THREE.Vector4() }
+            uChannelMask: { type: 'v4', value: new THREE.Vector4() }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/encodeFloat.frag')
@@ -738,7 +737,7 @@ GpuHeightFieldWater.prototype.__getPixelEncodedByteData = function (renderTarget
     //encode the float data into an unsigned byte RGBA texture
     this.rttQuadMesh.material = this.rttEncodeFloatMaterial;
     this.rttEncodeFloatMaterial.uniforms.uTexture.value = renderTarget;
-    this.rttEncodeFloatMaterial.uniforms.uChannelId.value.copy(this.channelVectors[channelId]);
+    this.rttEncodeFloatMaterial.uniforms.uChannelMask.value.copy(this.channelVectors[channelId]);
     this.renderer.render(this.rttScene, this.rttCamera, this.rttFloatEncoderRenderTarget, false);
 
     this.__getPixelByteDataForRenderTarget(this.rttFloatEncoderRenderTarget, pixelByteData, width, height);
