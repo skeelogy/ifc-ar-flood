@@ -68,7 +68,7 @@
 	var TERRAIN_SIZE = 6;
 	var TERRAIN_GRID_SIZE = TERRAIN_SIZE / TERRAIN_RES;
 
-	var PROXY_TERRAIN_RES = 64;  //Physijs will slow down if height field mesh is too large
+	var PROXY_TERRAIN_RES = 64;  //64 is the lowest possible in this example. Anything below cannot represent the terrain. Anything above will cause Physijs to go too slow.
 	var TERRAIN_FRICTION = 0.8;
     var TERRAIN_RESTITUTION = 0.2;
 
@@ -298,15 +298,6 @@
             throw new Error('ARLIB type not recognised: ' + ARLIB);
         }
         markerManager.load();
-
-
-
-
-        //TEMP: create a cube geometry, bake in a scale
-        var tempGeom = new THREE.CubeGeometry(1, 1, 1);
-        tempGeom.applyMatrix(new THREE.Matrix4().makeScale(0.1, 0.2, 0.3));
-        tempMesh = new THREE.Mesh(tempGeom, new THREE.MeshBasicMaterial());
-        scene.add(tempMesh);
 	}
 	var tempMesh;
 
@@ -472,7 +463,6 @@
 	var gpuWater;
 	var waterVisGeom, waterVisMaterial, waterVisMesh;
 	var obstaclesVisGeom, obstaclesVisMaterial, obstaclesVisMesh;
-	var staticObstacleMesh1, staticObstacleMesh2;
 	var staticObstacleMeshes = [];
 	function setupWater()
 	{
@@ -509,7 +499,28 @@
 		scene.add(waterVisMesh);
 
 		//create static obstacles
-		var obstacleGeom = new THREE.CubeGeometry(2.0, 2.0, 2.0);
+		// createDebuggingObstacles();
+
+		//create a RTT visualization plane for obstacles
+		obstaclesVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
+		obstaclesVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+	    obstaclesVisMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuWater.rttObstaclesRenderTarget } );
+		materials.push(obstaclesVisMaterial);
+		obstaclesVisMesh = new THREE.Mesh(obstaclesVisGeom, obstaclesVisMaterial);
+		obstaclesVisMesh.position.y = 2;
+		scene.add(obstaclesVisMesh);
+
+		//create a callback that exerts forces on dynamic meshes for dual coupling
+		gpuWater.addCallback('exertForce', function (object, force) {
+		    //apply force on Physijs object
+            object.applyCentralForce(force);
+        });
+    }
+
+    var staticObstacleMesh1, staticObstacleMesh2;
+    function createDebuggingObstacles()
+    {
+        var obstacleGeom = new THREE.CubeGeometry(2.0, 2.0, 2.0);
 		obstacleGeom.vertices[0].x = 0;
 		obstacleGeom.vertices[0].z = 0;
 		obstacleGeom.vertices[1].x = 0;
@@ -544,21 +555,6 @@
         staticObstacleMesh2.__dirtyPosition = true;
         staticObstacleMeshes.push(staticObstacleMesh2);
         gpuWater.addStaticObstacle(staticObstacleMesh2);
-
-		//create a RTT visualization plane for obstacles
-		obstaclesVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
-		obstaclesVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-	    obstaclesVisMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuWater.rttObstaclesRenderTarget } );
-		materials.push(obstaclesVisMaterial);
-		obstaclesVisMesh = new THREE.Mesh(obstaclesVisGeom, obstaclesVisMaterial);
-		obstaclesVisMesh.position.y = 2;
-		scene.add(obstaclesVisMesh);
-
-		//create a callback that exerts forces on dynamic meshes for dual coupling
-		gpuWater.addCallback('exertForce', function (object, force) {
-		    //apply force on Physijs object
-            object.applyCentralForce(force);
-        });
     }
 
 	function waterResetFloodRate()
@@ -675,13 +671,25 @@
 
 		if (event.keyCode === 90)  //z
 		{
-		    staticObstacleMesh1.position.y += 0.1;
-		    staticObstacleMesh2.position.y += 0.1;
+		    if (staticObstacleMesh1)
+		    {
+		        staticObstacleMesh1.position.y += 0.1;
+		    }
+		    if (staticObstacleMesh2)
+		    {
+		        staticObstacleMesh2.position.y += 0.1;
+		    }
 		}
 		else if (event.keyCode === 88)  //x
 		{
-		    staticObstacleMesh1.position.y -= 0.1;
-		    staticObstacleMesh2.position.y -= 0.1;
+		    if (staticObstacleMesh1)
+		    {
+		        staticObstacleMesh1.position.y -= 0.1;
+		    }
+		    if (staticObstacleMesh2)
+		    {
+		        staticObstacleMesh2.position.y -= 0.1;
+		    }
 		}
 		else if (event.keyCode === 87)  //w
 		{
@@ -1467,6 +1475,10 @@
         if (options.objectsIsDynamic)
         {
             gpuWater.addDynamicObstacle(physijsMesh, mass);
+        }
+        else
+        {
+            gpuWater.addStaticObstacle(physijsMesh);
         }
 
         //TODO: delete origMesh
