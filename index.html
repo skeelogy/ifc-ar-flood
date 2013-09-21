@@ -743,21 +743,23 @@
 	    var boxFriction = 0.8;
 		var boxRestitution = 0.2;
 		var width = 0.3;
-		var widthSegments = 20;
+		var widthSegments = 1;
 	    var cubeGeom = new THREE.CubeGeometry(width, width, width, widthSegments, widthSegments, widthSegments);
-		var cubeMaterial = Physijs.createMaterial(
-			new THREE.MeshPhongMaterial(),
-			boxFriction,
-			boxRestitution
-		);
+		var cubeMaterial = new THREE.MeshPhongMaterial();
+		cubeMaterial.wireframe = options.displayWireframe;
 		materials.push(cubeMaterial);
 
 		var cubeMass = 10;  //kg
-		var cubeDynObstacleMesh = new Physijs.BoxMesh(cubeGeom, cubeMaterial, cubeMass);
+		var cubePhysijsMaterial = Physijs.createMaterial(
+			cubeMaterial,
+			boxFriction,
+			boxRestitution
+		);
+		var cubeDynObstacleMesh = new Physijs.BoxMesh(cubeGeom, cubePhysijsMaterial, cubeMass);
         cubeDynObstacleMesh.position.set(x, y, z);
         // cubeDynObstacleMesh.visible = false;
         scene.add(cubeDynObstacleMesh);
-        cubeDynObstacleMesh.setDamping(0.9, 0.9);  //can only call this after adding to scene
+        cubeDynObstacleMesh.setDamping(0.9, 0.2);  //can only call this after adding to scene
 
         gpuWater.addDynamicObstacle(cubeDynObstacleMesh, cubeMass);
         dynObstacleMeshes.push(cubeDynObstacleMesh);
@@ -1204,14 +1206,30 @@
 		control = displayFolder.add(options, 'displayWireframe').name('Wireframe').listen();
 		toggleWireframe = function (value)
 		{
+		    //get the different library objects to set wireframe
 			skarf.renderer.setWireframeVisible(value);
-			var i, len;
-			for (i = 0, len = materials.length; i < len; i++)
-			{
-			    materials[i].wireframe = value;
-			}
-			options.displayWireframe = value;
 			gpuSkulpt.displayWireframe = value;
+
+			//set wireframe for things that are created in this file
+			var i, j, leni, lenj, m;
+            for (i = 0, leni = materials.length; i < leni; i++)
+            {
+                m = materials[i];
+                if (m instanceof THREE.MeshFaceMaterial)
+                {
+                    for (j = 0, lenj = m.materials.length; j < lenj; j++)
+                    {
+                        m.materials[j].wireframe = value;
+                    }
+                }
+                else
+                {
+                    m.wireframe = value;
+                }
+            }
+
+			options.displayWireframe = value;
+
 		}
 		control.onChange(toggleWireframe);
 		toggleWireframe(options.displayWireframe);
@@ -1457,7 +1475,6 @@
     function createPhysijsMeshFromThreejsMesh(mesh, position, params)
     {
         var mass = typeof params.mass === 'undefined' ? 10 : params.mass;
-        console.log(mass);
         var friction = typeof params.friction === 'undefined' ? 0.8 : params.friction
         var restitution = typeof params.restitution === 'undefined' ? 0.2 : params.restitution
         var linearDamping = typeof params.linearDamping === 'undefined' ? 0.9 : params.linearDamping
@@ -1472,7 +1489,7 @@
 			friction,
 			restitution
 		);
-		// materials.push(material);
+		materials.push(mesh.material);
 
 		//create the Physijs mesh (assume everything is using ConvexMesh)
 		var physijsMesh = new Physijs.ConvexMesh(geometry, material, mass);
