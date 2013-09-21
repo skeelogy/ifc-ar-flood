@@ -1425,39 +1425,43 @@
     {
         isAddingObject = false;
 
-        //for dynamic objects:
-        if (options.objectsIsDynamic)  //TODO: this should be stored in object when created
+        //remove from Object3D
+        var origMesh = transform.children[0];
+        transform.remove(origMesh);
+
+        //get JSON data
+        var dataFromJson = origMesh.geometry.__jsonData;
+
+        //for static objects, set mass to 0
+        var mass = options.objectsIsDynamic ? dataFromJson.mass : 0;
+
+        //convert into Physijs mesh
+        var physijsMesh = createPhysijsMeshFromThreejsMesh(origMesh, transform.position, {
+            mass: mass,
+            friction: dataFromJson.friction,
+            restitution: dataFromJson.restitution,
+            linearDamping: dataFromJson.linearDamping,
+            angularDamping: dataFromJson.angularDamping
+        });
+        dynObstacleMeshes.push(physijsMesh);
+
+        //register dynamic objects with gpu water
+        if (options.objectsIsDynamic)
         {
-            var origMesh = transform.children[0];
-
-            //remove from Object3D
-            transform.remove(origMesh);
-
-            //convert into Physijs mesh
-            var dataFromJson = origMesh.geometry.__jsonData;
-            var physijsMesh = createPhysijsMeshFromThreejsMesh(origMesh, transform.position, {
-                mass: dataFromJson.mass,
-                friction: dataFromJson.friction,
-                restitution: dataFromJson.restitution,
-                linearDamping: dataFromJson.linearDamping,
-                angularDamping: dataFromJson.angularDamping
-            });
-            dynObstacleMeshes.push(physijsMesh);
-
-            //register this mesh as a dynamic obstacle with gpu water
-            gpuWater.addDynamicObstacle(physijsMesh, dataFromJson.mass);
-
-            //TODO: delete origMesh
+            gpuWater.addDynamicObstacle(physijsMesh, mass);
         }
+
+        //TODO: delete origMesh
     }
 
     function createPhysijsMeshFromThreejsMesh(mesh, position, params)
     {
-        var mass = params.mass || 10;
-        var friction = params.friction || 0.8;
-        var restitution = params.restitution || 0.2;
-        var linearDamping = params.linearDamping || 0.9;
-        var angularDamping = params.angularDamping || 0.5;
+        var mass = typeof params.mass === 'undefined' ? 10 : params.mass;
+        console.log(mass);
+        var friction = typeof params.friction === 'undefined' ? 0.8 : params.friction
+        var restitution = typeof params.restitution === 'undefined' ? 0.2 : params.restitution
+        var linearDamping = typeof params.linearDamping === 'undefined' ? 0.9 : params.linearDamping
+        var angularDamping = typeof params.angularDamping === 'undefined' ? 0.5 : params.angularDamping
 
         //get geometry
         var geometry = mesh.geometry;
