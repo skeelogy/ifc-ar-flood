@@ -1429,6 +1429,19 @@
             objectsAddObjectConfirm(currTransform);
         }
 
+        objectsRemoveTimer_firstDetected = function (params) {
+            objectsRemoveObject();
+        }
+        objectsRemoveTimer_firstHidden = function (params) {
+            objectsCancelRemoveObject();
+        }
+        objectsRemoveTimer_moved = function (params) {
+            objectsRemoveObjectFind(params.position);
+        }
+        objectsRemoveTimer_reached = function (params) {
+            objectsRemoveObjectConfirm();
+        }
+
         //display
         displayWireframeCheckbox_toggled = function (params) {
             toggleWireframe(params.checked);
@@ -1640,8 +1653,26 @@
     var isRemovingObject = false;
     function objectsRemoveObject()
     {
+        //return if already removing object
+        if (isRemovingObject)
+        {
+            return;
+        }
+
         //turn on flag for selection with mouse
         isRemovingObject = true;
+    }
+
+    function objectsCancelRemoveObject()
+    {
+        //return if not removing object
+        if (!isRemovingObject)
+        {
+            return;
+        }
+
+        //turn off flag
+        isRemovingObject = false;
     }
 
     var userAddedMeshToRemove = null;
@@ -1650,6 +1681,12 @@
     var normalEmissive = new THREE.Color('#000000');
     function objectsRemoveObjectFind(position)
     {
+        //return if not removing object
+        if (!isRemovingObject)
+        {
+            return;
+        }
+
         userAddedMeshToRemove = null;
 
         //search through all objects
@@ -1693,6 +1730,12 @@
 
     function objectsRemoveObjectConfirm()
     {
+        //return if not removing object
+        if (!isRemovingObject)
+        {
+            return;
+        }
+
         if (userAddedMeshToRemove)
         {
             //remove object transform

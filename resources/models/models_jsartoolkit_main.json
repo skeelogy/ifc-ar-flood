@@ -119,6 +119,14 @@
 				 "time": 2
 			}
 		},
+		"49": {
+			"name": "Objects Remove",
+			"key": "objectsRemoveTimer",
+			"type": "timer",
+			"params": {
+				 "time": 2
+			}
+		},
 		"71": {
 			"name": "Display Wireframe",
 			"key": "displayWireframeCheckbox",
