@@ -5,49 +5,7 @@
 			"name": "Origin",
 			"type": "empty"
 		},
-		"31": {
-			"name": "us_police_car",
-			"url": "/resources/models/us_police_car/us_police_car_bin.js",
-			"type": "json_bin",
-			"translate": [0, 0, 0],
-			"rotate": [0, 0, 0],
-			"rotationOrder": "XYZ",
-			"scale": [0.3, 0.3, 0.3],
-			"mass": 50,
-			"friction": 0.8,
-			"restitution": 0.2,
-			"linearDamping": 0.95,
-			"angularDamping": 0.5
-		},
-		"49": {
-			"name": "park_bench",
-			"url": "/resources/models/park_bench/park_bench.js",
-			"type": "json",
-			"translate": [0, 0, 0],
-			"rotate": [0, 0, 0],
-			"rotationOrder": "XYZ",
-			"scale": [0.5, 0.5, 0.5],
-			"mass": 50,
-			"friction": 0.8,
-			"restitution": 0.2,
-			"linearDamping": 0.95,
-			"angularDamping": 0.5
-		},
-		"63": {
-			"name": "house_15",
-			"url": "/resources/models/house_15/house_15.js",
-			"type": "json",
-			"translate": [0, 0, 0],
-			"rotate": [0, 0, 0],
-			"rotationOrder": "XYZ",
-			"scale": [0.1, 0.1, 0.1],
-			"mass": 50,
-			"friction": 0.8,
-			"restitution": 0.2,
-			"linearDamping": 0.95,
-			"angularDamping": 0.5
-		},
-		"66": {
+		"1001": {
 			"name": "crate",
 			"url": "/resources/models/crate/Crate1.obj",
 			"type": "obj",
@@ -60,6 +18,20 @@
 			"restitution": 0.2,
 			"linearDamping": 0.5,
 			"angularDamping": 0.25
+		},
+		"1002": {
+			"name": "us_police_car",
+			"url": "/resources/models/us_police_car/us_police_car_bin.js",
+			"type": "json_bin",
+			"translate": [0, 0, 0],
+			"rotate": [0, 0, 0],
+			"rotationOrder": "XYZ",
+			"scale": [0.3, 0.3, 0.3],
+			"mass": 50,
+			"friction": 0.8,
+			"restitution": 0.2,
+			"linearDamping": 0.95,
+			"angularDamping": 0.5
 		}
 	},
 	"guiMarkers": {
@@ -130,6 +102,22 @@
 			"name": "Sculpt Remove",
 			"key": "sculptRemoveGeneric",
 			"type": "generic"
+		},
+		"42": {
+			"name": "Objects Crate",
+			"key": "objectsCrateTimer",
+			"type": "timer",
+			"params": {
+				 "time": 2
+			}
+		},
+		"43": {
+			"name": "Objects Car",
+			"key": "objectsCarTimer",
+			"type": "timer",
+			"params": {
+				 "time": 2
+			}
 		},
 		"71": {
 			"name": "Display Wireframe",

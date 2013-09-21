@@ -8,7 +8,6 @@
 	<link rel="stylesheet" href="/css/style.css">
 	<style type="text/css">
 		#stats { position: absolute; top:0; left: 0 }
-		#stats #fps { background: transparent !important }
 		#stats #fps #fpsText { color: #aaa !important }
 		#stats #fps #fpsGraph { display: block }
 	</style>
@@ -101,10 +100,8 @@
 		'/resources/images/terrain/clouds_256.png': { 'preblur':0, 'height':2, 'midGreyIsLowest':false }
 	}
 	var objects = {
-	    'Crate': 66,
-		'Bench': 49,
-		'Police Car': 31,
-		'House': 63,
+	    'Crate': 1001,
+		'Police Car': 1002
 	};
 
 	var options = {
@@ -708,6 +705,14 @@
 		    dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(100, 0, 0));
 		}
 
+		if (event.keyCode === 27)  //esc
+		{
+		    if (isAddingObject)
+		    {
+		        objectsCancelAddObject();
+		    }
+		}
+
 		//TEMP
 		if (event.keyCode === 89)
 		{
@@ -1148,7 +1153,12 @@
 		objectsFolder = gui.addFolder('Objects');
 		objectsFolder.open();
 
-		control = objectsFolder.add(options, 'objectsObject', objects).name('Object');
+		objectsObjectControl = objectsFolder.add(options, 'objectsObject', objects).name('Object').listen();
+		changeObjectsObject = function(value)
+		{
+			options.objectsObject = value;
+		}
+		control.onChange(changeObjectsObject);
 
 		control = objectsFolder.add(options, 'objectsIsDynamic').name('Dynamic').listen();
 
@@ -1390,6 +1400,35 @@
             gpuSkulpt.hideCursor();
         }
 
+        //objects
+        objectsCrateTimer_firstDetected = function (params) {
+            changeObjectsObject(objects['Crate']);  //set object first
+            objectsAddObject();
+        }
+        objectsCrateTimer_firstHidden = function (params) {
+            objectsCancelAddObject();
+        }
+        objectsCrateTimer_moved = function (params) {
+            objectsMoveObjectProject(currTransform, params.position);
+        }
+        objectsCrateTimer_reached = function (params) {
+            objectsAddObjectConfirm(currTransform);
+        }
+
+        objectsCarTimer_firstDetected = function (params) {
+            changeObjectsObject(objects['Police Car']);  //set object first
+            objectsAddObject();
+        }
+        objectsCarTimer_firstHidden = function (params) {
+            objectsCancelAddObject();
+        }
+        objectsCarTimer_moved = function (params) {
+            objectsMoveObjectProject(currTransform, params.position);
+        }
+        objectsCarTimer_reached = function (params) {
+            objectsAddObjectConfirm(currTransform);
+        }
+
         //display
         displayWireframeCheckbox_toggled = function (params) {
             toggleWireframe(params.checked);
@@ -1409,6 +1448,12 @@
     var indicatorMesh;
     function objectsAddObject()
     {
+        //return if already adding object
+        if (isAddingObject)
+        {
+            return;
+        }
+
         if (!indicatorMesh)
         {
             var indicatorGeom = new THREE.SphereGeometry(0.05);
@@ -1430,8 +1475,39 @@
         isAddingObject = true;
     }
 
+    function objectsCancelAddObject()
+    {
+        //return if not adding object
+        if (!isAddingObject)
+        {
+            return;
+        }
+
+        //turn off flag
+        isAddingObject = false;
+
+        //hide indicator
+        indicatorMesh.visible = false;
+
+        //remove object from scene
+        try
+        {
+            scene.remove(currTransform);
+        }
+        catch (err)
+        {
+            //just let one of the Physijs error pass silently (happens because I'm removing a THREE.Object3D from a Physijs scene)
+        }
+    }
+
     function objectsMoveObjectProject(transform, position)
     {
+        //return if not adding object
+        if (!isAddingObject)
+        {
+            return;
+        }
+
         transform.position.copy(position);
 
         //highlight the object
@@ -1483,6 +1559,12 @@
 
     function objectsAddObjectConfirm(transform)
     {
+        //return if not adding object
+        if (!isAddingObject)
+        {
+            return;
+        }
+
         isAddingObject = false;
 
         //hide indicator mesh

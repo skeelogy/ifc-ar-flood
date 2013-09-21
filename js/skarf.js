@@ -75,7 +75,8 @@ function GuiMarker(options) {
     }
     this.markerSize = options.markerSize;
 
-    this.flashed = true;
+    this.firstDetected = true;
+    this.firstHidden = false;
 
     this.worldMatrix = null;
 
@@ -100,7 +101,8 @@ function GuiMarker(options) {
     this.callbackObjs = {};
     this.callbackObjs['moved'] = {name: this.key+'_moved', fn: undefined};
     this.callbackObjs['rotated'] = {name: this.key+'_rotated', fn: undefined};
-    this.callbackObjs['flashed'] = {name: this.key+'_flashed', fn: undefined};
+    this.callbackObjs['firstDetected'] = {name: this.key+'_firstDetected', fn: undefined};
+    this.callbackObjs['firstHidden'] = {name: this.key+'_firstHidden', fn: undefined};
     this.callbackObjs['detected'] = {name: this.key+'_detected', fn: undefined};
     this.callbackObjs['hidden'] = {name: this.key+'_hidden', fn: undefined};
 }
@@ -116,8 +118,11 @@ GuiMarker.prototype.detected = function (dt, worldMatrix) {
     //process callbacks
     this.processCallbacks();
 
-    //turn off flashed
-    this.flashed = false;
+    //turn off firstDetected
+    this.firstDetected = false;
+
+    //turn on first hidden, for the next hide
+    this.firstHidden = true;
 };
 GuiMarker.prototype.processPosition = function (worldMatrix) {
 
@@ -164,17 +169,23 @@ GuiMarker.prototype.processRotation = function (worldMatrix) {
 GuiMarker.prototype.processCallbacks = function () {
 
     //call detected callback
-    this.invokeCallback('detected', {worldMatrix: this.worldMatrix});
+    this.invokeCallback('detected', {worldMatrix: this.worldMatrix, position: this.position, rotation: this.rotation});
 
-    //call flashed callback
-    if (this.flashed) {
-        this.invokeCallback('flashed', {worldMatrix: this.worldMatrix});
+    //call firstDetected callback
+    if (this.firstDetected) {
+        this.invokeCallback('firstDetected', {worldMatrix: this.worldMatrix, position: this.position, rotation: this.rotation});
     }
 };
 GuiMarker.prototype.hidden = function () {
 
-    //turn on flashed, for the next detection
-    this.flashed = true;
+    //turn on firstDetected, for the next detection
+    this.firstDetected = true;
+
+    //call firstHidden callback
+    if (this.firstHidden) {
+        this.invokeCallback('firstHidden', {});
+        this.firstHidden = false;
+    }
 
     //call hidden callback
     this.invokeCallback('hidden', {});
@@ -228,7 +239,7 @@ ButtonMarker.prototype.constructor = ButtonMarker;
 GuiMarkerFactory.register('button', ButtonMarker);
 //override
 ButtonMarker.prototype.processCallbacks = function () {
-    if (this.flashed) {
+    if (this.firstDetected) {
         this.invokeCallback('clicked', {});
     }
     GuiMarker.prototype.processCallbacks.call(this);
@@ -251,7 +262,7 @@ CheckBoxMarker.prototype.constructor = CheckBoxMarker;
 GuiMarkerFactory.register('checkbox', CheckBoxMarker);
 //override
 CheckBoxMarker.prototype.processCallbacks = function () {
-    if (this.flashed) {
+    if (this.firstDetected) {
         this.checked = !this.checked;
         this.invokeCallback('toggled', {checked: this.checked});
     }
