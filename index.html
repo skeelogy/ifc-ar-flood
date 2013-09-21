@@ -1405,13 +1405,14 @@
     var isAddingObject = false;
     var userAddedMeshes = [];
     var currTransform = null;
+    var transformAddedToScene = false;
     function objectsAddObject()
     {
         objectMarkerId = options.objectsObject;
 
         //create an Object3D in the scene first
         currTransform = new THREE.Object3D();
-        scene.add(currTransform);
+        transformAddedToScene = false;
 
         //load the object to the transform
         markerManager.loadForMarker(objectMarkerId, currTransform, 1, options.displayWireframe);
@@ -1423,6 +1424,18 @@
     function objectsMoveObjectProject(transform, position)
     {
         transform.position.copy(position);
+
+        //highlight the object
+        if (transform.children[0] && !transformAddedToScene)
+        {
+            //add transform to scene (now that the object has finished loading)
+            scene.add(currTransform);
+
+            //also highlight the object
+            highlightMesh(transform.children[0], highlightEmissiveForAdd);
+
+            transformAddedToScene = true;
+        }
 
         //read in terrain height
         //TODO: read this in once until terrain has been sculpted
@@ -1453,6 +1466,9 @@
         //remove from Object3D
         var origMesh = transform.children[0];
         transform.remove(origMesh);
+
+        //remove highlight on the object
+        highlightMesh(origMesh, normalEmissive);
 
         //get JSON data
         var dataFromJson = origMesh.geometry.__jsonData;
@@ -1522,7 +1538,8 @@
     }
 
     var userAddedMeshToRemove = null;
-    var highlightEmissive = new THREE.Color('#0000ff');
+    var highlightEmissiveForAdd = new THREE.Color('#00ff00');
+    var highlightEmissiveForRemove = new THREE.Color('#ff0000');
     var normalEmissive = new THREE.Color('#000000');
     function objectsRemoveObjectFind(position)
     {
@@ -1537,7 +1554,7 @@
             if (!userAddedMeshToRemove && position.x >= transformedBBox.min.x && position.x <= transformedBBox.max.x && position.z >= transformedBBox.min.z && position.z <= transformedBBox.max.z)
             {
                 //highlight the object
-                highlightMesh(mesh, highlightEmissive);
+                highlightMesh(mesh, highlightEmissiveForRemove);
 
                 //store object to remove
                 userAddedMeshToRemove = mesh;
