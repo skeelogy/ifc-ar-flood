@@ -1403,7 +1403,7 @@
     }
 
     var isAddingObject = false;
-    var objectTransforms = [];
+    var userAddedMeshes = [];
     var currTransform = null;
     function objectsAddObject()
     {
@@ -1411,7 +1411,6 @@
 
         //create an Object3D in the scene first
         currTransform = new THREE.Object3D();
-        objectTransforms.push(currTransform);
         scene.add(currTransform);
 
         //load the object to the transform
@@ -1469,16 +1468,18 @@
             linearDamping: dataFromJson.linearDamping,
             angularDamping: dataFromJson.angularDamping
         });
-        dynObstacleMeshes.push(physijsMesh);
+        userAddedMeshes.push(physijsMesh);
 
-        //register dynamic objects with gpu water
+        //register dynamic objects with gpu water, and store in array for easy retrieval later
         if (options.objectsIsDynamic)
         {
             gpuWater.addDynamicObstacle(physijsMesh, mass);
+            dynObstacleMeshes.push(physijsMesh);
         }
         else
         {
             gpuWater.addStaticObstacle(physijsMesh);
+            staticObstacleMeshes.push(physijsMesh);
         }
 
         //TODO: delete origMesh
@@ -1520,27 +1521,26 @@
         isRemovingObject = true;
     }
 
-    var objectTransformToRemove = null
+    var userAddedMeshToRemove = null;
     var highlightEmissive = new THREE.Color('#0000ff');
     var normalEmissive = new THREE.Color('#000000');
     function objectsRemoveObjectFind(position)
     {
-        objectTransformToRemove = null;
+        userAddedMeshToRemove = null;
 
         //search through all objects
         var i, len, transform, mesh;
-        for (i = 0, len = objectTransforms.length; i < len; i++)
+        for (i = 0, len = userAddedMeshes.length; i < len; i++)
         {
-            transform = objectTransforms[i];
-            mesh = transform.children[0];  //assume that there is one and only one child
+            mesh = userAddedMeshes[i];
             var transformedBBox = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
-            if (!objectTransformToRemove && position.x >= transformedBBox.min.x && position.x <= transformedBBox.max.x && position.z >= transformedBBox.min.z && position.z <= transformedBBox.max.z)
+            if (!userAddedMeshToRemove && position.x >= transformedBBox.min.x && position.x <= transformedBBox.max.x && position.z >= transformedBBox.min.z && position.z <= transformedBBox.max.z)
             {
                 //highlight the object
                 highlightMesh(mesh, highlightEmissive);
 
                 //store object to remove
-                objectTransformToRemove = transform;
+                userAddedMeshToRemove = mesh;
             }
             else
             {
@@ -1569,19 +1569,19 @@
 
     function objectsRemoveObjectConfirm()
     {
-        if (objectTransformToRemove)
+        if (userAddedMeshToRemove)
         {
             //remove object transform
             //TODO: check if there is a need to delete the mesh to free the memory
-            scene.remove(objectTransformToRemove);
+            scene.remove(userAddedMeshToRemove);
 
             //remove from array
             var i, len;
-            for (i = 0, len = objectTransforms.length; i < len; i++)
+            for (i = 0, len = userAddedMeshes.length; i < len; i++)
             {
-                if (objectTransforms[i] === objectTransformToRemove)
+                if (userAddedMeshes[i] === userAddedMeshToRemove)
                 {
-                    objectTransforms.splice(i, 1);
+                    userAddedMeshes.splice(i, 1);
                 }
             }
         }
