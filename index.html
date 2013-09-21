@@ -1406,8 +1406,22 @@
     var userAddedMeshes = [];
     var currTransform = null;
     var transformAddedToScene = false;
+    var indicatorMesh;
     function objectsAddObject()
     {
+        if (!indicatorMesh)
+        {
+            var indicatorGeom = new THREE.SphereGeometry(0.05);
+            var indicatorMaterial = new THREE.MeshLambertMaterial({color:'#00ff00'});
+            var indicatorPhysijsMaterial = Physijs.createMaterial(
+                indicatorMaterial,
+                0.8,
+                0.1
+            );
+            indicatorMesh = new Physijs.SphereMesh(indicatorGeom, indicatorPhysijsMaterial, 0);
+            scene.add(indicatorMesh);
+        }
+
         objectMarkerId = options.objectsObject;
 
         //create an Object3D in the scene first
@@ -1443,13 +1457,27 @@
         var index = getPixelIndex(position);
 
         //shift up in Y
-        transform.position.y = terrainPixelFloatData[index];
+        var height = terrainPixelFloatData[index];
         if (options.objectsIsDynamic)
         {
-            //for dynamic objects, shift object N units above water level
+            //for dynamic objects, take into account water level too
             var waterPixelFloatData = gpuWater.getPixelFloatData();
-            transform.position.y += waterPixelFloatData[index] + 0.5;
+            height += waterPixelFloatData[index];
+
+            //move the indicator
+            indicatorMesh.position.set(position.x, height, position.z);
+            indicatorMesh.__dirtyPosition = true;
+            indicatorMesh.visible = true;
+
+            //add offset so that we can release the object above water for some ripples
+            height += 0.5;
         }
+        else
+        {
+            //hide the indicator
+            indicatorMesh.visible = false;
+        }
+        transform.position.y = height;
     }
 
     function getPixelIndex(position)
@@ -1462,6 +1490,9 @@
     function objectsAddObjectConfirm(transform)
     {
         isAddingObject = false;
+
+        //hide indicator mesh
+        indicatorMesh.visible = false;
 
         //remove from Object3D
         var origMesh = transform.children[0];
