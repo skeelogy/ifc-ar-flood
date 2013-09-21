@@ -55,8 +55,8 @@
 
 	<script>
 
-	// var ARLIB = 'jsaruco';
 	var ARLIB = 'jsartoolkit';
+	// var ARLIB = 'jsaruco';
 	var CAM_VERTICAL_FOV = 40;  //estimate for your camera
 	var JSARTOOLKIT_MARKERS_JSON = '/resources/models/models_jsartoolkit_main.json';
 	var JSARUCO_MARKERS_JSON = '/resources/models/models_jsaruco_main.json';
@@ -79,6 +79,10 @@
     var WATER_DENSITY = 1000;  //1000 kg per cubic metres, for dual coupling
 
     var GRAVITATIONAL_ACC = -9.81;  //m per squared second
+
+    var HIGHLIGHT_COLOR_ADD = new THREE.Color('#00ff00');
+    var HIGHLIGHT_COLOR_REMOVE = new THREE.Color('#ff0000');
+    var HIGHLIGHT_COLOR_NORMAL = new THREE.Color('#000000');
 
 	var terrainHalfSize = TERRAIN_SIZE / 2.0;
 	var waterHalfSize = WATER_SIZE / 2.0;
@@ -125,7 +129,7 @@
 		waterSinkRadius: 0.5,
 		waterSinkAmount: 0.2,
         displayWireframe: false,
-        displayLocalAxis: false,
+        displayLocalAxis: true,
         debugTrackingInfo: false,
         debugTerrainImage: false,
         debugTerrainProxy: false,
@@ -1137,7 +1141,7 @@
 		sculptSizeControl.onChange(changeSculptSize);
 		changeSculptSize(options.sculptSize);
 
-		sculptAmountControl = sculptFolder.add(options, 'sculptAmount', 0.01, 0.5).name('Amount');
+		sculptAmountControl = sculptFolder.add(options, 'sculptAmount', 0.01, 0.5).name('Amount').listen();
 		changeSculptAmount = function (value)
 		{
 			value = THREE.Math.clamp(value, sculptAmountControl.__min, sculptAmountControl.__max);
@@ -1161,6 +1165,11 @@
 		control.onChange(changeObjectsObject);
 
 		control = objectsFolder.add(options, 'objectsIsDynamic').name('Dynamic').listen();
+		toggleObjectsDynamic = function(value)
+		{
+			options.objectsIsDynamic = value;
+		}
+		control.onChange(toggleObjectsDynamic);
 
 		control = objectsFolder.add(options, 'objectsAddObject').name('Add From Selection');
 
@@ -1265,10 +1274,11 @@
 		debugFolder = gui.addFolder('Debug View');
 		debugFolder.open();
 
-		control = debugFolder.add(options, 'debugTrackingInfo').name('Tracking Info');
+		control = debugFolder.add(options, 'debugTrackingInfo').name('Tracking Info').listen();
 		toggleDebugTrackingInfo = function (value)
 		{
 			skarf.arLib.debug = value;
+			options.debugTrackingInfo = value;
 		}
 		control.onChange(toggleDebugTrackingInfo);
 		toggleDebugTrackingInfo(options.debugTrackingInfo);
@@ -1348,11 +1358,6 @@
 
 	    //NOTE: not allowing changing of any options under the Tracking GUI folder using AR markers, because it just does not make sense
 
-	    //test timer
-	    testTimer_reached = function (params) {
-	        alert('Time is up!');
-	    };
-
 	    //terrain
 	    terrainImageComboBox_changed = function (params) {
 	        changeTerrainImage(terrainImages[Object.keys(terrainImages)[params.selectedId]]);
@@ -1387,60 +1392,93 @@
             gpuSkulpt.updateCursor(params.position);
             gpuSkulpt.showCursor();
             gpuSkulpt.sculpt(GpuSkulpt.ADD, params.position, options.sculptAmount);
-        }
+        };
         sculptAddGeneric_hidden = function (params) {
             gpuSkulpt.hideCursor();
-        }
+        };
         sculptRemoveGeneric_moved = function (params) {
             gpuSkulpt.updateCursor(params.position);
             gpuSkulpt.showCursor();
             gpuSkulpt.sculpt(GpuSkulpt.REMOVE, params.position, options.sculptAmount);
-        }
+        };
         sculptRemoveGeneric_hidden = function (params) {
             gpuSkulpt.hideCursor();
-        }
+        };
 
         //objects
+        objectsDynamicCheckbox_toggled = function (params) {
+            toggleObjectsDynamic(params.checked);
+        };
+
         objectsCrateTimer_firstDetected = function (params) {
             changeObjectsObject(objects['Crate']);  //set object first
             objectsAddObject();
-        }
+        };
         objectsCrateTimer_firstHidden = function (params) {
             objectsCancelAddObject();
-        }
+        };
         objectsCrateTimer_moved = function (params) {
             objectsMoveObjectProject(currTransform, params.position);
-        }
+        };
         objectsCrateTimer_reached = function (params) {
             objectsAddObjectConfirm(currTransform);
-        }
+        };
 
         objectsCarTimer_firstDetected = function (params) {
             changeObjectsObject(objects['Police Car']);  //set object first
             objectsAddObject();
-        }
+        };
         objectsCarTimer_firstHidden = function (params) {
             objectsCancelAddObject();
-        }
+        };
         objectsCarTimer_moved = function (params) {
             objectsMoveObjectProject(currTransform, params.position);
-        }
+        };
         objectsCarTimer_reached = function (params) {
             objectsAddObjectConfirm(currTransform);
-        }
+        };
 
         objectsRemoveTimer_firstDetected = function (params) {
             objectsRemoveObject();
-        }
+        };
         objectsRemoveTimer_firstHidden = function (params) {
             objectsCancelRemoveObject();
-        }
+        };
         objectsRemoveTimer_moved = function (params) {
             objectsRemoveObjectFind(params.position);
-        }
+        };
         objectsRemoveTimer_reached = function (params) {
             objectsRemoveObjectConfirm();
-        }
+        };
+
+        //water
+        waterFloodRateSlider_changed = function (params) {
+            changeWaterFloodRate(options.waterFloodVolRate + params.delta);
+        };
+        waterResetFloodRateButton_clicked = function (params) {
+            waterResetFloodRate();
+        };
+        waterSourceRadiusSlider_changed = function (params) {
+            changeWaterSourceRadius(options.waterSourceRadius + params.delta);
+        };
+        waterSourceAmountSlider_changed = function (params) {
+            changeWaterSourceAmount(options.waterSourceAmount + params.delta);
+        };
+        waterSinkRadiusSlider_changed = function (params) {
+            changeWaterSinkRadius(options.waterSinkRadius + params.delta);
+        };
+        waterSinkAmountSlider_changed = function (params) {
+            changeWaterSinkAmount(options.waterSinkAmount + params.delta);
+        };
+        waterDisturbGeneric_moved = function (params) {
+            gpuWater.disturb(params.position, WATER_DISTURB_AMOUNT, WATER_DISTURB_RADIUS);
+        };
+        waterSourceGeneric_moved = function (params) {
+            gpuWater.source(params.position, options.waterSourceAmount, options.waterSourceRadius);
+        };
+        waterSinkGeneric_moved = function (params) {
+            gpuWater.source(params.position, -options.waterSinkAmount, options.waterSinkRadius);
+        };
 
         //display
         displayWireframeCheckbox_toggled = function (params) {
@@ -1449,8 +1487,28 @@
         displayLocalAxisCheckbox_toggled = function (params) {
             toggleLocalAxis(params.checked);
         };
-        displayOriginPlaneCheckbox_toggled = function (params) {
-            toggleOriginPlane(params.checked);
+
+        //debug
+        trackingShowInfoCheckbox_toggled = function (params) {
+            toggleDebugTrackingInfo(params.checked);
+        };
+        terrainShowImageCheckbox_toggled = function (params) {
+            toggleDebugTerrainImage(params.checked);
+        };
+        terrainShowProxyCheckbox_toggled = function (params) {
+            toggleDebugTerrainProxy(params.checked);
+        };
+        sculptShowTextureCheckbox_toggled = function (params) {
+            toggleDebugSculptTexture(params.checked);
+        };
+        obstaclesShowTextureCheckbox_toggled = function (params) {
+            toggleDebugObstaclesTexture(params.checked);
+        };
+        waterShowTextureCheckbox_toggled = function (params) {
+            toggleDebugWaterTexture(params.checked);
+        };
+        statsShowGlCheckbox_toggled = function (params) {
+            toggleDebugGlStats(params.checked);
         };
     }
 
@@ -1530,7 +1588,7 @@
             scene.add(currTransform);
 
             //also highlight the object
-            highlightMesh(transform.children[0], highlightEmissiveForAdd);
+            highlightMesh(transform.children[0], HIGHLIGHT_COLOR_ADD);
 
             transformAddedToScene = true;
         }
@@ -1588,7 +1646,7 @@
         transform.remove(origMesh);
 
         //remove highlight on the object
-        highlightMesh(origMesh, normalEmissive);
+        highlightMesh(origMesh, HIGHLIGHT_COLOR_NORMAL);
 
         //get JSON data
         var dataFromJson = origMesh.geometry.__jsonData;
@@ -1676,9 +1734,6 @@
     }
 
     var userAddedMeshToRemove = null;
-    var highlightEmissiveForAdd = new THREE.Color('#00ff00');
-    var highlightEmissiveForRemove = new THREE.Color('#ff0000');
-    var normalEmissive = new THREE.Color('#000000');
     function objectsRemoveObjectFind(position)
     {
         //return if not removing object
@@ -1698,7 +1753,7 @@
             if (!userAddedMeshToRemove && position.x >= transformedBBox.min.x && position.x <= transformedBBox.max.x && position.z >= transformedBBox.min.z && position.z <= transformedBBox.max.z)
             {
                 //highlight the object
-                highlightMesh(mesh, highlightEmissiveForRemove);
+                highlightMesh(mesh, HIGHLIGHT_COLOR_REMOVE);
 
                 //store object to remove
                 userAddedMeshToRemove = mesh;
@@ -1706,7 +1761,7 @@
             else
             {
                 //remove highlight on the object
-                highlightMesh(mesh, normalEmissive);
+                highlightMesh(mesh, HIGHLIGHT_COLOR_NORMAL);
             }
         }
     }
