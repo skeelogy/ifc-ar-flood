@@ -1413,12 +1413,7 @@
         {
             var indicatorGeom = new THREE.SphereGeometry(0.05);
             var indicatorMaterial = new THREE.MeshLambertMaterial({color:'#00ff00'});
-            var indicatorPhysijsMaterial = Physijs.createMaterial(
-                indicatorMaterial,
-                0.8,
-                0.1
-            );
-            indicatorMesh = new Physijs.SphereMesh(indicatorGeom, indicatorPhysijsMaterial, 0);
+            indicatorMesh = new THREE.Mesh(indicatorGeom, indicatorMaterial);
             scene.add(indicatorMesh);
         }
 
@@ -1466,7 +1461,6 @@
 
             //move the indicator
             indicatorMesh.position.set(position.x, height, position.z);
-            indicatorMesh.__dirtyPosition = true;
             indicatorMesh.visible = true;
 
             //add offset so that we can release the object above water for some ripples
