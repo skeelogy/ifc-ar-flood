@@ -384,40 +384,45 @@ ModelLoader.prototype.transformAndParent = function (model, object, markerTransf
 
     if (object) {
 
-        //store the model data into the geometry
-        object.geometry.__jsonData = model;
+        object.traverse(function (object) {
+            if (object instanceof THREE.Mesh) {
 
-        //accumulate transformations into matrix
-        var m = new THREE.Matrix4();
-        if (model.translate) {
-            m.setPosition(new THREE.Vector3(model.translate[0], model.translate[1], model.translate[2]));
-        }
-        if (model.rotate) {
-            var rotationMat = new THREE.Matrix4();
-            var rotationVector = new THREE.Vector3(THREE.Math.degToRad(model.rotate[0]), THREE.Math.degToRad(model.rotate[1]), THREE.Math.degToRad(model.rotate[2]));
-            var rotationOrder = model.rotationOrder || 'XYZ';
-            rotationMat.makeRotationFromEuler(rotationVector, model.rotationOrder);
-            m.multiply(rotationMat);
-        }
-        if (model.scale) {
-            m.scale(new THREE.Vector3(model.scale[0] * overallScale, model.scale[1] * overallScale, model.scale[2] * overallScale));
-        }
+                //store the model data into the geometry
+                object.geometry.__jsonData = model;
 
-        //bake transforms into geometry
-        object.geometry.applyMatrix(m);
-        markerTransform.add(object);
+                //accumulate transformations into matrix
+                var m = new THREE.Matrix4();
+                if (model.translate) {
+                    m.setPosition(new THREE.Vector3(model.translate[0], model.translate[1], model.translate[2]));
+                }
+                if (model.rotate) {
+                    var rotationMat = new THREE.Matrix4();
+                    var rotationVector = new THREE.Vector3(THREE.Math.degToRad(model.rotate[0]), THREE.Math.degToRad(model.rotate[1]), THREE.Math.degToRad(model.rotate[2]));
+                    var rotationOrder = model.rotationOrder || 'XYZ';
+                    rotationMat.makeRotationFromEuler(rotationVector, model.rotationOrder);
+                    m.multiply(rotationMat);
+                }
+                if (model.scale) {
+                    m.scale(new THREE.Vector3(model.scale[0] * overallScale, model.scale[1] * overallScale, model.scale[2] * overallScale));
+                }
 
-        //store the material in markerManager
-        markerManager.materials.push(object.material);
+                //bake transforms into geometry
+                object.geometry.applyMatrix(m);
+                markerTransform.add(object);
 
-        //compute bounding box
-        object.geometry.computeBoundingBox();
+                //store the material in markerManager
+                markerManager.materials.push(object.material);
 
-        //also set objects to cast shadows
-        object.castShadow = true;
-        object.receiveShadow = true;
+                //compute bounding box
+                object.geometry.computeBoundingBox();
+
+                //also set objects to cast shadows
+                object.castShadow = true;
+                object.receiveShadow = true;
+            }
+        });
+
     }
-
 };
 
 function EmptyModelLoader() {
@@ -497,23 +502,16 @@ ModelLoaderFactory.register('json_bin', JsonBinaryModelLoader);
 
 
 function ObjModelLoader() {
+
     ModelLoader.call(this);
+
     if (typeof THREE.OBJMTLLoader === 'undefined') {
         throw new Error('THREE.OBJMTLLoader does not exist. Have you included OBJMTLLoader.js and MTLLoader.js?');
     }
     this.loader = new THREE.OBJMTLLoader();
     console.log('Created a ObjModelLoader');
-}
 
-//inherit from ModelLoader
-ObjModelLoader.prototype = Object.create(ModelLoader.prototype);
-ObjModelLoader.prototype.constructor = ObjModelLoader;
-
-//register with factory
-ModelLoaderFactory.register('obj', ObjModelLoader);
-
-//override methods
-ObjModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible, markerManager) {
+    //register an event listener
     var that = this;
     this.loader.addEventListener('load', function (event) {
 
@@ -527,17 +525,37 @@ ObjModelLoader.prototype.loadForMarker = function (model, markerId, markerTransf
             for (j = 0, lenj = child.children.length; j < lenj; j++) {
                 grandChild = child.children[j];
                 if (grandChild instanceof THREE.Mesh) {
-                    grandChild.material.wireframe = isWireframeVisible;
+                    grandChild.material.wireframe = that.isWireframeVisible;
                 }
             }
         }
 
         //transform and parent
-        that.transformAndParent(model, object, markerTransform, overallScale, markerManager);
+        that.transformAndParent(that.model, object, that.markerTransform, that.overallScale, that.markerManager);
 
-        console.log('Loaded mesh ' + model.url + ' for marker id ' + markerId);
+        console.log('Loaded mesh ' + that.model.url + ' for marker id ' + that.markerId);
     });
+}
 
+//inherit from ModelLoader
+ObjModelLoader.prototype = Object.create(ModelLoader.prototype);
+ObjModelLoader.prototype.constructor = ObjModelLoader;
+
+//register with factory
+ModelLoaderFactory.register('obj', ObjModelLoader);
+
+//override methods
+ObjModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible, markerManager) {
+
+    //store variables in the instance since there seems to be no way to pass to loader.load (TODO: verify this)
+    this.model = model;
+    this.markerId = markerId;
+    this.markerTransform = markerTransform;
+    this.overallScale = overallScale;
+    this.isWireframeVisible = isWireframeVisible;
+    this.markerManager = markerManager;
+
+    //call load()
     var mtlFile = model.url.replace(/\.obj/g, '.mtl');  //assume mtl file has same base name as .obj
     this.loader.load(model.url, mtlFile);
 };

@@ -48,18 +48,18 @@
 			"angularDamping": 0.5
 		},
 		"66": {
-			"name": "dice",
-			"url": "/resources/models/dice_bin.js",
-			"type": "json_bin",
-			"translate": [0, 0, 0],
+			"name": "crate",
+			"url": "/resources/models/crate/Crate1.obj",
+			"type": "obj",
+			"translate": [0, 0.3, 0],
 			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
 			"scale": [0.3, 0.3, 0.3],
-			"mass": 50,
+			"mass": 80,
 			"friction": 0.8,
 			"restitution": 0.2,
-			"linearDamping": 0.95,
-			"angularDamping": 0.5
+			"linearDamping": 0.5,
+			"angularDamping": 0.25
 		}
 	},
 	"guiMarkers": {
