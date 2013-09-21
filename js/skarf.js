@@ -382,24 +382,28 @@ ModelLoader.prototype.loadForMarker = function (markerId, markerTransform, overa
 };
 ModelLoader.prototype.transformAndParent = function (model, object, markerTransform, overallScale, markerManager) {
 
-    //accumulate transformations into matrix
-    var m = new THREE.Matrix4();
-    if (model.translate) {
-        m.setPosition(new THREE.Vector3(model.translate[0], model.translate[1], model.translate[2]));
-    }
-    if (model.rotate) {
-        var rotationMat = new THREE.Matrix4();
-        var rotationVector = new THREE.Vector3(THREE.Math.degToRad(model.rotate[0]), THREE.Math.degToRad(model.rotate[1]), THREE.Math.degToRad(model.rotate[2]));
-        var rotationOrder = model.rotationOrder || 'XYZ';
-        rotationMat.makeRotationFromEuler(rotationVector, model.rotationOrder);
-        m.multiply(rotationMat);
-    }
-    if (model.scale) {
-        m.scale(new THREE.Vector3(model.scale[0] * overallScale, model.scale[1] * overallScale, model.scale[2] * overallScale));
-    }
-
-    //apply the transforms
     if (object) {
+
+        //store the model data into the geometry
+        object.geometry.__jsonData = model;
+
+        //accumulate transformations into matrix
+        var m = new THREE.Matrix4();
+        if (model.translate) {
+            m.setPosition(new THREE.Vector3(model.translate[0], model.translate[1], model.translate[2]));
+        }
+        if (model.rotate) {
+            var rotationMat = new THREE.Matrix4();
+            var rotationVector = new THREE.Vector3(THREE.Math.degToRad(model.rotate[0]), THREE.Math.degToRad(model.rotate[1]), THREE.Math.degToRad(model.rotate[2]));
+            var rotationOrder = model.rotationOrder || 'XYZ';
+            rotationMat.makeRotationFromEuler(rotationVector, model.rotationOrder);
+            m.multiply(rotationMat);
+        }
+        if (model.scale) {
+            m.scale(new THREE.Vector3(model.scale[0] * overallScale, model.scale[1] * overallScale, model.scale[2] * overallScale));
+        }
+
+        //bake transforms into geometry
         object.geometry.applyMatrix(m);
         markerTransform.add(object);
 

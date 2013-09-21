@@ -101,9 +101,9 @@
 		'/resources/images/terrain/clouds_256.png': { 'preblur':0, 'height':2, 'midGreyIsLowest':false }
 	}
 	var objects = {
-		'Dice': 66,
-		'Police Car': 31,
+	    'Dice': 66,
 		'Bench': 49,
+		'Police Car': 31,
 		'House': 63,
 	};
 
@@ -118,6 +118,7 @@
         sculptAmount: 0.1,
 		sculptClearSculpts: sculptClearSculpts,
 		objectsObject: objects[Object.keys(objects)[0]],
+		objectsIsDynamic: true,
 		objectsAddObject: objectsAddObject,
 		objectsRemoveObject: objectsRemoveObject,
 		waterFloodVolRate: 0.0,
@@ -297,7 +298,17 @@
             throw new Error('ARLIB type not recognised: ' + ARLIB);
         }
         markerManager.load();
+
+
+
+
+        //TEMP: create a cube geometry, bake in a scale
+        var tempGeom = new THREE.CubeGeometry(1, 1, 1);
+        tempGeom.applyMatrix(new THREE.Matrix4().makeScale(0.1, 0.2, 0.3));
+        tempMesh = new THREE.Mesh(tempGeom, new THREE.MeshBasicMaterial());
+        scene.add(tempMesh);
 	}
+	var tempMesh;
 
 	function setupDynamicAttributes()
 	{
@@ -687,6 +698,21 @@
 		else if (event.keyCode === 68)  //d
 		{
 		    dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(100, 0, 0));
+		}
+
+		//TEMP
+		if (event.keyCode === 89)
+		{
+		    //create new temp mesh
+		    var newMesh = new Physijs.ConvexMesh(tempMesh.geometry, new THREE.MeshBasicMaterial({color:'#ff0000'}));
+		    newMesh.position.y = 1;
+		    scene.add(newMesh);
+
+		    // scene.remove(tempMesh);
+		}
+		if (event.keyCode === 80)
+		{
+		    debugger;
 		}
 	}
 
@@ -1408,23 +1434,18 @@
             transform.remove(origMesh);
 
             //convert into Physijs mesh
-            //TODO: these should be read in from JSON file
-            var friction = 0.8;
-            var restitution = 0.1;
-            var mass = 50;
-            var linearDamping = 0.95;
-            var angularDamping = 0.5;
+            var dataFromJson = origMesh.geometry.__jsonData;
             var physijsMesh = createPhysijsMeshFromThreejsMesh(origMesh, transform.position, {
-                mass: mass,
-                friction: friction,
-                restitution: restitution,
-                linearDamping: linearDamping,
-                angularDamping: angularDamping
+                mass: dataFromJson.mass,
+                friction: dataFromJson.friction,
+                restitution: dataFromJson.restitution,
+                linearDamping: dataFromJson.linearDamping,
+                angularDamping: dataFromJson.angularDamping
             });
             dynObstacleMeshes.push(physijsMesh);
 
             //register this mesh as a dynamic obstacle with gpu water
-            gpuWater.addDynamicObstacle(physijsMesh, mass);
+            gpuWater.addDynamicObstacle(physijsMesh, dataFromJson.mass);
 
             //TODO: delete origMesh
         }
@@ -1432,12 +1453,11 @@
 
     function createPhysijsMeshFromThreejsMesh(mesh, position, params)
     {
-        //TODO: check for defaults
-        var mass = params.mass;
-        var friction = params.friction;
-        var restitution = params.restitution;
-        var linearDamping = params.linearDamping;
-        var angularDamping = params.angularDamping;
+        var mass = params.mass || 10;
+        var friction = params.friction || 0.8;
+        var restitution = params.restitution || 0.2;
+        var linearDamping = params.linearDamping || 0.9;
+        var angularDamping = params.angularDamping || 0.5;
 
         //get geometry
         var geometry = mesh.geometry;

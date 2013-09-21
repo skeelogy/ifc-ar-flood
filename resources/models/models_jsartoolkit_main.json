@@ -12,7 +12,12 @@
 			"translate": [0, 0, 0],
 			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
-			"scale": [0.3, 0.3, 0.3]
+			"scale": [0.3, 0.3, 0.3],
+			"mass": 50,
+			"friction": 0.8,
+			"restitution": 0.2,
+			"linearDamping": 0.95,
+			"angularDamping": 0.5
 		},
 		"49": {
 			"name": "park_bench",
@@ -21,7 +26,12 @@
 			"translate": [0, 0, 0],
 			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
-			"scale": [0.5, 0.5, 0.5]
+			"scale": [0.5, 0.5, 0.5],
+			"mass": 50,
+			"friction": 0.8,
+			"restitution": 0.2,
+			"linearDamping": 0.95,
+			"angularDamping": 0.5
 		},
 		"63": {
 			"name": "house_15",
@@ -30,7 +40,12 @@
 			"translate": [0, 0, 0],
 			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
-			"scale": [0.1, 0.1, 0.1]
+			"scale": [0.1, 0.1, 0.1],
+			"mass": 50,
+			"friction": 0.8,
+			"restitution": 0.2,
+			"linearDamping": 0.95,
+			"angularDamping": 0.5
 		},
 		"66": {
 			"name": "dice",
@@ -39,7 +54,12 @@
 			"translate": [0, 0, 0],
 			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
-			"scale": [0.3, 0.3, 0.3]
+			"scale": [0.3, 0.3, 0.3],
+			"mass": 50,
+			"friction": 0.8,
+			"restitution": 0.2,
+			"linearDamping": 0.95,
+			"angularDamping": 0.5
 		}
 	},
 	"guiMarkers": {
