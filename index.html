@@ -626,6 +626,9 @@
 		window.addEventListener('keydown', window_onKeyDown, false);
 		window.addEventListener('keyup', window_onKeyUp, false);
 
+		//call window resize once during init to force correct aspect ratio
+		window_onResize();
+
 		//attach events to the canvas so that we can get the relative mouse coordinates inside it
 		$threejsCanvasElem = $('#threejs-canvas');
 		$threejsCanvasElem[0].addEventListener('mousedown', window_onMouseDown, false);
@@ -955,9 +958,9 @@
 	var mousePosNorm = new THREE.Vector2();
 	function detectIntersection()
 	{
-	    //get normalized [-1, 1] mouse position
-		mousePosNorm.x = (event.clientX / $threejsCanvasElem.width()) * 2 - 1;
-		mousePosNorm.y = -(event.clientY / $threejsCanvasElem.height()) * 2 + 1;
+	    //get normalized [-1, 1] mouse position within the canvas
+		mousePosNorm.x = (event.layerX / $threejsCanvasElem.width()) * 2 - 1;
+		mousePosNorm.y = -(event.layerY / $threejsCanvasElem.height()) * 2 + 1;
 
 		//unproject 2d point to get 3d point
 		worldPos.set(mousePosNorm.x, mousePosNorm.y, 1);
