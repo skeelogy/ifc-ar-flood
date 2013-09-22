@@ -104,7 +104,9 @@ function GpuHeightFieldWater(options) {
 
     this.pixelByteData = new Uint8Array(this.res * this.res * 4);
 
-    this.obstacles = [];
+    this.staticObstacles = [];
+    this.dynObstacles = [];
+    this.shouldUpdateStaticObstacle = false;
 
     this.callbacks = {};
 
@@ -138,8 +140,9 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
     this.disturbAndSourceMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: this.emptyTexture },
-            uObstaclesTexture: { type: 't', value: this.emptyTexture },
+            uStaticObstaclesTexture: { type: 't', value: this.emptyTexture },
             uDisturbTexture: { type: 't', value: this.emptyTexture },
+            uUseObstacleTexture: { type: 'i', value: 1 },  //turn on by default for most of the surface water types to use (pipe model will not need this)
             uIsDisturbing: { type: 'i', value: 0 },
             uDisturbPos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
             uDisturbAmount: { type: 'f', value: this.disturbAmount },
@@ -196,8 +199,18 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/setSolidAlpha.frag')
     });
 
-    THREE.ShaderManager.addShader('/glsl/hfWater_obstacles.frag');
-    this.obstaclesMaterial = new THREE.ShaderMaterial({
+    THREE.ShaderManager.addShader('/glsl/hfWater_obstacles_static.frag');
+    this.staticObstaclesMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uObstacleTopTexture: { type: 't', value: this.emptyTexture },
+            uHalfRange: { type: 'f', value: this.rttObstaclesCameraRange / 2.0 }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_obstacles_static.frag')
+    });
+
+    THREE.ShaderManager.addShader('/glsl/hfWater_obstacles_dynamic.frag');
+    this.dynObstaclesMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uObstaclesTexture: { type: 't', value: this.emptyTexture },
             uObstacleTopTexture: { type: 't', value: this.emptyTexture },
@@ -207,7 +220,7 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
             uHalfRange: { type: 'f', value: this.rttObstaclesCameraRange / 2.0 }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
-        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_obstacles.frag')
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/hfWater_obstacles_dynamic.frag')
     });
 
     THREE.ShaderManager.addShader('/glsl/encodeFloat.frag');
@@ -271,6 +284,17 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTextures.frag')
     });
 
+    THREE.ShaderManager.addShader('/glsl/erode.frag');
+    this.erodeMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTexture: { type: 't', value: this.emptyTexture },
+            uTexelSize: { type: 'f', value: this.texelSize }
+        },
+        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/erode.frag')
+    });
+
+
     this.channelVectors = {
         'r': new THREE.Vector4(1, 0, 0, 0),
         'g': new THREE.Vector4(0, 1, 0, 0),
@@ -312,7 +336,7 @@ GpuHeightFieldWater.prototype.__setupRttScene = function () {
 
     //some render targets for blurred textures
     this.rttCombinedHeightsBlurredRenderTarget = this.rttRenderTarget1.clone();
-    this.rttObstaclesBlurredRenderTarget = this.rttRenderTarget1.clone();
+    this.rttDynObstaclesBlurredRenderTarget = this.rttRenderTarget1.clone();
 
     //create render target for storing the disturbed map (due to interaction with rigid bodes)
     this.rttDisturbMapRenderTarget = this.rttRenderTarget1.clone();
@@ -411,8 +435,9 @@ GpuHeightFieldWater.prototype.__setupObstaclesScene = function () {
     this.rttObstaclesBottomCamera.position.y = this.rttObstaclesCameraRange / 2;
     this.rttObstaclesBottomCamera.rotation.x = THREE.Math.degToRad(-90);
 
-    //create an obstacles render target and two more for top and bottom views
-    this.rttObstaclesRenderTarget = this.rttRenderTarget1.clone();
+    //create obstacles render targets and two more for top and bottom views
+    this.rttStaticObstaclesRenderTarget = this.rttRenderTarget1.clone();
+    this.rttDynObstaclesRenderTarget = this.rttRenderTarget1.clone();
     this.rttObstacleTopRenderTarget = this.rttRenderTarget1.clone();
     this.rttObstacleBottomRenderTarget = this.rttRenderTarget1.clone();
 
@@ -466,7 +491,7 @@ GpuHeightFieldWater.prototype.disturbPass = function () {
     if (this.isDisturbing) {
         this.rttQuadMesh.material = this.disturbAndSourceMaterial;
         this.disturbAndSourceMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
-        this.disturbAndSourceMaterial.uniforms.uObstaclesTexture.value = this.rttObstaclesRenderTarget;
+        this.disturbAndSourceMaterial.uniforms.uStaticObstaclesTexture.value = this.rttStaticObstaclesRenderTarget;
         this.disturbAndSourceMaterial.uniforms.uDisturbTexture.value = this.rttDisturbMapRenderTarget;
         this.disturbAndSourceMaterial.uniforms.uIsDisturbing.value = this.isDisturbing;
         this.disturbAndSourceMaterial.uniforms.uDisturbPos.value.copy(this.disturbUvPos);
@@ -512,9 +537,15 @@ GpuHeightFieldWater.prototype.update = function (dt) {
     //fix dt for the moment (better to be in slow-mo in extreme cases than to explode)
     dt = 1.0 / 60.0;
 
-    //update obstacle textures
-    if (this.obstacles.length > 0) {
-        gpuWater.updateObstacleTexture(dt, this.scene);
+    //update static obstacle texture
+    if (this.shouldUpdateStaticObstacle) {
+        this.updateStaticObstacleTexture(dt);
+        this.shouldUpdateStaticObstacle = false;
+    }
+
+    //update dynamic obstacle textures
+    if (this.dynObstacles.length > 0) {
+        this.updateDynObstacleTexture(dt);
     }
 
     //do multiple full steps per frame to speed up some of algorithms that are slow to propagate at high mesh resolutions
@@ -565,7 +596,10 @@ GpuHeightFieldWater.prototype.addStaticObstacle = function (mesh) {
     mesh.__skhfwater.isObstacle = true;
     mesh.__skhfwater.isDynamic = false;
     mesh.__skhfwater.mass = 0;
-    this.obstacles.push(mesh);
+    this.staticObstacles.push(mesh);
+
+    //set a flag to indicate that we want to update static obstacle texture during update() call
+    this.shouldUpdateStaticObstacle = true;
 };
 GpuHeightFieldWater.prototype.addDynamicObstacle = function (mesh, mass) {
     if (!(mesh instanceof THREE.Mesh)) {
@@ -580,34 +614,104 @@ GpuHeightFieldWater.prototype.addDynamicObstacle = function (mesh, mass) {
     mesh.__skhfwater.isObstacle = true;
     mesh.__skhfwater.isDynamic = true;
     mesh.__skhfwater.mass = mass;
-    this.obstacles.push(mesh);
+    this.dynObstacles.push(mesh);
 };
 GpuHeightFieldWater.prototype.removeObstacle = function (mesh) {
-    //remove from array
+
+    //remove from dynamic obstacle array if it exists
     var i, len;
-    for (i = 0, len = this.obstacles.length; i < len; i++)
+    for (i = 0, len = this.dynObstacles.length; i < len; i++)
     {
-        if (this.obstacles[i] === mesh)
+        if (this.dynObstacles[i] === mesh)
         {
-            this.obstacles.splice(i, 1);
+            this.dynObstacles.splice(i, 1);
         }
     }
+
+    //remove from static obstacle array if it exists
+    var isStaticObstacle = false;
+    var i, len;
+    for (i = 0, len = this.staticObstacles.length; i < len; i++)
+    {
+        if (this.staticObstacles[i] === mesh)
+        {
+            this.staticObstacles.splice(i, 1);
+            isStaticObstacle = true;
+        }
+    }
+    if (isStaticObstacle) {
+        //set a flag to indicate that we want to update static obstacle texture during update() call
+        this.shouldUpdateStaticObstacle = true;
+    }
 };
-GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
+/**
+ * This should only be called during update() call. Should not be called directly.
+ */
+GpuHeightFieldWater.prototype.updateStaticObstacleTexture = function (dt) {
+
+    //static obstacle map just needs the top height (like the terrain)
+
+    //clear obstacle texture first
+    this.rttQuadMesh.material = this.resetMaterial;
+    this.resetMaterial.uniforms.uColor.value.set(0, 0, 0, 1);  //set unused alpha channel to 1 so that we can see the result
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttStaticObstaclesRenderTarget, false);
+    this.resetMaterial.uniforms.uColor.value.set(0, 0, 0, 0);
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttObstacleTopRenderTarget, false);
+
+    var that = this;
+
+    //hide and reset everything in scene
+    this.scene.traverse(function (object) {
+        object.visibleStore = object.visible;
+        object.visible = false;
+    });
+
+    //set an override depth map material for the scene
+    this.scene.overrideMaterial = this.rttObstaclesDepthMaterial;
+
+    //show all static obstacles
+    var i, len;
+    for (i = 0, len = this.staticObstacles.length; i < len; i++) {
+        this.staticObstacles[i].visible = true;
+    }
+
+    //render from the top view to get the top height
+    this.renderer.render(this.scene, this.rttObstaclesTopCamera, this.rttObstacleTopRenderTarget, false);
+
+    //process this depth actual height
+    this.rttQuadMesh.material = this.staticObstaclesMaterial;
+    this.staticObstaclesMaterial.uniforms.uObstacleTopTexture.value = this.rttObstacleTopRenderTarget;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttStaticObstaclesRenderTarget, false);
+
+    //erode the map so that the water heights won't show at the sides of the obstacles
+    this.rttQuadMesh.material = this.erodeMaterial;
+    this.erodeMaterial.uniforms.uTexture.value = this.rttStaticObstaclesRenderTarget;
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttStaticObstaclesRenderTarget, false);
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttStaticObstaclesRenderTarget, false);
+
+    //remove scene override material
+    this.scene.overrideMaterial = null;
+
+    //restore visibility in the scene
+    this.scene.traverse(function (object) {
+        object.visible = object.visibleStore;
+    });
+};
+GpuHeightFieldWater.prototype.updateDynObstacleTexture = function (dt) {
 
     //store accumulated displaced height channel from previous frame first (by copying G channel to B channel)
     this.rttQuadMesh.material = this.copyChannelsMaterial;
-    this.copyChannelsMaterial.uniforms.uTexture.value = this.rttObstaclesRenderTarget;
+    this.copyChannelsMaterial.uniforms.uTexture.value = this.rttDynObstaclesRenderTarget;
     this.copyChannelsMaterial.uniforms.uOriginChannelId.value.copy(this.channelVectors.g);
     this.copyChannelsMaterial.uniforms.uDestChannelId.value.copy(this.channelVectors.b);
-    this.renderer.render(this.rttScene, this.rttCamera, this.rttObstaclesRenderTarget, false);
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttDynObstaclesRenderTarget, false);
 
     //clear obstacle textures
     this.rttQuadMesh.material = this.resetMaskedMaterial;
-    this.resetMaskedMaterial.uniforms.uTexture.value = this.rttObstaclesRenderTarget;
+    this.resetMaskedMaterial.uniforms.uTexture.value = this.rttDynObstaclesRenderTarget;
     this.resetMaskedMaterial.uniforms.uColor.value.set(0, 0, 0, 0);
     this.resetMaskedMaterial.uniforms.uChannelMask.value.set(1, 1, 0, 1);  //don't clear B channel which stores previous displaced vol
-    this.renderer.render(this.rttScene, this.rttCamera, this.rttObstaclesRenderTarget, false);
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttDynObstaclesRenderTarget, false);
 
     //combine water and terrain heights into one and then blur it
     this.rttQuadMesh.material = this.combineTexturesMaterial;
@@ -626,19 +730,17 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
     var that = this;
 
     //hide and reset everything in scene
-    scene.traverse(function (object) {
+    this.scene.traverse(function (object) {
         object.visibleStore = object.visible;
         object.visible = false;
     });
 
     //set an override depth map material for the scene
-    scene.overrideMaterial = this.rttObstaclesDepthMaterial;
-
-    //TODO: do not need to update static obstacles every frame
+    this.scene.overrideMaterial = this.rttObstaclesDepthMaterial;
 
     //render top & bottom of each obstacle and compare to current water texture
-    scene.traverse(function (object) {
-        if (object instanceof THREE.Mesh && object.__skhfwater && object.__skhfwater.isObstacle) {
+    this.scene.traverse(function (object) {
+        if (object instanceof THREE.Mesh && object.__skhfwater && object.__skhfwater.isObstacle && object.__skhfwater.isDynamic) {
 
             //show current mesh
             object.visible = true;
@@ -650,25 +752,25 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
             that.renderer.render(that.rttScene, that.rttCamera, that.rttObstacleBottomRenderTarget, false);
 
             //render top and bottom depth maps
-            that.renderer.render(scene, that.rttObstaclesTopCamera, that.rttObstacleTopRenderTarget, false);
-            that.renderer.render(scene, that.rttObstaclesBottomCamera, that.rttObstacleBottomRenderTarget, false);
+            that.renderer.render(that.scene, that.rttObstaclesTopCamera, that.rttObstacleTopRenderTarget, false);
+            that.renderer.render(that.scene, that.rttObstaclesBottomCamera, that.rttObstacleBottomRenderTarget, false);
 
             //update obstacle texture
-            that.rttQuadMesh.material = that.obstaclesMaterial;
-            that.obstaclesMaterial.uniforms.uObstaclesTexture.value = that.rttObstaclesRenderTarget;
-            that.obstaclesMaterial.uniforms.uObstacleTopTexture.value = that.rttObstacleTopRenderTarget;
-            that.obstaclesMaterial.uniforms.uObstacleBottomTexture.value = that.rttObstacleBottomRenderTarget;
-            that.obstaclesMaterial.uniforms.uWaterTexture.value = that.rttCombinedHeightsBlurredRenderTarget;  //use blurred heights
-            that.obstaclesMaterial.uniforms.uTerrainTexture.value = that.emptyTexture;
-            that.renderer.render(that.rttScene, that.rttCamera, that.rttObstaclesRenderTarget, false);
+            that.rttQuadMesh.material = that.dynObstaclesMaterial;
+            that.dynObstaclesMaterial.uniforms.uObstaclesTexture.value = that.rttDynObstaclesRenderTarget;
+            that.dynObstaclesMaterial.uniforms.uObstacleTopTexture.value = that.rttObstacleTopRenderTarget;
+            that.dynObstaclesMaterial.uniforms.uObstacleBottomTexture.value = that.rttObstacleBottomRenderTarget;
+            that.dynObstaclesMaterial.uniforms.uWaterTexture.value = that.rttCombinedHeightsBlurredRenderTarget;  //use blurred heights
+            that.dynObstaclesMaterial.uniforms.uTerrainTexture.value = that.emptyTexture;
+            that.renderer.render(that.rttScene, that.rttCamera, that.rttDynObstaclesRenderTarget, false);
 
             //if object is dynamic, store additional info
-            if (object.__skhfwater.isDynamic) {
+            // if (object.__skhfwater.isDynamic) {
 
                 //TODO: reduce the number of texture reads to speed up (getPixels() is very expensive)
 
                 //find total water volume displaced by this object (from A channel data)
-                ParallelReducer.reduce(that.rttObstaclesRenderTarget, 'sum', 'a');
+                ParallelReducer.reduce(that.rttDynObstaclesRenderTarget, 'sum', 'a');
                 object.__skhfwater.totalDisplacedVol = ParallelReducer.getPixelFloatData('a')[0] * that.segmentSizeSquared;  //cubic metres
 
                 //mask out velocity field using object's alpha
@@ -710,7 +812,7 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
                     }
                 }
 
-            }
+            // }
 
             //hide current mesh
             object.visible = false;
@@ -718,10 +820,10 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
     });
 
     //remove scene override material
-    scene.overrideMaterial = null;
+    this.scene.overrideMaterial = null;
 
     //restore visibility in the scene
-    scene.traverse(function (object) {
+    this.scene.traverse(function (object) {
         object.visible = object.visibleStore;
     });
 
@@ -731,17 +833,17 @@ GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
 
     //blur the obstacles map
     this.rttQuadMesh.material = this.gaussianBlurXMaterial;
-    this.gaussianBlurXMaterial.uniforms.uTexture.value = this.rttObstaclesRenderTarget;
+    this.gaussianBlurXMaterial.uniforms.uTexture.value = this.rttDynObstaclesRenderTarget;
     this.gaussianBlurXMaterial.uniforms.uTexelSize.value = 1.0 / this.res;
-    this.renderer.render(this.rttScene, this.rttCamera, this.rttObstaclesBlurredRenderTarget, false);  //need to render to another target to avoid corrupting original accumulated
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttDynObstaclesBlurredRenderTarget, false);  //need to render to another target to avoid corrupting original accumulated
     this.rttQuadMesh.material = this.gaussianBlurYMaterial;
-    this.gaussianBlurYMaterial.uniforms.uTexture.value = this.rttObstaclesBlurredRenderTarget;
+    this.gaussianBlurYMaterial.uniforms.uTexture.value = this.rttDynObstaclesBlurredRenderTarget;
     this.gaussianBlurYMaterial.uniforms.uTexelSize.value = 1.0 / this.res;
-    this.renderer.render(this.rttScene, this.rttCamera, this.rttObstaclesBlurredRenderTarget, false);
+    this.renderer.render(this.rttScene, this.rttCamera, this.rttDynObstaclesBlurredRenderTarget, false);
 
     //calculate a map with additional heights to disturb water, based on differences in water volumes between frames
     this.rttQuadMesh.material = this.calcDisturbMapMaterial;
-    this.calcDisturbMapMaterial.uniforms.uTexture.value = this.rttObstaclesBlurredRenderTarget;  //use blurred obstacle maps
+    this.calcDisturbMapMaterial.uniforms.uTexture.value = this.rttDynObstaclesBlurredRenderTarget;  //use blurred obstacle maps
     this.renderer.render(this.rttScene, this.rttCamera, this.rttDisturbMapRenderTarget, false);
     this.disturbMapHasUpdated = true;
 
@@ -1019,7 +1121,7 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
             uTerrainTexture: { type: 't', value: this.emptyTexture },
             uWaterTexture: { type: 't', value: this.emptyTexture },
             uFluxTexture: { type: 't', value: this.emptyTexture },
-            uObstaclesTexture: { type: 't', value: this.emptyTexture },
+            uStaticObstaclesTexture: { type: 't', value: this.emptyTexture },
             uBoundaryTexture: { type: 't', value: this.emptyTexture },
             uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
             uDampingFactor: { type: 'f', value: this.__dampingFactor },
@@ -1054,19 +1156,21 @@ GpuPipeModelWater.prototype.__setupShaders = function () {
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/setColor.frag')
     });
 
-    THREE.ShaderManager.addShader('/glsl/combineTexturesPostMult.frag');
-    this.combineTexturesPostMultMaterial = new THREE.ShaderMaterial({
+    THREE.ShaderManager.addShader('/glsl/calcFinalWaterHeight.frag');
+    this.calcFinalWaterHeightMaterial = new THREE.ShaderMaterial({
         uniforms: {
-            uTexture1: { type: 't', value: this.emptyTexture },
-            uTexture2: { type: 't', value: this.emptyTexture },
+            uTerrainTexture: { type: 't', value: this.emptyTexture },
+            uStaticObstaclesTexture: { type: 't', value: this.emptyTexture },
+            uWaterTexture: { type: 't', value: this.emptyTexture },
             uMultiplyTexture: { type: 't', value: this.emptyTexture },
             uMaskOffset: { type: 'f', value: this.minWaterHeight }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
-        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTexturesPostMult.frag')
+        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/calcFinalWaterHeight.frag')
     });
 
     //add flood uniforms into disturb material
+    this.disturbAndSourceMaterial.uniforms.uUseObstacleTexture.value = false;
     this.disturbAndSourceMaterial.uniforms.uIsFlooding = { type: 'i', value: 0 };
     this.disturbAndSourceMaterial.uniforms.uFloodAmount = { type: 'f', value: this.floodAmount };
 };
@@ -1098,14 +1202,13 @@ GpuPipeModelWater.prototype.disturbPass = function () {
     if (this.disturbMapHasUpdated) {
         this.rttQuadMesh.material = this.disturbAndSourceMaterial;
         this.disturbAndSourceMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
-        this.disturbAndSourceMaterial.uniforms.uObstaclesTexture.value = this.rttObstaclesRenderTarget;
+        // this.disturbAndSourceMaterial.uniforms.uStaticObstaclesTexture.value = this.rttDynObstaclesRenderTarget;
         this.disturbAndSourceMaterial.uniforms.uDisturbTexture.value = this.rttDisturbMapRenderTarget;
         shouldRender = true;
     }
     if (this.isDisturbing) {
         this.rttQuadMesh.material = this.disturbAndSourceMaterial;
         this.disturbAndSourceMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
-        this.disturbAndSourceMaterial.uniforms.uObstaclesTexture.value = this.rttObstaclesRenderTarget;
         this.disturbAndSourceMaterial.uniforms.uIsDisturbing.value = this.isDisturbing;
         this.disturbAndSourceMaterial.uniforms.uDisturbPos.value.copy(this.disturbUvPos);
         this.disturbAndSourceMaterial.uniforms.uDisturbAmount.value = this.disturbAmount;
@@ -1162,7 +1265,7 @@ GpuPipeModelWater.prototype.waterSimPass = function (substepDt) {
     this.waterSimMaterial.uniforms.uTerrainTexture.value = this.terrainTexture;
     this.waterSimMaterial.uniforms.uWaterTexture.value = this.rttRenderTarget2;
     this.waterSimMaterial.uniforms.uFluxTexture.value = this.rttRenderTargetFlux2;
-    this.waterSimMaterial.uniforms.uObstaclesTexture.value = this.rttObstaclesRenderTarget;
+    this.waterSimMaterial.uniforms.uStaticObstaclesTexture.value = this.rttStaticObstaclesRenderTarget;
     this.waterSimMaterial.uniforms.uBoundaryTexture.value = this.boundaryTexture;
     this.waterSimMaterial.uniforms.uHeightToFluxFactor.value = this.heightToFluxFactorNoDt * substepDt;
     this.waterSimMaterial.uniforms.uDt.value = substepDt;
@@ -1180,11 +1283,12 @@ GpuPipeModelWater.prototype.waterSimPass = function (substepDt) {
 };
 GpuPipeModelWater.prototype.postStepPass = function () {
 
-    //combine terrain and water heights
-    this.rttQuadMesh.material = this.combineTexturesPostMultMaterial;
-    this.combineTexturesPostMultMaterial.uniforms.uTexture1.value = this.terrainTexture;
-    this.combineTexturesPostMultMaterial.uniforms.uTexture2.value = this.rttRenderTarget2;
-    this.combineTexturesPostMultMaterial.uniforms.uMultiplyTexture.value = this.boundaryTexture;
+    //combine terrain, static obstacle and water heights
+    this.rttQuadMesh.material = this.calcFinalWaterHeightMaterial;
+    this.calcFinalWaterHeightMaterial.uniforms.uTerrainTexture.value = this.terrainTexture;
+    this.calcFinalWaterHeightMaterial.uniforms.uStaticObstaclesTexture.value = this.rttStaticObstaclesRenderTarget;
+    this.calcFinalWaterHeightMaterial.uniforms.uWaterTexture.value = this.rttRenderTarget2;
+    this.calcFinalWaterHeightMaterial.uniforms.uMultiplyTexture.value = this.boundaryTexture;
     this.renderer.render(this.rttScene, this.rttCamera, this.rttCombinedHeight, false);
 
     //rebind render target to water mesh to ensure vertex shader gets the right texture

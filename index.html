@@ -506,7 +506,7 @@
 		//create a RTT visualization plane for obstacles
 		obstaclesVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
 		obstaclesVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-	    obstaclesVisMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuWater.rttObstaclesRenderTarget } );
+	    obstaclesVisMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: gpuWater.rttDynObstaclesBlurredRenderTarget } );
 		materials.push(obstaclesVisMaterial);
 		obstaclesVisMesh = new THREE.Mesh(obstaclesVisGeom, obstaclesVisMaterial);
 		obstaclesVisMesh.position.y = 2;

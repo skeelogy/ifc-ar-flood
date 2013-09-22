@@ -1,16 +1,17 @@
 //Fragment shader to combine textures
 //author: Skeel Lee <skeel@skeelogy.com>
 
-uniform sampler2D uTexture1;
-uniform sampler2D uTexture2;
-uniform sampler2D uMultiplyTexture;  //texture to multiply the results of uTexture1 + uTexture2
+uniform sampler2D uTerrainTexture;
+uniform sampler2D uStaticObstaclesTexture;
+uniform sampler2D uWaterTexture;
+uniform sampler2D uMultiplyTexture;  //texture to multiply the results of uTerrainTexture + uStaticObstaclesTexture
 uniform float uMaskOffset;  //using uMultiplyTexture as a mask to offset the 0 regions
 
 varying vec2 vUv;
 
 void main() {
 
-    vec4 t = texture2D(uTexture1, vUv) + texture2D(uTexture2, vUv);
+    vec4 t = max(texture2D(uTerrainTexture, vUv), texture2D(uStaticObstaclesTexture, vUv)) + texture2D(uWaterTexture, vUv);
 
     //read multiply texture and multiply
     vec4 tMultiply = texture2D(uMultiplyTexture, vUv);

@@ -5,7 +5,7 @@
 uniform sampler2D uTerrainTexture;
 uniform sampler2D uWaterTexture;
 uniform sampler2D uFluxTexture;
-uniform sampler2D uObstaclesTexture;
+uniform sampler2D uStaticObstaclesTexture;
 uniform sampler2D uBoundaryTexture;
 uniform vec2 uTexelSize;
 uniform float uDampingFactor;
@@ -31,8 +31,12 @@ void main() {
     //a channel: UNUSED
     vec4 tWater = texture2D(uWaterTexture, vUv);
 
+    //read static obstacle texture
+    //r channel: height
+    vec4 tObstacle = texture2D(uStaticObstaclesTexture, vUv);
+
     float waterHeight = tWater.r;
-    float totalHeight = tTerrain.r + waterHeight;
+    float totalHeight = max(tTerrain.r, tObstacle.r) + waterHeight;
 
     //read flux texture
     //r channel: fluxR
@@ -43,10 +47,10 @@ void main() {
 
     //calculate new flux
     tFlux *= uDampingFactor;
-    vec4 neighbourTotalHeights = vec4(texture2D(uWaterTexture, vUv + du).r + texture2D(uTerrainTexture, vUv + du).r,
-                                      texture2D(uWaterTexture, vUv - du).r + texture2D(uTerrainTexture, vUv - du).r,
-                                      texture2D(uWaterTexture, vUv - dv).r + texture2D(uTerrainTexture, vUv - dv).r,
-                                      texture2D(uWaterTexture, vUv + dv).r + texture2D(uTerrainTexture, vUv + dv).r);
+    vec4 neighbourTotalHeights = vec4(texture2D(uWaterTexture, vUv + du).r + max(texture2D(uTerrainTexture, vUv + du).r, texture2D(uStaticObstaclesTexture, vUv + du).r),
+                                      texture2D(uWaterTexture, vUv - du).r + max(texture2D(uTerrainTexture, vUv - du).r, texture2D(uStaticObstaclesTexture, vUv - du).r),
+                                      texture2D(uWaterTexture, vUv - dv).r + max(texture2D(uTerrainTexture, vUv - dv).r, texture2D(uStaticObstaclesTexture, vUv - dv).r),
+                                      texture2D(uWaterTexture, vUv + dv).r + max(texture2D(uTerrainTexture, vUv + dv).r, texture2D(uStaticObstaclesTexture, vUv + dv).r));
     tFlux += (totalHeight - neighbourTotalHeights) * uHeightToFluxFactor;
     tFlux = max(vec4(0.0), tFlux);
 
@@ -59,26 +63,6 @@ void main() {
 
     //multiply flux with boundary texture to mask out fluxes
     tFlux *= tBoundary;
-
-    //read obstacle texture
-    //r channel: whether water is in obstacle
-    vec4 tObstacle = texture2D(uObstaclesTexture, vUv);
-
-    //stop flow velocity if pipe flows to an obstacle
-    //TODO: obstacles for pipe model water
-    // tFlux *= 1.0 - tObstacle.r;
-    // if (texture2D(uObstaclesTexture, vUv + du).r > 0.1) {
-        // tFlux.r = 0.0;
-    // }
-    // if (texture2D(uObstaclesTexture, vUv - du).r > 0.1) {
-        // tFlux.g = 0.0;
-    // }
-    // if (texture2D(uObstaclesTexture, vUv - dv).r > 0.1) {
-        // tFlux.b = 0.0;
-    // }
-    // if (texture2D(uObstaclesTexture, vUv + dv).r > 0.1) {
-        // tFlux.a = 0.0;
-    // }
 
     //scale down outflow if it is more than available volume in the column
     float currVol = (waterHeight - uMinWaterHeight) * uSegmentSizeSquared;
