@@ -103,10 +103,12 @@
 		'/resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg': { 'preblur':3, 'height':0.3, 'midGreyIsLowest':true },
 		'/resources/images/terrain/clouds_256.png': { 'preblur':0, 'height':2, 'midGreyIsLowest':false }
 	}
-	var objects = {
+	var staticObjects = {
 	    'Crate': 1001,
-		'Police Car': 1002,
-		'Stone Wall': 1003
+		'Stone Wall': 1002
+	};
+	var dynObjects = {
+	    'Crate': 1001
 	};
 
 	var options = {
@@ -119,9 +121,10 @@
         sculptSize: 1.0,
         sculptAmount: 0.1,
 		sculptClearSculpts: sculptClearSculpts,
-		objectsObject: objects[Object.keys(objects)[0]],
-		objectsIsDynamic: true,
-		objectsAddObject: objectsAddObject,
+		objectsStaticObject: staticObjects[Object.keys(staticObjects)[0]],
+		objectsAddStaticObject: objectsAddStaticObject,
+		objectsDynObject: dynObjects[Object.keys(dynObjects)[0]],
+		objectsAddDynObject: objectsAddDynObject,
 		objectsRemoveObject: objectsRemoveObject,
 		waterFloodVolRate: 0.0,
 		waterResetFloodRate: waterResetFloodRate,
@@ -1200,21 +1203,23 @@
 		objectsFolder = gui.addFolder('Objects');
 		objectsFolder.open();
 
-		objectsObjectControl = objectsFolder.add(options, 'objectsObject', objects).name('Object').listen();
-		changeObjectsObject = function(value)
+		objectsStaticObjectControl = objectsFolder.add(options, 'objectsStaticObject', staticObjects).name('Static Object').listen();
+		changeObjectsStaticObject = function(value)
 		{
-			options.objectsObject = value;
+			options.objectsStaticObject = value;
 		}
-		control.onChange(changeObjectsObject);
+		objectsStaticObjectControl.onChange(changeObjectsStaticObject);
 
-		control = objectsFolder.add(options, 'objectsIsDynamic').name('Dynamic').listen();
-		toggleObjectsDynamic = function(value)
+		control = objectsFolder.add(options, 'objectsAddStaticObject').name('Add Static Object');
+
+		objectsDynObjectControl = objectsFolder.add(options, 'objectsDynObject', dynObjects).name('Dynamic Object').listen();
+		changeObjectsDynObject = function(value)
 		{
-			options.objectsIsDynamic = value;
+			options.objectsDynObject = value;
 		}
-		control.onChange(toggleObjectsDynamic);
+		objectsDynObjectControl.onChange(changeObjectsDynObject);
 
-		control = objectsFolder.add(options, 'objectsAddObject').name('Add From Selection');
+		control = objectsFolder.add(options, 'objectsAddDynObject').name('Add Dynamic Object');
 
 		control = objectsFolder.add(options, 'objectsRemoveObject').name('Remove');
 
@@ -1453,54 +1458,54 @@
             toggleObjectsDynamic(params.checked);
         };
 
-        objectsCrateTimer_firstDetected = function (params) {
-            changeObjectsObject(objects['Crate']);  //set object first
-            objectsAddObject();
+        objectsStaticCrateTimer_firstDetected = function (params) {
+            changeObjectsStaticObject(staticObjects['Crate']);  //set object first
+            objectsAddStaticObject();
         };
-        objectsCrateTimer_firstHidden = function (params) {
+        objectsStaticCrateTimer_firstHidden = function (params) {
             objectsAddObjectCancel();
         };
-        objectsCrateTimer_moved = function (params) {
+        objectsStaticCrateTimer_moved = function (params) {
             objectsAddObjectProject(currTransform, params.position);
         };
-        objectsCrateTimer_detected = function (params) {
+        objectsStaticCrateTimer_detected = function (params) {
             objectsAddObjectRotate(currTransform, -params.rotation);
         };
-        objectsCrateTimer_reached = function (params) {
+        objectsStaticCrateTimer_reached = function (params) {
             objectsAddObjectConfirm(currTransform);
         };
 
-        objectsCarTimer_firstDetected = function (params) {
-            changeObjectsObject(objects['Police Car']);  //set object first
-            objectsAddObject();
+        objectsStaticStoneWallTimer_firstDetected = function (params) {
+            changeObjectsStaticObject(staticObjects['Stone Wall']);  //set object first
+            objectsAddStaticObject();
         };
-        objectsCarTimer_firstHidden = function (params) {
+        objectsStaticStoneWallTimer_firstHidden = function (params) {
             objectsAddObjectCancel();
         };
-        objectsCarTimer_moved = function (params) {
+        objectsStaticStoneWallTimer_moved = function (params) {
             objectsAddObjectProject(currTransform, params.position);
         };
-        objectsCarTimer_detected = function (params) {
+        objectsStaticStoneWallTimer_detected = function (params) {
             objectsAddObjectRotate(currTransform, -params.rotation);
         };
-        objectsCarTimer_reached = function (params) {
+        objectsStaticStoneWallTimer_reached = function (params) {
             objectsAddObjectConfirm(currTransform);
         };
 
-        objectsStoneWallTimer_firstDetected = function (params) {
-            changeObjectsObject(objects['Stone Wall']);  //set object first
-            objectsAddObject();
+        objectsDynCrateTimer_firstDetected = function (params) {
+            changeObjectsDynObject(dynObjects['Crate']);  //set object first
+            objectsAddDynObject();
         };
-        objectsStoneWallTimer_firstHidden = function (params) {
+        objectsDynCrateTimer_firstHidden = function (params) {
             objectsAddObjectCancel();
         };
-        objectsStoneWallTimer_moved = function (params) {
+        objectsDynCrateTimer_moved = function (params) {
             objectsAddObjectProject(currTransform, params.position);
         };
-        objectsStoneWallTimer_detected = function (params) {
+        objectsDynCrateTimer_detected = function (params) {
             objectsAddObjectRotate(currTransform, -params.rotation);
         };
-        objectsStoneWallTimer_reached = function (params) {
+        objectsDynCrateTimer_reached = function (params) {
             objectsAddObjectConfirm(currTransform);
         };
 
@@ -1578,6 +1583,22 @@
         };
     }
 
+    var objectToAddIsDynamic;
+    var objectToAddMarkerId;
+    function objectsAddStaticObject()
+    {
+        objectToAddIsDynamic = false;
+        objectToAddMarkerId = options.objectsStaticObject;
+        objectsAddObject();
+    }
+
+    function objectsAddDynObject()
+    {
+        objectToAddIsDynamic = true;
+        objectToAddMarkerId = options.objectsDynObject;
+        objectsAddObject();
+    }
+
     var isAddingObject = false;
     var userAddedMeshes = [];
     var currTransform = null;
@@ -1599,14 +1620,12 @@
             scene.add(indicatorMesh);
         }
 
-        objectMarkerId = options.objectsObject;
-
         //create an Object3D in the scene first
         currTransform = new THREE.Object3D();
         transformAddedToScene = false;
 
         //load the object to the transform
-        markerManager.loadForMarker(objectMarkerId, currTransform, 1, options.displayWireframe);
+        markerManager.loadForMarker(objectToAddMarkerId, currTransform, 1, options.displayWireframe);
 
         //turn on flag for object to follow mouse detected intersection point
         isAddingObject = true;
@@ -1666,7 +1685,7 @@
 
         //shift up in Y
         var height = terrainPixelFloatData[index];
-        if (options.objectsIsDynamic)
+        if (objectToAddIsDynamic)
         {
             //for dynamic objects, take into account water level too
             var waterPixelFloatData = gpuWater.getPixelFloatData();
@@ -1729,7 +1748,7 @@
         var dataFromJson = origMesh.geometry.__jsonData;
 
         //for static objects, set mass to 0
-        var mass = options.objectsIsDynamic ? dataFromJson.mass : 0;
+        var mass = objectToAddIsDynamic ? dataFromJson.mass : 0;
 
         //convert into Physijs mesh
         var physijsMesh = createPhysijsMeshFromThreejsMesh(origMesh, transform.position, transform.rotation, {
@@ -1742,7 +1761,7 @@
         userAddedMeshes.push(physijsMesh);
 
         //register dynamic objects with gpu water, and store in array for easy retrieval later
-        if (options.objectsIsDynamic)
+        if (objectToAddIsDynamic)
         {
             gpuWater.addDynamicObstacle(physijsMesh, mass);
             dynObstacleMeshes.push(physijsMesh);

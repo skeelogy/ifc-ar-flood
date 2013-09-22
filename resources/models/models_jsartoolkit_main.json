@@ -14,26 +14,12 @@
 			"rotationOrder": "XYZ",
 			"scale": [0.3, 0.3, 0.3],
 			"mass": 80,
-			"friction": 0.8,
+			"friction": 0.4,
 			"restitution": 0.2,
 			"linearDamping": 0.5,
 			"angularDamping": 0.25
 		},
 		"1002": {
-			"name": "us_police_car",
-			"url": "/resources/models/us_police_car/us_police_car_bin.js",
-			"type": "json_bin",
-			"translate": [0, 0, 0],
-			"rotate": [0, 0, 0],
-			"rotationOrder": "XYZ",
-			"scale": [0.3, 0.3, 0.3],
-			"mass": 50,
-			"friction": 0.8,
-			"restitution": 0.2,
-			"linearDamping": 0.95,
-			"angularDamping": 0.5
-		},
-		"1003": {
 			"name": "stone_wall_04",
 			"url": "/resources/models/stone_wall_04/stone_wall_04.obj",
 			"type": "obj",
@@ -41,11 +27,9 @@
 			"rotate": [0, 0, 0],
 			"rotationOrder": "XYZ",
 			"scale": [0.3, 0.8, 0.3],
-			"mass": 100,
-			"friction": 0.8,
-			"restitution": 0.2,
-			"linearDamping": 0.95,
-			"angularDamping": 0.5
+			"mass": 0,
+			"friction": 0.4,
+			"restitution": 0.2
 		}
 	},
 	"guiMarkers": {
@@ -110,29 +94,24 @@
 			"type": "generic"
 		},
 		"41": {
-			"name": "Objects Dynamic",
-			"key": "objectsDynamicCheckbox",
-			"type": "checkbox"
+			"name": "Objects Static Crate",
+			"key": "objectsStaticCrateTimer",
+			"type": "timer",
+			"params": {
+				 "time": 2
+			}
 		},
 		"42": {
-			"name": "Objects Crate",
-			"key": "objectsCrateTimer",
+			"name": "Objects Static Stone Wall",
+			"key": "objectsStaticStoneWallTimer",
 			"type": "timer",
 			"params": {
 				 "time": 2
 			}
 		},
 		"43": {
-			"name": "Objects Car",
-			"key": "objectsCarTimer",
-			"type": "timer",
-			"params": {
-				 "time": 2
-			}
-		},
-		"44": {
-			"name": "Objects Stone Wall",
-			"key": "objectsStoneWallTimer",
+			"name": "Objects Dynamic Crate",
+			"key": "objectsDynCrateTimer",
 			"type": "timer",
 			"params": {
 				 "time": 2
