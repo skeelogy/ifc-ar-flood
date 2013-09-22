@@ -667,6 +667,8 @@
 	}
 
 	var activateDisturb = false;
+	var activateAddRotate = false;
+	var firstActivateAddRotate = false;
 	function window_onKeyDown(event)
 	{
 		if (event.keyCode === 32)  //space
@@ -713,11 +715,24 @@
 		    dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(100, 0, 0));
 		}
 
+		if (event.keyCode === 82)  //r
+		{
+		    if (firstActivateAddRotate)
+		    {
+		        firstActivateAddRotate = false;
+		    }
+		    if (!activateAddRotate)
+		    {
+		        firstActivateAddRotate = true;
+		    }
+		    activateAddRotate = true;
+		}
+
 		if (event.keyCode === 27)  //esc
 		{
 		    if (isAddingObject)
 		    {
-		        objectsCancelAddObject();
+		        objectsAddObjectCancel();
 		    }
 		}
 
@@ -748,11 +763,17 @@
 		{
 			activateDisturb = false;
 		}
-		if (event.keyCode === 66)  //b
+		if (event.keyCode === 82)  //r
+		{
+		    firstActivateAddRotate = false;
+		    activateAddRotate = false;
+		}
+
+		if (event.keyCode === 79)  //o
 		{
 		    createPhysijsCube(1.0, 2.0, 1.0);
 		}
-		else if (event.keyCode === 82)  //r
+		else if (event.keyCode === 80)  //p
 		{
 		    createPhysijsCube(0.8 * (WATER_SIZE * Math.random() - waterHalfSize), 2.0, 0.8 * (WATER_SIZE * Math.random() - waterHalfSize));
 		}
@@ -868,6 +889,9 @@
 		}
 	}
 
+	var rotationAngle = 0.0;
+	var mouseRefX = 0.0;
+	var mouseCurrX = 0.0;
 	function window_onMouseMove(event)
 	{
 		event.preventDefault();
@@ -927,11 +951,25 @@
 		    //for objects
 		    if (isAddingObject)
 		    {
-		        intersectPoint = detectIntersection();
-                if (intersectPoint)
-                {
-                    objectsMoveObjectProject(currTransform, intersectPoint);
-                }
+		        if (firstActivateAddRotate)
+		        {
+		            mouseRefX = event.clientX;
+		        }
+
+		        if (activateAddRotate)
+		        {
+		            var rotation = (event.clientX - mouseRefX) * 0.02;
+		            objectsAddObjectRotate(currTransform, rotation);
+		        }
+		        else
+		        {
+		            intersectPoint = detectIntersection();
+                    if (intersectPoint)
+                    {
+                        objectsAddObjectProject(currTransform, intersectPoint);
+                    }
+		        }
+
 		    }
 		    else if (isRemovingObject)
 		    {
@@ -1419,10 +1457,10 @@
             objectsAddObject();
         };
         objectsCrateTimer_firstHidden = function (params) {
-            objectsCancelAddObject();
+            objectsAddObjectCancel();
         };
         objectsCrateTimer_moved = function (params) {
-            objectsMoveObjectProject(currTransform, params.position);
+            objectsAddObjectProject(currTransform, params.position);
         };
         objectsCrateTimer_reached = function (params) {
             objectsAddObjectConfirm(currTransform);
@@ -1433,10 +1471,10 @@
             objectsAddObject();
         };
         objectsCarTimer_firstHidden = function (params) {
-            objectsCancelAddObject();
+            objectsAddObjectCancel();
         };
         objectsCarTimer_moved = function (params) {
-            objectsMoveObjectProject(currTransform, params.position);
+            objectsAddObjectProject(currTransform, params.position);
         };
         objectsCarTimer_reached = function (params) {
             objectsAddObjectConfirm(currTransform);
@@ -1446,7 +1484,7 @@
             objectsRemoveObject();
         };
         objectsRemoveTimer_firstHidden = function (params) {
-            objectsCancelRemoveObject();
+            objectsRemoveObjectCancel();
         };
         objectsRemoveTimer_moved = function (params) {
             objectsRemoveObjectFind(params.position);
@@ -1550,7 +1588,7 @@
         isAddingObject = true;
     }
 
-    function objectsCancelAddObject()
+    function objectsAddObjectCancel()
     {
         //return if not adding object
         if (!isAddingObject)
@@ -1575,7 +1613,7 @@
         }
     }
 
-    function objectsMoveObjectProject(transform, position)
+    function objectsAddObjectProject(transform, position)
     {
         //return if not adding object
         if (!isAddingObject)
@@ -1632,6 +1670,17 @@
         return (row * TERRAIN_RES) + col;
     }
 
+    function objectsAddObjectRotate(currTransform, rotation)
+    {
+        //return if not adding object
+        if (!isAddingObject)
+        {
+            return;
+        }
+
+        currTransform.rotation.y = rotation;
+    }
+
     function objectsAddObjectConfirm(transform)
     {
         //return if not adding object
@@ -1659,7 +1708,7 @@
         var mass = options.objectsIsDynamic ? dataFromJson.mass : 0;
 
         //convert into Physijs mesh
-        var physijsMesh = createPhysijsMeshFromThreejsMesh(origMesh, transform.position, {
+        var physijsMesh = createPhysijsMeshFromThreejsMesh(origMesh, transform.position, transform.rotation, {
             mass: mass,
             friction: dataFromJson.friction,
             restitution: dataFromJson.restitution,
@@ -1683,7 +1732,7 @@
         //TODO: delete origMesh
     }
 
-    function createPhysijsMeshFromThreejsMesh(mesh, position, params)
+    function createPhysijsMeshFromThreejsMesh(mesh, position, rotation, params)
     {
         var mass = typeof params.mass === 'undefined' ? 10 : params.mass;
         var friction = typeof params.friction === 'undefined' ? 0.8 : params.friction
@@ -1705,6 +1754,7 @@
 		//create the Physijs mesh (assume everything is using ConvexMesh)
 		var physijsMesh = new Physijs.ConvexMesh(geometry, material, mass);
         physijsMesh.position.copy(position);
+        physijsMesh.rotation.copy(rotation);
         // physijsMesh.visible = false;
         scene.add(physijsMesh);
         physijsMesh.setDamping(linearDamping, angularDamping);  //can only call this after adding to scene
@@ -1725,7 +1775,7 @@
         isRemovingObject = true;
     }
 
-    function objectsCancelRemoveObject()
+    function objectsRemoveObjectCancel()
     {
         //return if not removing object
         if (!isRemovingObject)
