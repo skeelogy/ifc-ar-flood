@@ -958,7 +958,7 @@
 
 		        if (activateAddRotate)
 		        {
-		            var rotation = (event.clientX - mouseRefX) * 0.02;
+		            var rotation = (event.clientX - mouseRefX);
 		            objectsAddObjectRotate(currTransform, rotation);
 		        }
 		        else
@@ -1462,6 +1462,9 @@
         objectsCrateTimer_moved = function (params) {
             objectsAddObjectProject(currTransform, params.position);
         };
+        objectsCrateTimer_detected = function (params) {
+            objectsAddObjectRotate(currTransform, -params.rotation);
+        };
         objectsCrateTimer_reached = function (params) {
             objectsAddObjectConfirm(currTransform);
         };
@@ -1475,6 +1478,9 @@
         };
         objectsCarTimer_moved = function (params) {
             objectsAddObjectProject(currTransform, params.position);
+        };
+        objectsCarTimer_detected = function (params) {
+            objectsAddObjectRotate(currTransform, -params.rotation);
         };
         objectsCarTimer_reached = function (params) {
             objectsAddObjectConfirm(currTransform);
@@ -1678,7 +1684,7 @@
             return;
         }
 
-        currTransform.rotation.y = rotation;
+        currTransform.rotation.y = THREE.Math.degToRad(rotation);
     }
 
     function objectsAddObjectConfirm(transform)
