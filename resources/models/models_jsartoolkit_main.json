@@ -32,6 +32,20 @@
 			"restitution": 0.2,
 			"linearDamping": 0.95,
 			"angularDamping": 0.5
+		},
+		"1003": {
+			"name": "stone_wall_04",
+			"url": "/resources/models/stone_wall_04/stone_wall_04.obj",
+			"type": "obj",
+			"translate": [0, 0, 0],
+			"rotate": [0, 0, 0],
+			"rotationOrder": "XYZ",
+			"scale": [0.3, 0.8, 0.3],
+			"mass": 100,
+			"friction": 0.8,
+			"restitution": 0.2,
+			"linearDamping": 0.95,
+			"angularDamping": 0.5
 		}
 	},
 	"guiMarkers": {
@@ -111,6 +125,14 @@
 		"43": {
 			"name": "Objects Car",
 			"key": "objectsCarTimer",
+			"type": "timer",
+			"params": {
+				 "time": 2
+			}
+		},
+		"44": {
+			"name": "Objects Stone Wall",
+			"key": "objectsStoneWallTimer",
 			"type": "timer",
 			"params": {
 				 "time": 2

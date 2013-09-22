@@ -105,7 +105,8 @@
 	}
 	var objects = {
 	    'Crate': 1001,
-		'Police Car': 1002
+		'Police Car': 1002,
+		'Stone Wall': 1003
 	};
 
 	var options = {
@@ -1483,6 +1484,23 @@
             objectsAddObjectRotate(currTransform, -params.rotation);
         };
         objectsCarTimer_reached = function (params) {
+            objectsAddObjectConfirm(currTransform);
+        };
+
+        objectsStoneWallTimer_firstDetected = function (params) {
+            changeObjectsObject(objects['Stone Wall']);  //set object first
+            objectsAddObject();
+        };
+        objectsStoneWallTimer_firstHidden = function (params) {
+            objectsAddObjectCancel();
+        };
+        objectsStoneWallTimer_moved = function (params) {
+            objectsAddObjectProject(currTransform, params.position);
+        };
+        objectsStoneWallTimer_detected = function (params) {
+            objectsAddObjectRotate(currTransform, -params.rotation);
+        };
+        objectsStoneWallTimer_reached = function (params) {
             objectsAddObjectConfirm(currTransform);
         };
 

@@ -1,0 +1,8 @@
+========================
+Stone Wall 04-01
+========================
+by iClone City Elements
+
+Collada (.dae) version downloaded from http://sketchup.google.com/3dwarehouse/details?mid=6573a74b263e7cdf42e57590879db1f5
+
+Converted to .obj and .js, using Blender 2.67b
