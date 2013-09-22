@@ -22,6 +22,10 @@ function GpuHeightFieldWater(options) {
         throw new Error('size not specified');
     }
     this.size = options.size;
+    if (typeof options.scene === 'undefined') {
+        throw new Error('scene not specified');
+    }
+    this.scene = options.scene;
     if (typeof options.res === 'undefined') {
         throw new Error('res not specified');
     }
@@ -99,6 +103,8 @@ function GpuHeightFieldWater(options) {
     this.rttObstaclesCameraRange = 50.0;
 
     this.pixelByteData = new Uint8Array(this.res * this.res * 4);
+
+    this.obstacles = [];
 
     this.callbacks = {};
 
@@ -259,7 +265,7 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
     this.combineTexturesMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTexture1: { type: 't', value: this.emptyTexture },
-            uTexture2: { type: 't', value: this.emptyTexture },
+            uTexture2: { type: 't', value: this.emptyTexture }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTextures.frag')
@@ -419,7 +425,7 @@ GpuHeightFieldWater.prototype.__setupObstaclesScene = function () {
     this.rttObstaclesDepthMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uNear: { type: 'f', value: 0 },
-            uFar: { type: 'f', value: this.rttObstaclesCameraRange },
+            uFar: { type: 'f', value: this.rttObstaclesCameraRange }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/pass.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/depth.frag')
@@ -430,7 +436,7 @@ GpuHeightFieldWater.prototype.__setupObstaclesScene = function () {
     this.maskWaterMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTexture1: { type: 't', value: this.emptyTexture },
-            uTexture2: { type: 't', value: this.emptyTexture },
+            uTexture2: { type: 't', value: this.emptyTexture }
         },
         vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
         fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/combineTexturesMask.frag')
@@ -506,6 +512,11 @@ GpuHeightFieldWater.prototype.update = function (dt) {
     //fix dt for the moment (better to be in slow-mo in extreme cases than to explode)
     dt = 1.0 / 60.0;
 
+    //update obstacle textures
+    if (this.obstacles.length > 0) {
+        gpuWater.updateObstacleTexture(dt, this.scene);
+    }
+
     //do multiple full steps per frame to speed up some of algorithms that are slow to propagate at high mesh resolutions
     var i;
     for (i = 0; i < this.multisteps; i++) {
@@ -554,6 +565,7 @@ GpuHeightFieldWater.prototype.addStaticObstacle = function (mesh) {
     mesh.__skhfwater.isObstacle = true;
     mesh.__skhfwater.isDynamic = false;
     mesh.__skhfwater.mass = 0;
+    this.obstacles.push(mesh);
 };
 GpuHeightFieldWater.prototype.addDynamicObstacle = function (mesh, mass) {
     if (!(mesh instanceof THREE.Mesh)) {
@@ -568,6 +580,18 @@ GpuHeightFieldWater.prototype.addDynamicObstacle = function (mesh, mass) {
     mesh.__skhfwater.isObstacle = true;
     mesh.__skhfwater.isDynamic = true;
     mesh.__skhfwater.mass = mass;
+    this.obstacles.push(mesh);
+};
+GpuHeightFieldWater.prototype.removeObstacle = function (mesh) {
+    //remove from array
+    var i, len;
+    for (i = 0, len = this.obstacles.length; i < len; i++)
+    {
+        if (this.obstacles[i] === mesh)
+        {
+            this.obstacles.splice(i, 1);
+        }
+    }
 };
 GpuHeightFieldWater.prototype.updateObstacleTexture = function (dt, scene) {
 

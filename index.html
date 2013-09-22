@@ -481,6 +481,7 @@
 		//create a pipe model water as the height field water sim
 		gpuWater = new GpuPipeModelWater({
 		    renderer: renderer,
+		    scene: scene,
 			mesh: waterMesh,
 			size: WATER_SIZE,
 			res: WATER_RES,
@@ -1806,6 +1807,9 @@
                     userAddedMeshes.splice(i, 1);
                 }
             }
+
+            //remove from GPU water
+            gpuWater.removeObstacle(userAddedMeshToRemove);
         }
 
         //turn off flag
@@ -1909,7 +1913,6 @@
                 renderer.autoClear = false;
                 renderer.clear();
                 gpuSkulpt.update();
-                gpuWater.updateObstacleTexture(dt, scene);  //TODO: determine if this should be called automatically in gpu water's update()
                 gpuWater.update(dt);
                 renderer.render(scene, camera);
 
