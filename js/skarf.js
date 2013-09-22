@@ -133,7 +133,7 @@ GuiMarker.prototype.processPosition = function (worldMatrix) {
     var movedDist = this.dPosition.length();
     if (movedDist >= this.moveThresholdLow && movedDist <= this.moveThresholdHigh) {
         //call the moved callback
-        this.invokeCallback('moved', {position: this.position, dPosition: this.dPosition});
+        this.invokeCallback('moved', {guiMarker: this, position: this.position, dPosition: this.dPosition});
     }
 
     //store the previous position
@@ -160,7 +160,7 @@ GuiMarker.prototype.processRotation = function (worldMatrix) {
     this.dRotation = this.rotation - this.prevRotation;
     var absDRot = Math.abs(this.dRotation);
     if (!isNaN(this.dRotation) && absDRot >= this.rotThresholdLow && absDRot <= this.rotThresholdHigh) {
-        this.invokeCallback('rotated', {rotation: this.rotation, dRotation: this.dRotation});
+        this.invokeCallback('rotated', {guiMarker: this, rotation: this.rotation, dRotation: this.dRotation});
     }
 
     //store prev rotation
@@ -169,11 +169,11 @@ GuiMarker.prototype.processRotation = function (worldMatrix) {
 GuiMarker.prototype.processCallbacks = function () {
 
     //call detected callback
-    this.invokeCallback('detected', {worldMatrix: this.worldMatrix, position: this.position, rotation: this.rotation});
+    this.invokeCallback('detected', {guiMarker: this, worldMatrix: this.worldMatrix, position: this.position, rotation: this.rotation});
 
     //call firstDetected callback
     if (this.firstDetected) {
-        this.invokeCallback('firstDetected', {worldMatrix: this.worldMatrix, position: this.position, rotation: this.rotation});
+        this.invokeCallback('firstDetected', {guiMarker: this, worldMatrix: this.worldMatrix, position: this.position, rotation: this.rotation});
     }
 };
 GuiMarker.prototype.hidden = function () {
@@ -183,12 +183,12 @@ GuiMarker.prototype.hidden = function () {
 
     //call firstHidden callback
     if (this.firstHidden) {
-        this.invokeCallback('firstHidden', {});
+        this.invokeCallback('firstHidden', {guiMarker: this});
         this.firstHidden = false;
     }
 
     //call hidden callback
-    this.invokeCallback('hidden', {});
+    this.invokeCallback('hidden', {guiMarker: this});
 };
 GuiMarker.prototype.invokeCallback = function (type, options) {
 
@@ -240,7 +240,7 @@ GuiMarkerFactory.register('button', ButtonMarker);
 //override
 ButtonMarker.prototype.processCallbacks = function () {
     if (this.firstDetected) {
-        this.invokeCallback('clicked', {});
+        this.invokeCallback('clicked', {guiMarker: this});
     }
     GuiMarker.prototype.processCallbacks.call(this);
 };
@@ -264,7 +264,7 @@ GuiMarkerFactory.register('checkbox', CheckBoxMarker);
 CheckBoxMarker.prototype.processCallbacks = function () {
     if (this.firstDetected) {
         this.checked = !this.checked;
-        this.invokeCallback('toggled', {checked: this.checked});
+        this.invokeCallback('toggled', {guiMarker: this, checked: this.checked});
     }
     GuiMarker.prototype.processCallbacks.call(this);
 };
@@ -288,7 +288,7 @@ GuiMarkerFactory.register('slider', SliderMarker);
 SliderMarker.prototype.processCallbacks = function () {
     var absDRot = Math.abs(this.dRotation);
     if (!isNaN(this.dRotation) && absDRot >= this.rotThresholdLow && absDRot <= this.rotThresholdHigh) {
-        this.invokeCallback('changed', {delta: this.dRotation * this.speed});
+        this.invokeCallback('changed', {guiMarker: this, delta: this.dRotation * this.speed});
     }
     GuiMarker.prototype.processCallbacks.call(this);
 };
@@ -316,7 +316,7 @@ GuiMarkerFactory.register('combobox', ComboBoxMarker);
 ComboBoxMarker.prototype.processCallbacks = function () {
     var newId = Math.floor(this.rotation / 360.0 * this.numChoices);
     if (newId !== this.currId) {
-        this.invokeCallback('changed', {selectedId: newId, rotation: this.rotation});
+        this.invokeCallback('changed', {guiMarker: this, selectedId: newId, rotation: this.rotation});
         this.currId = newId;
     }
     GuiMarker.prototype.processCallbacks.call(this);
@@ -345,7 +345,7 @@ TimerMarker.prototype.detected = function (dt, worldMatrix) {
     this.currTime += dt;
     if (!this.reached && this.currTime >= this.time) {
         this.reached = true;
-        this.invokeCallback('reached', {});
+        this.invokeCallback('reached', {guiMarker: this});
     }
 };
 TimerMarker.prototype.hidden = function () {
@@ -355,6 +355,9 @@ TimerMarker.prototype.hidden = function () {
     this.reached = false;
 
     GuiMarker.prototype.hidden.call(this);
+};
+TimerMarker.prototype.resetTimer = function () {
+    this.currTime = 0;
 };
 
 

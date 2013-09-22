@@ -1474,6 +1474,9 @@
         objectsStaticCrateTimer_reached = function (params) {
             objectsAddObjectConfirm(currTransform);
         };
+        objectsStaticCrateTimer_rotated = function (params) {
+            params.guiMarker.resetTimer();
+        };
 
         objectsStaticStoneWallTimer_firstDetected = function (params) {
             changeObjectsStaticObject(staticObjects['Stone Wall']);  //set object first
@@ -1491,6 +1494,9 @@
         objectsStaticStoneWallTimer_reached = function (params) {
             objectsAddObjectConfirm(currTransform);
         };
+        objectsStaticStoneWallTimer_rotated = function (params) {
+            params.guiMarker.resetTimer();
+        };
 
         objectsDynCrateTimer_firstDetected = function (params) {
             changeObjectsDynObject(dynObjects['Crate']);  //set object first
@@ -1507,6 +1513,9 @@
         };
         objectsDynCrateTimer_reached = function (params) {
             objectsAddObjectConfirm(currTransform);
+        };
+        objectsDynCrateTimer_rotated = function (params) {
+            params.guiMarker.resetTimer();
         };
 
         objectsRemoveTimer_firstDetected = function (params) {
