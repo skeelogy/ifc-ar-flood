@@ -131,7 +131,6 @@
         waterSourceAmount: 0.08,
         waterSinkRadius: 0.5,
         waterSinkAmount: 0.2,
-        debugTrackingInfo: false,
         debugMarkerAxis: false,
         debugTerrainImage: false,
         debugTerrainProxy: false,
@@ -1114,15 +1113,6 @@
         debugFolder = gui.addFolder('Debug View');
         // debugFolder.open();
 
-        control = debugFolder.add(options, 'debugTrackingInfo').name('Tracking Info').listen();
-        toggleDebugTrackingInfo = function (value)
-        {
-            skarf.arLib.debug = value;
-            options.debugTrackingInfo = value;
-        }
-        control.onChange(toggleDebugTrackingInfo);
-        toggleDebugTrackingInfo(options.debugTrackingInfo);
-
         control = debugFolder.add(options, 'debugMarkerAxis').name('Marker Axis').listen();
         toggleDebugMarkerAxis = function (value)
         {
@@ -1362,9 +1352,6 @@
         };
 
         //debug
-        trackingShowInfoCheckbox_toggled = function (params) {
-            toggleDebugTrackingInfo(params.checked);
-        };
         trackingShowMarkerAxisCheckbox_toggled = function (params) {
             toggleDebugMarkerAxis(params.checked);
         };
@@ -1844,10 +1831,6 @@
     </div>
     <div class="invisible" id="canvas-container">
         <div class="caption">&lt;canvas&gt;</div>
-    </div>
-    <div class="invisible" id="debugCanvas-container">
-        <div class="caption">debug &lt;canvas&gt;</div>
-        <canvas id="debugCanvas" width="640" height="480"></canvas>
     </div>
     <div id="threejs-container"></div>
 </body>

@@ -186,41 +186,36 @@
             "type": "generic"
         },
         "71": {
-            "name": "Show Tracking Info",
-            "key": "trackingShowInfoCheckbox",
-            "type": "checkbox"
-        },
-        "72": {
             "name": "Show Marker Axis",
             "key": "trackingShowMarkerAxisCheckbox",
             "type": "checkbox"
         },
-        "73": {
+        "72": {
             "name": "Show Terrain Image",
             "key": "terrainShowImageCheckbox",
             "type": "checkbox"
         },
-        "74": {
+        "73": {
             "name": "Show Terrain Proxy",
             "key": "terrainShowProxyCheckbox",
             "type": "checkbox"
         },
-        "75": {
+        "74": {
             "name": "Show Sculpt Texture",
             "key": "sculptShowTextureCheckbox",
             "type": "checkbox"
         },
-        "76": {
+        "75": {
             "name": "Show Obstacles Texture",
             "key": "obstaclesShowTextureCheckbox",
             "type": "checkbox"
         },
-        "77": {
+        "76": {
             "name": "Show Water Texture",
             "key": "waterShowTextureCheckbox",
             "type": "checkbox"
         },
-        "78": {
+        "77": {
             "name": "Show GL Stats",
             "key": "statsShowGlCheckbox",
             "type": "checkbox"
