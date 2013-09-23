@@ -347,7 +347,8 @@ GpuHeightFieldWater.prototype.__setupRttScene = function () {
 GpuHeightFieldWater.prototype.__setupVtf = function () {
     this.mesh.material = new THREE.ShaderMaterial({
         uniforms: THREE.UniformsUtils.merge( [
-            THREE.UniformsLib[ "shadowmap" ],
+            THREE.UniformsLib['lights'],
+            THREE.UniformsLib['shadowmap'],
             {
                 uTexture: { type: 't', value: this.rttRenderTarget1 },
                 uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },

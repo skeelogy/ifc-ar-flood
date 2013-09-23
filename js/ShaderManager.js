@@ -105,7 +105,6 @@ THREE.ShaderManager.shaderContents['lambertFS'] = [
         "uniform vec3 directionalLightDirection[ MAX_DIR_LIGHTS ];",
     "#endif",
 
-    THREE.ShaderChunk[ "lightmap_pars_fragment" ],
     THREE.ShaderChunk[ "shadowmap_pars_fragment" ],
 
     "void main() {",
@@ -154,7 +153,6 @@ THREE.ShaderManager.shaderContents['lambertCursorFS'] = [
         "uniform vec3 directionalLightDirection[ MAX_DIR_LIGHTS ];",
     "#endif",
 
-    THREE.ShaderChunk[ "lightmap_pars_fragment" ],
     THREE.ShaderChunk[ "shadowmap_pars_fragment" ],
 
     "void main() {",

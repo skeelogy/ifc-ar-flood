@@ -195,7 +195,8 @@ GpuSkulpt.prototype.__setupRttScene = function () {
 GpuSkulpt.prototype.__setupVtf = function () {
     this.mesh.material = new THREE.ShaderMaterial({
         uniforms: THREE.UniformsUtils.merge( [
-            THREE.UniformsLib[ "shadowmap" ],
+            THREE.UniformsLib['lights'],
+            THREE.UniformsLib['shadowmap'],
             {
                 uTexture: { type: 't', value: null },
                 uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / this.res, 1.0 / this.res) },
