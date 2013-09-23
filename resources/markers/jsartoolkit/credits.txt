@@ -1,3 +1,10 @@
+marker contact sheets: jsartoolkit-markers-contactsheet-*.jpg
+credits: Skeel Lee
+
+marker files: 22.jpg, 63.jpg, 64.jpg, 81.jpg
+credits: JSARToolkit
+https://github.com/kig/JSARToolKit/tree/master/demos/markers
+
 output_4.ogg
 credits: JSARToolkit
 https://github.com/kig/JSARToolKit/tree/master/demos/tests/output_4.ogg
