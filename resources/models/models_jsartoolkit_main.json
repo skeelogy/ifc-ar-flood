@@ -185,47 +185,42 @@
             "key": "waterSinkGeneric",
             "type": "generic"
         },
-        "61": {
-            "name": "Display Wireframe",
-            "key": "displayWireframeCheckbox",
-            "type": "checkbox"
-        },
-        "62": {
-            "name": "Display Local Axis",
-            "key": "displayLocalAxisCheckbox",
-            "type": "checkbox"
-        },
         "71": {
             "name": "Show Tracking Info",
             "key": "trackingShowInfoCheckbox",
             "type": "checkbox"
         },
         "72": {
+            "name": "Show Marker Axis",
+            "key": "trackingShowMarkerAxisCheckbox",
+            "type": "checkbox"
+        },
+        "73": {
             "name": "Show Terrain Image",
             "key": "terrainShowImageCheckbox",
             "type": "checkbox"
         },
-        "73": {
+        "74": {
             "name": "Show Terrain Proxy",
             "key": "terrainShowProxyCheckbox",
             "type": "checkbox"
         },
-        "74": {
+        "75": {
             "name": "Show Sculpt Texture",
             "key": "sculptShowTextureCheckbox",
             "type": "checkbox"
         },
-        "75": {
+        "76": {
             "name": "Show Obstacles Texture",
             "key": "obstaclesShowTextureCheckbox",
             "type": "checkbox"
         },
-        "76": {
+        "77": {
             "name": "Show Water Texture",
             "key": "waterShowTextureCheckbox",
             "type": "checkbox"
         },
-        "77": {
+        "78": {
             "name": "Show GL Stats",
             "key": "statsShowGlCheckbox",
             "type": "checkbox"

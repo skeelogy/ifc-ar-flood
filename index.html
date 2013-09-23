@@ -131,15 +131,14 @@
         waterSourceAmount: 0.08,
         waterSinkRadius: 0.5,
         waterSinkAmount: 0.2,
-        displayWireframe: false,
-        displayLocalAxis: true,
         debugTrackingInfo: false,
+        debugMarkerAxis: false,
         debugTerrainImage: false,
         debugTerrainProxy: false,
         debugSculptTexture: false,
         debugObstaclesTexture: false,
         debugWaterTexture: false,
-        debugGlStats: true
+        debugGlStats: false
     };
 
     var clock = new THREE.Clock();
@@ -935,7 +934,7 @@
     }
 
     var gui;
-    var arFolder, terrainFolder, sculptFolder, waterFolder, objectsFolder, renderingFolder, displayFolder, debugFolder;
+    var arFolder, terrainFolder, sculptFolder, waterFolder, objectsFolder, renderingFolder, debugFolder;
     function setupGui() {
 
         gui = new dat.GUI({width: 300});
@@ -1111,53 +1110,9 @@
         waterSinkAmountControl.onChange(changeWaterSinkAmount);
         changeWaterSinkAmount(options.waterSinkAmount);
 
-        //Display folder
-        displayFolder = gui.addFolder('Display');
-        displayFolder.open();
-
-        control = displayFolder.add(options, 'displayWireframe').name('Wireframe').listen();
-        toggleWireframe = function (value)
-        {
-            //get the different library objects to set wireframe
-            skarf.renderer.setWireframeVisible(value);
-            gpuSkulpt.displayWireframe = value;
-
-            //set wireframe for things that are created in this file
-            var i, j, leni, lenj, m;
-            for (i = 0, leni = materials.length; i < leni; i++)
-            {
-                m = materials[i];
-                if (m instanceof THREE.MeshFaceMaterial)
-                {
-                    for (j = 0, lenj = m.materials.length; j < lenj; j++)
-                    {
-                        m.materials[j].wireframe = value;
-                    }
-                }
-                else
-                {
-                    m.wireframe = value;
-                }
-            }
-
-            options.displayWireframe = value;
-
-        }
-        control.onChange(toggleWireframe);
-        toggleWireframe(options.displayWireframe);
-
-        control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis').listen();
-        toggleLocalAxis = function (value)
-        {
-            skarf.renderer.setLocalAxisVisible(value);
-            options.displayLocalAxis = value;
-        }
-        control.onChange(toggleLocalAxis);
-        toggleLocalAxis(options.displayLocalAxis);
-
         //Debug folder
         debugFolder = gui.addFolder('Debug View');
-        debugFolder.open();
+        // debugFolder.open();
 
         control = debugFolder.add(options, 'debugTrackingInfo').name('Tracking Info').listen();
         toggleDebugTrackingInfo = function (value)
@@ -1167,6 +1122,15 @@
         }
         control.onChange(toggleDebugTrackingInfo);
         toggleDebugTrackingInfo(options.debugTrackingInfo);
+
+        control = debugFolder.add(options, 'debugMarkerAxis').name('Marker Axis').listen();
+        toggleDebugMarkerAxis = function (value)
+        {
+            skarf.renderer.setLocalAxisVisible(value);
+            options.debugMarkerAxis = value;
+        }
+        control.onChange(toggleDebugMarkerAxis);
+        toggleDebugMarkerAxis(options.debugMarkerAxis);
 
         control = debugFolder.add(options, 'debugTerrainImage').name('Terrain Image').listen();
         toggleDebugTerrainImage = function(value)
@@ -1397,17 +1361,12 @@
             gpuWater.source(params.position, -options.waterSinkAmount, options.waterSinkRadius);
         };
 
-        //display
-        displayWireframeCheckbox_toggled = function (params) {
-            toggleWireframe(params.checked);
-        };
-        displayLocalAxisCheckbox_toggled = function (params) {
-            toggleLocalAxis(params.checked);
-        };
-
         //debug
         trackingShowInfoCheckbox_toggled = function (params) {
             toggleDebugTrackingInfo(params.checked);
+        };
+        trackingShowMarkerAxisCheckbox_toggled = function (params) {
+            toggleDebugMarkerAxis(params.checked);
         };
         terrainShowImageCheckbox_toggled = function (params) {
             toggleDebugTerrainImage(params.checked);
