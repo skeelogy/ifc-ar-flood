@@ -41,7 +41,6 @@
     <!--load terrain libraries-->
     <script type="text/javascript" src="/js/ShaderManager.js"></script>
     <script type="text/javascript" src="/js/skulptgpu.js"></script>
-    <script type="text/javascript" src="/js/lib/SimplexNoise.js"></script>
     <script type="text/javascript" src="/js/lib/StackBlur.js"></script>
 
     <!--load RBD libraries-->
@@ -170,7 +169,6 @@
     var renderer, scene, camera;
     var controls;
     var keyLight, fillLight;
-    // var worldAxis, localAxis;
     var materials = [];
     var groundPlaneMesh;
     var markerManager;
@@ -194,7 +192,7 @@
             'ready',
             function() {
                 console.log('Physijs scene is ready');
-                setupDynamicAttributes();
+                //do things that can only be done after scene is ready, such as changing damping values
             }
         );
         scene.addEventListener(  //https://github.com/chandlerprall/Physijs/issues/19
@@ -228,12 +226,6 @@
         groundPlaneMesh.receiveShadow = true;
         groundPlaneMesh.visible = false;
         scene.add(groundPlaneMesh);
-
-        //create axis
-        // worldAxis = new THREE.AxisHelper();
-        // scene.add(worldAxis);
-        // localAxis = new THREE.AxisHelper();
-        // scene.add(localAxis);
 
         //setup lights
         scene.add(new THREE.AmbientLight(0x111111));
@@ -304,17 +296,6 @@
         }
         markerManager.load();
     }
-    var tempMesh;
-
-    function setupDynamicAttributes()
-    {
-        //setup attributes that need scene.world to be created first
-        // var i, len;
-        // for (i = 0, len = dynObstacleMeshes; i < len; i++)
-        // {
-            // dynObstacleMeshes[i].setDamping(0.9, 0.9);
-        // }
-    }
 
     var terrainGeom, terrainMaterial, terrainMesh, skulptTerrainMesh;
     var gpuSkulpt;
@@ -359,12 +340,6 @@
 
         //also create a proxy mesh for Physijs collision
         proxyTerrainGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, PROXY_TERRAIN_RES-1, PROXY_TERRAIN_RES-1);
-        var v = proxyTerrainGeom.vertices;
-        var i, len;
-        for (i = 0, len = v.length; i < len; i++)
-        {
-            v[i].z = 0.5 * Math.cos(3 * v[i].x);  //I created this sin wave thing during testing. Without this, cubes seem to fall through the terrain, so I'm leaving this here.
-        }
         proxyTerrainMaterial = Physijs.createMaterial(
             new THREE.MeshPhongMaterial({
                 color: 0xffffff,
@@ -457,7 +432,6 @@
 
     function sculptClearSculpts()
     {
-        // gpuSkulpt.getMesh('terrainMesh').clearCurrLayer();
         gpuSkulpt.clear();
     }
 
@@ -466,6 +440,7 @@
     var waterVisGeom, waterVisMaterial, waterVisMesh;
     var obstaclesVisGeom, obstaclesVisMaterial, obstaclesVisMesh;
     var staticObstacleMeshes = [];
+    var dynObstacleMeshes = [];
     function setupWater()
     {
         //create a plane for height field water sim
@@ -501,9 +476,6 @@
         waterVisMesh.position.y = 2;
         scene.add(waterVisMesh);
 
-        //create static obstacles
-        // createDebuggingObstacles();
-
         //create a RTT visualization plane for obstacles
         obstaclesVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
         obstaclesVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
@@ -518,46 +490,6 @@
             //apply force on Physijs object
             object.applyCentralForce(force);
         });
-    }
-
-    var staticObstacleMesh1, staticObstacleMesh2;
-    function createDebuggingObstacles()
-    {
-        var obstacleGeom = new THREE.CubeGeometry(2.0, 2.0, 2.0);
-        obstacleGeom.vertices[0].x = 0;
-        obstacleGeom.vertices[0].z = 0;
-        obstacleGeom.vertices[1].x = 0;
-        obstacleGeom.vertices[1].z = 0;
-        obstacleGeom.vertices[4].x = 0;
-        obstacleGeom.vertices[4].z = 0;
-        obstacleGeom.vertices[5].x = 0;
-        obstacleGeom.vertices[5].z = 0;
-        obstacleGeom.verticesNeedUpdate = true;
-        var obstacleMaterial = new THREE.MeshPhongMaterial();
-        materials.push(obstacleMaterial);
-
-        staticObstacleMesh1 = new THREE.Mesh(obstacleGeom, obstacleMaterial);
-        staticObstacleMesh1.castShadow = true;
-        staticObstacleMesh1.receiveShadow = true;
-        staticObstacleMesh1.position.x = -2.0;
-        staticObstacleMesh1.position.z = 1.0;
-        staticObstacleMesh1.rotation.x = THREE.Math.degToRad(45);
-        // staticObstacleMesh1.visible = false;
-        scene.add(staticObstacleMesh1);
-        staticObstacleMesh1.__dirtyPosition = true;
-        staticObstacleMeshes.push(staticObstacleMesh1);
-        gpuWater.addStaticObstacle(staticObstacleMesh1);
-
-        staticObstacleMesh2 = new THREE.Mesh(obstacleGeom, obstacleMaterial);
-        staticObstacleMesh2.castShadow = true;
-        staticObstacleMesh2.receiveShadow = true;
-        staticObstacleMesh2.position.x = 1.0;
-        staticObstacleMesh2.position.z = 2.0;
-        // staticObstacleMesh2.visible = false;
-        scene.add(staticObstacleMesh2);
-        staticObstacleMesh2.__dirtyPosition = true;
-        staticObstacleMeshes.push(staticObstacleMesh2);
-        gpuWater.addStaticObstacle(staticObstacleMesh2);
     }
 
     function waterResetFloodRate()
@@ -672,51 +604,32 @@
     var firstActivateAddRotate = false;
     function window_onKeyDown(event)
     {
+        //for water
         if (event.keyCode === 32)  //space
         {
             activateDisturb = true;
         }
 
-        if (event.keyCode === 90)  //z
-        {
-            if (staticObstacleMesh1)
-            {
-                staticObstacleMesh1.position.y += 0.1;
-            }
-            if (staticObstacleMesh2)
-            {
-                staticObstacleMesh2.position.y += 0.1;
-            }
-        }
-        else if (event.keyCode === 88)  //x
-        {
-            if (staticObstacleMesh1)
-            {
-                staticObstacleMesh1.position.y -= 0.1;
-            }
-            if (staticObstacleMesh2)
-            {
-                staticObstacleMesh2.position.y -= 0.1;
-            }
-        }
+        //for dynamic obstacle motion
         else if (event.keyCode === 87)  //w
         {
-            dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(0, 0, -100));
+            dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(0, 0, -1100));
         }
         else if (event.keyCode === 83)  //s
         {
-            dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(0, 0, 100));
+            dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(0, 0, 1100));
         }
         else if (event.keyCode === 65)  //a
         {
-            dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(-100, 0, 0));
+            dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(-1100, 0, 0));
         }
         else if (event.keyCode === 68)  //d
         {
-            dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(100, 0, 0));
+            dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(1100, 0, 0));
         }
 
-        if (event.keyCode === 82)  //r
+        //for rotation when adding objects into scene
+        else if (event.keyCode === 82)  //r
         {
             if (firstActivateAddRotate)
             {
@@ -729,83 +642,37 @@
             activateAddRotate = true;
         }
 
-        if (event.keyCode === 27)  //esc
+        //for cancelling operations
+        else if (event.keyCode === 27)  //esc
         {
             if (isAddingObject)
             {
                 objectsAddObjectCancel();
             }
         }
-
-        //TEMP
-        if (event.keyCode === 89)
-        {
-            //create new temp mesh
-            var newMesh = new Physijs.ConvexMesh(tempMesh.geometry, new THREE.MeshBasicMaterial({color:'#ff0000'}));
-            newMesh.position.y = 1;
-            scene.add(newMesh);
-
-            // scene.remove(tempMesh);
-        }
-        if (event.keyCode === 80)
-        {
-            debugger;
-        }
     }
 
     function window_onKeyUp(event)
     {
+        //for sculpting
         if (event.keyCode === 16 || event.keyCode === 17)  //shift or ctrl
         {
             //hide cursor when shift or ctrl key is up
             gpuSkulpt.hideCursor();
         }
-        if (event.keyCode === 32)  //space
+
+        //for water
+        else if (event.keyCode === 32)  //space
         {
             activateDisturb = false;
         }
+
+        //for rotation when adding objects into scene
         if (event.keyCode === 82)  //r
         {
             firstActivateAddRotate = false;
             activateAddRotate = false;
         }
-
-        if (event.keyCode === 79)  //o
-        {
-            createPhysijsCube(1.0, 2.0, 1.0);
-        }
-        else if (event.keyCode === 80)  //p
-        {
-            createPhysijsCube(0.8 * (WATER_SIZE * Math.random() - waterHalfSize), 2.0, 0.8 * (WATER_SIZE * Math.random() - waterHalfSize));
-        }
-    }
-
-    var dynObstacleMeshes = [];
-    function createPhysijsCube(x, y, z)
-    {
-        var boxFriction = 0.8;
-        var boxRestitution = 0.2;
-        var width = 0.3;
-        var widthSegments = 1;
-        var cubeGeom = new THREE.CubeGeometry(width, width, width, widthSegments, widthSegments, widthSegments);
-        var cubeMaterial = new THREE.MeshPhongMaterial();
-        cubeMaterial.wireframe = options.displayWireframe;
-        materials.push(cubeMaterial);
-
-        var cubeMass = 10;  //kg
-        var cubePhysijsMaterial = Physijs.createMaterial(
-            cubeMaterial,
-            boxFriction,
-            boxRestitution
-        );
-        var cubeDynObstacleMesh = new Physijs.BoxMesh(cubeGeom, cubePhysijsMaterial, cubeMass);
-        cubeDynObstacleMesh.position.set(x, y, z);
-        // cubeDynObstacleMesh.visible = false;
-        scene.add(cubeDynObstacleMesh);
-        cubeDynObstacleMesh.setDamping(0.9, 0.2);  //can only call this after adding to scene
-
-        gpuWater.addDynamicObstacle(cubeDynObstacleMesh, cubeMass);
-        dynObstacleMeshes.push(cubeDynObstacleMesh);
     }
 
     var isSculpting = false;
@@ -829,20 +696,6 @@
                 {
                     isSculpting = true;
                     sculptTerrain(GpuSkulpt.REMOVE, intersectPoint, options.sculptAmount);
-                }
-            }
-        }
-        else if (event.shiftKey)
-        {
-            //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
-            if (intersectPoint)
-            {
-                //do actual sculpting if clicked
-                if (event.button === 0)  //LMB
-                {
-                    // isSculpting = true;
-                    // sculptTerrain('flatten');
                 }
             }
         }
@@ -910,18 +763,6 @@
                 else if (event.button === 2)  //RMB
                 {
                     sculptTerrain(GpuSkulpt.REMOVE, intersectPoint, options.sculptAmount);
-                }
-            }
-        }
-        else if (event.shiftKey)
-        {
-            //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
-            if (intersectPoint && isSculpting)
-            {
-                if (event.button === 0)  //LMB
-                {
-                    // sculptTerrain('flatten');
                 }
             }
         }
@@ -1006,7 +847,6 @@
         projector.unprojectVector(worldPos, camera);
 
         //get camera position
-        // var camPos = camera.position;
         camPos.getPositionFromMatrix(camera.matrixWorld);
 
         //do raycasting
