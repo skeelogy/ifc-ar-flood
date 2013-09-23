@@ -1,7 +1,7 @@
 /**
  * @fileOverview GPU height field water simulations for Three.js flat planes
  * @author Skeel Lee <skeel@skeelogy.com>
- * @version 0.1.0
+ * @version 1.0.0
  */
 
 /**
@@ -116,9 +116,6 @@ function GpuHeightFieldWater(options) {
     //setup obstacles
     this.__setupObstaclesScene();
 }
-/**
- * Initializes the sim
- */
 GpuHeightFieldWater.prototype.init = function () {
     this.__checkExtensions();
     this.__setupShaders();
@@ -302,9 +299,7 @@ GpuHeightFieldWater.prototype.__setupShaders = function () {
         'a': new THREE.Vector4(0, 0, 0, 1)
     };
 };
-/**
- * Sets up the render-to-texture scene (2 render targets by default)
- */
+//Sets up the render-to-texture scene (2 render targets by default)
 GpuHeightFieldWater.prototype.__setupRttScene = function () {
 
     //TODO: some of these belong in superclass
@@ -341,9 +336,7 @@ GpuHeightFieldWater.prototype.__setupRttScene = function () {
     //create render target for storing the disturbed map (due to interaction with rigid bodes)
     this.rttDisturbMapRenderTarget = this.rttRenderTarget1.clone();
 };
-/**
- * Sets up the vertex-texture-fetch for the given mesh
- */
+//Sets up the vertex-texture-fetch for the given mesh
 GpuHeightFieldWater.prototype.__setupVtf = function () {
     this.mesh.material = new THREE.ShaderMaterial({
         uniforms: THREE.UniformsUtils.merge( [
@@ -362,9 +355,7 @@ GpuHeightFieldWater.prototype.__setupVtf = function () {
         lights: true
     });
 };
-/**
- * Checks for WebGL extensions. Checks for OES_texture_float_linear and vertex texture fetch capability by default.
- */
+//Checks for WebGL extensions. Checks for OES_texture_float_linear and vertex texture fetch capability by default.
 GpuHeightFieldWater.prototype.__checkExtensions = function (renderer) {
     var context = this.renderer.context;
     if (!context.getExtension('OES_texture_float_linear')) {
@@ -473,6 +464,12 @@ GpuHeightFieldWater.prototype.resetPass = function () {
     this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget2, false);
     this.swapRenderTargets();
 };
+/**
+ * Disturbs the water
+ * @param  {THREE.Vector3} position World-space position to disturb at
+ * @param  {number} amount Amount of water to disturb
+ * @param  {number} radius Radius of disturb
+ */
 GpuHeightFieldWater.prototype.disturb = function (position, amount, radius) {
     this.isDisturbing = true;
     this.disturbUvPos.x = (position.x + this.halfSize) / this.size;
@@ -480,6 +477,10 @@ GpuHeightFieldWater.prototype.disturb = function (position, amount, radius) {
     this.disturbAmount = amount;
     this.disturbRadius = radius;
 };
+/**
+ * Flood the scene by the given volume
+ * @param  {number} volume Volume of water to flood the scene with
+ */
 GpuHeightFieldWater.prototype.flood = function (volume) {
     this.meanHeight += volume / (this.res * this.res);
 };
@@ -520,6 +521,10 @@ GpuHeightFieldWater.prototype.displayPass = function () {
 GpuHeightFieldWater.prototype.calculateSubsteps = function (dt) {
     return 1;
 };
+/**
+ * Updates the water simulation
+ * @param  {number} dt Elapsed time
+ */
 GpuHeightFieldWater.prototype.update = function (dt) {
 
     //NOTE: unable to figure out why cannot clear until a few updates later,
@@ -581,6 +586,10 @@ GpuHeightFieldWater.prototype.swapRenderTargets = function () {
     this.rttRenderTarget2 = temp;
     // this.rttQuadMesh.material.uniforms.uTexture.value = this.rttRenderTarget2;
 };
+/**
+ * Adds a static obstacle into the system
+ * @param {THREE.Mesh} mesh Mesh to use as a static obstacle
+ */
 GpuHeightFieldWater.prototype.addStaticObstacle = function (mesh) {
     if (!(mesh instanceof THREE.Mesh)) {
         throw new Error('mesh must be of type THREE.Mesh');
@@ -597,6 +606,11 @@ GpuHeightFieldWater.prototype.addStaticObstacle = function (mesh) {
     //set a flag to indicate that we want to update static obstacle texture during update() call
     this.shouldUpdateStaticObstacle = true;
 };
+/**
+ * Adds a dynamic obstacle into the system
+ * @param {THREE.Mesh} mesh Mesh to use as a dynamic obstacle
+ * @param {number} mass Mass of the dynamic obstacle
+ */
 GpuHeightFieldWater.prototype.addDynamicObstacle = function (mesh, mass) {
     if (!(mesh instanceof THREE.Mesh)) {
         throw new Error('mesh must be of type THREE.Mesh');
@@ -612,6 +626,10 @@ GpuHeightFieldWater.prototype.addDynamicObstacle = function (mesh, mass) {
     mesh.__skhfwater.mass = mass;
     this.dynObstacles.push(mesh);
 };
+/**
+ * Removes obstacle from the system
+ * @param  {THREE.Mesh} mesh Mesh of the obstacle to remove
+ */
 GpuHeightFieldWater.prototype.removeObstacle = function (mesh) {
 
     //remove from dynamic obstacle array if it exists
@@ -640,9 +658,7 @@ GpuHeightFieldWater.prototype.removeObstacle = function (mesh) {
         this.shouldUpdateStaticObstacle = true;
     }
 };
-/**
- * This should only be called during update() call. Should not be called directly.
- */
+//This should only be called during update() call. Should not be called directly.
 GpuHeightFieldWater.prototype.updateStaticObstacleTexture = function (dt) {
 
     //static obstacle map just needs the top height (like the terrain)
@@ -844,9 +860,7 @@ GpuHeightFieldWater.prototype.updateDynObstacleTexture = function (dt) {
     this.disturbMapHasUpdated = true;
 
 };
-/**
- * Returns the pixel unsigned byte data for the render target texture (readPixels() can only return unsigned byte data)
- */
+//Returns the pixel unsigned byte data for the render target texture (readPixels() can only return unsigned byte data)
 GpuHeightFieldWater.prototype.__getPixelByteDataForRenderTarget = function (renderTarget, pixelByteData, width, height) {
 
     //I need to read in pixel data from WebGLRenderTarget but there seems to be no direct way.
@@ -878,7 +892,8 @@ GpuHeightFieldWater.prototype.__getPixelEncodedByteData = function (renderTarget
     this.__getPixelByteDataForRenderTarget(this.rttFloatEncoderRenderTarget, pixelByteData, width, height);
 };
 /**
- * Returns the pixel float data for the main render target (R channel)
+ * Returns the pixel float data for the water textures
+ * @return {Float32Array} Float data of the water texture
  */
 GpuHeightFieldWater.prototype.getPixelFloatData = function () {
 
@@ -889,6 +904,11 @@ GpuHeightFieldWater.prototype.getPixelFloatData = function () {
     var pixelFloatData = new Float32Array(this.pixelByteData.buffer);
     return pixelFloatData;
 };
+/**
+ * Adds a callback
+ * @param {string} type Type of callback e.g. 'exertForce'
+ * @param {function} callbackFn Callback function
+ */
 GpuHeightFieldWater.prototype.addCallback = function (type, callbackFn) {
     if (!this.callbacks.hasOwnProperty(type)) {
         this.callbacks[type] = [];
@@ -1182,6 +1202,12 @@ GpuPipeModelWater.prototype.__setupRttScene = function () {
     //create another RTT render target for storing the combined terrain + water heights
     this.rttCombinedHeight = this.rttRenderTarget1.clone();
 };
+/**
+ * Source into the water simulation
+ * @param  {THREE.Vector3} position World-space position to source at
+ * @param  {number} amount Amount of water to source
+ * @param  {number} radius Radius of water to source
+ */
 GpuPipeModelWater.prototype.source = function (position, amount, radius) {
     this.isSourcing = true;
     this.sourceUvPos.x = (position.x + this.halfSize) / this.size;
@@ -1189,6 +1215,10 @@ GpuPipeModelWater.prototype.source = function (position, amount, radius) {
     this.sourceAmount = amount;
     this.sourceRadius = radius;
 };
+/**
+ * Flood the scene by the given volume
+ * @param  {number} volume Volume of water to flood the scene with
+ */
 GpuPipeModelWater.prototype.flood = function (volume) {
     this.isFlooding = true;
     this.floodAmount = volume / (this.size * this.size);

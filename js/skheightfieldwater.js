@@ -1,7 +1,7 @@
 /**
  * @fileOverview JavaScript height field water simulations for Three.js flat planes
  * @author Skeel Lee <skeel@skeelogy.com>
- * @version 0.1.0
+ * @version 1.0.0
  */
 
 //===================================
@@ -11,7 +11,7 @@
 /**
  * Abstract class for obstacles
  * @constructor
- * @param {THREE.Mesh} mesh
+ * @param {THREE.Mesh} mesh Mesh to use as an obstacle
  */
 function Obstacle(mesh) {
     this.mesh = mesh;
@@ -32,10 +32,10 @@ Obstacle.prototype.updateFlowObstaclesField = function (waterSim) {
  * Obstacles that are voxelized
  * @constructor
  * @extends {Obstacle}
- * @param {THREE.Mesh} mesh
- * @param {number} voxelSizeX
- * @param {number} voxelSizeY
- * @param {number} voxelSizeZ
+ * @param {THREE.Mesh} mesh Mesh to use as an obstacle
+ * @param {number} voxelSizeX Voxel size in X
+ * @param {number} voxelSizeY Voxel size in Y
+ * @param {number} voxelSizeZ Voxel size in Z
  */
 function VoxelizedObstacle(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, globalTransform) {
     this.voxelizer = new SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, globalTransform);
@@ -43,9 +43,16 @@ function VoxelizedObstacle(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, globalTrans
 }
 VoxelizedObstacle.prototype = Object.create(Obstacle.prototype);
 VoxelizedObstacle.prototype.constructor = VoxelizedObstacle;
+/**
+ * Updates the obstacle
+ */
 VoxelizedObstacle.prototype.update = function () {
     this.voxelizer.updateIntersections();
 };
+/**
+ * Updates the obstacle 2D array of the given water simulation
+ * @param  {HeightFieldWater} waterSim Water simulation instance
+ */
 VoxelizedObstacle.prototype.updateObstacleField = function (waterSim) {
 
     if (this.updateAlways) {
@@ -73,6 +80,10 @@ VoxelizedObstacle.prototype.updateObstacleField = function (waterSim) {
         }
     }
 };
+/**
+ * Updates the flux array of the given water simulation
+ * @param  {HeightFieldWaterWithVel} waterSim Water simulation instance
+ */
 VoxelizedObstacle.prototype.updateFlux = function (waterSim) {
 
     if (this.updateAlways) {
@@ -129,7 +140,7 @@ VoxelizedObstacle.prototype.updateFlux = function (waterSim) {
  * Obstacle that is a height-field terrain
  * @constructor
  * @extends {Obstacle}
- * @param {THREE.Mesh} mesh
+ * @param {THREE.Mesh} mesh Mesh to use as a terrain obstacle
  */
 function TerrainObstacle(mesh) {
     this.intersectionHeights = [];
@@ -137,6 +148,9 @@ function TerrainObstacle(mesh) {
 }
 TerrainObstacle.prototype = Object.create(Obstacle.prototype);
 TerrainObstacle.prototype.constructor = TerrainObstacle;
+/**
+ * Updates the obstacle
+ */
 TerrainObstacle.prototype.update = function () {
     //since we are using a height-field terrain, we can just get the height without doing intersection tests
     var vertices = this.mesh.geometry.vertices;
@@ -147,6 +161,10 @@ TerrainObstacle.prototype.update = function () {
         this.intersectionHeights[i].push(vertices[i].y);
     }
 };
+/**
+ * Updates the obstacle 2D array of the given water simulation
+ * @param  {HeightFieldWater} waterSim Water simulation instance
+ */
 TerrainObstacle.prototype.updateObstacleField = function (waterSim) {
 
     if (this.updateAlways) {
@@ -174,6 +192,10 @@ TerrainObstacle.prototype.updateObstacleField = function (waterSim) {
         }
     }
 };
+/**
+ * Updates the flux array of the given water simulation
+ * @param  {HeightFieldWaterWithVel} waterSim Water simulation instance
+ */
 TerrainObstacle.prototype.updateFlux = function (waterSim) {
 
     //NOTE: looks like there's no need for the terrain to be an obstacle itself for updating flux
@@ -296,11 +318,11 @@ var DepthMapObstacleManager = {
 /**
  * Abstract base class for height field water simulations
  * @constructor
- * @param {THREE.Mesh} mesh
- * @param {number} size
- * @param {number} res
- * @param {number} dampingFactor
- * @param {number} meanHeight
+ * @param {THREE.Mesh} mesh Mesh to use as the water simulation
+ * @param {number} size Length of the mesh
+ * @param {number} res Resolution of the mesh
+ * @param {number} dampingFactor Damping factor
+ * @param {number} meanHeight Mean height
  */
 function HeightFieldWater(options) {
 
@@ -373,6 +395,10 @@ HeightFieldWater.prototype.init = function () {
     // DepthMapObstacleManager.init();
 };
 
+/**
+ * Updates the simulation
+ * @param  {number} dt Elapsed time
+ */
 HeightFieldWater.prototype.update = function (dt) {
 
     // DepthMapObstacleManager.update();
@@ -416,6 +442,10 @@ HeightFieldWater.prototype.sim = function (dt) {
     throw new Error('Abstract method not implemented');
 };
 
+/**
+ * Sets the mean height
+ * @param {number} meanHeight Mean height to set to
+ */
 HeightFieldWater.prototype.setMeanHeight = function (meanHeight) {
 
     this.__meanHeight = meanHeight;
@@ -455,17 +485,18 @@ HeightFieldWater.prototype.setMeanHeight = function (meanHeight) {
     }
 };
 
-/**
- * Calculates the vertex id of the mesh that is nearest <tt>position</tt>
- * @param  {THREE.Vector3} position
- * @return {number}
- */
+//Calculates the vertex id of the mesh that is nearest position
 HeightFieldWater.prototype.__calcVertexId = function (x, z) {
     var row = Math.floor((z + this.halfSize) / this.size * this.res);
     var col = Math.floor((x + this.halfSize) / this.size * this.res);
     return (row * this.res) + col;
 };
 
+/**
+ * Disturbs the water simulation
+ * @param  {THREE.Vector3} position World-space position to disturb at
+ * @param  {number} amount Amount to disturb
+ */
 HeightFieldWater.prototype.disturb = function (position, amount) {
 
     //convert back to local space first
@@ -477,10 +508,20 @@ HeightFieldWater.prototype.disturb = function (position, amount) {
     this.disturbById(idx, amount);
 };
 
+/**
+ * Disturbs vertex id of the water mesh
+ * @param  {number} id Vertex ID of the water mesh
+ * @param  {number} amount Amount to disturb
+ */
 HeightFieldWater.prototype.disturbById = function (id, amount) {
     this.disturbField[id] = amount;
 };
 
+/**
+ * Disturbs the neighbours at this position
+ * @param  {THREE.Vector3} position World-space position to disturb at
+ * @param  {number} amount Amount to disturb
+ */
 HeightFieldWater.prototype.disturbNeighbours = function (position, amount) {
 
     //convert back to local space first
@@ -493,6 +534,11 @@ HeightFieldWater.prototype.disturbNeighbours = function (position, amount) {
     this.disturbNeighboursById(idx, amount);
 };
 
+/**
+ * Disturbs neighbours of a vertex
+ * @param  {number} id Neighbours of this vertex ID will be disturbed
+ * @param  {number} amount Amount to disturb
+ */
 HeightFieldWater.prototype.disturbNeighboursById = function (id, amount) {
 
     var vertices = this.geometry.vertices;
@@ -522,6 +568,12 @@ HeightFieldWater.prototype.disturbNeighboursById = function (id, amount) {
     }
 };
 
+/**
+ * Sources water into the water simulation
+ * @param  {THREE.Vector3} position World-space position to source at
+ * @param  {number} amount Amount of water to source
+ * @param  {number} radius Radius of water to source
+ */
 HeightFieldWater.prototype.source = function (position, amount, radius) {
 
     //convert back to local space first
@@ -544,10 +596,19 @@ HeightFieldWater.prototype.source = function (position, amount, radius) {
     }
 };
 
+/**
+ * Source to a vertex
+ * @param  {number} id Vertex ID to source at
+ * @param  {number} amount Amount of water to source
+ */
 HeightFieldWater.prototype.sourceById = function (id, amount) {
     this.sourceField[id] = amount;
 };
 
+/**
+ * Floods the water simulation by the given volume
+ * @param  {number} volume Volume to flood the system with
+ */
 HeightFieldWater.prototype.flood = function (volume) {
     var i, j, idx;
     for (i = 0; i < this.res; i++) {
@@ -560,6 +621,11 @@ HeightFieldWater.prototype.flood = function (volume) {
     }
 };
 
+/**
+ * Adds obstacle to the system
+ * @param {Obstacle} obstacle Obstacle to add
+ * @param {string} name String ID of this obstacle
+ */
 HeightFieldWater.prototype.addObstacle = function (obstacle, name) {
     // DepthMapObstacleManager.addObstacle(mesh);
     if (!(obstacle instanceof Obstacle)) {
@@ -574,10 +640,17 @@ HeightFieldWater.prototype.addObstacle = function (obstacle, name) {
     this.obstacles[name] = obstacle;
 };
 
+/**
+ * Sets obstacles state to active/inactive
+ * @param {boolean} isActive Whether the obstacles are active
+ */
 HeightFieldWater.prototype.setObstaclesActive = function (isActive) {
     this.obstaclesActive = isActive;
 };
 
+/**
+ * Resets the water simulation
+ */
 HeightFieldWater.prototype.reset = function () {
 
     //set mesh back to 0
@@ -1094,6 +1167,10 @@ HeightFieldWaterWithVel.prototype.update = function () {
 };
 
 //methods
+/**
+ * Visualize velocity colors
+ * @param  {boolean} shouldVisualize Whether to visualize the colors
+ */
 HeightFieldWaterWithVel.prototype.visualizeVelColors = function (shouldVisualize) {
     this.__visVelColors = shouldVisualize;
     if (shouldVisualize) {
@@ -1106,6 +1183,10 @@ HeightFieldWaterWithVel.prototype.visualizeVelColors = function (shouldVisualize
     this.mesh.geometry.buffersNeedUpdate = true;
     this.mesh.material.needsUpdate = true;
 };
+/**
+ * Visualize velocity vector lines
+ * @param  {boolean} shouldVisualize Whether to visualize the lines
+ */
 HeightFieldWaterWithVel.prototype.visualizeVelLines = function (shouldVisualize) {
     this.__visVelLines = shouldVisualize;
     this.velLinesMesh.visible = shouldVisualize;
@@ -1229,6 +1310,10 @@ PipeModelWater.prototype.reset = function () {
 
     HeightFieldWaterWithVel.prototype.reset.call(this);
 };
+/**
+ * Updates the simulation
+ * @param  {number} dt Elapsed time
+ */
 PipeModelWater.prototype.update = function (dt) {
 
     //TODO: update only the changed base heights during sculpting
@@ -1469,11 +1554,4 @@ PipeModelWater.prototype.__matchEdges = function () {
     vertexPos[idx].y = 0.5 * (vertexPos[idx + 1].y + vertexPos[idx - this.res].y);
     idx = this.res * this.res - 1;
     vertexPos[idx].y = 0.5 * (vertexPos[idx - 1].y + vertexPos[idx - this.res].y);
-};
-
-function PipeFlowChanger(rate) {
-    this.rate = rate;
-}
-PipeFlowChanger.prototype.changeFlow = function () {
-
 };

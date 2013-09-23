@@ -1,13 +1,21 @@
 /**
  * @fileOverview Shader manager singleton to help in loading of external shader files
  * @author Skeel Lee <skeel@skeelogy.com>
- * @version 0.1.0
+ * @version 1.0.0
  */
 
+/**
+ * Manager to handle parsing and loading of GLSL shaders for Three.js
+ */
 THREE.ShaderManager = {
 
     shaderContents: {},
 
+    /**
+     * Loads an external GLSL shader file
+     * @param {string} url External GLSL file to load from
+     * @param {boolean} async Whether to load the GLSL file asynchronously
+     */
     addShader: function (url, async) {
         if (Object.keys(this.shaderContents).indexOf(url) !== -1) {
             // console.warn('shader already added: ' + url);
@@ -32,6 +40,11 @@ THREE.ShaderManager = {
         });
     },
 
+    /**
+     * Gets the shader text contents
+     * @param  {string} url Key that identifies the shader text content
+     * @return {string} Shader text
+     */
     getShaderContents: function (url) {
         var content = this.shaderContents[url];
         if (!content) {

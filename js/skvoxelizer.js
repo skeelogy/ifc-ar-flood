@@ -1,17 +1,17 @@
 /**
  * @fileOverview A JavaScript voxelizer for Three.js meshes
  * @author Skeel Lee <skeel@skeelogy.com>
- * @version 0.1.0
+ * @version 1.0.0
  */
 
 /**
  * Voxelizer for <tt>mesh</tt>
  * @constructor
- * @param {THREE.Mesh} mesh
- * @param {number} voxelSizeX
- * @param {number} voxelSizeY
- * @param {number} voxelSizeZ
- * @param {THREE.Matrix4} transformMatrix
+ * @param {THREE.Mesh} mesh Mesh to voxelize from
+ * @param {number} voxelSizeX Voxel size in X
+ * @param {number} voxelSizeY Voxel size in Y
+ * @param {number} voxelSizeZ Voxel size in Z
+ * @param {THREE.Matrix4} transformMatrix Transform matrix to change the space of the voxelizing
  */
 function SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, transformMatrix) {
 
@@ -78,6 +78,9 @@ SkVoxelizer.prototype.__updateMinMax = function () {
     this.__zMaxMultiple = Math.floor(this.__max.z / this.voxelSizeZ) * this.voxelSizeZ;
 };
 
+/**
+ * Updates the first and last intersection data
+ */
 SkVoxelizer.prototype.updateIntersections = function () {
 
     //cast rays from bottom up and keep list of first and last intersections
@@ -125,6 +128,9 @@ SkVoxelizer.prototype.updateIntersections = function () {
     }
 };
 
+/**
+ * Voxelizes the mesh
+ */
 SkVoxelizer.prototype.voxelize = function () {
 
     //calculate the intersection points first
@@ -151,6 +157,9 @@ SkVoxelizer.prototype.voxelize = function () {
     }
 };
 
+/**
+ * Hides all voxels
+ */
 SkVoxelizer.prototype.hideAllVoxels = function () {
     var x, y, z, xId, zId, yId;
     for (xId in this.__voxelMeshes) {
@@ -171,7 +180,10 @@ SkVoxelizer.prototype.hideAllVoxels = function () {
     }
 };
 
-//Use this for debugging purposes only. It is very slow.
+/**
+ * Visualize the voxels. Use this for debugging purposes only. It is very slow.
+ * @param  {THREE.Scene} scene Scene
+ */
 SkVoxelizer.prototype.visualize = function (scene) {
 
     //turn off all voxels first

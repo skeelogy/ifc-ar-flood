@@ -1,7 +1,7 @@
 /**
  * @fileOverview A JavaScript/GLSL sculpting script for sculpting Three.js meshes
  * @author Skeel Lee <skeel@skeelogy.com>
- * @version 0.1.0
+ * @version 1.0.0
  */
 
 /**
@@ -156,9 +156,7 @@ GpuSkulpt.prototype.__setupShaders = function () {
         'a': new THREE.Vector4(0, 0, 0, 1)
     };
 };
-/**
- * Sets up the render-to-texture scene (2 render targets for accumulative feedback)
- */
+//Sets up the render-to-texture scene (2 render targets for accumulative feedback)
 GpuSkulpt.prototype.__setupRttScene = function () {
 
     //create a RTT scene
@@ -189,9 +187,7 @@ GpuSkulpt.prototype.__setupRttScene = function () {
     this.rttFloatEncoderRenderTarget = new THREE.WebGLRenderTarget(this.res, this.res, this.nearestFloatRGBAParams);
     this.rttFloatEncoderRenderTarget.generateMipmaps = false;
 };
-/**
- * Sets up the vertex-texture-fetch for the given mesh
- */
+//Sets up the vertex-texture-fetch for the given mesh
 GpuSkulpt.prototype.__setupVtf = function () {
     this.mesh.material = new THREE.ShaderMaterial({
         uniforms: THREE.UniformsUtils.merge( [
@@ -214,6 +210,9 @@ GpuSkulpt.prototype.__setupVtf = function () {
         lights: true
     });
 };
+/**
+ * Update
+ */
 GpuSkulpt.prototype.update = function () {
 
     //have to set flags from other places and then do all steps at once during update
@@ -269,14 +268,28 @@ GpuSkulpt.prototype.swapRenderTargets = function () {
     this.rttRenderTarget2 = temp;
     // this.skulptMaterial.uniforms.uSculptTexture1.value = this.rttRenderTarget2;
 };
+/**
+ * Sets brush size
+ * @param {number} size Brush size
+ */
 GpuSkulpt.prototype.setBrushSize = function (size) {
     var normSize = size / (this.size * 2.0);
     this.skulptMaterial.uniforms.uSculptRadius.value = normSize;
     this.mesh.material.uniforms.uCursorRadius.value = normSize;
 };
+/**
+ * Sets brush amount
+ * @param {number} amount Brush amount
+ */
 GpuSkulpt.prototype.setBrushAmount = function (amount) {
     this.skulptMaterial.uniforms.uSculptAmount.value = amount;
 };
+/**
+ * Loads terrain heights from image data
+ * @param  {array} data Image data
+ * @param  {number} amount Height multiplier
+ * @param  {boolean} midGreyIsLowest Whether mid grey is considered the lowest part of the image
+ */
 GpuSkulpt.prototype.loadFromImageData = function (data, amount, midGreyIsLowest)
 {
     //convert data from Uint8ClampedArray to Float32Array so that DataTexture can use
@@ -310,6 +323,12 @@ GpuSkulpt.prototype.loadFromImageData = function (data, amount, midGreyIsLowest)
     // this.mesh.material.uniforms.uBaseTexture.value = this.imageDataTexture;
     this.updateCombinedLayers = true;
 };
+/**
+ * Sculpt the terrain
+ * @param  {enum} type Sculpt operation type e.g. GpuSkulpt.ADD
+ * @param  {THREE.Vector3} position World-space position to sculpt at
+ * @param  {number} amount Amount to sculpt
+ */
 GpuSkulpt.prototype.sculpt = function (type, position, amount) {
     this.skulptMaterial.uniforms.uSculptType.value = type;
     this.isSculpting = true;
@@ -321,24 +340,35 @@ GpuSkulpt.prototype.sculpt = function (type, position, amount) {
         this.mesh.material.uniforms.uCursorColor.value.copy(this.cursorRemoveColor);
     }
 };
+/**
+ * Clears the sculpts
+ */
 GpuSkulpt.prototype.clear = function () {
     this.shouldClear = true;
 };
+/**
+ * Updates the cursor position
+ * @param  {THREE.Vector3} position World-space position to update the cursor to
+ */
 GpuSkulpt.prototype.updateCursor = function (position) {
     this.sculptUvPos.x = (position.x + this.halfSize) / this.size;
     this.sculptUvPos.y = (position.z + this.halfSize) / this.size;
     this.mesh.material.uniforms.uCursorPos.value.set(this.sculptUvPos.x, this.sculptUvPos.y);
     this.mesh.material.uniforms.uCursorColor.value.copy(this.cursorHoverColor);
 };
+/**
+ * Shows the sculpt cursor
+ */
 GpuSkulpt.prototype.showCursor = function () {
     this.mesh.material.uniforms.uShowCursor.value = 1;
 };
+/**
+ * Hides the sculpt cursor
+ */
 GpuSkulpt.prototype.hideCursor = function () {
     this.mesh.material.uniforms.uShowCursor.value = 0;
 };
-/**
- * Returns the pixel unsigned byte data for the render target texture (readPixels() can only return unsigned byte data)
- */
+//Returns the pixel unsigned byte data for the render target texture (readPixels() can only return unsigned byte data)
 GpuSkulpt.prototype.__getPixelByteDataForRenderTarget = function (renderTarget, pixelByteData, width, height) {
 
     //I need to read in pixel data from WebGLRenderTarget but there seems to be no direct way.
@@ -369,6 +399,10 @@ GpuSkulpt.prototype.__getPixelEncodedByteData = function (renderTarget, pixelByt
 
     this.__getPixelByteDataForRenderTarget(this.rttFloatEncoderRenderTarget, pixelByteData, width, height);
 };
+/**
+ * Gets float data for every pixel of the terrain texture
+ * @return {Float32Array} Float data of every pixel of the terrain texture
+ */
 GpuSkulpt.prototype.getPixelFloatData = function () {
 
     //get the encoded byte data first
@@ -378,6 +412,10 @@ GpuSkulpt.prototype.getPixelFloatData = function () {
     var pixelFloatData = new Float32Array(this.pixelByteData.buffer);
     return pixelFloatData;
 };
+/**
+ * Gets float data for every pixel of the proxy terrain texture
+ * @return {Float32Array} Float data of every pixel of the proxy terrain texture
+ */
 GpuSkulpt.prototype.getProxyPixelFloatData = function () {
 
     //render to proxy render target
@@ -393,6 +431,11 @@ GpuSkulpt.prototype.getProxyPixelFloatData = function () {
     var pixelFloatData = new Float32Array(this.proxyPixelByteData.buffer);
     return pixelFloatData;
 };
+/**
+ * Adds callback function
+ * @param {string} type Type of callback e.g. 'update'
+ * @param {function} callbackFn Callback function
+ */
 GpuSkulpt.prototype.addCallback = function (type, callbackFn) {
     if (!this.callbacks.hasOwnProperty(type)) {
         this.callbacks[type] = [];

@@ -1,7 +1,7 @@
 /**
  * @fileOverview A JavaScript sculpting script for sculpting Three.js meshes
  * @author Skeel Lee <skeel@skeelogy.com>
- * @version 0.1.0
+ * @version 1.0.0
  *
  * Probably only works for flat planes now. Need to check with spherical objects.
  * This file still needs some clean up and checking.
@@ -28,6 +28,12 @@ function SkulptLayer(skulptMesh) {
 SkulptLayer.prototype.__init = function () {
     this.clear();
 };
+/**
+ * Loads terrain heights from an image data
+ * @param  {array} imageData Image data
+ * @param  {number} amount Height multiplier of read data
+ * @param  {boolean} midGreyIsLowest Whether grey areas are considered the lowest parts instead of black
+ */
 SkulptLayer.prototype.loadFromImageData = function (imageData, amount, midGreyIsLowest) {
 
     //read the image data and use that as height
@@ -59,6 +65,16 @@ SkulptLayer.prototype.loadFromImageData = function (imageData, amount, midGreyIs
     //update whole mesh
     this.__skulptMesh.updateAll();
 };
+/**
+ * Adds noise to the layer
+ * @param {number} amp Amplitude
+ * @param {number} freqX Frequency X
+ * @param {number} freqY Frequency Y
+ * @param {number} freqZ Frequency Z
+ * @param {number} offsetX Offset X
+ * @param {number} offsetY Offset Y
+ * @param {number} offsetZ Offset Z
+ */
 SkulptLayer.prototype.addNoise = function (amp, freqX, freqY, freqZ, offsetX, offsetY, offsetZ) {
 
     amp = amp || 1;
@@ -95,6 +111,9 @@ SkulptLayer.prototype.addNoise = function (amp, freqX, freqY, freqZ, offsetX, of
     //update whole mesh
     this.__skulptMesh.updateAll();
 };
+/**
+ * Clears the layer
+ */
 SkulptLayer.prototype.clear = function () {
     var i, len;
     for (i = 0, len = this.__skulptMesh.__mesh.geometry.vertices.length; i < len; i++) {
@@ -129,6 +148,10 @@ SkulptMesh.prototype.__init = function () {
         this.__displacements[i] = 0;
     }
 };
+/**
+ * Adds a sculpting layer
+ * @param {string} name Name of the layer to add
+ */
 SkulptMesh.prototype.addLayer = function (name) {
     if (Object.keys(this.__layers).indexOf(name) !== -1) {
         throw new Error('Layer name already exists: ' + name);
@@ -137,15 +160,29 @@ SkulptMesh.prototype.addLayer = function (name) {
     this.__currLayer = this.__layers[name];
     return this.__layers[name];
 };
+/**
+ * Removes layer
+ * @param  {string} name Name of the layer to remove
+ */
 SkulptMesh.prototype.removeLayer = function (name) {
     //TODO
 };
+/**
+ * Gets current sculpting layer
+ * @return {SkulptLayer} Current sculpting layer
+ */
 SkulptMesh.prototype.getCurrLayer = function () {
     return this.__currLayer;
 };
+/**
+ * Sets current sculpting layer
+ */
 SkulptMesh.prototype.setCurrLayer = function () {
     //TODO
 };
+/**
+ * Clears current sculpting layer
+ */
 SkulptMesh.prototype.clearCurrLayer = function () {
     this.__currLayer.clear();
     this.updateAll();
@@ -167,9 +204,9 @@ SkulptMesh.prototype.updateAll = function () {
  * A sculptable flat plane mesh
  * @constructor
  * @extends {SkulptMesh}
- * @param {THREE.Mesh} mesh
- * @param {number} size
- * @param {number} res
+ * @param {THREE.Mesh} mesh Mesh to use as the terrain mesh
+ * @param {number} size Length of the mesh
+ * @param {number} res Resolution of the mesh
  */
 function SkulptTerrainMesh(mesh, size, res) {
     SkulptMesh.call(this, mesh);
@@ -180,12 +217,7 @@ function SkulptTerrainMesh(mesh, size, res) {
 }
 SkulptTerrainMesh.prototype = Object.create(SkulptMesh.prototype);
 SkulptTerrainMesh.prototype.constructor = SkulptTerrainMesh;
-/**
- * Calculates vertex id on this terrain using x and z values in local space
- * @param  {number} x
- * @param  {number} z
- * @return {number}
- */
+//Calculates vertex id on this terrain using x and z values in local space
 SkulptTerrainMesh.prototype.__calcTerrainVertexId = function (x, z) {
     var row = Math.floor((z + this.__halfSize) / this.__size * this.__res);
     var col = Math.floor((x + this.__halfSize) / this.__size * this.__res);
@@ -226,6 +258,10 @@ SkulptTerrainMesh.prototype.getAffectedVertexInfo = function (position, radius) 
 
     return affectedVertexInfos;
 };
+/**
+ * Updates the terrain with the affected vertex info
+ * @param  {array} affectedVertexInfos Array which contains a list of affected vertex info
+ */
 SkulptTerrainMesh.prototype.update = function (affectedVertexInfos) {
 
     var geom = this.__mesh.geometry;
@@ -260,6 +296,9 @@ SkulptTerrainMesh.prototype.update = function (affectedVertexInfos) {
     geom.computeVertexNormals();
     geom.normalsNeedUpdate = true;
 };
+/**
+ * Updates all
+ */
 SkulptTerrainMesh.prototype.updateAll = function () {
 
     var geom = this.__mesh.geometry;

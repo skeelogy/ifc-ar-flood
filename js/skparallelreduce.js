@@ -1,7 +1,7 @@
 /**
  * @fileOverview GLSL parallel reduce in Three.js
  * @author Skeel Lee <skeel@skeelogy.com>
- * @version 0.1.0
+ * @version 1.0.0
  *
  * Example Usage:
  * ParallelReducer.init(myWebGLRenderer, 1024, 1);
@@ -14,10 +14,19 @@
 //FIXME: pixel access still has some problems, causing interpolated values to appear. Does not matter to 'sum' mode for some reason, but other modes like 'max' will not work.
 //TODO: do a vertical flip of UVs before going into shaders, so that there's no need to constantly flip the v coordinates
 
+/**
+ * Singleton object that does GPU parallel reduction using GLSL
+ */
 var ParallelReducer = {
 
     hasInit: false,
 
+    /**
+     * Initializes the parallel reducer object
+     * @param  {THREE.WebGLRenderer} renderer Renderer
+     * @param  {number} res Power-of-2 resolution
+     * @param  {number} stopRes Resolution to stop the reduction process (min of 1)
+     */
     init: function (renderer, res, stopRes) {
 
         //return if has already init
@@ -157,6 +166,12 @@ var ParallelReducer = {
         this.rttRenderTarget2 = temp;
     },
 
+    /**
+     * Initiate the reduction process
+     * @param  {THREE.Texture | THREE.WebGLRenderTarget} texture Texture which contains data for reduction
+     * @param  {string} type Reduction operation type e.g. 'sum'
+     * @param  {string} channelId Channel to reduce e.g. 'r'
+     */
     reduce: function (texture, type, channelId) {
         var currMaterial = this.rttMaterials[type];
         var firstIteration = true;
@@ -186,6 +201,11 @@ var ParallelReducer = {
         }
     },
 
+    /**
+     * Gets the reduced float data after reduction is done
+     * @param  {string} channelId Channel to get float data from
+     * @return {number} Floating point result of the reduction
+     */
     getPixelFloatData: function (channelId) {
 
         //I need to read in pixel data from WebGLRenderTarget but there seems to be no direct way.
