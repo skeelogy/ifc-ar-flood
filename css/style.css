@@ -51,3 +51,7 @@ h2 {
     font-size: 12px;
     color: white;
 }
+
+#stats { position: absolute; top:0; left: 0 }
+#stats #fps #fpsText { color: #aaa !important }
+#stats #fps #fpsGraph { display: block }
