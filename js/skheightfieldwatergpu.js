@@ -345,25 +345,20 @@ GpuHeightFieldWater.prototype.__setupRttScene = function () {
  * Sets up the vertex-texture-fetch for the given mesh
  */
 GpuHeightFieldWater.prototype.__setupVtf = function () {
-    THREE.ShaderManager.addShader('/glsl/heightMap.vert');
-    THREE.ShaderManager.addShader('/glsl/lambert.frag');
     this.mesh.material = new THREE.ShaderMaterial({
-        uniforms: {
-            uTexture: { type: 't', value: this.rttRenderTarget1 },
-            uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
-            uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.segmentSize, this.segmentSize) },
-            uHeightMultiplier: { type: 'f', value: 1.0 },
-            uBaseColor: { type: 'v3', value: new THREE.Vector3(0.45, 0.95, 1.0) },
-            uAmbientLightColor: { type: 'v3', value: new THREE.Vector3(1.0, 1.0, 1.0) },
-            uAmbientLightIntensity: { type: 'f', value: 0.1 },
-            uPointLightWorldPos: { type: 'v3v', value: [ new THREE.Vector3(5, 15, -15), new THREE.Vector3(5, 2, 15) ] },
-            uPointLightColor: { type: 'v3v', value: [ new THREE.Vector3(1.0, 0.8, 0.8), new THREE.Vector3(0.0, 0.9, 1.0) ] },
-            uPointLightIntensity: { type: 'fv1', value: [ 0.5, 0.3 ] },
-            uPointLightFalloffStart: { type: 'fv1', value: [ 25.0, 25.0 ] },
-            uPointLightFalloffEnd: { type: 'fv1', value: [ 30.0, 30.0 ] }
-        },
-        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMap.vert'),
-        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambert.frag')
+        uniforms: THREE.UniformsUtils.merge( [
+			THREE.UniformsLib[ "shadowmap" ],
+            {
+                uTexture: { type: 't', value: this.rttRenderTarget1 },
+                uTexelSize: { type: 'v2', value: new THREE.Vector2(this.texelSize, this.texelSize) },
+                uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.segmentSize, this.segmentSize) },
+                uHeightMultiplier: { type: 'f', value: 1.0 },
+                uBaseColor: { type: 'v3', value: new THREE.Vector3(0.45, 0.95, 1.0) }
+            }
+        ]),
+        vertexShader: THREE.ShaderManager.getShaderContents('heightmapVS'),
+        fragmentShader: THREE.ShaderManager.getShaderContents('lambertFS'),
+        lights: true
     });
 };
 /**

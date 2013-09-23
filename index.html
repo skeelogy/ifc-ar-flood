@@ -82,7 +82,7 @@
 
     var HIGHLIGHT_COLOR_ADD = new THREE.Color('#00ff00');
     var HIGHLIGHT_COLOR_REMOVE = new THREE.Color('#ff0000');
-    var HIGHLIGHT_COLOR_NORMAL = new THREE.Color('#000000');
+    var HIGHLIGHT_COLOR_NORMAL = new THREE.Color('#776655');
 
 	var terrainHalfSize = TERRAIN_SIZE / 2.0;
 	var waterHalfSize = WATER_SIZE / 2.0;
@@ -238,25 +238,25 @@
 		//setup lights
 		scene.add(new THREE.AmbientLight(0x111111));
 
-        var keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
-        keyLight.position.set(-50, 75, 75);
+        var keyLight = new THREE.DirectionalLight(0xFFBBBB, 0.75);
+        keyLight.position.set(5, 15, -15);
         keyLight.target.position.set(0, 0, 0);
         keyLight.castShadow = true;
-        keyLight.shadowCameraNear = 60;
-        keyLight.shadowCameraFar = 200;
-        keyLight.shadowCameraRight = 150;
-        keyLight.shadowCameraLeft = -150;
-        keyLight.shadowCameraTop = 150;
-        keyLight.shadowCameraBottom = -150;
+        keyLight.shadowCameraNear = 18;
+        keyLight.shadowCameraFar = 25;
+        keyLight.shadowCameraRight = 4;
+        keyLight.shadowCameraLeft = -4;
+        keyLight.shadowCameraTop = 4;
+        keyLight.shadowCameraBottom = -4;
         // keyLight.shadowCameraVisible = true;
-        keyLight.shadowBias = 0.0001;
+        keyLight.shadowBias = 0.005;
         keyLight.shadowDarkness = 0.5;
-        keyLight.shadowMapWidth = 1024;
-        keyLight.shadowMapHeight = 1024;
+        keyLight.shadowMapWidth = SHADOW_MAP_RES;
+        keyLight.shadowMapHeight = SHADOW_MAP_RES;
         scene.add(keyLight);
 
-        var fillLight = new THREE.DirectionalLight(0xffffff, 0.7);
-        fillLight.position.set(25, 75, 75);
+        var fillLight = new THREE.DirectionalLight(0x33DDFF, 0.4);
+        fillLight.position.set(5, 2, 15);
         fillLight.target.position.set(0, 0, 0);
         scene.add(fillLight);
 
@@ -347,9 +347,6 @@
 			res: TERRAIN_RES,
 			proxyRes: PROXY_TERRAIN_RES
 		});
-
-		//change some parameters
-		gpuSkulpt.mesh.material.uniforms.uPointLightIntensity.value[1] = 0.2;
 
 		//create a RTT visualization plane
 		terrainVisGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);
@@ -1807,6 +1804,8 @@
 		var physijsMesh = new Physijs.ConvexMesh(geometry, material, mass);
         physijsMesh.position.copy(position);
         physijsMesh.rotation.copy(rotation);
+        physijsMesh.castShadow = true;
+		physijsMesh.receiveShadow = true;
         // physijsMesh.visible = false;
         scene.add(physijsMesh);
         physijsMesh.setDamping(linearDamping, angularDamping);  //can only call this after adding to scene
