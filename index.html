@@ -587,7 +587,7 @@
 
         //centralize
         $threejsContainerElem.css({
-            'width': (width*1.25)+'px',
+            'width': (width*1.1)+'px',
             'margin': '0 auto'
         });
     }
@@ -709,15 +709,15 @@
                     isDisturbing = true;
                     if (event.button === 0)  //LMB
                     {
-                        gpuWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT, WATER_DISTURB_RADIUS);
+                        gpuWater.source(intersectPoint, options.waterSourceAmount, options.waterSourceRadius);
                     }
                     else if (event.button === 1)  //MMB
                     {
-                        gpuWater.source(intersectPoint, -options.waterSinkAmount, options.waterSinkRadius);
+                        gpuWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT, WATER_DISTURB_RADIUS);
                     }
                     else if (event.button === 2)  //RMB
                     {
-                        gpuWater.source(intersectPoint, options.waterSourceAmount, options.waterSourceRadius);
+                        gpuWater.source(intersectPoint, -options.waterSinkAmount, options.waterSinkRadius);
                     }
                 }
             }
@@ -770,15 +770,15 @@
                 {
                     if (event.button === 0)  //LMB
                     {
-                        gpuWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT, WATER_DISTURB_RADIUS);
+                        gpuWater.source(intersectPoint, options.waterSourceAmount, options.waterSourceRadius);
                     }
                     else if (event.button === 1)  //MMB
                     {
-                        gpuWater.source(intersectPoint, -options.waterSinkAmount, options.waterSinkRadius);
+                        gpuWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT, WATER_DISTURB_RADIUS);
                     }
                     else if (event.button === 2)  //LMB
                     {
-                        gpuWater.source(intersectPoint, options.waterSourceAmount, options.waterSourceRadius);
+                        gpuWater.source(intersectPoint, -options.waterSinkAmount, options.waterSinkRadius);
                     }
                 }
             }
@@ -1819,7 +1819,7 @@
     });
     </script>
 </head>
-<body style='background-color: #081419'>
+<body style="background-color: #081419">
     <div class="invisible" id="video-container">
         <div class="caption">&lt;video&gt;</div>
         <video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
@@ -1828,5 +1828,35 @@
         <div class="caption">&lt;canvas&gt;</div>
     </div>
     <div id="threejs-container"></div>
+    <div id="info-container" style="margin:0px 0px 0; width:160px; padding: 10px; position:fixed; top:100px; left:0; background:rgba(128,128,128,0.4); font-family: Helvetica, serif; font-style: italic; font-size: 12px; color: white;">
+        <div>
+            <p>mouse & keyboard controls:</p>
+            <p>
+                [ camera ]<br/>
+                alt + LMB: rotate<br/>
+                alt + MMB: pan<br/>
+                alt + RMB: zoom<br/>
+            </p>
+            <p>
+                [ terrain ]<br/>
+                ctrl + LMB: add<br/>
+                ctrl + RMB: remove<br/>
+            </p>
+            <p>
+                [ water ]<br/>
+                space + LMB: source<br/>
+                space + MMB: disturb<br/>
+                space + RMB: sink<br/>
+            </p>
+            <p>
+                [ while adding objects ]<br/>
+                hold R + mouse drag: rotate<br/>
+            </p>
+            <p>
+                [ move first dyn object ]<br/>
+                W, A, S, D<br/>
+            </p>
+        </div>
+    </div>
 </body>
 </html>
