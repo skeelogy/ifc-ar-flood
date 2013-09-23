@@ -1,530 +1,530 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>IFC - Two-Way Coupling Test</title>
-	<meta charset="UTF-8"/>
+    <title>IFC - Two-Way Coupling Test</title>
+    <meta charset="UTF-8"/>
 
-	<link rel="stylesheet" href="/css/style.css">
-	<style type="text/css">
-		#stats { position: absolute; top:0; left: 0 }
-		#stats #fps { background: transparent !important }
-		#stats #fps #fpsText { color: #aaa !important }
-		#stats #fps #fpsGraph { display: block }
-	</style>
+    <link rel="stylesheet" href="/css/style.css">
+    <style type="text/css">
+        #stats { position: absolute; top:0; left: 0 }
+        #stats #fps { background: transparent !important }
+        #stats #fps #fpsText { color: #aaa !important }
+        #stats #fps #fpsGraph { display: block }
+    </style>
 
-	<!--load helper libraries-->
-	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+    <!--load helper libraries-->
+    <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
 
-	<!--load AR and 3D libraries-->
-	<script type="text/javascript" src="/js/lib/three.min.js"></script>
-	<script type="text/javascript" src="/js/lib/Detector.js"></script>
-	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
-	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
-	<script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
+    <!--load AR and 3D libraries-->
+    <script type="text/javascript" src="/js/lib/three.min.js"></script>
+    <script type="text/javascript" src="/js/lib/Detector.js"></script>
+    <script type="text/javascript" src="/js/lib/stats.min.js"></script>
+    <script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
+    <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
 
-	<script type="text/javascript" src="/js/lib/seedrandom.js"></script>
+    <script type="text/javascript" src="/js/lib/seedrandom.js"></script>
 
-	<script type="text/javascript" src="/js/skheightfieldwater.js"></script>
-	<script type="text/javascript" src="/js/skvoxelizer.js"></script>
-	<script type="text/javascript" src="/js/lib/physics/physi.js"></script>
+    <script type="text/javascript" src="/js/skheightfieldwater.js"></script>
+    <script type="text/javascript" src="/js/skvoxelizer.js"></script>
+    <script type="text/javascript" src="/js/lib/physics/physi.js"></script>
 
-	<script>
+    <script>
 
-	//config Physijs
-	Physijs.scripts.worker = '/js/lib/physics/physijs_worker.js';
-	Physijs.scripts.ammo = '/js/lib/physics/ammo.js';
+    //config Physijs
+    Physijs.scripts.worker = '/js/lib/physics/physijs_worker.js';
+    Physijs.scripts.ammo = '/js/lib/physics/ammo.js';
 
-	var WATER_SIZE = 10;
-	var WATER_RES = 40;
-	var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
-	var WATER_SIZE_HALF = WATER_SIZE / 2.0;
-	var WATER_VOXEL_VOL = WATER_GRID_SIZE * WATER_GRID_SIZE * WATER_GRID_SIZE;
-	var WATER_DAMPING_FACTOR = 0.8;
-	var WATER_DISTURB_AMOUNT = 0.015;
-	var WATER_SOURCE_AMOUNT = 0.1;
-	var WATER_SINK_AMOUNT = 0.5;
-	var MEAN_WATER_HEIGHT = 0;
-	var WATER_FLOOD_RATE = 20.0;
+    var WATER_SIZE = 10;
+    var WATER_RES = 40;
+    var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
+    var WATER_SIZE_HALF = WATER_SIZE / 2.0;
+    var WATER_VOXEL_VOL = WATER_GRID_SIZE * WATER_GRID_SIZE * WATER_GRID_SIZE;
+    var WATER_DAMPING_FACTOR = 0.8;
+    var WATER_DISTURB_AMOUNT = 0.015;
+    var WATER_SOURCE_AMOUNT = 0.1;
+    var WATER_SINK_AMOUNT = 0.5;
+    var MEAN_WATER_HEIGHT = 0;
+    var WATER_FLOOD_RATE = 20.0;
 
-	var SHADOW_MAP_RES = 1024;
+    var SHADOW_MAP_RES = 1024;
 
-	var EPSILON = 0.001;
+    var EPSILON = 0.001;
 
-	var clock = new THREE.Clock();
-	var currWaterHeight = MEAN_WATER_HEIGHT;
+    var clock = new THREE.Clock();
+    var currWaterHeight = MEAN_WATER_HEIGHT;
 
-	function checkWebGl()
-	{
-		//check for WebGL
-		if (!Detector.webgl)
-		{
-			$('div').remove();
-			Detector.addGetWebGLMessage();
-			throw new Error('Your browser does not seem to support WebGL');
-		}
-	}
+    function checkWebGl()
+    {
+        //check for WebGL
+        if (!Detector.webgl)
+        {
+            $('div').remove();
+            Detector.addGetWebGLMessage();
+            throw new Error('Your browser does not seem to support WebGL');
+        }
+    }
 
-	var renderer, scene, camera, controls;
-	var materials = [];
-	var localAxis;
-	function setupThreejsScene()
-	{
-		//create renderer
-		renderer = new THREE.WebGLRenderer({
-			antialias : true
-		});
-		renderer.setSize(window.innerWidth, window.innerHeight-5);
-		renderer.setClearColor('#111111', 1);
-		renderer.shadowMapEnabled = true;
-		renderer.shadowMapType = THREE.PCFSoftShadowMap;
-		renderer.shadowMapSoft = true;
-		var $container = $('#threejs-container');
-		$container.append(renderer.domElement);
+    var renderer, scene, camera, controls;
+    var materials = [];
+    var localAxis;
+    function setupThreejsScene()
+    {
+        //create renderer
+        renderer = new THREE.WebGLRenderer({
+            antialias : true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight-5);
+        renderer.setClearColor('#111111', 1);
+        renderer.shadowMapEnabled = true;
+        renderer.shadowMapType = THREE.PCFSoftShadowMap;
+        renderer.shadowMapSoft = true;
+        var $container = $('#threejs-container');
+        $container.append(renderer.domElement);
 
-		//create scene
-		scene = new Physijs.Scene();
-		scene.addEventListener(
-			'ready',
-			function() {
-				console.log('Physijs scene is ready');
-				setupDynamicAttributes();
-			}
-		);
-		// scene.setGravity(new THREE.Vector3(0, -5, 0));
+        //create scene
+        scene = new Physijs.Scene();
+        scene.addEventListener(
+            'ready',
+            function() {
+                console.log('Physijs scene is ready');
+                setupDynamicAttributes();
+            }
+        );
+        // scene.setGravity(new THREE.Vector3(0, -5, 0));
 
-		//create camera
-		camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
-		camera.position.set(8, 8, 15);
-		camera.lookAt(new THREE.Vector3(0,0,0));
+        //create camera
+        camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
+        camera.position.set(8, 8, 15);
+        camera.lookAt(new THREE.Vector3(0,0,0));
 
-		//create controls for camera
-		controls = new THREE.OrbitControls(camera);
-		controls.userPanSpeed = 0.2;
-		//controls.autoRotate = true;
-		controls.modifierKey = 'alt';
+        //create controls for camera
+        controls = new THREE.OrbitControls(camera);
+        controls.userPanSpeed = 0.2;
+        //controls.autoRotate = true;
+        controls.modifierKey = 'alt';
 
-		//create axis
-		localAxis = new THREE.AxisHelper();
-		scene.add(localAxis);
+        //create axis
+        localAxis = new THREE.AxisHelper();
+        scene.add(localAxis);
 
-		//setup lights
-		scene.add(new THREE.AmbientLight(0x111111));
+        //setup lights
+        scene.add(new THREE.AmbientLight(0x111111));
 
-		keyLight = new THREE.SpotLight(0xffff44, 0.6);
-		keyLight.position.set(5, 15, -15);
-		keyLight.target.position.set(0, 0, 0);
-		keyLight.castShadow = true;
-		keyLight.shadowCameraNear = 10;
-		keyLight.shadowCameraFar = 40;
-		keyLight.shadowCameraFov = 40;
-		// keyLight.shadowCameraVisible = true;
-		keyLight.shadowBias = 0.00001;
-		keyLight.shadowDarkness = 0.4;
-		keyLight.shadowMapWidth = SHADOW_MAP_RES;
-		keyLight.shadowMapHeight = SHADOW_MAP_RES;
-		scene.add(keyLight);
+        keyLight = new THREE.SpotLight(0xffff44, 0.6);
+        keyLight.position.set(5, 15, -15);
+        keyLight.target.position.set(0, 0, 0);
+        keyLight.castShadow = true;
+        keyLight.shadowCameraNear = 10;
+        keyLight.shadowCameraFar = 40;
+        keyLight.shadowCameraFov = 40;
+        // keyLight.shadowCameraVisible = true;
+        keyLight.shadowBias = 0.00001;
+        keyLight.shadowDarkness = 0.4;
+        keyLight.shadowMapWidth = SHADOW_MAP_RES;
+        keyLight.shadowMapHeight = SHADOW_MAP_RES;
+        scene.add(keyLight);
 
-		fillLight = new THREE.SpotLight(0xff0044, 0.4);
-		fillLight.position.set(5, 2, 15);
-		fillLight.target.position.set(0, 0, 0);
-		scene.add(fillLight);
+        fillLight = new THREE.SpotLight(0xff0044, 0.4);
+        fillLight.position.set(5, 2, 15);
+        fillLight.target.position.set(0, 0, 0);
+        scene.add(fillLight);
 
-		//create plane for intersection test
-		var groundPlaneGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
-		groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-		var groundPlaneMaterial = new THREE.MeshPhongMaterial();
-		materials.push(groundPlaneMaterial);
-		groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
-		groundPlaneMesh.castShadow = false;
-		groundPlaneMesh.receiveShadow = false;
-		groundPlaneMesh.visible = false;
-		scene.add(groundPlaneMesh);
-	}
+        //create plane for intersection test
+        var groundPlaneGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
+        groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        var groundPlaneMaterial = new THREE.MeshPhongMaterial();
+        materials.push(groundPlaneMaterial);
+        groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
+        groundPlaneMesh.castShadow = false;
+        groundPlaneMesh.receiveShadow = false;
+        groundPlaneMesh.visible = false;
+        scene.add(groundPlaneMesh);
+    }
 
-	var RANDOM_SEED = 1;
-	Math.seedrandom(RANDOM_SEED);
-	var waterMesh;
-	var hfWater, iWaveWater, muellerGdc2008Water, muellerGdc2008HwWater, xWater;
-	function setupWaterScene()
-	{
-		//create a height-field water sim from the plane
-		var waterGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_RES-1, WATER_RES-1);
-		waterGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-		var waterMaterial = new THREE.MeshPhongMaterial({color:'#3366FF'});
-		materials.push(waterMaterial);
-		waterMesh = new THREE.Mesh(waterGeom, waterMaterial);
-		waterMesh.castShadow = true;
-		waterMesh.receiveShadow = true;
-		scene.add(waterMesh);
+    var RANDOM_SEED = 1;
+    Math.seedrandom(RANDOM_SEED);
+    var waterMesh;
+    var hfWater, iWaveWater, muellerGdc2008Water, muellerGdc2008HwWater, xWater;
+    function setupWaterScene()
+    {
+        //create a height-field water sim from the plane
+        var waterGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_RES-1, WATER_RES-1);
+        waterGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        var waterMaterial = new THREE.MeshPhongMaterial({color:'#3366FF'});
+        materials.push(waterMaterial);
+        waterMesh = new THREE.Mesh(waterGeom, waterMaterial);
+        waterMesh.castShadow = true;
+        waterMesh.receiveShadow = true;
+        scene.add(waterMesh);
 
-		//create the different water sims
-		iWaveWater = new TessendorfIWaveWater({
-			mesh: waterMesh,
-			size: WATER_SIZE,
-			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
-			kernelRadius: 4,
-			substeps: 3,
-			meanHeight: MEAN_WATER_HEIGHT
-		});
-		muellerGdc2008Water = new MuellerGdc2008Water({
-			mesh: waterMesh,
-			size: WATER_SIZE,
-			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
-			horizontalSpeed: 5.0,
-			meanHeight: MEAN_WATER_HEIGHT
-		});
-		muellerGdc2008HwWater = new MuellerGdc2008HwWater({
-			mesh: waterMesh,
-			size: WATER_SIZE,
-			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
-			meanHeight: MEAN_WATER_HEIGHT
-		});
-		xWater = new XWater({
-			mesh: waterMesh,
-			size: WATER_SIZE,
-			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
-			meanHeight: MEAN_WATER_HEIGHT
-		});
-		pipeModelWater = new PipeModelWater({
-			mesh: waterMesh,
-			size: WATER_SIZE,
-			res: WATER_RES,
-			dampingFactor: WATER_DAMPING_FACTOR,
-			meanHeight: MEAN_WATER_HEIGHT,  //TODO: figure out if this is needed for pipe model
-			scene: scene
-		});
-		hfWater = pipeModelWater;
-	}
+        //create the different water sims
+        iWaveWater = new TessendorfIWaveWater({
+            mesh: waterMesh,
+            size: WATER_SIZE,
+            res: WATER_RES,
+            dampingFactor: WATER_DAMPING_FACTOR,
+            kernelRadius: 4,
+            substeps: 3,
+            meanHeight: MEAN_WATER_HEIGHT
+        });
+        muellerGdc2008Water = new MuellerGdc2008Water({
+            mesh: waterMesh,
+            size: WATER_SIZE,
+            res: WATER_RES,
+            dampingFactor: WATER_DAMPING_FACTOR,
+            horizontalSpeed: 5.0,
+            meanHeight: MEAN_WATER_HEIGHT
+        });
+        muellerGdc2008HwWater = new MuellerGdc2008HwWater({
+            mesh: waterMesh,
+            size: WATER_SIZE,
+            res: WATER_RES,
+            dampingFactor: WATER_DAMPING_FACTOR,
+            meanHeight: MEAN_WATER_HEIGHT
+        });
+        xWater = new XWater({
+            mesh: waterMesh,
+            size: WATER_SIZE,
+            res: WATER_RES,
+            dampingFactor: WATER_DAMPING_FACTOR,
+            meanHeight: MEAN_WATER_HEIGHT
+        });
+        pipeModelWater = new PipeModelWater({
+            mesh: waterMesh,
+            size: WATER_SIZE,
+            res: WATER_RES,
+            dampingFactor: WATER_DAMPING_FACTOR,
+            meanHeight: MEAN_WATER_HEIGHT,  //TODO: figure out if this is needed for pipe model
+            scene: scene
+        });
+        hfWater = pipeModelWater;
+    }
 
-	var iSegments = 3;
-	var jSegments = 3;
-	var iSegmentSize = WATER_SIZE / iSegments;
-	var jSegmentSize = WATER_SIZE / jSegments;
-	var dynMeshes = [];
-	var obstacles = [];
-	function setupPhysicsScene()
-	{
-		//create a dynamic box
-		var boxGeom = new THREE.CubeGeometry(1, 1, 1);
-		var boxMaterial = new THREE.MeshPhongMaterial({color:'#00ff00'});
-		materials.push(boxMaterial);
-		var boxMass = 700;  //kg
-		var boxDynMesh = new Physijs.BoxMesh(boxGeom, boxMaterial, boxMass);
-		boxDynMesh.position.set(0, 2, 0);
-		boxDynMesh.castShadow = true;
-		boxDynMesh.receiveShadow = true;
-		scene.add(boxDynMesh);
-		dynMeshes.push(boxDynMesh);
-		boxDynMesh.voxelizer = new SkVoxelizer(boxDynMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
+    var iSegments = 3;
+    var jSegments = 3;
+    var iSegmentSize = WATER_SIZE / iSegments;
+    var jSegmentSize = WATER_SIZE / jSegments;
+    var dynMeshes = [];
+    var obstacles = [];
+    function setupPhysicsScene()
+    {
+        //create a dynamic box
+        var boxGeom = new THREE.CubeGeometry(1, 1, 1);
+        var boxMaterial = new THREE.MeshPhongMaterial({color:'#00ff00'});
+        materials.push(boxMaterial);
+        var boxMass = 700;  //kg
+        var boxDynMesh = new Physijs.BoxMesh(boxGeom, boxMaterial, boxMass);
+        boxDynMesh.position.set(0, 2, 0);
+        boxDynMesh.castShadow = true;
+        boxDynMesh.receiveShadow = true;
+        scene.add(boxDynMesh);
+        dynMeshes.push(boxDynMesh);
+        boxDynMesh.voxelizer = new SkVoxelizer(boxDynMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
 
-		//create a dynamic sphere
-		var sphereGeom = new THREE.SphereGeometry(0.75, 8, 8);
-		var sphereMaterial = new THREE.MeshPhongMaterial({color:'#00ff00'});
-		materials.push(sphereMaterial);
-		var sphereMass = 930;  //kg
-		var sphereDynMesh = new Physijs.SphereMesh(sphereGeom, sphereMaterial, sphereMass);
-		sphereDynMesh.position.set(3, 3, 3);
-		sphereDynMesh.castShadow = true;
-		sphereDynMesh.receiveShadow = true;
-		scene.add(sphereDynMesh);
-		dynMeshes.push(sphereDynMesh);
-		sphereDynMesh.voxelizer = new SkVoxelizer(sphereDynMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
+        //create a dynamic sphere
+        var sphereGeom = new THREE.SphereGeometry(0.75, 8, 8);
+        var sphereMaterial = new THREE.MeshPhongMaterial({color:'#00ff00'});
+        materials.push(sphereMaterial);
+        var sphereMass = 930;  //kg
+        var sphereDynMesh = new Physijs.SphereMesh(sphereGeom, sphereMaterial, sphereMass);
+        sphereDynMesh.position.set(3, 3, 3);
+        sphereDynMesh.castShadow = true;
+        sphereDynMesh.receiveShadow = true;
+        scene.add(sphereDynMesh);
+        dynMeshes.push(sphereDynMesh);
+        sphereDynMesh.voxelizer = new SkVoxelizer(sphereDynMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
 
-		//create 4 walls to prevent dynamic object from flying off
-		var thickness = 1;
-		var halfThickness = thickness / 2.0;
-		var wallGeom = new THREE.CubeGeometry(WATER_SIZE, WATER_SIZE * 2, thickness);
-		var wallRotatedGeom = new THREE.CubeGeometry(WATER_SIZE, WATER_SIZE * 2, thickness);
-		wallRotatedGeom.applyMatrix(new THREE.Matrix4().makeRotationY(-Math.PI/2));
-		var wallMaterial = new THREE.MeshPhongMaterial();
-		//+z wall
-		var wallMesh = new Physijs.BoxMesh(wallGeom, wallMaterial, 0);
-		wallMesh.position.z = WATER_SIZE_HALF + halfThickness;
-		wallMesh.visible = false;
-		scene.add(wallMesh);
-		//-z wall
-		wallMesh = new Physijs.BoxMesh(wallGeom, wallMaterial, 0);
-		wallMesh.position.z = - (WATER_SIZE_HALF + halfThickness);
-		wallMesh.visible = false;
-		scene.add(wallMesh);
-		//+x wall
-		wallMesh = new Physijs.BoxMesh(wallRotatedGeom, wallMaterial, 0);
-		wallMesh.position.x = WATER_SIZE_HALF + halfThickness;
-		wallMesh.visible = false;
-		scene.add(wallMesh);
-		//-x wall
-		wallMesh = new Physijs.BoxMesh(wallRotatedGeom, wallMaterial, 0);
-		wallMesh.position.x = -(WATER_SIZE_HALF + halfThickness);
-		wallMesh.visible = false;
-		scene.add(wallMesh);
+        //create 4 walls to prevent dynamic object from flying off
+        var thickness = 1;
+        var halfThickness = thickness / 2.0;
+        var wallGeom = new THREE.CubeGeometry(WATER_SIZE, WATER_SIZE * 2, thickness);
+        var wallRotatedGeom = new THREE.CubeGeometry(WATER_SIZE, WATER_SIZE * 2, thickness);
+        wallRotatedGeom.applyMatrix(new THREE.Matrix4().makeRotationY(-Math.PI/2));
+        var wallMaterial = new THREE.MeshPhongMaterial();
+        //+z wall
+        var wallMesh = new Physijs.BoxMesh(wallGeom, wallMaterial, 0);
+        wallMesh.position.z = WATER_SIZE_HALF + halfThickness;
+        wallMesh.visible = false;
+        scene.add(wallMesh);
+        //-z wall
+        wallMesh = new Physijs.BoxMesh(wallGeom, wallMaterial, 0);
+        wallMesh.position.z = - (WATER_SIZE_HALF + halfThickness);
+        wallMesh.visible = false;
+        scene.add(wallMesh);
+        //+x wall
+        wallMesh = new Physijs.BoxMesh(wallRotatedGeom, wallMaterial, 0);
+        wallMesh.position.x = WATER_SIZE_HALF + halfThickness;
+        wallMesh.visible = false;
+        scene.add(wallMesh);
+        //-x wall
+        wallMesh = new Physijs.BoxMesh(wallRotatedGeom, wallMaterial, 0);
+        wallMesh.position.x = -(WATER_SIZE_HALF + halfThickness);
+        wallMesh.visible = false;
+        scene.add(wallMesh);
 
-		//create some obstacles for the water sim
-		var i, j;
-		for (i = 0; i < iSegments; i++)
-		{
-			for (j = 0; j < jSegments; j++)
-			{
-				var length = WATER_SIZE / 5.0;
-				var obstacleGeom = new THREE.CubeGeometry(length*(Math.random()*0.5+0.5), 1, length*(Math.random()*0.5+0.5));
-				var obstacleMaterial = new THREE.MeshPhongMaterial();
-				materials.push(obstacleMaterial);
-				obstacleMesh = new Physijs.BoxMesh(obstacleGeom, obstacleMaterial, 0);
-				obstacleMesh.castShadow = true;
-				obstacleMesh.receiveShadow = true;
-				obstacleMesh.position.x = (iSegmentSize * i) - WATER_SIZE_HALF + ((Math.random()) * iSegmentSize);
-				obstacleMesh.position.z = (jSegmentSize * j) - WATER_SIZE_HALF + ((Math.random()) * jSegmentSize);
-				obstacleMesh.rotation.y = (Math.random() * 360);
-				scene.add(obstacleMesh);
+        //create some obstacles for the water sim
+        var i, j;
+        for (i = 0; i < iSegments; i++)
+        {
+            for (j = 0; j < jSegments; j++)
+            {
+                var length = WATER_SIZE / 5.0;
+                var obstacleGeom = new THREE.CubeGeometry(length*(Math.random()*0.5+0.5), 1, length*(Math.random()*0.5+0.5));
+                var obstacleMaterial = new THREE.MeshPhongMaterial();
+                materials.push(obstacleMaterial);
+                obstacleMesh = new Physijs.BoxMesh(obstacleGeom, obstacleMaterial, 0);
+                obstacleMesh.castShadow = true;
+                obstacleMesh.receiveShadow = true;
+                obstacleMesh.position.x = (iSegmentSize * i) - WATER_SIZE_HALF + ((Math.random()) * iSegmentSize);
+                obstacleMesh.position.z = (jSegmentSize * j) - WATER_SIZE_HALF + ((Math.random()) * jSegmentSize);
+                obstacleMesh.rotation.y = (Math.random() * 360);
+                scene.add(obstacleMesh);
 
-				//create Obstacle
-				var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
-				iWaveWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				muellerGdc2008Water.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				muellerGdc2008HwWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				pipeModelWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
-				obstacle.updateAlways = false;
-				// obstacle.update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
+                //create Obstacle
+                var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
+                iWaveWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+                muellerGdc2008Water.addObstacle(obstacle, 'obstacle'+obstacles.length);
+                muellerGdc2008HwWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+                xWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+                pipeModelWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
+                obstacle.updateAlways = false;
+                // obstacle.update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
 
-				obstacles.push(obstacle);
-			}
-		}
+                obstacles.push(obstacle);
+            }
+        }
 
-		//temp, just to make the demo nicer
-		obstacles[1].mesh.position.x += -1;
-		obstacles[1].mesh.__dirtyPosition = true;
-		obstacles[2].mesh.position.x = 10000;
-		obstacles[2].mesh.__dirtyPosition = true;
-		obstacles[6].mesh.position.x = 10000;
-		obstacles[6].mesh.__dirtyPosition = true;
+        //temp, just to make the demo nicer
+        obstacles[1].mesh.position.x += -1;
+        obstacles[1].mesh.__dirtyPosition = true;
+        obstacles[2].mesh.position.x = 10000;
+        obstacles[2].mesh.__dirtyPosition = true;
+        obstacles[6].mesh.position.x = 10000;
+        obstacles[6].mesh.__dirtyPosition = true;
 
-		//using a flag to let obstacles update once after mesh updates
-		shouldUpdateObstacles = true;
-	}
+        //using a flag to let obstacles update once after mesh updates
+        shouldUpdateObstacles = true;
+    }
 
-	function setupDynamicAttributes()
-	{
-		var dynMesh;
-		for (dynMeshId in dynMeshes)
-		{
-			dynMesh = dynMeshes[dynMeshId];
-			dynMesh.setDamping(0.75, 0.5);
-		}
-	}
+    function setupDynamicAttributes()
+    {
+        var dynMesh;
+        for (dynMeshId in dynMeshes)
+        {
+            dynMesh = dynMeshes[dynMeshId];
+            dynMesh.setDamping(0.75, 0.5);
+        }
+    }
 
-	var shouldUpdateObstacles;
-	function randomizeObstaclePositions()
-	{
-		var i, j;
-		for (i = 0; i < iSegments; i++)
-		{
-			for (j = 0; j < jSegments; j++)
-			{
-				idx = i * iSegments + j;
-				obstacles[idx].position.x = (iSegmentSize * i) - WATER_SIZE_HALF + ((Math.random()) * iSegmentSize * 0.8);
-				obstacles[idx].position.y = Math.random() * 4 - 2;
-				obstacles[idx].position.z = (jSegmentSize * j) - WATER_SIZE_HALF + ((Math.random()) * jSegmentSize * 0.8);
-				obstacles[idx].rotation.y = (Math.random() * 360);
+    var shouldUpdateObstacles;
+    function randomizeObstaclePositions()
+    {
+        var i, j;
+        for (i = 0; i < iSegments; i++)
+        {
+            for (j = 0; j < jSegments; j++)
+            {
+                idx = i * iSegments + j;
+                obstacles[idx].position.x = (iSegmentSize * i) - WATER_SIZE_HALF + ((Math.random()) * iSegmentSize * 0.8);
+                obstacles[idx].position.y = Math.random() * 4 - 2;
+                obstacles[idx].position.z = (jSegmentSize * j) - WATER_SIZE_HALF + ((Math.random()) * jSegmentSize * 0.8);
+                obstacles[idx].rotation.y = (Math.random() * 360);
 
-				// obstacles[idx].update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
+                // obstacles[idx].update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
 
-				//so set a flag here to let obstacles update once after mesh updates
-				shouldUpdateObstacles = true;
-			}
-		}
-	}
+                //so set a flag here to let obstacles update once after mesh updates
+                shouldUpdateObstacles = true;
+            }
+        }
+    }
 
-	//TODO: this should go into the height field water class
-	var displacedVoxelCountPrev = {};
-	var displacedVoxelCount = {};
-	var force = new THREE.Vector3();
-	function handleTwoWayCoupling(dt)
-	{
-		//find out how much water the objects are displacing
-		//for each object, project AABB down to water, check all affected grid points to see if they are inside or outside water
-		var dynMesh, bbox, h, voxelizer;
-		for (dynMeshId in dynMeshes)
-		{
-			dynMesh = dynMeshes[dynMeshId];
+    //TODO: this should go into the height field water class
+    var displacedVoxelCountPrev = {};
+    var displacedVoxelCount = {};
+    var force = new THREE.Vector3();
+    function handleTwoWayCoupling(dt)
+    {
+        //find out how much water the objects are displacing
+        //for each object, project AABB down to water, check all affected grid points to see if they are inside or outside water
+        var dynMesh, bbox, h, voxelizer;
+        for (dynMeshId in dynMeshes)
+        {
+            dynMesh = dynMeshes[dynMeshId];
 
-			//TODO: check if dynMesh is totally not touching the water, using bounding box checks
+            //TODO: check if dynMesh is totally not touching the water, using bounding box checks
 
-			//get intersection data from voxelizer
-			voxelizer = dynMesh.voxelizer;
-			voxelizer.updateIntersections();  //this will also update AABB voxelizer.__min and voxelizer.__max
-			//visualize if necessary, for debugging purposes:
-			// dynMesh.voxelizer.voxelize();
-			// dynMesh.voxelizer.visualize(scene);
+            //get intersection data from voxelizer
+            voxelizer = dynMesh.voxelizer;
+            voxelizer.updateIntersections();  //this will also update AABB voxelizer.__min and voxelizer.__max
+            //visualize if necessary, for debugging purposes:
+            // dynMesh.voxelizer.voxelize();
+            // dynMesh.voxelizer.visualize(scene);
 
-			//project AABB down and get (x,z) of all affected grid points
-			var startX = Math.ceil(voxelizer.__min.x / WATER_GRID_SIZE) * WATER_GRID_SIZE;
-			var endX = Math.ceil(voxelizer.__max.x / WATER_GRID_SIZE) * WATER_GRID_SIZE;
-			var startZ = Math.ceil(voxelizer.__min.z / WATER_GRID_SIZE) * WATER_GRID_SIZE;
-			var endZ = Math.ceil(voxelizer.__max.z / WATER_GRID_SIZE) * WATER_GRID_SIZE;
-			var x, z;
-			var vertices = hfWater.geometry.vertices;
-			var minIntersectHeight, maxIntersectHeight, waterHeight;
-			for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
-			{
-				for (z = startZ; z <= endZ + EPSILON; z += WATER_GRID_SIZE)
-				{
-					var vertexId = calcVertexId(x, z);
-					if (vertices[vertexId])
-					{
-						//get current water height and intersection heights
-						waterHeight = vertices[vertexId].y;
-						if (voxelizer.intersectionFirstAndLastHeights[x] && voxelizer.intersectionFirstAndLastHeights[x][z])
-						{
-							minIntersectHeight = voxelizer.intersectionFirstAndLastHeights[x][z][0];
-							maxIntersectHeight = voxelizer.intersectionFirstAndLastHeights[x][z][1];
+            //project AABB down and get (x,z) of all affected grid points
+            var startX = Math.ceil(voxelizer.__min.x / WATER_GRID_SIZE) * WATER_GRID_SIZE;
+            var endX = Math.ceil(voxelizer.__max.x / WATER_GRID_SIZE) * WATER_GRID_SIZE;
+            var startZ = Math.ceil(voxelizer.__min.z / WATER_GRID_SIZE) * WATER_GRID_SIZE;
+            var endZ = Math.ceil(voxelizer.__max.z / WATER_GRID_SIZE) * WATER_GRID_SIZE;
+            var x, z;
+            var vertices = hfWater.geometry.vertices;
+            var minIntersectHeight, maxIntersectHeight, waterHeight;
+            for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
+            {
+                for (z = startZ; z <= endZ + EPSILON; z += WATER_GRID_SIZE)
+                {
+                    var vertexId = calcVertexId(x, z);
+                    if (vertices[vertexId])
+                    {
+                        //get current water height and intersection heights
+                        waterHeight = vertices[vertexId].y;
+                        if (voxelizer.intersectionFirstAndLastHeights[x] && voxelizer.intersectionFirstAndLastHeights[x][z])
+                        {
+                            minIntersectHeight = voxelizer.intersectionFirstAndLastHeights[x][z][0];
+                            maxIntersectHeight = voxelizer.intersectionFirstAndLastHeights[x][z][1];
 
-							//compare current water height with the voxelizer intersection heights to figure out how much water has been displaced
-							if (minIntersectHeight > waterHeight)
-							{
-								//no intersection
-								displacedVoxelCount[vertexId] = 0;
-							}
-							else if (maxIntersectHeight < waterHeight)
-							{
-								//totally submerged
-								displacedVoxelCount[vertexId] = (maxIntersectHeight - minIntersectHeight) / WATER_GRID_SIZE;
-							}
-							else
-							{
-								//partially submerged
-								displacedVoxelCount[vertexId] = (waterHeight - minIntersectHeight) / WATER_GRID_SIZE;
-							}
-						}
-					}
-				}
-			}
+                            //compare current water height with the voxelizer intersection heights to figure out how much water has been displaced
+                            if (minIntersectHeight > waterHeight)
+                            {
+                                //no intersection
+                                displacedVoxelCount[vertexId] = 0;
+                            }
+                            else if (maxIntersectHeight < waterHeight)
+                            {
+                                //totally submerged
+                                displacedVoxelCount[vertexId] = (maxIntersectHeight - minIntersectHeight) / WATER_GRID_SIZE;
+                            }
+                            else
+                            {
+                                //partially submerged
+                                displacedVoxelCount[vertexId] = (waterHeight - minIntersectHeight) / WATER_GRID_SIZE;
+                            }
+                        }
+                    }
+                }
+            }
 
-			//sum up all displaced amounts for the object and apply buoyancy force
-			var totalDisplacedVoxels = 0;
-			var acceleration = new THREE.Vector3();
-			for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
-			{
-				for (z = startZ; z <= endZ + EPSILON; z += WATER_GRID_SIZE)
-				{
-					var vertexId = calcVertexId(x, z);
-					if (displacedVoxelCount[vertexId])
-					{
-						totalDisplacedVoxels += displacedVoxelCount[vertexId];
-						if (hfWater instanceof HeightFieldWaterWithVel)
-						{
-						    acceleration.add(hfWater.vel[vertexId]);
-						}
-					}
-				}
-			}
-			var totalDisplacedVol = totalDisplacedVoxels * WATER_VOXEL_VOL; //cubic metres
-			var gravitationalAcc = -9.81;  //m per squared second
-			var waterDensity = 1000;  //1000 kg per cubic metres
-			var buoyancyForce = - totalDisplacedVol * waterDensity * gravitationalAcc;
-			//TODO: this force has to be applied per column?
+            //sum up all displaced amounts for the object and apply buoyancy force
+            var totalDisplacedVoxels = 0;
+            var acceleration = new THREE.Vector3();
+            for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
+            {
+                for (z = startZ; z <= endZ + EPSILON; z += WATER_GRID_SIZE)
+                {
+                    var vertexId = calcVertexId(x, z);
+                    if (displacedVoxelCount[vertexId])
+                    {
+                        totalDisplacedVoxels += displacedVoxelCount[vertexId];
+                        if (hfWater instanceof HeightFieldWaterWithVel)
+                        {
+                            acceleration.add(hfWater.vel[vertexId]);
+                        }
+                    }
+                }
+            }
+            var totalDisplacedVol = totalDisplacedVoxels * WATER_VOXEL_VOL; //cubic metres
+            var gravitationalAcc = -9.81;  //m per squared second
+            var waterDensity = 1000;  //1000 kg per cubic metres
+            var buoyancyForce = - totalDisplacedVol * waterDensity * gravitationalAcc;
+            //TODO: this force has to be applied per column?
 
-			acceleration.multiplyScalar(1.0 / dt);  //divide by dt to get acceleration
+            acceleration.multiplyScalar(1.0 / dt);  //divide by dt to get acceleration
             force.set(acceleration.x, buoyancyForce, acceleration.z);
-			dynMesh.applyCentralForce(force);
+            dynMesh.applyCentralForce(force);
 
-			//spread out displaced volume
-			for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
-			{
-				for (z = startZ; z <= endZ + EPSILON; z += WATER_GRID_SIZE)
-				{
-					var vertexId = calcVertexId(x, z);
-					if (displacedVoxelCount[vertexId])
-					{
-						var diff = displacedVoxelCount[vertexId];
-						if (displacedVoxelCountPrev[vertexId])
-						{
-							diff -= displacedVoxelCountPrev[vertexId];
-						}
-						var spreadHeight = diff / 4.0 * WATER_GRID_SIZE;
+            //spread out displaced volume
+            for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
+            {
+                for (z = startZ; z <= endZ + EPSILON; z += WATER_GRID_SIZE)
+                {
+                    var vertexId = calcVertexId(x, z);
+                    if (displacedVoxelCount[vertexId])
+                    {
+                        var diff = displacedVoxelCount[vertexId];
+                        if (displacedVoxelCountPrev[vertexId])
+                        {
+                            diff -= displacedVoxelCountPrev[vertexId];
+                        }
+                        var spreadHeight = diff / 4.0 * WATER_GRID_SIZE;
 
-						//disturb neighbours
-						hfWater.disturbNeighboursById(vertexId, spreadHeight)
+                        //disturb neighbours
+                        hfWater.disturbNeighboursById(vertexId, spreadHeight)
 
-						//store this value as prev
-						displacedVoxelCountPrev[vertexId] = displacedVoxelCount[vertexId];
-					}
-				}
-			}
+                        //store this value as prev
+                        displacedVoxelCountPrev[vertexId] = displacedVoxelCount[vertexId];
+                    }
+                }
+            }
 
-			//remove any spread in volume for inside the object which helps in stability and makes clearer ripples
-			for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
-			{
-				for (z = startZ; z <= endZ + EPSILON; z += WATER_GRID_SIZE)
-				{
-					var vertexId = calcVertexId(x, z);
-					if (displacedVoxelCount[vertexId] > 0)
-					{
-						hfWater.disturbById(vertexId, 0);
-					}
-				}
-			}
+            //remove any spread in volume for inside the object which helps in stability and makes clearer ripples
+            for (x = startX; x <= endX + EPSILON; x += WATER_GRID_SIZE)
+            {
+                for (z = startZ; z <= endZ + EPSILON; z += WATER_GRID_SIZE)
+                {
+                    var vertexId = calcVertexId(x, z);
+                    if (displacedVoxelCount[vertexId] > 0)
+                    {
+                        hfWater.disturbById(vertexId, 0);
+                    }
+                }
+            }
 
-		}
-	}
+        }
+    }
 
-	function setupEvents()
-	{
-		window.addEventListener('resize', window_onResize, false);
-		window.addEventListener('keydown', window_onKeyDown, false);
-		window.addEventListener('keyup', window_onKeyUp, false);
-		window.addEventListener('mousedown', window_onMouseDown, false);
-		window.addEventListener('mousemove', window_onMouseMove, false);
-		window.addEventListener('mouseup', window_onMouseUp, false);
-	}
+    function setupEvents()
+    {
+        window.addEventListener('resize', window_onResize, false);
+        window.addEventListener('keydown', window_onKeyDown, false);
+        window.addEventListener('keyup', window_onKeyUp, false);
+        window.addEventListener('mousedown', window_onMouseDown, false);
+        window.addEventListener('mousemove', window_onMouseMove, false);
+        window.addEventListener('mouseup', window_onMouseUp, false);
+    }
 
-	function window_onResize(event)
-	{
-		//update camera projection
-		camera.aspect = window.innerWidth / (window.innerHeight-5);
-		camera.updateProjectionMatrix();
+    function window_onResize(event)
+    {
+        //update camera projection
+        camera.aspect = window.innerWidth / (window.innerHeight-5);
+        camera.updateProjectionMatrix();
 
-		//update renderer size
-		renderer.setSize(window.innerWidth, window.innerHeight-5);
-	}
+        //update renderer size
+        renderer.setSize(window.innerWidth, window.innerHeight-5);
+    }
 
-	var activateDisturb = false;
-	function window_onKeyDown(event)
-	{
-		if (event.keyCode === 32)  //space
-		{
-			activateDisturb = true;
-		}
-	}
+    var activateDisturb = false;
+    function window_onKeyDown(event)
+    {
+        if (event.keyCode === 32)  //space
+        {
+            activateDisturb = true;
+        }
+    }
 
-	function window_onKeyUp(event)
-	{
-		if (event.keyCode === 32)  //space
-		{
-			activateDisturb = false;
-		}
-	}
+    function window_onKeyUp(event)
+    {
+        if (event.keyCode === 32)  //space
+        {
+            activateDisturb = false;
+        }
+    }
 
-	var isDisturbing = false;
-	function window_onMouseDown(event)
-	{
-		if (event.shiftKey)
-		{
-			if (event.button === 0)  //LMB
-			{
-				intersectObj = detectIntersectionDynObjects();
-				if (intersectObj)
-				{
-					intersectObj.applyCentralImpulse(new THREE.Vector3(Math.random(), Math.random(), Math.random()).sub(intersectObj.position).multiplyScalar(5*intersectObj.mass));
-				}
-			}
-		}
-		else
-		{
-		    if (activateDisturb) {
+    var isDisturbing = false;
+    function window_onMouseDown(event)
+    {
+        if (event.shiftKey)
+        {
+            if (event.button === 0)  //LMB
+            {
+                intersectObj = detectIntersectionDynObjects();
+                if (intersectObj)
+                {
+                    intersectObj.applyCentralImpulse(new THREE.Vector3(Math.random(), Math.random(), Math.random()).sub(intersectObj.position).multiplyScalar(5*intersectObj.mass));
+                }
+            }
+        }
+        else
+        {
+            if (activateDisturb) {
                 if (event.button === 0)  //LMB
                 {
                     isDisturbing = true;
@@ -559,14 +559,14 @@
                     }
                 }
             }
-		}
-	}
+        }
+    }
 
-	function window_onMouseMove(event)
-	{
-		event.preventDefault();
+    function window_onMouseMove(event)
+    {
+        event.preventDefault();
 
-		if (activateDisturb && isDisturbing) {
+        if (activateDisturb && isDisturbing) {
             if (event.button === 0)  //LMB
             {
                 //detect intersection
@@ -595,325 +595,325 @@
                 }
             }
         }
-	}
+    }
 
-	function window_onMouseUp(event)
-	{
-		isDisturbing = false;
-	}
+    function window_onMouseUp(event)
+    {
+        isDisturbing = false;
+    }
 
-	var intersectPoint = new THREE.Vector3();
-	var mousePosNorm = new THREE.Vector2();
-	var projector = new THREE.Projector();
-	var raycaster = new THREE.Raycaster();
-	function detectIntersection()
-	{
-		mousePosNorm.x = (event.clientX / window.innerWidth) * 2 - 1;
-		mousePosNorm.y = - (event.clientY / window.innerHeight) * 2 + 1;
+    var intersectPoint = new THREE.Vector3();
+    var mousePosNorm = new THREE.Vector2();
+    var projector = new THREE.Projector();
+    var raycaster = new THREE.Raycaster();
+    function detectIntersection()
+    {
+        mousePosNorm.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mousePosNorm.y = - (event.clientY / window.innerHeight) * 2 + 1;
 
-		//cast a ray from camera into screen
-		var worldPos = new THREE.Vector3(mousePosNorm.x, mousePosNorm.y, 1);
-		projector.unprojectVector(worldPos, camera);
-		raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
-		var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
+        //cast a ray from camera into screen
+        var worldPos = new THREE.Vector3(mousePosNorm.x, mousePosNorm.y, 1);
+        projector.unprojectVector(worldPos, camera);
+        raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
+        var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
 
-		//get intersection point and vertexId
-		if (intersectInfo && intersectInfo[0])
-		{
-			return intersectInfo[0].point;
-		}
-	}
+        //get intersection point and vertexId
+        if (intersectInfo && intersectInfo[0])
+        {
+            return intersectInfo[0].point;
+        }
+    }
 
-	function detectIntersectionDynObjects()
-	{
-		mousePosNorm.x = (event.clientX / window.innerWidth) * 2 - 1;
-		mousePosNorm.y = - (event.clientY / window.innerHeight) * 2 + 1;
+    function detectIntersectionDynObjects()
+    {
+        mousePosNorm.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mousePosNorm.y = - (event.clientY / window.innerHeight) * 2 + 1;
 
-		//cast a ray from camera into screen
-		var worldPos = new THREE.Vector3(mousePosNorm.x, mousePosNorm.y, 1);
-		projector.unprojectVector(worldPos, camera);
-		raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
-		var intersectInfo = raycaster.intersectObjects(dynMeshes);
+        //cast a ray from camera into screen
+        var worldPos = new THREE.Vector3(mousePosNorm.x, mousePosNorm.y, 1);
+        projector.unprojectVector(worldPos, camera);
+        raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
+        var intersectInfo = raycaster.intersectObjects(dynMeshes);
 
-		//get intersection point and vertexId
-		if (intersectInfo && intersectInfo[0])
-		{
-			return intersectInfo[0].object;
-		}
-	}
+        //get intersection point and vertexId
+        if (intersectInfo && intersectInfo[0])
+        {
+            return intersectInfo[0].object;
+        }
+    }
 
-	function calcVertexId(x, z, roundDown)
-	{
-		roundDown = (typeof(roundDown)==='undefined') ? true : roundDown;
+    function calcVertexId(x, z, roundDown)
+    {
+        roundDown = (typeof(roundDown)==='undefined') ? true : roundDown;
 
-		//calculate vertex id using x and z
-		var row, col;
-		if (roundDown)
-		{
-			row = Math.floor((z + WATER_SIZE_HALF) / WATER_SIZE * WATER_RES);
-			col = Math.floor((x + WATER_SIZE_HALF) / WATER_SIZE * WATER_RES);
-		}
-		else
-		{
-			row = Math.ceil((z + WATER_SIZE_HALF) / WATER_SIZE * WATER_RES);
-			col = Math.ceil((x + WATER_SIZE_HALF) / WATER_SIZE * WATER_RES);
-		}
-		return (row * WATER_RES) + col;
-	}
+        //calculate vertex id using x and z
+        var row, col;
+        if (roundDown)
+        {
+            row = Math.floor((z + WATER_SIZE_HALF) / WATER_SIZE * WATER_RES);
+            col = Math.floor((x + WATER_SIZE_HALF) / WATER_SIZE * WATER_RES);
+        }
+        else
+        {
+            row = Math.ceil((z + WATER_SIZE_HALF) / WATER_SIZE * WATER_RES);
+            col = Math.ceil((x + WATER_SIZE_HALF) / WATER_SIZE * WATER_RES);
+        }
+        return (row * WATER_RES) + col;
+    }
 
-	var stats;
-	function setupStats()
-	{
-		//create a stats monitor
-		stats = new Stats();
-		$('body').append(stats.domElement);
-	}
+    var stats;
+    function setupStats()
+    {
+        //create a stats monitor
+        stats = new Stats();
+        $('body').append(stats.domElement);
+    }
 
-	var gui;
-	var waterSimFolder, obstaclesFolder, renderingFolder, displayFolder;
-	var waterSimTypes = {
-		'Pipe Model': 'pipeModelWater',
-	    'X Water': 'xWater',
-		'Tessendorf iWave': 'iWaveWater',
-		'Muller GDC2008': 'muellerGdc2008Water',
-		'Muller GDC2008 HelloWorld': 'muellerGdc2008HwWater'
-	};
-	var waterSimTypeSettings = {
-		'pipeModelWater': { 'disturbAmount':0.15, 'dampingFactor':0.998 },
-	    'xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
-		'iWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
-		'muellerGdc2008Water': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
-		'muellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
-	};
-	var options = {
-		waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
-		waterSimFloodRate: WATER_FLOOD_RATE,
-		obstaclesActive: true,
-		obstaclesSeed: 1,
-		obstaclesShowObstacles: true,
-		obstaclesShowDepthMap: true,
-		renderingShadows: true,  //FIXME: this has to be init to true
-		displayWireframe: false,
-		displayLocalAxis: false,
-		displayVelMag: false,
-		displayVelDir: false
-	};
-	function setupGui() {
+    var gui;
+    var waterSimFolder, obstaclesFolder, renderingFolder, displayFolder;
+    var waterSimTypes = {
+        'Pipe Model': 'pipeModelWater',
+        'X Water': 'xWater',
+        'Tessendorf iWave': 'iWaveWater',
+        'Muller GDC2008': 'muellerGdc2008Water',
+        'Muller GDC2008 HelloWorld': 'muellerGdc2008HwWater'
+    };
+    var waterSimTypeSettings = {
+        'pipeModelWater': { 'disturbAmount':0.15, 'dampingFactor':0.998 },
+        'xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
+        'iWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
+        'muellerGdc2008Water': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
+        'muellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
+    };
+    var options = {
+        waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
+        waterSimFloodRate: WATER_FLOOD_RATE,
+        obstaclesActive: true,
+        obstaclesSeed: 1,
+        obstaclesShowObstacles: true,
+        obstaclesShowDepthMap: true,
+        renderingShadows: true,  //FIXME: this has to be init to true
+        displayWireframe: false,
+        displayLocalAxis: false,
+        displayVelMag: false,
+        displayVelDir: false
+    };
+    function setupGui() {
 
-		gui = new dat.GUI({width: 350});
-		//gui.close();  //close GUI by default
+        gui = new dat.GUI({width: 350});
+        //gui.close();  //close GUI by default
 
-		//Water Sim folder
-		waterSimFolder = gui.addFolder('Water Sim');
-		waterSimFolder.open();
+        //Water Sim folder
+        waterSimFolder = gui.addFolder('Water Sim');
+        waterSimFolder.open();
 
-		var control = waterSimFolder.add(options, 'waterSimType', waterSimTypes).name('Type');
-		function changeWaterSimType(value)
-		{
-			//swap the sim
-			hfWater = eval(value);
+        var control = waterSimFolder.add(options, 'waterSimType', waterSimTypes).name('Type');
+        function changeWaterSimType(value)
+        {
+            //swap the sim
+            hfWater = eval(value);
 
-			//set mean height
-			hfWater.setMeanHeight(currWaterHeight);
+            //set mean height
+            hfWater.setMeanHeight(currWaterHeight);
 
-			//reset sim
-			hfWater.reset();
+            //reset sim
+            hfWater.reset();
 
-			//load some presets so that that sim works well
-			WATER_DISTURB_AMOUNT = waterSimTypeSettings[value].disturbAmount;
-			WATER_DAMPING_FACTOR = waterSimTypeSettings[value].dampingFactor;
-			hfWater.dampingFactor = WATER_DAMPING_FACTOR;
+            //load some presets so that that sim works well
+            WATER_DISTURB_AMOUNT = waterSimTypeSettings[value].disturbAmount;
+            WATER_DAMPING_FACTOR = waterSimTypeSettings[value].dampingFactor;
+            hfWater.dampingFactor = WATER_DAMPING_FACTOR;
 
-			//make sure to inherit the active value from the GUI too
-			hfWater.setObstaclesActive(options.obstaclesActive);
-		}
-		control.onChange(changeWaterSimType);
-		changeWaterSimType(options.waterSimType);
+            //make sure to inherit the active value from the GUI too
+            hfWater.setObstaclesActive(options.obstaclesActive);
+        }
+        control.onChange(changeWaterSimType);
+        changeWaterSimType(options.waterSimType);
 
-		control = waterSimFolder.add(options, 'waterSimFloodRate', -200, 200).step(0.01).name('Flood Rate');
+        control = waterSimFolder.add(options, 'waterSimFloodRate', -200, 200).step(0.01).name('Flood Rate');
 
-		//Obstacles folder
-		obstaclesFolder = gui.addFolder('Obstacles');
-		// obstaclesFolder.open();
+        //Obstacles folder
+        obstaclesFolder = gui.addFolder('Obstacles');
+        // obstaclesFolder.open();
 
-		control = obstaclesFolder.add(options, 'obstaclesActive').name('Active');
-		function changeObstaclesActive(value)
-		{
-			hfWater.setObstaclesActive(value);
-		}
-		control.onChange(changeObstaclesActive);
-		changeObstaclesActive(options.obstaclesActive);
+        control = obstaclesFolder.add(options, 'obstaclesActive').name('Active');
+        function changeObstaclesActive(value)
+        {
+            hfWater.setObstaclesActive(value);
+        }
+        control.onChange(changeObstaclesActive);
+        changeObstaclesActive(options.obstaclesActive);
 
-		control = obstaclesFolder.add(options, 'obstaclesSeed', 0, 50).step(1).name('Seed');
-		function changeObstaclesSeed(value)
-		{
-			RANDOM_SEED = Math.floor(value);
-			Math.seedrandom(RANDOM_SEED);
-			randomizeObstaclePositions();
-		}
-		control.onChange(changeObstaclesSeed);
+        control = obstaclesFolder.add(options, 'obstaclesSeed', 0, 50).step(1).name('Seed');
+        function changeObstaclesSeed(value)
+        {
+            RANDOM_SEED = Math.floor(value);
+            Math.seedrandom(RANDOM_SEED);
+            randomizeObstaclePositions();
+        }
+        control.onChange(changeObstaclesSeed);
 
-		control = obstaclesFolder.add(options, 'obstaclesShowObstacles').name('Show Obstacles');
-		function changeObstaclesShowObstacles(value)
-		{
-			for (obstacleId in obstacles)
-			{
-				obstacles[obstacleId].visible = value;
-			}
-		}
-		control.onChange(changeObstaclesShowObstacles);
-		changeObstaclesShowObstacles(options.obstaclesShowObstacles);
+        control = obstaclesFolder.add(options, 'obstaclesShowObstacles').name('Show Obstacles');
+        function changeObstaclesShowObstacles(value)
+        {
+            for (obstacleId in obstacles)
+            {
+                obstacles[obstacleId].visible = value;
+            }
+        }
+        control.onChange(changeObstaclesShowObstacles);
+        changeObstaclesShowObstacles(options.obstaclesShowObstacles);
 
-		// control = obstaclesFolder.add(options, 'obstaclesShowDepthMap').name('Show Depth Map');
-		// function changeObstaclesShowDepthMap(value)
-		// {
-		// 	if (value)
-		// 	{
-		// 		ObstacleManager.$depthMapImageObj.css({display:'block'});
-		// 	}
-		// 	else
-		// 	{
-		// 		ObstacleManager.$depthMapImageObj.css({display:'none'});
-		// 	}
-		// }
-		// control.onChange(changeObstaclesShowDepthMap);
-		// changeObstaclesShowDepthMap(options.obstaclesShowDepthMap);
+        // control = obstaclesFolder.add(options, 'obstaclesShowDepthMap').name('Show Depth Map');
+        // function changeObstaclesShowDepthMap(value)
+        // {
+        //  if (value)
+        //  {
+        //      ObstacleManager.$depthMapImageObj.css({display:'block'});
+        //  }
+        //  else
+        //  {
+        //      ObstacleManager.$depthMapImageObj.css({display:'none'});
+        //  }
+        // }
+        // control.onChange(changeObstaclesShowDepthMap);
+        // changeObstaclesShowDepthMap(options.obstaclesShowDepthMap);
 
-		//Rendering folder
-		renderingFolder = gui.addFolder('Rendering');
+        //Rendering folder
+        renderingFolder = gui.addFolder('Rendering');
 
-		control = renderingFolder.add(options, 'renderingShadows').name('Shadows');
-		function changeRenderingShadows(value)
-		{
-			renderer.shadowMapAutoUpdate = value;
-			if (!value)
-			{
-				renderer.clearTarget(keyLight.shadowMap);
-			}
-		}
-		control.onChange(changeRenderingShadows);
-		changeRenderingShadows(options.renderingShadows);
+        control = renderingFolder.add(options, 'renderingShadows').name('Shadows');
+        function changeRenderingShadows(value)
+        {
+            renderer.shadowMapAutoUpdate = value;
+            if (!value)
+            {
+                renderer.clearTarget(keyLight.shadowMap);
+            }
+        }
+        control.onChange(changeRenderingShadows);
+        changeRenderingShadows(options.renderingShadows);
 
-		//Display folder
-		displayFolder = gui.addFolder('Display');
-		displayFolder.open();
+        //Display folder
+        displayFolder = gui.addFolder('Display');
+        displayFolder.open();
 
-		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
-		function toggleWireframe(value)
-		{
-			for (materialId in materials)
-			{
-				materials[materialId].wireframe = value;
-			}
-		}
-		control.onChange(toggleWireframe);
-		toggleWireframe(options.displayWireframe);
+        control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
+        function toggleWireframe(value)
+        {
+            for (materialId in materials)
+            {
+                materials[materialId].wireframe = value;
+            }
+        }
+        control.onChange(toggleWireframe);
+        toggleWireframe(options.displayWireframe);
 
-		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
-		function toggleLocalAxis(value)
-		{
-			localAxis.visible = value;
-		}
-		control.onChange(toggleLocalAxis);
-		toggleLocalAxis(options.displayLocalAxis);
+        control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
+        function toggleLocalAxis(value)
+        {
+            localAxis.visible = value;
+        }
+        control.onChange(toggleLocalAxis);
+        toggleLocalAxis(options.displayLocalAxis);
 
-		control = displayFolder.add(options, 'displayVelMag').name('Velocity Mag');
-		function toggleVelMag(value)
-		{
-		    if (hfWater instanceof HeightFieldWaterWithVel)
-		    {
-			    hfWater.visualizeVelColors(value);
-			}
-		}
-		control.onChange(toggleVelMag);
-		toggleVelMag(options.displayVelMag);
+        control = displayFolder.add(options, 'displayVelMag').name('Velocity Mag');
+        function toggleVelMag(value)
+        {
+            if (hfWater instanceof HeightFieldWaterWithVel)
+            {
+                hfWater.visualizeVelColors(value);
+            }
+        }
+        control.onChange(toggleVelMag);
+        toggleVelMag(options.displayVelMag);
 
-		control = displayFolder.add(options, 'displayVelDir').name('Velocity Dir');
-		function displayVelDir(value)
-		{
-			if (hfWater instanceof HeightFieldWaterWithVel)
-		    {
-		        hfWater.visualizeVelLines(value);
-		    }
-		}
-		control.onChange(displayVelDir);
-		displayVelDir(options.displayVelDir);
-	}
+        control = displayFolder.add(options, 'displayVelDir').name('Velocity Dir');
+        function displayVelDir(value)
+        {
+            if (hfWater instanceof HeightFieldWaterWithVel)
+            {
+                hfWater.visualizeVelLines(value);
+            }
+        }
+        control.onChange(displayVelDir);
+        displayVelDir(options.displayVelDir);
+    }
 
-	$(document).ready(function()
-	{
-		//check for WebGL
-		checkWebGl();
+    $(document).ready(function()
+    {
+        //check for WebGL
+        checkWebGl();
 
-		console.log('Document is ready.');
+        console.log('Document is ready.');
 
-		//setup scene
-		setupThreejsScene();
+        //setup scene
+        setupThreejsScene();
 
-		//setup water
-		setupWaterScene();
+        //setup water
+        setupWaterScene();
 
-		//setup physics scene
-		setupPhysicsScene();
+        //setup physics scene
+        setupPhysicsScene();
 
-		//setup events
-		setupEvents();
+        //setup events
+        setupEvents();
 
-		//setup stats monitor
-		setupStats();
+        //setup stats monitor
+        setupStats();
 
-		//setup GUI
-		setupGui();
+        //setup GUI
+        setupGui();
 
-		//main loop
-		function loop()
-		{
-			var dt = clock.getDelta();  //have to call this before getElapsedTime()
-			var time = clock.getElapsedTime();
+        //main loop
+        function loop()
+        {
+            var dt = clock.getDelta();  //have to call this before getElapsedTime()
+            var time = clock.getElapsedTime();
 
-			controls.update();
+            controls.update();
 
-			scene.simulate();
+            scene.simulate();
 
-			renderer.autoClear = false;
-			renderer.clear();
-			renderer.render(scene, camera);
+            renderer.autoClear = false;
+            renderer.clear();
+            renderer.render(scene, camera);
 
-			//FIXME: this should appear before renderer.render(), but it seems like the transformation matrix hasn't been applied on the first frame before calling render(), so have to do it after.
-			//handle two-way coupling
-			handleTwoWayCoupling(dt);
+            //FIXME: this should appear before renderer.render(), but it seems like the transformation matrix hasn't been applied on the first frame before calling render(), so have to do it after.
+            //handle two-way coupling
+            handleTwoWayCoupling(dt);
 
-			hfWater.update(dt);
+            hfWater.update(dt);
 
-			stats.update();
+            stats.update();
 
-			//update obstacles after rendering is done, so that meshes are updated and obstacles are good to update
-			if (shouldUpdateObstacles) {
-				var i, len;
-				for (i = 0, len = obstacles.length; i < len; i++)
-				{
-					obstacles[i].update();
-				}
-				shouldUpdateObstacles = false;
-			}
+            //update obstacles after rendering is done, so that meshes are updated and obstacles are good to update
+            if (shouldUpdateObstacles) {
+                var i, len;
+                for (i = 0, len = obstacles.length; i < len; i++)
+                {
+                    obstacles[i].update();
+                }
+                shouldUpdateObstacles = false;
+            }
 
-			//animating mean height to increase flood levels
-			// currWaterHeight += options.waterSimFloodRate * dt;
-			// hfWater.setMeanHeight(currWaterHeight);
-			hfWater.flood(options.waterSimFloodRate * dt);
+            //animating mean height to increase flood levels
+            // currWaterHeight += options.waterSimFloodRate * dt;
+            // hfWater.setMeanHeight(currWaterHeight);
+            hfWater.flood(options.waterSimFloodRate * dt);
 
-			requestAnimationFrame(loop);
-		}
-		loop();
+            requestAnimationFrame(loop);
+        }
+        loop();
 
-	});
-	</script>
+    });
+    </script>
 </head>
 <body>
-	<div id="threejs-container"></div>
-	<div class="translucent" id="info-container">
-		<div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
+    <div id="threejs-container"></div>
+    <div class="translucent" id="info-container">
+        <div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
         <div>Water: [ Spc+LMB: disturb ] [ Spc+RMB: source ] [ Spc+MMB: sink ]</div>
-	</div>
+    </div>
 </body>
 </html>

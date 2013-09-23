@@ -1,109 +1,109 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>IFC - GLSL Parallel Sum Reduction Test</title>
-	<meta charset="UTF-8"/>
+    <title>IFC - GLSL Parallel Sum Reduction Test</title>
+    <meta charset="UTF-8"/>
 
-	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
-	<link rel="stylesheet" href="/css/style.css">
+    <link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" href="/css/style.css">
 
-	<!--load helper libraries-->
-	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+    <!--load helper libraries-->
+    <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
 
-	<!--load AR and 3D libraries-->
-	<script type="text/javascript" src="/js/lib/three.min.js"></script>
-	<script type="text/javascript" src="/js/lib/Detector.js"></script>
-	<script type="text/javascript" src="/js/ShaderManager.js"></script>
+    <!--load AR and 3D libraries-->
+    <script type="text/javascript" src="/js/lib/three.min.js"></script>
+    <script type="text/javascript" src="/js/lib/Detector.js"></script>
+    <script type="text/javascript" src="/js/ShaderManager.js"></script>
 
-	<!--load parallel reducer library-->
-	<script type="text/javascript" src="/js/skparallelreduce.js"></script>
+    <!--load parallel reducer library-->
+    <script type="text/javascript" src="/js/skparallelreduce.js"></script>
 
-	<script>
+    <script>
 
-	var RES = 1024;  //must be power of 2
-	var stopRes = 1;  //min of 1
+    var RES = 1024;  //must be power of 2
+    var stopRes = 1;  //min of 1
 
-	function checkWebGl()
-	{
-		//check for WebGL
-		if (!Detector.webgl)
-		{
-			$('div').remove();
-			Detector.addGetWebGLMessage();
-			throw new Error('Your browser does not seem to support WebGL');
-		}
-	}
+    function checkWebGl()
+    {
+        //check for WebGL
+        if (!Detector.webgl)
+        {
+            $('div').remove();
+            Detector.addGetWebGLMessage();
+            throw new Error('Your browser does not seem to support WebGL');
+        }
+    }
 
-	var renderer;
-	function setupParallelReduction()
-	{
-	    //create renderer
-		renderer = new THREE.WebGLRenderer();
-		renderer.setSize(320, 320);  //arbitrary
-		renderer.setClearColor('#000000', 0);
+    var renderer;
+    function setupParallelReduction()
+    {
+        //create renderer
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(320, 320);  //arbitrary
+        renderer.setClearColor('#000000', 0);
 
-		//init the parallel reducer
-		ParallelReducer.init(renderer, RES, stopRes);
-	}
+        //init the parallel reducer
+        ParallelReducer.init(renderer, RES, stopRes);
+    }
 
-	var numValues = RES * RES;
-	var values = [];
-	var cpuSum, gpuSum;
-	var dataTexture;
-	function setupNumbers()
-	{
-	    var text = 'Num values: ' + RES + ' x ' + RES;
-	    $('#results-container').append('<p>'+text+'</p>');
-	    console.log(text);
+    var numValues = RES * RES;
+    var values = [];
+    var cpuSum, gpuSum;
+    var dataTexture;
+    function setupNumbers()
+    {
+        var text = 'Num values: ' + RES + ' x ' + RES;
+        $('#results-container').append('<p>'+text+'</p>');
+        console.log(text);
 
-	    //create numbers and find their sum using CPU
-	    var i, j;
-	    for (i = 0; i < numValues; i++)
-	    {
-	        values.push(i);
-	    }
+        //create numbers and find their sum using CPU
+        var i, j;
+        for (i = 0; i < numValues; i++)
+        {
+            values.push(i);
+        }
 
-	    //calulate the sum and time it
-	    cpuSum = 0;
-	    var start = new Date().getTime();
-	    for (i = 0; i < numValues; i++)
-	    {
-	        cpuSum += values[i];
-	    }
-	    var end = new Date().getTime();
-	    var timeTaken = (end - start) / 1000;
-	    text = 'CPU sum: ' + cpuSum.toFixed(2) + ' (' + timeTaken.toFixed(3) + ' seconds)';
-	    $('#results-container').append('<p>'+text+'</p>');
-	    console.log(text);
+        //calulate the sum and time it
+        cpuSum = 0;
+        var start = new Date().getTime();
+        for (i = 0; i < numValues; i++)
+        {
+            cpuSum += values[i];
+        }
+        var end = new Date().getTime();
+        var timeTaken = (end - start) / 1000;
+        text = 'CPU sum: ' + cpuSum.toFixed(2) + ' (' + timeTaken.toFixed(3) + ' seconds)';
+        $('#results-container').append('<p>'+text+'</p>');
+        console.log(text);
 
-	    //pack these data into array
-	    dataTextureData = new Float32Array(4 * numValues);
-	    for (i = 0; i < numValues; i++)
-	    {
-	        dataTextureData[4 * i] = values[i];  //store in R channel will do
-	    }
+        //pack these data into array
+        dataTextureData = new Float32Array(4 * numValues);
+        for (i = 0; i < numValues; i++)
+        {
+            dataTextureData[4 * i] = values[i];  //store in R channel will do
+        }
 
-	    //create a DataTexture to feed into the RTT system
+        //create a DataTexture to feed into the RTT system
         dataTexture = new THREE.DataTexture(dataTextureData, RES, RES, THREE.RGBAFormat, THREE.FloatType);
         dataTexture.needsUpdate = true;
 
         // console.log(dataTexture.image.data);
-	}
+    }
 
-	$(document).ready(function()
-	{
-		//check for WebGL
-		checkWebGl();
+    $(document).ready(function()
+    {
+        //check for WebGL
+        checkWebGl();
 
-		console.log('Document is ready.');
+        console.log('Document is ready.');
 
-		//setup RTT scene
-		setupParallelReduction();
+        //setup RTT scene
+        setupParallelReduction();
 
-		//setup numbers
-		setupNumbers();
+        //setup numbers
+        setupNumbers();
 
-		//do parallel reduction
+        //do parallel reduction
         var i, len;
         gpuSum = 0;
         var start = new Date().getTime();
@@ -115,21 +115,21 @@
         }
         var end = new Date().getTime();
         var timeTaken = (end - start) / 1000;
-	    var text = 'GPU sum: ' + gpuSum.toFixed(2) + ' (' + timeTaken.toFixed(3) + ' seconds)';
-	    $('#results-container').append('<p>'+text+'</p>');
-	    console.log(text);
-	    // console.log(pixelFloatData);
+        var text = 'GPU sum: ' + gpuSum.toFixed(2) + ' (' + timeTaken.toFixed(3) + ' seconds)';
+        $('#results-container').append('<p>'+text+'</p>');
+        console.log(text);
+        // console.log(pixelFloatData);
 
         var percentageError = (gpuSum - cpuSum) / cpuSum * 100;
         var text = 'Percentage error: ' + percentageError.toFixed(5) + '%';
-	    $('#results-container').append('<p>'+text+'</p>');
-	    console.log(text);
+        $('#results-container').append('<p>'+text+'</p>');
+        console.log(text);
 
-	});
-	</script>
+    });
+    </script>
 </head>
 <body>
     <h1>GLSL Parallel Sum Reduction in Three.js</h1>
-	<div><h2 id="results-container" class="container"></h2></div>
+    <div><h2 id="results-container" class="container"></h2></div>
 </body>
 </html>

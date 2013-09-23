@@ -1,17 +1,17 @@
 {
-	"models": {
-		"22": {
-			"name": "flood_scene",
-			"type": "empty"
-		},
-		"64": {
-			"name": "park_bench",
-			"url": "/resources/models/park_bench/park_bench.js",
-			"type": "json",
-			"translate": [0, 0, 0],
-			"rotate": [0, 0, 0],
-			"rotationOrder": "XYZ",
-			"scale": [150, 150, 150]
-		}
-	}
+    "models": {
+        "22": {
+            "name": "flood_scene",
+            "type": "empty"
+        },
+        "64": {
+            "name": "park_bench",
+            "url": "/resources/models/park_bench/park_bench.js",
+            "type": "json",
+            "translate": [0, 0, 0],
+            "rotate": [0, 0, 0],
+            "rotationOrder": "XYZ",
+            "scale": [150, 150, 150]
+        }
+    }
 }

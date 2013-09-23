@@ -1,62 +1,62 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>IFC - SkArF.js (js-aruco with Three.js)</title>
-	<meta charset="UTF-8"/>
+    <title>IFC - SkArF.js (js-aruco with Three.js)</title>
+    <meta charset="UTF-8"/>
 
-	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
-	<link rel="stylesheet" href="/css/style.css">
+    <link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" href="/css/style.css">
 
-	<!--load helper libraries-->
-	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+    <!--load helper libraries-->
+    <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
 
-	<!--load 3D libraries-->
-	<script type="text/javascript" src="/js/lib/three.min.js"></script>
-	<script type="text/javascript" src="/js/lib/Detector.js"></script>
-	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
-	<script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
-	<script type="text/javascript" src="/js/lib/OBJMTLLoader.js"></script>
-	<script type="text/javascript" src="/js/lib/MTLLoader.js"></script>
-	<script type="text/javascript" src="/js/lib/BinaryLoader.js"></script>
+    <!--load 3D libraries-->
+    <script type="text/javascript" src="/js/lib/three.min.js"></script>
+    <script type="text/javascript" src="/js/lib/Detector.js"></script>
+    <script type="text/javascript" src="/js/lib/stats.min.js"></script>
+    <script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
+    <script type="text/javascript" src="/js/lib/OBJMTLLoader.js"></script>
+    <script type="text/javascript" src="/js/lib/MTLLoader.js"></script>
+    <script type="text/javascript" src="/js/lib/BinaryLoader.js"></script>
 
-	<!--load AR libraries-->
-	<script type="text/javascript" src="/js/lib/ar/js-aruco/svd.js"></script>
+    <!--load AR libraries-->
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/svd.js"></script>
     <script type="text/javascript" src="/js/lib/ar/js-aruco/posit1.js"></script>
     <script type="text/javascript" src="/js/lib/ar/js-aruco/cv.js"></script>
     <script type="text/javascript" src="/js/lib/ar/js-aruco/aruco.js"></script>
-	<script type="text/javascript" src="/js/skarf.js"></script>
+    <script type="text/javascript" src="/js/skarf.js"></script>
 
-	<!--load webcam streaming libraries-->
-	<script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
-	<script type="text/javascript" src="/js/streamvideo.js"></script>
+    <!--load webcam streaming libraries-->
+    <script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
+    <script type="text/javascript" src="/js/streamvideo.js"></script>
 
-	<script>
+    <script>
 
-	var useWebcam = true;
-	var MARKER_SIZE = 35;
+    var useWebcam = true;
+    var MARKER_SIZE = 35;
 
-	function checkWebGl()
-	{
-		//check for WebGL
-		if (!Detector.webgl)
-		{
-			$('div').remove();
-			Detector.addGetWebGLMessage();
-			throw new Error('Your browser does not seem to support WebGL');
-		}
-	}
+    function checkWebGl()
+    {
+        //check for WebGL
+        if (!Detector.webgl)
+        {
+            $('div').remove();
+            Detector.addGetWebGLMessage();
+            throw new Error('Your browser does not seem to support WebGL');
+        }
+    }
 
-	var video, img, source;
-	function setupVideo()
-	{
-	    video = $('#mainVideo')[0];
-	    if (useWebcam)
-	    {
-	        streamVideo(video);
-	        source = video;
-	    }
-	    else
-	    {
+    var video, img, source;
+    function setupVideo()
+    {
+        video = $('#mainVideo')[0];
+        if (useWebcam)
+        {
+            streamVideo(video);
+            source = video;
+        }
+        else
+        {
             img = $('#mainImage')[0];
             videoId = 0;
             if (videoId == 0)
@@ -65,37 +65,37 @@
                 source = img;
             }
         }
-	}
+    }
 
-	var renderer, scene, camera;
-	var keyLight, fillLight;
-	var materials = [];
-	var originPlaneMesh;
-	function setupMainScene()
-	{
-		//create renderer
-		renderer = new THREE.WebGLRenderer({
-			antialias : true
-		});
-		renderer.setSize(640, 480);
-		renderer.setClearColor('#081419', 1);
-		renderer.shadowMapEnabled = true;
-		renderer.shadowMapType = THREE.PCFShadowMap;
-		renderer.shadowMapSoft = true;
-		var $threejsContainerElem = $('#threejs-container');
-		$threejsContainerElem.append(renderer.domElement);
+    var renderer, scene, camera;
+    var keyLight, fillLight;
+    var materials = [];
+    var originPlaneMesh;
+    function setupMainScene()
+    {
+        //create renderer
+        renderer = new THREE.WebGLRenderer({
+            antialias : true
+        });
+        renderer.setSize(640, 480);
+        renderer.setClearColor('#081419', 1);
+        renderer.shadowMapEnabled = true;
+        renderer.shadowMapType = THREE.PCFShadowMap;
+        renderer.shadowMapSoft = true;
+        var $threejsContainerElem = $('#threejs-container');
+        $threejsContainerElem.append(renderer.domElement);
 
-		//create scene
-		scene = new THREE.Scene();
+        //create scene
+        scene = new THREE.Scene();
 
-		//create camera
-		camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
-		camera.position.set(8, 8, 15);
-		camera.lookAt(new THREE.Vector3(0,0,0));
-		camera.matrixAutoUpdate = false;
+        //create camera
+        camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
+        camera.position.set(8, 8, 15);
+        camera.lookAt(new THREE.Vector3(0,0,0));
+        camera.matrixAutoUpdate = false;
 
-		//create plane at origin
-		var originPlaneGeom = new THREE.PlaneGeometry(MARKER_SIZE * 3, MARKER_SIZE * 3, 1, 1);
+        //create plane at origin
+        var originPlaneGeom = new THREE.PlaneGeometry(MARKER_SIZE * 3, MARKER_SIZE * 3, 1, 1);
         originPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         var originPlaneMaterial = new THREE.MeshPhongMaterial({
             color: 0x99ff66,
@@ -108,7 +108,7 @@
         originPlaneMesh.receiveShadow = true;
         scene.add(originPlaneMesh);
 
-		//setup lights
+        //setup lights
         scene.add(new THREE.AmbientLight(0x111111));
 
         keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -132,150 +132,150 @@
         fillLight.position.set(25, 75, 75);
         fillLight.target.position.set(0, 0, 0);
         scene.add(fillLight);
-	}
+    }
 
-	var skarf;
-	function setupAr()
-	{
-		//create a SkArF framework
-		skarf = new SkArF({
+    var skarf;
+    function setupAr()
+    {
+        //create a SkArF framework
+        skarf = new SkArF({
 
-		    arLibType: 'jsaruco',
-		    trackingElem: source,
-		    markerSize: MARKER_SIZE,
-		    verticalFov: 40,  //you will have to estimate this for your camera
-		    debug: options.debug,
+            arLibType: 'jsaruco',
+            trackingElem: source,
+            markerSize: MARKER_SIZE,
+            verticalFov: 40,  //you will have to estimate this for your camera
+            debug: options.debug,
 
-		    canvasContainerElem: $canvasContainerElem,
+            canvasContainerElem: $canvasContainerElem,
 
-		    rendererType: 'threejs',
-		    renderer: renderer,
+            rendererType: 'threejs',
+            renderer: renderer,
             scene: scene,
             camera: camera,
-			markersJsonFile: '/resources/models/models_jsaruco.json'
+            markersJsonFile: '/resources/models/models_jsaruco.json'
 
-		});
-	}
+        });
+    }
 
-	function setupStats()
+    function setupStats()
     {
         //create a stats monitor
         stats = new Stats();
         $threejsContainerElem.append(stats.domElement);
     }
 
-	var options = {
+    var options = {
         displayDebugView: false,
-		displayOriginPlane: false,
-		displayWireframe: false,
-		displayLocalAxis: false
+        displayOriginPlane: false,
+        displayWireframe: false,
+        displayLocalAxis: false
     };
     var gui;
     var displayFolder;
-	function setupGui() {
+    function setupGui() {
 
-		gui = new dat.GUI();
-		// gui.close();  //close GUI by default
+        gui = new dat.GUI();
+        // gui.close();  //close GUI by default
 
-		//Display folder
-		displayFolder = gui.addFolder('Display');
-		displayFolder.open();
+        //Display folder
+        displayFolder = gui.addFolder('Display');
+        displayFolder.open();
 
-		control = displayFolder.add(options, 'displayDebugView').name('Debug View');
-		function toggleDebugView(value)
-		{
-			skarf.arLib.debug = value;
-		}
-		control.onChange(toggleDebugView);
-		toggleDebugView(options.displayDebugView);
+        control = displayFolder.add(options, 'displayDebugView').name('Debug View');
+        function toggleDebugView(value)
+        {
+            skarf.arLib.debug = value;
+        }
+        control.onChange(toggleDebugView);
+        toggleDebugView(options.displayDebugView);
 
-		control = displayFolder.add(options, 'displayOriginPlane').name('Origin Plane');
-		function toggleOriginPlane(value)
-		{
-			originPlaneMesh.visible = value;
-		}
-		control.onChange(toggleOriginPlane);
-		toggleOriginPlane(options.displayOriginPlane);
+        control = displayFolder.add(options, 'displayOriginPlane').name('Origin Plane');
+        function toggleOriginPlane(value)
+        {
+            originPlaneMesh.visible = value;
+        }
+        control.onChange(toggleOriginPlane);
+        toggleOriginPlane(options.displayOriginPlane);
 
-		control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
-		function toggleWireframe(value)
-		{
-		    skarf.renderer.setWireframeVisible(value);
-		    var i, len;
-		    for (i = 0, len = materials.length; i < len; i++)
-		    {
-		        materials[i].wireframe = value;
-		    }
-		}
-		control.onChange(toggleWireframe);
-		toggleWireframe(options.displayWireframe);
+        control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
+        function toggleWireframe(value)
+        {
+            skarf.renderer.setWireframeVisible(value);
+            var i, len;
+            for (i = 0, len = materials.length; i < len; i++)
+            {
+                materials[i].wireframe = value;
+            }
+        }
+        control.onChange(toggleWireframe);
+        toggleWireframe(options.displayWireframe);
 
-		control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
-		function toggleLocalAxis(value)
-		{
-			skarf.renderer.setLocalAxisVisible(value);
-		}
-		control.onChange(toggleLocalAxis);
-		toggleLocalAxis(options.displayLocalAxis);
-	}
+        control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
+        function toggleLocalAxis(value)
+        {
+            skarf.renderer.setLocalAxisVisible(value);
+        }
+        control.onChange(toggleLocalAxis);
+        toggleLocalAxis(options.displayLocalAxis);
+    }
 
-	var $canvasContainerElem, $threejsContainerElem;
-	$(document).ready(function()
-	{
-		//check for WebGL
-		checkWebGl();
+    var $canvasContainerElem, $threejsContainerElem;
+    $(document).ready(function()
+    {
+        //check for WebGL
+        checkWebGl();
 
-		console.log('Document is ready.');
+        console.log('Document is ready.');
 
-		$threejsContainerElem = $('#threejs-container');
-		$canvasContainerElem = $('#canvas-container');
+        $threejsContainerElem = $('#threejs-container');
+        $canvasContainerElem = $('#canvas-container');
 
-		//stream to video element
-		setupVideo();
+        //stream to video element
+        setupVideo();
 
-		//setup main scene
-		setupMainScene();
+        //setup main scene
+        setupMainScene();
 
-		//setup AR
-		setupAr();
+        //setup AR
+        setupAr();
 
-		//setup stats monitor
-		setupStats();
+        //setup stats monitor
+        setupStats();
 
-		//setup GUI
-		setupGui();
+        //setup GUI
+        setupGui();
 
-		//main loop
-		function loop()
-		{
-			skarf.update();
-			stats.update();
-			requestAnimationFrame(loop);
-		}
-		loop();
+        //main loop
+        function loop()
+        {
+            skarf.update();
+            stats.update();
+            requestAnimationFrame(loop);
+        }
+        loop();
 
-	});
-	</script>
+    });
+    </script>
 </head>
 <body>
-	<h2>SkArF.js (js-aruco with Three.js)</h2>
-	<div class="container" id="video-container">
-		<div class="caption">&lt;video&gt;</div>
-		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
-	</div>
-	<div class="container" id="image-container">
-		<div class="caption">&lt;image&gt;</div>
-		<img id="mainImage" width="640" height="480"></img>
-	</div>
-	<div class="container" id="canvas-container">
-		<div class="caption">&lt;canvas&gt;</div>
-	</div>
-	<div class="container" id="debugCanvas-container">
-		<div class="caption">debug &lt;canvas&gt;</div>
-		<canvas id="debugCanvas" width="640" height="480"></canvas>
-	</div>
-	<div class="container" id="threejs-container">
-		<div class="caption">three.js &lt;canvas&gt;</div>
-	</div>
+    <h2>SkArF.js (js-aruco with Three.js)</h2>
+    <div class="container" id="video-container">
+        <div class="caption">&lt;video&gt;</div>
+        <video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
+    </div>
+    <div class="container" id="image-container">
+        <div class="caption">&lt;image&gt;</div>
+        <img id="mainImage" width="640" height="480"></img>
+    </div>
+    <div class="container" id="canvas-container">
+        <div class="caption">&lt;canvas&gt;</div>
+    </div>
+    <div class="container" id="debugCanvas-container">
+        <div class="caption">debug &lt;canvas&gt;</div>
+        <canvas id="debugCanvas" width="640" height="480"></canvas>
+    </div>
+    <div class="container" id="threejs-container">
+        <div class="caption">three.js &lt;canvas&gt;</div>
+    </div>
 </body>
 </html>

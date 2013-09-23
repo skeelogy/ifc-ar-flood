@@ -1,157 +1,157 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>IFC - Three.js Stream Video</title>
-	<meta charset="UTF-8"/>
-	
-	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
-	<link rel="stylesheet" href="/css/style.css">
-	
-	<!--load helper libraries-->
-	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-	
-	<!--load 3D libraries-->
-	<script type="text/javascript" src="/js/lib/three.min.js"></script>
-	<script type="text/javascript" src="/js/lib/Detector.js"></script>
-	<script type="text/javascript" src="/js/lib/stats.min.js"></script>
-	
-	<script>
-	$(document).ready(function()
-	{
-		//check for WebGL
-		if (!Detector.webgl)
-		{
-			$('div').remove();
-			Detector.addGetWebGLMessage();
-			return;
-		}
-	
-		console.log('Document is ready.');
-		
-		//===================================================
-		// PREPARE VIDEO
-		//===================================================
+    <title>IFC - Three.js Stream Video</title>
+    <meta charset="UTF-8"/>
 
-		//stream to video element
-		var video = $('#mainVideo')[0];
-		var img = $('#mainImage')[0];
-		var source;
-		sourceId = 0;
-		if (sourceId == 0)
-		{
-			video.src = '/resources/markers/jsartoolkit/output_4.ogg';
-			source = video;
-		}
-		else if (sourceId == 1)
-		{
-			video.src = '/resources/markers/jsartoolkit/swap_loop.ogg';
-			source = video;
-		}
-		else if (sourceId == 2)
-		{
-			img.src = '/resources/markers/jsartoolkit/chalk_multi.jpg';
-			source = img;
-		}
-		
-		//===================================================
-		// THREE.JS
-		//===================================================
-		
-		// setup three.js renderer
-		var renderer = new THREE.WebGLRenderer({
-			antialias : true
-		});
-		renderer.setSize(video.width, video.height);
-		var $container = $('#threejs-container');
-		$container.append(renderer.domElement);
+    <link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" href="/css/style.css">
 
-		// create the scene
-		var scene = new THREE.Scene();
+    <!--load helper libraries-->
+    <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
 
-		// Create a camera and a marker root object for your Three.js scene.
-		var camera = new THREE.PerspectiveCamera(35, renderer.domElement.width/renderer.domElement.height, 1, 10000);
-		camera.position.set(0, 0, 5);
+    <!--load 3D libraries-->
+    <script type="text/javascript" src="/js/lib/three.min.js"></script>
+    <script type="text/javascript" src="/js/lib/Detector.js"></script>
+    <script type="text/javascript" src="/js/lib/stats.min.js"></script>
 
-		// setup lights
-		scene.add(new THREE.AmbientLight(0xffffff));
+    <script>
+    $(document).ready(function()
+    {
+        //check for WebGL
+        if (!Detector.webgl)
+        {
+            $('div').remove();
+            Detector.addGetWebGLMessage();
+            return;
+        }
 
-		var light = new THREE.DirectionalLight(0xffffff);
-		light.position.set(3, -3, 1).normalize();
-		scene.add(light);
+        console.log('Document is ready.');
 
-		var light = new THREE.DirectionalLight(0xffffff);
-		light.position.set(-0, 2, -1).normalize();
-		scene.add(light);
+        //===================================================
+        // PREPARE VIDEO
+        //===================================================
 
-		var material = new THREE.MeshNormalMaterial();
-		var geometry = new THREE.TorusGeometry(10, 3);
-		var mesh = new THREE.Mesh(geometry, material);
-		mesh.position.z = -50;
-		scene.add(mesh);
+        //stream to video element
+        var video = $('#mainVideo')[0];
+        var img = $('#mainImage')[0];
+        var source;
+        sourceId = 0;
+        if (sourceId == 0)
+        {
+            video.src = '/resources/markers/jsartoolkit/output_4.ogg';
+            source = video;
+        }
+        else if (sourceId == 1)
+        {
+            video.src = '/resources/markers/jsartoolkit/swap_loop.ogg';
+            source = video;
+        }
+        else if (sourceId == 2)
+        {
+            img.src = '/resources/markers/jsartoolkit/chalk_multi.jpg';
+            source = img;
+        }
 
-		// Create scene and quad for the video.
-		var videoTex = new THREE.Texture(source);
-		var geometry = new THREE.PlaneGeometry(2, 2);
-		var material = new THREE.MeshBasicMaterial({
-			map : videoTex,
-			depthTest : false,
-			depthWrite : false
-		});
-		var plane = new THREE.Mesh(geometry, material);
-		var videoScene = new THREE.Scene();
-		var videoCam = new THREE.Camera();
-		videoScene.add(plane);
-		videoScene.add(videoCam);
-		
-		//create a stats monitor
-		stats = new Stats();
-		var $threejsContainerElem = $('#threejs-container');
-		$threejsContainerElem.append(stats.domElement);
-		
-		//===================================================
-		// LOOP
-		//===================================================
+        //===================================================
+        // THREE.JS
+        //===================================================
 
-		function animate(){	
-			requestAnimationFrame(animate);
-			render();
-			stats.update();
-		};
+        // setup three.js renderer
+        var renderer = new THREE.WebGLRenderer({
+            antialias : true
+        });
+        renderer.setSize(video.width, video.height);
+        var $container = $('#threejs-container');
+        $container.append(renderer.domElement);
 
-		function render(){
+        // create the scene
+        var scene = new THREE.Scene();
 
-			if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
-			{
-				videoTex.needsUpdate = true;
-			}
-			
-			mesh.rotation.y += 0.01;
-			
-			// trigger the rendering
-			renderer.autoClear = false;
-			renderer.clear();
-			renderer.render(videoScene, videoCam);
-			renderer.render(scene, camera);
-		};
-		
-		//animate
-		animate();
-	});
-	</script>
+        // Create a camera and a marker root object for your Three.js scene.
+        var camera = new THREE.PerspectiveCamera(35, renderer.domElement.width/renderer.domElement.height, 1, 10000);
+        camera.position.set(0, 0, 5);
+
+        // setup lights
+        scene.add(new THREE.AmbientLight(0xffffff));
+
+        var light = new THREE.DirectionalLight(0xffffff);
+        light.position.set(3, -3, 1).normalize();
+        scene.add(light);
+
+        var light = new THREE.DirectionalLight(0xffffff);
+        light.position.set(-0, 2, -1).normalize();
+        scene.add(light);
+
+        var material = new THREE.MeshNormalMaterial();
+        var geometry = new THREE.TorusGeometry(10, 3);
+        var mesh = new THREE.Mesh(geometry, material);
+        mesh.position.z = -50;
+        scene.add(mesh);
+
+        // Create scene and quad for the video.
+        var videoTex = new THREE.Texture(source);
+        var geometry = new THREE.PlaneGeometry(2, 2);
+        var material = new THREE.MeshBasicMaterial({
+            map : videoTex,
+            depthTest : false,
+            depthWrite : false
+        });
+        var plane = new THREE.Mesh(geometry, material);
+        var videoScene = new THREE.Scene();
+        var videoCam = new THREE.Camera();
+        videoScene.add(plane);
+        videoScene.add(videoCam);
+
+        //create a stats monitor
+        stats = new Stats();
+        var $threejsContainerElem = $('#threejs-container');
+        $threejsContainerElem.append(stats.domElement);
+
+        //===================================================
+        // LOOP
+        //===================================================
+
+        function animate(){
+            requestAnimationFrame(animate);
+            render();
+            stats.update();
+        };
+
+        function render(){
+
+            if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
+            {
+                videoTex.needsUpdate = true;
+            }
+
+            mesh.rotation.y += 0.01;
+
+            // trigger the rendering
+            renderer.autoClear = false;
+            renderer.clear();
+            renderer.render(videoScene, videoCam);
+            renderer.render(scene, camera);
+        };
+
+        //animate
+        animate();
+    });
+    </script>
 </head>
 <body>
-	<h2>Three.js 3D object over a background video</h2>
-	<div class="container" id="video-container">
-		<div class="caption">&lt;video&gt;</div>
-		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
-	</div>
-	<div class="container" id="image-container">
-		<div class="caption">&lt;image&gt;</div>
-		<img id="mainImage" width="640" height="480"></img>
-	</div>
-	<div class="container" id="threejs-container">
-		<div class="caption">three.js &lt;canvas&gt;</div>
-	</div>
-	<div class="caption">NOTE: object will not follow the video, but should always be on top of it</div>
+    <h2>Three.js 3D object over a background video</h2>
+    <div class="container" id="video-container">
+        <div class="caption">&lt;video&gt;</div>
+        <video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
+    </div>
+    <div class="container" id="image-container">
+        <div class="caption">&lt;image&gt;</div>
+        <img id="mainImage" width="640" height="480"></img>
+    </div>
+    <div class="container" id="threejs-container">
+        <div class="caption">three.js &lt;canvas&gt;</div>
+    </div>
+    <div class="caption">NOTE: object will not follow the video, but should always be on top of it</div>
 </body>
 </html>

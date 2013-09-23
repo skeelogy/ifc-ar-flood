@@ -1,63 +1,63 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Iowa Flood Center - Augmented Reality Flood Simulation</title>
-	<meta charset="UTF-8"/>
-	
-	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
-	<link rel="stylesheet" href="/css/style.css">
-	
-	<!--load helper libraries-->
-	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-	
-	<!--official WebRTC's polyfill for handling cross-browser differences-->
-	<script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
-	
-	<script>
-	$(document).ready(function()
-	{
-		console.log('Document is ready.');
-		
-		//use getUserMedia() to stream the webcam video
-		var video = $('#mainVideo')[0];
-		if (getUserMedia)
-		{
-			console.log("Calling getUserMedia()...");
-			getUserMedia(
-				{'audio':false, 'video':true},
-				function(localMediaStream)
-				{
-					console.log("User has granted access to local media.");
-					
-					var localMediaStreamUrl = URL.createObjectURL(localMediaStream);
-					console.log('Local media stream URL: ' + localMediaStreamUrl);
+    <title>Iowa Flood Center - Augmented Reality Flood Simulation</title>
+    <meta charset="UTF-8"/>
 
-					//call wrapper to attach the media stream to the video element
-					console.log('Attaching local media stream...');
-					attachMediaStream(video, localMediaStream);
-					console.log('Done.');
-				},
-				function(error)
-				{
-					errorMsg = 'ERROR: getUserMedia(): ' + JSON.stringify(error);
-					console.error(errorMsg);
-					alert(errorMsg);
-				}
-			);
-		} else {
-			errorMsg = 'ERROR: Your browser does not support getUserMedia()';
-			console.error(errorMsg);
-			alert(errorMsg);
-		}
+    <link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" href="/css/style.css">
 
-	});
-	</script>
+    <!--load helper libraries-->
+    <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+
+    <!--official WebRTC's polyfill for handling cross-browser differences-->
+    <script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
+
+    <script>
+    $(document).ready(function()
+    {
+        console.log('Document is ready.');
+
+        //use getUserMedia() to stream the webcam video
+        var video = $('#mainVideo')[0];
+        if (getUserMedia)
+        {
+            console.log("Calling getUserMedia()...");
+            getUserMedia(
+                {'audio':false, 'video':true},
+                function(localMediaStream)
+                {
+                    console.log("User has granted access to local media.");
+
+                    var localMediaStreamUrl = URL.createObjectURL(localMediaStream);
+                    console.log('Local media stream URL: ' + localMediaStreamUrl);
+
+                    //call wrapper to attach the media stream to the video element
+                    console.log('Attaching local media stream...');
+                    attachMediaStream(video, localMediaStream);
+                    console.log('Done.');
+                },
+                function(error)
+                {
+                    errorMsg = 'ERROR: getUserMedia(): ' + JSON.stringify(error);
+                    console.error(errorMsg);
+                    alert(errorMsg);
+                }
+            );
+        } else {
+            errorMsg = 'ERROR: Your browser does not support getUserMedia()';
+            console.error(errorMsg);
+            alert(errorMsg);
+        }
+
+    });
+    </script>
 </head>
 <body>
-	<h2>WebRTC getUserMedia()</h2>
-	<div class="container" id="video-container">
-		<div class="caption">&lt;video&gt;</div>
-		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
-	</div>
+    <h2>WebRTC getUserMedia()</h2>
+    <div class="container" id="video-container">
+        <div class="caption">&lt;video&gt;</div>
+        <video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
+    </div>
 </body>
 </html>

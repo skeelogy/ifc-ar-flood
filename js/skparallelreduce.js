@@ -51,11 +51,11 @@ var ParallelReducer = {
     },
 
     __checkExtensions: function () {
-	    var context = this.renderer.context;
+        var context = this.renderer.context;
         if (!context.getExtension('OES_texture_float_linear')) {
             throw new Error('Extension not available: OES_texture_float_linear');
         }
-	},
+    },
 
     __setupRttScene: function () {
 
@@ -65,21 +65,21 @@ var ParallelReducer = {
         this.rttScene = new THREE.Scene();
 
         //create an orthographic RTT camera
-	    var halfSize = size / 2.0;
-	    var far = 10000;
-	    var near = -far;
-	    this.rttCamera = new THREE.OrthographicCamera(-halfSize, halfSize, halfSize, -halfSize, near, far);
+        var halfSize = size / 2.0;
+        var far = 10000;
+        var near = -far;
+        this.rttCamera = new THREE.OrthographicCamera(-halfSize, halfSize, halfSize, -halfSize, near, far);
 
-	    //create quads of different sizes to invoke the shaders
-	    var w;
-	    var newMaxUv = 1.0;
-	    var scale = 1.0;
-	    var dummyTexture = new THREE.Texture();
-	    this.rttQuadMeshes = [];
-	    for (w = this.res; w >= 1; w /= 2)
-	    {
-	        //generate the plane geom
-	        var rttQuadGeom = new THREE.PlaneGeometry(size, size);
+        //create quads of different sizes to invoke the shaders
+        var w;
+        var newMaxUv = 1.0;
+        var scale = 1.0;
+        var dummyTexture = new THREE.Texture();
+        this.rttQuadMeshes = [];
+        for (w = this.res; w >= 1; w /= 2)
+        {
+            //generate the plane geom
+            var rttQuadGeom = new THREE.PlaneGeometry(size, size);
             rttQuadGeom.faceVertexUvs[0][0][0].set(0.0, 1.0);
             rttQuadGeom.faceVertexUvs[0][0][1].set(0.0, 1.0 - newMaxUv);
             rttQuadGeom.faceVertexUvs[0][0][2].set(newMaxUv, 1.0 - newMaxUv);
@@ -99,44 +99,44 @@ var ParallelReducer = {
 
             newMaxUv /= 2.0;
             scale /= 2.0;
-	    }
+        }
 
-	    //create shader materials
-	    this.rttMaterials = {};
+        //create shader materials
+        this.rttMaterials = {};
 
-	    THREE.ShaderManager.addShader('/glsl/passUv.vert');
+        THREE.ShaderManager.addShader('/glsl/passUv.vert');
 
-		THREE.ShaderManager.addShader('/glsl/parallelSum.frag');
-	    this.rttMaterials.sum = new THREE.ShaderMaterial({
-	        uniforms: {
-	            uTexture: { type: 't', value: null },
-	            uTexelSize: { type: 'f', value: 0 },
-	            uHalfTexelSize: { type: 'f', value: 0 },
-	            uChannelMask: { type: 'v4', value: new THREE.Vector4() }
-	        },
-	        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
-	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/parallelSum.frag')
-	    });
+        THREE.ShaderManager.addShader('/glsl/parallelSum.frag');
+        this.rttMaterials.sum = new THREE.ShaderMaterial({
+            uniforms: {
+                uTexture: { type: 't', value: null },
+                uTexelSize: { type: 'f', value: 0 },
+                uHalfTexelSize: { type: 'f', value: 0 },
+                uChannelMask: { type: 'v4', value: new THREE.Vector4() }
+            },
+            vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+            fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/parallelSum.frag')
+        });
 
-	    THREE.ShaderManager.addShader('/glsl/encodeFloat.frag');
-	    this.rttEncodeFloatMaterial = new THREE.ShaderMaterial({
-	        uniforms: {
-	            uTexture: { type: 't', value: null },
-	            uChannelMask: { type: 'v4', value: new THREE.Vector4() }
-	        },
-	        vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
-	        fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/encodeFloat.frag')
-	    });
+        THREE.ShaderManager.addShader('/glsl/encodeFloat.frag');
+        this.rttEncodeFloatMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uTexture: { type: 't', value: null },
+                uChannelMask: { type: 'v4', value: new THREE.Vector4() }
+            },
+            vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
+            fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/encodeFloat.frag')
+        });
 
-	    this.channelVectors = {
+        this.channelVectors = {
             'r': new THREE.Vector4(1, 0, 0, 0),
             'g': new THREE.Vector4(0, 1, 0, 0),
             'b': new THREE.Vector4(0, 0, 1, 0),
             'a': new THREE.Vector4(0, 0, 0, 1)
         };
 
-	    //create RTT render targets
-	    this.nearestFloatRGBAParams = {
+        //create RTT render targets
+        this.nearestFloatRGBAParams = {
             minFilter: THREE.NearestFilter,
             magFilter: THREE.NearestFilter,
             wrapS: THREE.ClampToEdgeWrapping,
@@ -146,47 +146,47 @@ var ParallelReducer = {
             depthBuffer: false,
             type: THREE.FloatType
         };
-	    this.rttRenderTarget1 = new THREE.WebGLRenderTarget(this.res, this.res, this.nearestFloatRGBAParams);
-	    this.rttRenderTarget1.generateMipmaps = false;
-	    this.rttRenderTarget2 = this.rttRenderTarget1.clone();
+        this.rttRenderTarget1 = new THREE.WebGLRenderTarget(this.res, this.res, this.nearestFloatRGBAParams);
+        this.rttRenderTarget1.generateMipmaps = false;
+        this.rttRenderTarget2 = this.rttRenderTarget1.clone();
     },
 
     __swapRenderTargets: function () {
-	    var temp = this.rttRenderTarget1;
-	    this.rttRenderTarget1 = this.rttRenderTarget2;
-	    this.rttRenderTarget2 = temp;
-	},
+        var temp = this.rttRenderTarget1;
+        this.rttRenderTarget1 = this.rttRenderTarget2;
+        this.rttRenderTarget2 = temp;
+    },
 
-	reduce: function (texture, type, channelId) {
-	    var currMaterial = this.rttMaterials[type];
-	    var firstIteration = true;
-	    var texelSize = 1.0 / this.res;
-	    var level = 1;
-	    this.currRes = this.res;
-	    while (this.currRes > this.stopRes)
-	    {
-	        //reduce width by half
+    reduce: function (texture, type, channelId) {
+        var currMaterial = this.rttMaterials[type];
+        var firstIteration = true;
+        var texelSize = 1.0 / this.res;
+        var level = 1;
+        this.currRes = this.res;
+        while (this.currRes > this.stopRes)
+        {
+            //reduce width by half
             this.currRes /= 2;
-	        // console.log('currRes: ' + this.currRes);
+            // console.log('currRes: ' + this.currRes);
 
             //render to do parallel reduction
             this.__swapRenderTargets();
             this.rttQuadMeshes[level].visible = true;
-	        this.rttQuadMeshes[level].material = currMaterial;
-	        currMaterial.uniforms.uTexture.value = firstIteration ? texture : this.rttRenderTarget2;
-	        currMaterial.uniforms.uTexelSize.value = texelSize;
-	        currMaterial.uniforms.uHalfTexelSize.value = texelSize / 2.0;
-	        currMaterial.uniforms.uChannelMask.value.copy(this.channelVectors[channelId]);
+            this.rttQuadMeshes[level].material = currMaterial;
+            currMaterial.uniforms.uTexture.value = firstIteration ? texture : this.rttRenderTarget2;
+            currMaterial.uniforms.uTexelSize.value = texelSize;
+            currMaterial.uniforms.uHalfTexelSize.value = texelSize / 2.0;
+            currMaterial.uniforms.uChannelMask.value.copy(this.channelVectors[channelId]);
             this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
             this.rttQuadMeshes[level].visible = false;
 
             level += 1;
 
             firstIteration = false;
-	    }
-	},
+        }
+    },
 
-	getPixelFloatData: function (channelId) {
+    getPixelFloatData: function (channelId) {
 
         //I need to read in pixel data from WebGLRenderTarget but there seems to be no direct way.
         //Seems like I have to do some native WebGL stuff with readPixels().

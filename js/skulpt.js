@@ -2,7 +2,7 @@
  * @fileOverview A JavaScript sculpting script for sculpting Three.js meshes
  * @author Skeel Lee <skeel@skeelogy.com>
  * @version 0.1.0
- * 
+ *
  * Probably only works for flat planes now. Need to check with spherical objects.
  * This file still needs some clean up and checking.
  */

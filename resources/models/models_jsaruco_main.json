@@ -1,113 +1,113 @@
 {
     "mainMarkerId": "1001",
-	"models": {
-	    "1001": {
-			"name": "Origin",
-			"type": "empty"
-		},
-		"923": {
-			"name": "us_police_car",
-			"url": "/resources/models/us_police_car/us_police_car_bin.js",
-			"type": "json_bin",
-			"translate": [0, 0, 0],
-			"rotate": [0, 0, 0],
-			"rotationOrder": "XYZ",
-			"scale": [0.3, 0.3, 0.3]
-		}
-	},
-	"guiMarkers": {
-	    "446": {
-			"name": "Timer",
-			"key": "testTimer",
-			"type": "timer",
-			"params": {
-			     "time": 2
-			}
-		},
-	    "21": {
-			"name": "Terrain Image",
-			"key": "terrainImageComboBox",
-			"type": "combobox",
-			"params": {
-			     "numChoices": 6
-			}
-		},
-	    "22": {
-			"name": "Show Terrain Image",
-			"key": "terrainShowImageCheckbox",
-			"type": "checkbox"
-		},
-		"23": {
-			"name": "Mid Grey Lowest",
-			"key": "terrainMidGreyLowestCheckbox",
-			"type": "checkbox"
-		},
-		"24": {
-			"name": "Pre-Blur Terrain Image",
-			"key": "terrainPreBlurImageSlider",
-			"type": "slider",
-			"params": {
-			     "speed": 0.1
-			}
-		},
-		"25": {
-			"name": "Terrain Image Height",
-			"key": "terrainImageHeightSlider",
-			"type": "slider",
-			"params": {
-			     "speed": 0.1
-			}
-		},
-		"31": {
-			"name": "Sculpt Size",
-			"key": "sculptSizeSlider",
-			"type": "slider",
-			"params": {
-			     "speed": 0.1
-			}
-		},
-		"32": {
-			"name": "Sculpt Amount",
-			"key": "sculptAmountSlider",
-			"type": "slider",
-			"params": {
-			     "speed": 0.1
-			}
-		},
-		"33": {
-			"name": "Clear Sculpts",
-			"key": "sculptClearButton",
-			"type": "button"
-		},
-		"34": {
-			"name": "Show Sim Texture",
-			"key": "sculptShowSimTextureCheckbox",
-			"type": "checkbox"
-		},
-		"35": {
-			"name": "Sculpt Add",
-			"key": "sculptAddGeneric",
-			"type": "generic"
-		},
-		"36": {
-			"name": "Sculpt Remove",
-			"key": "sculptRemoveGeneric",
-			"type": "generic"
-		},
-		"71": {
-			"name": "Display Wireframe",
-			"key": "displayWireframeCheckbox",
-			"type": "checkbox"
-		},
-		"72": {
-			"name": "Display Local Axis",
-			"key": "displayLocalAxisCheckbox",
-			"type": "checkbox"
-		},
-		"73": {
-			"name": "Display Origin Plane",
-			"key": "displayOriginPlaneCheckbox",
-			"type": "checkbox"
-		}
-	}
+    "models": {
+        "1001": {
+            "name": "Origin",
+            "type": "empty"
+        },
+        "923": {
+            "name": "us_police_car",
+            "url": "/resources/models/us_police_car/us_police_car_bin.js",
+            "type": "json_bin",
+            "translate": [0, 0, 0],
+            "rotate": [0, 0, 0],
+            "rotationOrder": "XYZ",
+            "scale": [0.3, 0.3, 0.3]
+        }
+    },
+    "guiMarkers": {
+        "446": {
+            "name": "Timer",
+            "key": "testTimer",
+            "type": "timer",
+            "params": {
+                 "time": 2
+            }
+        },
+        "21": {
+            "name": "Terrain Image",
+            "key": "terrainImageComboBox",
+            "type": "combobox",
+            "params": {
+                 "numChoices": 6
+            }
+        },
+        "22": {
+            "name": "Show Terrain Image",
+            "key": "terrainShowImageCheckbox",
+            "type": "checkbox"
+        },
+        "23": {
+            "name": "Mid Grey Lowest",
+            "key": "terrainMidGreyLowestCheckbox",
+            "type": "checkbox"
+        },
+        "24": {
+            "name": "Pre-Blur Terrain Image",
+            "key": "terrainPreBlurImageSlider",
+            "type": "slider",
+            "params": {
+                 "speed": 0.1
+            }
+        },
+        "25": {
+            "name": "Terrain Image Height",
+            "key": "terrainImageHeightSlider",
+            "type": "slider",
+            "params": {
+                 "speed": 0.1
+            }
+        },
+        "31": {
+            "name": "Sculpt Size",
+            "key": "sculptSizeSlider",
+            "type": "slider",
+            "params": {
+                 "speed": 0.1
+            }
+        },
+        "32": {
+            "name": "Sculpt Amount",
+            "key": "sculptAmountSlider",
+            "type": "slider",
+            "params": {
+                 "speed": 0.1
+            }
+        },
+        "33": {
+            "name": "Clear Sculpts",
+            "key": "sculptClearButton",
+            "type": "button"
+        },
+        "34": {
+            "name": "Show Sim Texture",
+            "key": "sculptShowSimTextureCheckbox",
+            "type": "checkbox"
+        },
+        "35": {
+            "name": "Sculpt Add",
+            "key": "sculptAddGeneric",
+            "type": "generic"
+        },
+        "36": {
+            "name": "Sculpt Remove",
+            "key": "sculptRemoveGeneric",
+            "type": "generic"
+        },
+        "71": {
+            "name": "Display Wireframe",
+            "key": "displayWireframeCheckbox",
+            "type": "checkbox"
+        },
+        "72": {
+            "name": "Display Local Axis",
+            "key": "displayLocalAxisCheckbox",
+            "type": "checkbox"
+        },
+        "73": {
+            "name": "Display Origin Plane",
+            "key": "displayOriginPlaneCheckbox",
+            "type": "checkbox"
+        }
+    }
 }

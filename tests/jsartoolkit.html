@@ -1,172 +1,172 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>IFC - JSARToolKit</title>
-	<meta charset="UTF-8"/>
-	
-	<link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
-	<link rel="stylesheet" href="/css/style.css">
-	
-	<!--load helper libraries-->
-	<script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-	
-	<!--load AR and 3D libraries-->
-	<script type="text/javascript" src="/js/lib/requestanimationframe.js"></script>
-	<script type="text/javascript" src="/js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
-	
-	<script>
-	
-	var DEBUG = true;  //for JSARToolKit built-in debugging info
-	var threshold = 128;
-	
-	$(document).ready(function()
-	{
-		console.log('Document is ready.');
-		
-		var canvas = $('#mainCanvas')[0];
-		var canvasWidth = canvas.width;
-		var canvasHeight = canvas.height;
+    <title>IFC - JSARToolKit</title>
+    <meta charset="UTF-8"/>
 
-		//===================================================
-		// PREPARE VIDEO
-		//===================================================
-		
-		//stream to video element
-		var video = $('#mainVideo')[0];
-		var img = $('#mainImage')[0];
-		var source;
-		sourceId = 0;
-		if (sourceId == 0)
-		{
-			video.src = '/resources/markers/jsartoolkit/output_4.ogg';
-			source = video;
-		}
-		else if (sourceId == 1)
-		{
-			video.src = '/resources/markers/jsartoolkit/swap_loop.ogg';
-			source = video;
-		}
-		else if (sourceId == 2)
-		{
-			img.src = '/resources/markers/jsartoolkit/chalk_multi.jpg';
-			source = img;
-		}
+    <link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" href="/css/style.css">
 
-		//===================================================
-		// INIT JSARTOOLKIT
-		//===================================================
-		
-		// Create a RGB raster object for the 2D canvas.
-		// JSARToolKit uses raster objects to read image data.
-		// Note that you need to set canvas.changed = true on every frame.
-		var raster = new NyARRgbRaster_Canvas2D(canvas);
+    <!--load helper libraries-->
+    <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
 
-		// FLARParam is the thing used by FLARToolKit to set camera parameters.
-		// Here we create a FLARParam for images with 320x240 pixel dimensions.
-		// NOTE: THESE DIMENSIONS MUST BE THE SAME SIZE AS THE RASTER
-		// OTHERWISE WILL GET AN "Uncaught #<Object>" ERROR
-		var param = new FLARParam(canvasWidth, canvasHeight);
+    <!--load AR and 3D libraries-->
+    <script type="text/javascript" src="/js/lib/requestanimationframe.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
 
-		// The FLARMultiIdMarkerDetector is the actual detection engine for marker detection.
-		// It detects multiple ID markers. ID markers are special markers that encode a number.
-		var detector = new FLARMultiIdMarkerDetector(param, 120);
+    <script>
 
-		// For tracking video set continue mode to true. In continue mode, the detector
-		// tracks markers across multiple frames.
-		detector.setContinueMode(true);
+    var DEBUG = true;  //for JSARToolKit built-in debugging info
+    var threshold = 128;
 
-		// Copy the camera perspective matrix from the FLARParam to the WebGL library camera matrix.
-		// The second and third parameters determine the zNear and zFar planes for the perspective matrix.
-		// NOTE: the matrix below is meant for a 3D rendering library, not used in this demo
-		//var tmpGlMatCam	= new Float32Array(16);
-		//param.copyCameraMatrix(tmpGlMatCam, 10, 10000);
-		
-		//===================================================
-		// LOOP
-		//===================================================	
-		
-		// Create a NyARTransMatResult object for getting the marker translation matrices.
-		var resultMat = new NyARTransMatResult();
+    $(document).ready(function()
+    {
+        console.log('Document is ready.');
 
-		var markers = {};
+        var canvas = $('#mainCanvas')[0];
+        var canvasWidth = canvas.width;
+        var canvasHeight = canvas.height;
 
-		var ctx = canvas.getContext('2d');
-		
-		function loop()
-		{
-			if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
-			{
-				// Draw the video frame to the raster canvas, scaled to 320x240.
-				ctx.drawImage(source, 0, 0, canvasWidth, canvasHeight);
+        //===================================================
+        // PREPARE VIDEO
+        //===================================================
 
-				// Tell the raster object that the underlying canvas has changed.
-				canvas.changed = true;
+        //stream to video element
+        var video = $('#mainVideo')[0];
+        var img = $('#mainImage')[0];
+        var source;
+        sourceId = 0;
+        if (sourceId == 0)
+        {
+            video.src = '/resources/markers/jsartoolkit/output_4.ogg';
+            source = video;
+        }
+        else if (sourceId == 1)
+        {
+            video.src = '/resources/markers/jsartoolkit/swap_loop.ogg';
+            source = video;
+        }
+        else if (sourceId == 2)
+        {
+            img.src = '/resources/markers/jsartoolkit/chalk_multi.jpg';
+            source = img;
+        }
 
-				// Do marker detection by using the detector object on the raster object.
-				// The threshold parameter determines the threshold value
-				// for turning the video frame into a 1-bit black-and-white image.
-				var markerCount = detector.detectMarkerLite(raster, threshold);
-				
-				// Go through the detected markers and get their IDs and transformation matrices.
-				for (var idx = 0; idx < markerCount; idx++) {
-				  // Get the ID marker data for the current marker.
-				  // ID markers are special kind of markers that encode a number.
-				  // The bytes for the number are in the ID marker data.
-				  var id = detector.getIdMarkerData(idx);
+        //===================================================
+        // INIT JSARTOOLKIT
+        //===================================================
 
-				  // Read bytes from the id packet.
-				  var currId = -1;
-				  // This code handles only 32-bit numbers or shorter.
-				  if (id.packetLength <= 4) {
-					currId = 0;
-					for (var i = 0; i < id.packetLength; i++) {
-					  currId = (currId << 8) | id.getPacketData(i);
-					}
-				  }
-				  
-				  // If this is a new id, let's start tracking it.
-				  if (markers[currId] == null) {
-					markers[currId] = {};
-				  }
+        // Create a RGB raster object for the 2D canvas.
+        // JSARToolKit uses raster objects to read image data.
+        // Note that you need to set canvas.changed = true on every frame.
+        var raster = new NyARRgbRaster_Canvas2D(canvas);
 
-				  // Get the transformation matrix for the detected marker.
-				  // NOTE: this is to be used in a 3D rendering library, not in this demo
-				  //detector.getTransformMatrix(idx, resultMat);
+        // FLARParam is the thing used by FLARToolKit to set camera parameters.
+        // Here we create a FLARParam for images with 320x240 pixel dimensions.
+        // NOTE: THESE DIMENSIONS MUST BE THE SAME SIZE AS THE RASTER
+        // OTHERWISE WILL GET AN "Uncaught #<Object>" ERROR
+        var param = new FLARParam(canvasWidth, canvasHeight);
 
-				  // Copy the result matrix into our marker tracker object.
-				  // NOTE: this is to be used in a 3D rendering library, not in this demo
-				  //markers[currId].transform = Object.asCopy(resultMat);
-				}
-				
-			}
-		
-			requestAnimationFrame(loop);
-		}
-		loop();
-	});
-	</script>
+        // The FLARMultiIdMarkerDetector is the actual detection engine for marker detection.
+        // It detects multiple ID markers. ID markers are special markers that encode a number.
+        var detector = new FLARMultiIdMarkerDetector(param, 120);
+
+        // For tracking video set continue mode to true. In continue mode, the detector
+        // tracks markers across multiple frames.
+        detector.setContinueMode(true);
+
+        // Copy the camera perspective matrix from the FLARParam to the WebGL library camera matrix.
+        // The second and third parameters determine the zNear and zFar planes for the perspective matrix.
+        // NOTE: the matrix below is meant for a 3D rendering library, not used in this demo
+        //var tmpGlMatCam   = new Float32Array(16);
+        //param.copyCameraMatrix(tmpGlMatCam, 10, 10000);
+
+        //===================================================
+        // LOOP
+        //===================================================
+
+        // Create a NyARTransMatResult object for getting the marker translation matrices.
+        var resultMat = new NyARTransMatResult();
+
+        var markers = {};
+
+        var ctx = canvas.getContext('2d');
+
+        function loop()
+        {
+            if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
+            {
+                // Draw the video frame to the raster canvas, scaled to 320x240.
+                ctx.drawImage(source, 0, 0, canvasWidth, canvasHeight);
+
+                // Tell the raster object that the underlying canvas has changed.
+                canvas.changed = true;
+
+                // Do marker detection by using the detector object on the raster object.
+                // The threshold parameter determines the threshold value
+                // for turning the video frame into a 1-bit black-and-white image.
+                var markerCount = detector.detectMarkerLite(raster, threshold);
+
+                // Go through the detected markers and get their IDs and transformation matrices.
+                for (var idx = 0; idx < markerCount; idx++) {
+                  // Get the ID marker data for the current marker.
+                  // ID markers are special kind of markers that encode a number.
+                  // The bytes for the number are in the ID marker data.
+                  var id = detector.getIdMarkerData(idx);
+
+                  // Read bytes from the id packet.
+                  var currId = -1;
+                  // This code handles only 32-bit numbers or shorter.
+                  if (id.packetLength <= 4) {
+                    currId = 0;
+                    for (var i = 0; i < id.packetLength; i++) {
+                      currId = (currId << 8) | id.getPacketData(i);
+                    }
+                  }
+
+                  // If this is a new id, let's start tracking it.
+                  if (markers[currId] == null) {
+                    markers[currId] = {};
+                  }
+
+                  // Get the transformation matrix for the detected marker.
+                  // NOTE: this is to be used in a 3D rendering library, not in this demo
+                  //detector.getTransformMatrix(idx, resultMat);
+
+                  // Copy the result matrix into our marker tracker object.
+                  // NOTE: this is to be used in a 3D rendering library, not in this demo
+                  //markers[currId].transform = Object.asCopy(resultMat);
+                }
+
+            }
+
+            requestAnimationFrame(loop);
+        }
+        loop();
+    });
+    </script>
 </head>
 <body>
-	<h2>JSARToolKit marker tracking and detection</h2>
-	<div class="container" id="video-container">
-		<div class="caption">&lt;video&gt;</div>
-		<video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
-	</div>
-	<div class="container" id="image-container">
-		<div class="caption">&lt;image&gt;</div>
-		<img id="mainImage" width="640" height="480"></img>
-	</div>
-	<div class="container" id="canvas-container">
-		<div class="caption">&lt;canvas&gt;</div>
-		<canvas id="mainCanvas" width="640" height="480"></canvas>
-	</div>
-	<div class="caption" style="margin: 2em auto;">
-		Threshold (0-255):
-		<input id="thresholdInput" type="range" min="0" max="255" onchange="threshold=this.value; console.log('threshold = ' + threshold);" style="vertical-align:middle;"></input>
-	</div>
-	<div class="container" id="debugCanvas-container">
-		<div class="caption">debug &lt;canvas&gt;</div>
-		<canvas id="debugCanvas" width="640" height="480"></canvas>
-	</div>
+    <h2>JSARToolKit marker tracking and detection</h2>
+    <div class="container" id="video-container">
+        <div class="caption">&lt;video&gt;</div>
+        <video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
+    </div>
+    <div class="container" id="image-container">
+        <div class="caption">&lt;image&gt;</div>
+        <img id="mainImage" width="640" height="480"></img>
+    </div>
+    <div class="container" id="canvas-container">
+        <div class="caption">&lt;canvas&gt;</div>
+        <canvas id="mainCanvas" width="640" height="480"></canvas>
+    </div>
+    <div class="caption" style="margin: 2em auto;">
+        Threshold (0-255):
+        <input id="thresholdInput" type="range" min="0" max="255" onchange="threshold=this.value; console.log('threshold = ' + threshold);" style="vertical-align:middle;"></input>
+    </div>
+    <div class="container" id="debugCanvas-container">
+        <div class="caption">debug &lt;canvas&gt;</div>
+        <canvas id="debugCanvas" width="640" height="480"></canvas>
+    </div>
 </body>
 </html>

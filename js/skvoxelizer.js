@@ -31,7 +31,7 @@ function SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, transformMatrix) 
 
     //if bounding box does not exist, force generate it first
     if (!this.geometry.boundingBox) {
-    	this.geometry.computeBoundingBox();
+        this.geometry.computeBoundingBox();
     }
     //store some private variables for calculations later
     this.bbox = this.geometry.boundingBox;

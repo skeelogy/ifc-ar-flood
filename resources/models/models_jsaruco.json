@@ -1,32 +1,32 @@
 {
     "mainMarkerId": "1001",
-	"models": {
-		"1001": {
-			"name": "us_police_car",
-			"url": "/resources/models/us_police_car/us_police_car_bin.js",
-			"type": "json_bin",
-			"translate": [0, 0, 0],
-			"rotate": [0, 0, 0],
-			"rotationOrder": "XYZ",
-			"scale": [0.3, 0.3, 0.3]
-		},
-		"446": {
-			"name": "park_bench",
-			"url": "/resources/models/park_bench/park_bench.js",
-			"type": "json",
-			"translate": [0, 0, 0],
-			"rotate": [0, 0, 0],
-			"rotationOrder": "XYZ",
-			"scale": [0.5, 0.5, 0.5]
-		},
-		"923": {
-			"name": "house_15",
-			"url": "/resources/models/house_15/house_15.js",
-			"type": "json",
-			"translate": [0, 0, 0],
-			"rotate": [0, 0, 0],
-			"rotationOrder": "XYZ",
-			"scale": [0.1, 0.1, 0.1]
-		}
-	}
+    "models": {
+        "1001": {
+            "name": "us_police_car",
+            "url": "/resources/models/us_police_car/us_police_car_bin.js",
+            "type": "json_bin",
+            "translate": [0, 0, 0],
+            "rotate": [0, 0, 0],
+            "rotationOrder": "XYZ",
+            "scale": [0.3, 0.3, 0.3]
+        },
+        "446": {
+            "name": "park_bench",
+            "url": "/resources/models/park_bench/park_bench.js",
+            "type": "json",
+            "translate": [0, 0, 0],
+            "rotate": [0, 0, 0],
+            "rotationOrder": "XYZ",
+            "scale": [0.5, 0.5, 0.5]
+        },
+        "923": {
+            "name": "house_15",
+            "url": "/resources/models/house_15/house_15.js",
+            "type": "json",
+            "translate": [0, 0, 0],
+            "rotate": [0, 0, 0],
+            "rotationOrder": "XYZ",
+            "scale": [0.1, 0.1, 0.1]
+        }
+    }
 }
