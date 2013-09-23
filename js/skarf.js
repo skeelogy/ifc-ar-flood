@@ -1,7 +1,7 @@
 /**
- * @fileOverview A JavaScript augmented reality framework for handling arbitrary augmented reality libraries and renderers
+ * @fileOverview A JavaScript augmented reality framework for handling augmented reality libraries
  * @author Skeel Lee <skeel@skeelogy.com>
- * @version 0.1.0
+ * @version 1.0.0
  *
  * @since 25 Jun 2013
  *
@@ -16,9 +16,7 @@
  * If you wish to use your own AR library (e.g. JsArToolKitArLib):
  * 1) Subclass ArLib
  * 2) Register with factory: ArLibFactory.register('jsartoolkit', JsArToolKitArLib);
- * 3) Override the init() and loop() methods
- *
- * You can do similar things to create your own renderer.
+ * 3) Override the init(), loop() and other methods
  */
 
 
@@ -26,6 +24,9 @@
 // GUI Markers
 //===================================
 
+/**
+ * Factory that creates GuiMarker
+ */
 GuiMarkerFactory = {
     mappings: {},
 
@@ -365,6 +366,9 @@ TimerMarker.prototype.resetTimer = function () {
 // Model Loaders
 //===================================
 
+/**
+ * Factory which creates ModelLoader
+ */
 var ModelLoaderFactory = {
 
     mappings: {},
@@ -388,9 +392,21 @@ var ModelLoaderFactory = {
     }
 };
 
+/**
+ * Superclass for model loaders
+ * @constructor
+ */
 function ModelLoader() {
     this.loader = null;
 }
+/**
+ * Loads model for marker
+ * @param  {number}  markerId ID of marker to laod
+ * @param  {THREE.Object3D}  markerTransform Transform to parent to after model has Loaded
+ * @param  {number}  overallScale Overall scale
+ * @param  {boolean} isWireframeVisible Whether to initialize the wireframe mode to true
+ * @param  {MarkerManager} markerManager marker manager instance
+ */
 ModelLoader.prototype.loadForMarker = function (markerId, markerTransform, overallScale, isWireframeVisible, markerManager) {
     throw new Error('Abstract method not implemented');
 };
@@ -439,6 +455,11 @@ ModelLoader.prototype.transformAndParent = function (model, object, markerTransf
     }
 };
 
+/**
+ * Model loader which contains no models
+ * @constructor
+ * @extends {ModelLoader}
+ */
 function EmptyModelLoader() {
     ModelLoader.call(this);
     this.loader = new THREE.JSONLoader();
@@ -453,6 +474,15 @@ EmptyModelLoader.prototype.constructor = EmptyModelLoader;
 ModelLoaderFactory.register('empty', EmptyModelLoader);
 
 //override methods
+/**
+ * Loads model for marker
+ * @param  {object}  model Data containing the model info (from JSON file)
+ * @param  {number}  markerId ID of marker to laod
+ * @param  {THREE.Object3D}  markerTransform Transform to parent to after model has Loaded
+ * @param  {number}  overallScale Overall scale
+ * @param  {boolean} isWireframeVisible Whether to initialize the wireframe mode to true
+ * @param  {MarkerManager} markerManager marker manager instance
+ */
 EmptyModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible, markerManager) {
     //TODO: time how long it takes to load
 
@@ -462,6 +492,11 @@ EmptyModelLoader.prototype.loadForMarker = function (model, markerId, markerTran
     console.log('Loaded empty transform for marker id ' + markerId);
 };
 
+/**
+ * Model loader which contains Three.js JSON model data
+ * @constructor
+ * @extends {ModelLoader}
+ */
 function JsonModelLoader() {
     ModelLoader.call(this);
     this.loader = new THREE.JSONLoader();
@@ -476,6 +511,15 @@ JsonModelLoader.prototype.constructor = JsonModelLoader;
 ModelLoaderFactory.register('json', JsonModelLoader);
 
 //override methods
+/**
+ * Loads model for marker
+ * @param  {object}  model Data containing the model info (from JSON file)
+ * @param  {number}  markerId ID of marker to laod
+ * @param  {THREE.Object3D}  markerTransform Transform to parent to after model has Loaded
+ * @param  {number}  overallScale Overall scale
+ * @param  {boolean} isWireframeVisible Whether to initialize the wireframe mode to true
+ * @param  {MarkerManager} markerManager marker manager instance
+ */
 JsonModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible, markerManager) {
     //TODO: time how long it takes to load
 
@@ -498,6 +542,11 @@ JsonModelLoader.prototype.loadForMarker = function (model, markerId, markerTrans
     });
 };
 
+/**
+ * Model loader which contains Three.js JSON binary models
+ * @constructor
+ * @extends {ModelLoader}
+ */
 function JsonBinaryModelLoader() {
     ModelLoader.call(this);
     if (typeof THREE.BinaryLoader === 'undefined') {
@@ -515,6 +564,11 @@ JsonBinaryModelLoader.prototype.constructor = JsonBinaryModelLoader;
 ModelLoaderFactory.register('json_bin', JsonBinaryModelLoader);
 
 
+/**
+ * Model loader which contains OBJ models
+ * @constructor
+ * @extends {ModelLoader}
+ */
 function ObjModelLoader() {
 
     ModelLoader.call(this);
@@ -559,6 +613,15 @@ ObjModelLoader.prototype.constructor = ObjModelLoader;
 ModelLoaderFactory.register('obj', ObjModelLoader);
 
 //override methods
+/**
+ * Loads model for marker
+ * @param  {object}  model Data containing the model info (from JSON file)
+ * @param  {number}  markerId ID of marker to laod
+ * @param  {THREE.Object3D}  markerTransform Transform to parent to after model has Loaded
+ * @param  {number}  overallScale Overall scale
+ * @param  {boolean} isWireframeVisible Whether to initialize the wireframe mode to true
+ * @param  {MarkerManager} markerManager marker manager instance
+ */
 ObjModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible, markerManager) {
 
     //store variables in the instance since there seems to be no way to pass to loader.load (TODO: verify this)
@@ -610,6 +673,13 @@ MarkerManager.prototype.load = function () {
         throw new Error('error loading ' + this.markersJsonFile + ': ' + error);
     });
 };
+/**
+ * Loads model for marker
+ * @param  {number}  markerId ID of marker to laod
+ * @param  {THREE.Object3D}  markerTransform Transform to parent to after model has Loaded
+ * @param  {number}  markerSize Size of marker
+ * @param  {boolean} isWireframeVisible Whether to initialize the wireframe mode to true
+ */
 MarkerManager.prototype.loadForMarker = function (markerId, markerTransform, markerSize, isWireframeVisible) {
 
     //two types of markers to load:
@@ -684,6 +754,9 @@ function copyMarkerMatrix(arMat, glMat) {
 // AR Libraries
 //===================================
 
+/**
+ * Factory which creates ArLib
+ */
 var ArLibFactory = {
 
     mappings: {},
@@ -707,6 +780,10 @@ var ArLibFactory = {
     }
 };
 
+/**
+ * Superclass for ArLib
+ * @constructor
+ */
 function ArLib(options) {
 
     if (typeof options.trackingElem === 'undefined') {
@@ -741,14 +818,25 @@ function ArLib(options) {
 
     this.markers = {};  //this is just to keep track if a certain marker id has been seen
 }
+/**
+ * Initializes the instance
+ */
 ArLib.prototype.init = function () {
     throw new Error('Abstract method not implemented');
 };
+/**
+ * Updates the instance
+ * @param  {number} dt time elapsed
+ */
 ArLib.prototype.update = function (dt) {
     throw new Error('Abstract method not implemented');
 };
 
-//create a class to handle JSARToolKit
+/**
+ * ArLib class for JSARToolKit
+ * @constructor
+ * @extends {ArLib}
+ */
 function JsArToolKitArLib(options) {
     ArLib.call(this, options);
 
@@ -770,6 +858,9 @@ JsArToolKitArLib.prototype.constructor = JsArToolKitArLib;
 ArLibFactory.register('jsartoolkit', JsArToolKitArLib);
 
 //override methods
+/**
+ * Initializes the instance
+ */
 JsArToolKitArLib.prototype.init = function () {
     //required by JSARToolKit to show the debug canvas
     DEBUG = this.debug;
@@ -793,11 +884,18 @@ JsArToolKitArLib.prototype.init = function () {
     //set the camera projection matrix in the renderer
     this.initCameraProjMatrix();
 };
+/**
+ * Initializes the camera projection matrix
+ */
 JsArToolKitArLib.prototype.initCameraProjMatrix = function () {
     var camProjMatrixArray = new Float32Array(16);
     this.flarParam.copyCameraMatrix(camProjMatrixArray, 0.1, 10000);
     this.renderer.initCameraProjMatrix(camProjMatrixArray);
 };
+/**
+ * Updates the instance
+ * @param  {number} dt elapsed time
+ */
 JsArToolKitArLib.prototype.update = function (dt) {
 
     DEBUG = this.debug;
@@ -880,7 +978,11 @@ JsArToolKitArLib.prototype.update = function (dt) {
     this.renderer.updateSolvedScene(dt, this.mainMarkerId);
 };
 
-//create a class to handle js-aruco
+/**
+ * ArLib for js-aruco
+ * @constructor
+ * @extends {ArLib}
+ */
 function JsArucoArLib(options) {
     ArLib.call(this, options);
 }
@@ -893,6 +995,9 @@ JsArucoArLib.prototype.constructor = JsArucoArLib;
 ArLibFactory.register('jsaruco', JsArucoArLib);
 
 //override methods
+/**
+ * Initializes the instance
+ */
 JsArucoArLib.prototype.init = function () {
     this.detector = new AR.Detector();
 
@@ -903,6 +1008,10 @@ JsArucoArLib.prototype.init = function () {
 
     this.context = this.canvasElem.getContext('2d');
 };
+/**
+ * Updates the instance
+ * @param  {number} dt elapsed time
+ */
 JsArucoArLib.prototype.update = function (dt) {
     var imageData = this.context.getImageData(0, 0, this.canvasElem.width, this.canvasElem.height);
     var markers = this.detector.detect(imageData);
@@ -1036,6 +1145,9 @@ JsArucoArLib.prototype.__drawId = function (markers) {
 // Renderers
 //===================================
 
+/**
+ * Factory which creates Renderer
+ */
 var RendererFactory = {
 
     mappings: {},
@@ -1059,6 +1171,10 @@ var RendererFactory = {
     }
 };
 
+/**
+ * Superclass for renderers
+ * @constructor
+ */
 function Renderer(options) {
     if (typeof options.renderer === 'undefined') {
         throw new Error('renderer not specified');
@@ -1095,6 +1211,11 @@ function Renderer(options) {
 Renderer.prototype.init = function () {
     this.setupBackgroundVideo();
 };
+/**
+ * Adds a callback function that will be called during specific events
+ * @param {string} type Type of callback e.g. 'render'
+ * @param {function} callbackFn Callback function to call
+ */
 Renderer.prototype.addCallback = function (type, callbackFn) {
     if (!this.callbacks.hasOwnProperty(type)) {
         this.callbacks[type] = [];
@@ -1109,9 +1230,17 @@ Renderer.prototype.addCallback = function (type, callbackFn) {
         throw new Error('Callback function not defined');
     }
 };
+/**
+ * Returns the designated main marker ID
+ * @return {number} main marker ID
+ */
 Renderer.prototype.getMainMarkerId = function () {
     return this.markerManager.markerData.mainMarkerId;
 };
+/**
+ * Updates the renderer
+ * @param  {number} dt time elapsed
+ */
 Renderer.prototype.update = function (dt) {
     throw new Error('Abstract method not implemented');
 };
@@ -1121,23 +1250,34 @@ Renderer.prototype.setupBackgroundVideo = function () {
 Renderer.prototype.createTransformForMarker = function (markerId, markerSize) {
     throw new Error('Abstract method not implemented');
 };
-Renderer.prototype.getAllMaterials = function (transform) {
-    throw new Error('Abstract method not implemented');
-};
-Renderer.prototype.getAllLocalAxes = function (transform) {
-    throw new Error('Abstract method not implemented');
-};
+/**
+ * Sets visibility of wireframe
+ * @param {boolean} isVisible Visibility of wireframe
+ */
 Renderer.prototype.setWireframeVisible = function (isVisible) {
     throw new Error('Abstract method not implemented');
 };
+/**
+ * Sets visibility of local axis
+ * @param {boolean} isVisible Visibility of local axis
+ */
 Renderer.prototype.setLocalAxisVisible = function (isVisible) {
     throw new Error('Abstract method not implemented');
 };
+/**
+ * Sets visibility of origin plane
+ * @param {boolean} isVisible Visibility of origin plane
+ */
 Renderer.prototype.setOriginPlaneVisible = function (visible) {
     throw new Error('Abstract method not implemented');
 };
 
 
+/**
+ * Renderer class for Three.js
+ * @constructor
+ * @extends {Renderer}
+ */
 function ThreeJsRenderer(options) {
     this.markerTransforms = {};
     Renderer.call(this, options);
@@ -1154,6 +1294,10 @@ ThreeJsRenderer.prototype.constructor = ThreeJsRenderer;
 RendererFactory.register('threejs', ThreeJsRenderer);
 
 //override methods
+/**
+ * Updates the renderer
+ * @param  {number} dt time elapsed
+ */
 ThreeJsRenderer.prototype.update = function (dt) {
 
     //mark texture for update
@@ -1221,6 +1365,10 @@ ThreeJsRenderer.prototype.loadForMarker = function (markerId, markerTransform, m
 };
 
 //methods
+/**
+ * Initializes the camera projection matrix
+ * @param  {Three.Matrix4} camProjMatrixArray Camera projection matrix
+ */
 ThreeJsRenderer.prototype.initCameraProjMatrix = function (camProjMatrixArray) {
     this.camera.projectionMatrix.setFromArray(camProjMatrixArray);
 };
@@ -1288,9 +1436,17 @@ ThreeJsRenderer.prototype.updateSolvedScene = function (dt, mainMarkerId) {
         }
     });
 };
+/**
+ * Sets visibility of origin plane
+ * @param {boolean} isVisible Visibility of origin plane
+ */
 ThreeJsRenderer.prototype.setOriginPlaneVisible = function (visible) {
     this.originPlaneMeshIsVisible = visible;
 };
+/**
+ * Sets visibility of wireframe
+ * @param {boolean} isVisible Visibility of wireframe
+ */
 ThreeJsRenderer.prototype.setWireframeVisible = function (isVisible) {
 
     this.isWireframeVisible = isVisible;
@@ -1307,6 +1463,10 @@ ThreeJsRenderer.prototype.setWireframeVisible = function (isVisible) {
         }
     }
 };
+/**
+ * Sets visibility of local axis
+ * @param {boolean} isVisible Visibility of local axis
+ */
 ThreeJsRenderer.prototype.setLocalAxisVisible = function (isVisible) {
     this.isLocalAxisVisible = isVisible;
     var i, len;
@@ -1320,6 +1480,10 @@ ThreeJsRenderer.prototype.setLocalAxisVisible = function (isVisible) {
 // SKARF
 //===================================
 
+/**
+ * Class which handles different augmented reality libraries
+ * @constructor
+ */
 function SkArF(options) {
 
     //AR lib parameters
@@ -1435,14 +1599,26 @@ SkArF.prototype.update = function (dt) {
         this.renderer.update(dt);
     // }
 };
+/**
+ * Adds a callback function that will be called during specific events
+ * @param {string} type Type of callback e.g. 'render'
+ * @param {function} callbackFn Callback function to call
+ */
 SkArF.prototype.addCallback = function (type, callbackFn) {
     //pass all callbacks to renderer for now
     //TODO: manage callbacks better
     this.renderer.addCallback(type, callbackFn);
 };
+/**
+ * Returns true if the designated main marker has been detected
+ * @return {bool} true if the designated main marker has been detected
+ */
 SkArF.prototype.mainMarkerDetected = function () {
     return this.arLib.mainMarkerHasEverBeenDetected;
 };
+/**
+ * Inits camera projection matrix
+ */
 SkArF.prototype.initCameraProjMatrix = function () {
     if (this.arLib instanceof JsArToolKitArLib) {
         this.arLib.initCameraProjMatrix();
