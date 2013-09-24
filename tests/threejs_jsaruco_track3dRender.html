@@ -10,12 +10,6 @@
     <!--load helper libraries-->
     <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
 
-    <!--load AR libraries-->
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/svd.js"></script>
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/posit1.js"></script>
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/cv.js"></script>
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/aruco.js"></script>
-
     <!--load 3D libraries-->
     <script type="text/javascript" src="/js/lib/three.min.js"></script>
     <script type="text/javascript" src="/js/lib/Detector.js"></script>
@@ -29,6 +23,12 @@
     <script type="text/javascript" src="/js/lib/postprocessing/shaders/CopyShader.js"></script>
     <script type="text/javascript" src="/js/lib/postprocessing/shaders/FXAAShader.js"></script>
 
+    <!--load AR libraries-->
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/svd.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/posit1.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/cv.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/aruco.js"></script>
+
     <script>
 
     var MAIN_MARKER_ID = 1001;
@@ -36,6 +36,12 @@
 
     var clock = new THREE.Clock();
     var lookAtPoint = new THREE.Vector3();
+
+    var canvas, canvasWidth, canvasHeight;
+    var localAxes = [];
+    var ctx;
+
+    var isOrbiting = true;
 
     var options = {
         trackingSceneFxaa: false,
@@ -45,7 +51,9 @@
         cameraMotionSpeed: 0.2,
         cameraMotionTiltAmp: 0.2,
         cameraMotionTiltOffset: 0.1,
-        togglePauseOrbit: togglePauseOrbit,
+        togglePauseOrbit: function () {
+            isOrbiting = !isOrbiting;
+        },
         displayRefCube: true,
         displayDebugView: false,
         displayOriginPlane: true,
@@ -53,24 +61,22 @@
         displayLocalAxis: false
     };
 
-    function checkWebGl()
-    {
-        //check for WebGL
-        if (!Detector.webgl)
-        {
+    function checkWebGl() {
+        if (!Detector.webgl) {
             $('div').remove();
             Detector.addGetWebGLMessage();
             throw new Error('Your browser does not seem to support WebGL');
         }
     }
 
+    var source;
     var vfov;
     var trackSceneRenderer, trackSceneScene, trackSceneCamera, trackSceneCameraControls;
     var trackScenePlaneMesh, trackScenePlaneMesh2, trackScenePlaneMesh3;
     var refCubeMesh, refCubeMesh2, refCubeMesh3;
     var composer;
-    function setupThreejsTrackingScene()
-    {
+    function setupThreejsTrackingScene() {
+
         //renderer
         trackSceneRenderer = new THREE.WebGLRenderer({
             antialias : true
@@ -86,9 +92,9 @@
 
         //camera
         vfov = 40;
-        trackSceneCamera = new THREE.PerspectiveCamera(vfov, canvasWidth/canvasHeight, 0.1, 1000);
+        trackSceneCamera = new THREE.PerspectiveCamera(vfov, canvasWidth / canvasHeight, 0.1, 1000);
         trackSceneCamera.position.set(0.25, 0.25, 0.25);
-        trackSceneCamera.lookAt(new THREE.Vector3(0,0,0));
+        trackSceneCamera.lookAt(new THREE.Vector3(0, 0, 0));
         trackSceneCameraControls = new THREE.OrbitControls(trackSceneCamera);
         trackSceneCameraControls.modifierKey = 'alt';
         trackSceneCameraControls.userPanSpeed = 0.04;
@@ -102,7 +108,7 @@
                 map: THREE.ImageUtils.loadTexture('/resources/markers/js-aruco/1001.png')
             })
         );
-        trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         trackSceneScene.add(trackScenePlaneMesh);
 
         //plane 2
@@ -112,7 +118,7 @@
                 map: THREE.ImageUtils.loadTexture('/resources/markers/js-aruco/446.png')
             })
         );
-        trackScenePlaneMesh2.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        trackScenePlaneMesh2.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         trackScenePlaneMesh2.position.x = 0.11;
         trackScenePlaneMesh2.position.z = -0.07;
         trackSceneScene.add(trackScenePlaneMesh2);
@@ -124,7 +130,7 @@
                 map: THREE.ImageUtils.loadTexture('/resources/markers/js-aruco/923.png')
             })
         );
-        trackScenePlaneMesh3.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        trackScenePlaneMesh3.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         trackScenePlaneMesh3.position.x = -0.14;
         trackScenePlaneMesh3.position.z = -0.02;
         trackSceneScene.add(trackScenePlaneMesh3);
@@ -134,7 +140,8 @@
             new THREE.CubeGeometry(0.1, 0.1, 0.1),
             new THREE.MeshBasicMaterial({
                 color: 0x00ff00,
-                side: THREE.DoubleSide,wireframe: true,
+                side: THREE.DoubleSide,
+                wireframe: true,
                 depthTest : false,
                 depthWrite : false
             })
@@ -147,7 +154,8 @@
             new THREE.CubeGeometry(0.1, 0.1, 0.1),
             new THREE.MeshBasicMaterial({
                 color: 0x00ff00,
-                side: THREE.DoubleSide,wireframe: true,
+                side: THREE.DoubleSide,
+                wireframe: true,
                 depthTest : false,
                 depthWrite : false
             })
@@ -177,14 +185,14 @@
         composer = new THREE.EffectComposer(trackSceneRenderer);
         composer.addPass(new THREE.RenderPass(trackSceneScene, trackSceneCamera));
         var pass = new THREE.ShaderPass(THREE.FXAAShader);
-        pass.uniforms['resolution'].value.set(1.0/canvasWidth, 1.0/canvasHeight);
+        pass.uniforms.resolution.value.set(1.0 / canvasWidth, 1.0 / canvasHeight);
         pass.renderToScreen = true;
         composer.addPass(pass);
     }
 
     var detector, posit;
-    function setupJsaruco()
-    {
+    function setupJsaruco() {
+
         detector = new AR.Detector();
 
         //NOTE: the second parameter is suppose to be canvasWidth (from the js-aruco example).
@@ -197,8 +205,8 @@
     var videoScene, videoCam, videoTex;
     var groundPlaneMesh;
     var materials = [];
-    function setupThreejsScene()
-    {
+    function setupThreejsScene() {
+
         renderer = new THREE.WebGLRenderer({
             antialias : true
         });
@@ -219,7 +227,7 @@
         //setup lights
         scene.add(new THREE.AmbientLight(0x330015));
 
-        keyLight = new THREE.SpotLight(0xffff00, 0.5);
+        var keyLight = new THREE.SpotLight(0xffff00, 0.5);
         keyLight.position.set(25, 75, 75);
         keyLight.target.position.set(0, 0, 0);
         keyLight.castShadow = true;
@@ -233,14 +241,14 @@
         keyLight.shadowMapHeight = 1024;
         scene.add(keyLight);
 
-        fillLight = new THREE.SpotLight(0x00ff00, 0.3);
+        var fillLight = new THREE.SpotLight(0x00ff00, 0.3);
         fillLight.position.set(25, 10, 75);
         fillLight.target.position.set(0, 0, 0);
         scene.add(fillLight);
 
         //create a ground plane at the origin
         var groundPlaneGeom = new THREE.PlaneGeometry(100, 100, 1, 1);
-        groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         var groundPlaneMaterial = new THREE.MeshPhongMaterial({side: THREE.DoubleSide, wireframe: true});
         materials.push(groundPlaneMaterial);
         groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
@@ -257,16 +265,15 @@
             depthTest : false,
             depthWrite : false
         });
-        var plane = new THREE.Mesh(geometry, material );
+        var plane = new THREE.Mesh(geometry, material);
         videoScene = new THREE.Scene();
         videoCam = new THREE.Camera();
         videoScene.add(plane);
         videoScene.add(videoCam);
     }
 
-    function setupStats()
-    {
-        //create a stats monitor
+    var stats;
+    function setupStats() {
         stats = new Stats();
         var $threejsContainerElem = $('#threejs-container-parent');
         $threejsContainerElem.append(stats.domElement);
@@ -286,8 +293,7 @@
         var control = trackingSceneFolder.add(options, 'trackingSceneFxaa').name('FXAA');
 
         control = trackingSceneFolder.add(options, 'trackingSceneMultipleTrackers').name('Multiple Markers');
-        function toggleMultipleMarkers(value)
-        {
+        function toggleMultipleMarkers(value) {
             trackScenePlaneMesh2.visible = value;
             trackScenePlaneMesh3.visible = value;
             refCubeMesh2.visible = value && options.displayRefCube;
@@ -301,8 +307,7 @@
         cameraMotionFolder.open();
 
         control = cameraMotionFolder.add(options, 'cameraMotionAutoOrbit').name('Auto Orbit');
-        function toggleCameraMotionAutoOrbit(value)
-        {
+        function toggleCameraMotionAutoOrbit(value) {
             //always turn orbiting on when auto orbit is turned on
             isOrbiting = true;
         }
@@ -323,8 +328,7 @@
         displayFolder.open();
 
         control = displayFolder.add(options, 'displayRefCube').name('Reference Cube');
-        function toggleRefCube(value)
-        {
+        function toggleRefCube(value) {
             refCubeMesh.visible = value;
             refCubeMesh2.visible = value && options.trackingSceneMultipleTrackers;
             refCubeMesh3.visible = value && options.trackingSceneMultipleTrackers;
@@ -335,19 +339,16 @@
         control = displayFolder.add(options, 'displayDebugView').name('Debug View');
 
         control = displayFolder.add(options, 'displayOriginPlane').name('Origin Plane');
-        function toggleOriginPlane(value)
-        {
+        function toggleOriginPlane(value) {
             groundPlaneMesh.visible = value;
         }
         control.onChange(toggleOriginPlane);
         toggleOriginPlane(options.displayOriginPlane);
 
         control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
-        function toggleWireframe(value)
-        {
+        function toggleWireframe(value) {
             var i, len;
-            for (i = 0, len = materials.length; i < len; i++)
-            {
+            for (i = 0, len = materials.length; i < len; i++) {
                 materials[i].wireframe = value;
             }
         }
@@ -355,11 +356,9 @@
         toggleWireframe(options.displayWireframe);
 
         control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
-        function toggleLocalAxis(value)
-        {
+        function toggleLocalAxis(value) {
             var i, len;
-            for (i = 0, len = localAxes.length; i < len; i++)
-            {
+            for (i = 0, len = localAxes.length; i < len; i++) {
                 localAxes[i].visible = value;
             }
         }
@@ -367,26 +366,19 @@
         toggleLocalAxis(options.displayLocalAxis);
     }
 
-    var isOrbiting = true;
-    function togglePauseOrbit()
-    {
-        isOrbiting = !isOrbiting;
-    }
+    function drawCorners(markers) {
 
-    function drawCorners(markers)
-    {
         var corners, corner, i, j, leni, lenj;
 
-        for (i = 0, leni = markers.length; i < leni; i++)
-        {
+        for (i = 0, leni = markers.length; i < leni; i++) {
+
             corners = markers[i].corners;
 
             ctx.lineWidth = 2;
             ctx.strokeStyle = "red";
             ctx.beginPath();
 
-            for (j = 0, lenj = corners.length; j < lenj; j++)
-            {
+            for (j = 0, lenj = corners.length; j < lenj; j++) {
                 corner = corners[j];
                 ctx.moveTo(corner.x, corner.y);
                 corner = corners[(j + 1) % corners.length];
@@ -400,10 +392,10 @@
             ctx.strokeStyle = "green";
             ctx.strokeRect(corners[0].x - 2, corners[0].y - 2, 4, 4);
         }
-    };
+    }
 
-    function drawId(markers)
-    {
+    function drawId(markers) {
+
         var corners, corner, x, y, i, len;
 
         ctx.font = '12pt Calibri';
@@ -411,8 +403,7 @@
         // ctx.strokeStyle = "black";
         // ctx.lineWidth = 1.0;
 
-        for (i = 0, len = markers.length; i < len; i++)
-        {
+        for (i = 0, len = markers.length; i < len; i++) {
             corners = markers[i].corners;
 
             x = corners[0].x;
@@ -423,35 +414,54 @@
         }
     }
 
+    function showChildren(object3d, visible) {
+        var i, len;
+        var children = object3d.children;
+        for (i = 0, len = children.length; i < len; i++) {
+            if (children[i] instanceof THREE.Mesh) {
+                children[i].visible = visible;
+            } else if (children[i] instanceof THREE.AxisHelper) {
+                children[i].visible = visible && options.displayLocalAxis;
+            }
+        }
+    }
+
+    function createMatrix4FromRotAndTrans(rotationMat, translationVec) {
+        return new THREE.Matrix4(
+            rotationMat[0][0], rotationMat[0][1], -rotationMat[0][2], translationVec[0],
+            rotationMat[1][0], rotationMat[1][1], -rotationMat[1][2], translationVec[1],
+            -rotationMat[2][0], -rotationMat[2][1], rotationMat[2][2], -translationVec[2],
+            0, 0, 0, 1
+        );
+    }
+
     var markerRoots = {};
-    var localAxes = [];
     var mainMarkerRootSolvedMatrixInv = new THREE.Matrix4();
-    function updateScenes(markers)
-    {
+    function updateScenes(markers) {
+
         var corners, corner, pose, i, markerId;
 
         //hide all marker roots first
         groundPlaneMesh.visible = false;
         var keys = Object.keys(markerRoots);
-        for (i = 0; i < keys.length; i++)
-        {
+        for (i = 0; i < keys.length; i++) {
             showChildren(markerRoots[keys[i]], false);
             markerRoots[keys[i]].detected = false;
         }
 
-        for (i = 0; i < markers.length; i++)
-        {
+        for (i = 0; i < markers.length; i++) {
+
             markerId = markers[i].id;
             corners = markers[i].corners;
 
             //create a new marker root if this id has not been seen before
-            if (!markerRoots[markerId])
-            {
+            if (!markerRoots[markerId]) {
+
                 console.log('creating new marker root for id: ' + markerId);
-                markerRoot = new THREE.Object3D();
+                var markerRoot = new THREE.Object3D();
                 markerRoot.matrixAutoUpdate = false;
                 markerRoots[markerId] = markerRoot;
-                var cubeLength = MARKER_SIZE * 1.0;
+                var cubeLength = MARKER_SIZE;
                 var cubeGeom = new THREE.CubeGeometry(cubeLength, cubeLength, cubeLength);
                 var cubeMaterial = new THREE.MeshPhongMaterial({
                     color: 0xff0000,
@@ -475,8 +485,7 @@
 
             //align corners to center of canvas
             var j;
-            for (j = 0; j < corners.length; j++)
-            {
+            for (j = 0; j < corners.length; j++) {
                 corner = corners[j];
                 //NOTE: there seems to be some scale away from the center, so I have to scale everything down from the center.
                 //The value of 0.97 is by trial-and-error, seems to work pretty well.
@@ -485,8 +494,8 @@
             }
 
             //estimate pose
-            try
-            {
+            try {
+
                 pose = posit.pose(corners);
 
                 //store matrix for this marker first
@@ -495,25 +504,22 @@
 
                 //mark that this id has been detected
                 markerRoots[markerId].detected = true;
-            }
-            catch(err)
-            {
+            } catch (err) {
                 //just print to console but let the error pass so that the program can continue
                 console.log(err.message);
             }
         }
 
         //start iterating if main marker id is detected
-        if (markerRoots[MAIN_MARKER_ID] && markerRoots[MAIN_MARKER_ID].detected)
-        {
+        if (markerRoots[MAIN_MARKER_ID] && markerRoots[MAIN_MARKER_ID].detected) {
+
             //move the camera instead of the marker root
             camera.matrix = mainMarkerRootSolvedMatrixInv.getInverse(markerRoots[MAIN_MARKER_ID].currSolvedMatrix);  //multiply inverse of main marker's matrix will force main marker to be at origin and the camera to transform around this world space
             camera.matrixWorldNeedsUpdate = true;
 
             //for each of the marker root detected, move into the space of the main marker root
-            Object.keys(markerRoots).forEach(function (key){
-                if (markerRoots[key].detected)
-                {
+            Object.keys(markerRoots).forEach(function (key) {
+                if (markerRoots[key].detected) {
                     //transform and compensate
                     markerRoots[key].matrix.copy(camera.matrix);  //transform into new camera world space first
                     markerRoots[key].matrix.multiply(markerRoots[key].currSolvedMatrix);  //since currSolvedMatrix is relative to camera space, multiplying by it next will bring this object into world space
@@ -527,37 +533,12 @@
             //also show the ground plane if necessary
             groundPlaneMesh.visible = options.displayOriginPlane;
         }
-    };
-
-    function createMatrix4FromRotAndTrans(rotationMat, translationVec)
-    {
-        return new THREE.Matrix4(
-            rotationMat[0][0], rotationMat[0][1], -rotationMat[0][2], translationVec[0],
-            rotationMat[1][0], rotationMat[1][1], -rotationMat[1][2], translationVec[1],
-            -rotationMat[2][0], -rotationMat[2][1], rotationMat[2][2], -translationVec[2],
-            0, 0, 0, 1
-        );
     }
 
-    function showChildren(object3d, visible)
-    {
-        var i, len;
-        var children = object3d.children;
-        for (i = 0, len = children.length; i < len; i++) {
-            if (children[i] instanceof THREE.Mesh) {
-                children[i].visible = visible;
-            } else if (children[i] instanceof THREE.AxisHelper) {
-                children[i].visible = visible && options.displayLocalAxis;
-            }
-        }
-    }
-
-    var canvas, canvasWidth, canvasHeight;
-    var ctx;
     var markers = {};
     var t = 0;
-    $(document).ready(function()
-    {
+    $(document).ready(function () {
+
         //check for WebGL
         checkWebGl();
 
@@ -585,37 +566,30 @@
         setupGui();
 
         //main loop
-        function loop()
-        {
+        function loop() {
+
             var dt = clock.getDelta();  //have to call this before getElapsedTime()
             var time = clock.getElapsedTime();
 
             //update tracking camera
-            if (options.cameraMotionAutoOrbit)
-            {
-                if (isOrbiting)
-                {
+            if (options.cameraMotionAutoOrbit) {
+                if (isOrbiting) {
                     t += dt;
                     trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * t);
                     trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * t) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
                     trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * t);
                     trackSceneCamera.lookAt(lookAtPoint);
                 }
-            }
-            else
-            {
+            } else {
                 trackSceneCameraControls.update();
             }
 
             //update tracking scene
             trackSceneRenderer.autoClear = false;
             trackSceneRenderer.clear();
-            if (options.trackingSceneFxaa)
-            {
+            if (options.trackingSceneFxaa) {
                 composer.render(trackSceneScene, trackSceneCamera);
-            }
-            else
-            {
+            } else {
                 trackSceneRenderer.render(trackSceneScene, trackSceneCamera);
             }
 
@@ -625,8 +599,7 @@
 
             //detect markers
             var markers = detector.detect(imageData);
-            if (options.displayDebugView)
-            {
+            if (options.displayDebugView) {
                 drawCorners(markers);
                 drawId(markers);
             }
@@ -654,17 +627,14 @@
 </head>
 <body>
     <h2>Three.js and js-aruco</h2>
-
     <div class="container" id="mainTracking3dScene">
         <div class="caption">Three.js 3D scene for tracking</div>
-        <div class="caption">alt+LMB: tumble ("rotate")<br/>alt+MMB: track ("pan")<br/>alt+RMB: dolly ("zoom")</div>
+        <div class="caption">[ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
     </div>
-
     <div class="container" id="canvas-container">
         <div class="caption">&lt;canvas&gt;</div>
         <canvas id="mainCanvas" width="1280" height="720"></canvas>
     </div>
-
     <div class="container" id="threejs-container-parent">
         <div class="caption">three.js &lt;canvas&gt;</div>
         <div id="threejs-container"></div>

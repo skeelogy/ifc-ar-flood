@@ -10,7 +10,7 @@
     <!--load helper libraries-->
     <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
 
-    <!--load AR and 3D libraries-->
+    <!--load 3D libraries-->
     <script type="text/javascript" src="/js/lib/three.min.js"></script>
     <script type="text/javascript" src="/js/lib/Detector.js"></script>
     <script type="text/javascript" src="/js/ShaderManager.js"></script>
@@ -23,11 +23,8 @@
     var RES = 1024;  //must be power of 2
     var stopRes = 1;  //min of 1
 
-    function checkWebGl()
-    {
-        //check for WebGL
-        if (!Detector.webgl)
-        {
+    function checkWebGl() {
+        if (!Detector.webgl) {
             $('div').remove();
             Detector.addGetWebGLMessage();
             throw new Error('Your browser does not seem to support WebGL');
@@ -35,8 +32,8 @@
     }
 
     var renderer;
-    function setupParallelReduction()
-    {
+    function setupParallelReduction() {
+
         //create renderer
         renderer = new THREE.WebGLRenderer();
         renderer.setSize(320, 320);  //arbitrary
@@ -50,36 +47,33 @@
     var values = [];
     var cpuSum, gpuSum;
     var dataTexture;
-    function setupNumbers()
-    {
+    function setupNumbers() {
+
         var text = 'Num values: ' + RES + ' x ' + RES;
-        $('#results-container').append('<p>'+text+'</p>');
+        $('#results-container').append('<p>' + text + '<\/p>');
         console.log(text);
 
         //create numbers and find their sum using CPU
         var i, j;
-        for (i = 0; i < numValues; i++)
-        {
+        for (i = 0; i < numValues; i++) {
             values.push(i);
         }
 
         //calulate the sum and time it
         cpuSum = 0;
         var start = new Date().getTime();
-        for (i = 0; i < numValues; i++)
-        {
+        for (i = 0; i < numValues; i++) {
             cpuSum += values[i];
         }
         var end = new Date().getTime();
         var timeTaken = (end - start) / 1000;
         text = 'CPU sum: ' + cpuSum.toFixed(2) + ' (' + timeTaken.toFixed(3) + ' seconds)';
-        $('#results-container').append('<p>'+text+'</p>');
+        $('#results-container').append('<p>' + text + '<\/p>');
         console.log(text);
 
         //pack these data into array
-        dataTextureData = new Float32Array(4 * numValues);
-        for (i = 0; i < numValues; i++)
-        {
+        var dataTextureData = new Float32Array(4 * numValues);
+        for (i = 0; i < numValues; i++) {
             dataTextureData[4 * i] = values[i];  //store in R channel will do
         }
 
@@ -90,8 +84,8 @@
         // console.log(dataTexture.image.data);
     }
 
-    $(document).ready(function()
-    {
+    $(document).ready(function () {
+
         //check for WebGL
         checkWebGl();
 
@@ -109,20 +103,19 @@
         var start = new Date().getTime();
         ParallelReducer.reduce(dataTexture, 'sum', 'r');
         var pixelFloatData = ParallelReducer.getPixelFloatData('r');
-        for (i = 0, len = pixelFloatData.length; i < len; i++)
-        {
+        for (i = 0, len = pixelFloatData.length; i < len; i++) {
             gpuSum += pixelFloatData[i];
         }
         var end = new Date().getTime();
         var timeTaken = (end - start) / 1000;
         var text = 'GPU sum: ' + gpuSum.toFixed(2) + ' (' + timeTaken.toFixed(3) + ' seconds)';
-        $('#results-container').append('<p>'+text+'</p>');
+        $('#results-container').append('<p>' + text + '<\/p>');
         console.log(text);
         // console.log(pixelFloatData);
 
         var percentageError = (gpuSum - cpuSum) / cpuSum * 100;
-        var text = 'Percentage error: ' + percentageError.toFixed(5) + '%';
-        $('#results-container').append('<p>'+text+'</p>');
+        text = 'Percentage error: ' + percentageError.toFixed(5) + '%';
+        $('#results-container').append('<p>' + text + '<\/p>');
         console.log(text);
 
     });

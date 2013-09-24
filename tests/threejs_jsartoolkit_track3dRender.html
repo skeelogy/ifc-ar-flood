@@ -10,14 +10,12 @@
     <!--load helper libraries-->
     <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
 
-    <!--load AR and 3D libraries-->
+    <!--load 3D libraries-->
     <script type="text/javascript" src="/js/lib/three.min.js"></script>
-    <script type="text/javascript" src="/js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
     <script type="text/javascript" src="/js/lib/Detector.js"></script>
     <script type="text/javascript" src="/js/lib/stats.min.js"></script>
     <script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
     <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
-
     <script type="text/javascript" src="/js/lib/postprocessing/EffectComposer.js"></script>
     <script type="text/javascript" src="/js/lib/postprocessing/RenderPass.js"></script>
     <script type="text/javascript" src="/js/lib/postprocessing/ShaderPass.js"></script>
@@ -25,44 +23,25 @@
     <script type="text/javascript" src="/js/lib/postprocessing/shaders/CopyShader.js"></script>
     <script type="text/javascript" src="/js/lib/postprocessing/shaders/FXAAShader.js"></script>
 
+    <!--load AR library-->
+    <script type="text/javascript" src="/js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
+
     <script>
 
+    var DEBUG = false;  //for JSARToolKit built-in debugging info
     var MAIN_MARKER_ID = 22;
     var MARKER_SIZE = 35;
 
     var clock = new THREE.Clock();
     var lookAtPoint = new THREE.Vector3();
 
-    // I'm going to use a glMatrix-style matrix as an intermediary.
-    // So the first step is to create a function to convert a glMatrix matrix into a Three.js Matrix4.
-    THREE.Matrix4.prototype.setFromArray = function(m) {
-      return this.set(
-        m[0], m[4], m[8], m[12],
-        m[1], m[5], m[9], m[13],
-        m[2], m[6], m[10], m[14],
-        m[3], m[7], m[11], m[15]
-      );
-    };
+    var refCubeMesh, refCubeMesh2, refCubeMesh3;
+    var trackScenePlaneMesh, trackScenePlaneMesh2, trackScenePlaneMesh3;
+    var groundPlaneMesh;
+    var localAxes = [];
+    var materials = [];
 
-    function copyMarkerMatrix(arMat, glMat)
-    {
-      glMat[0] = arMat.m00;
-      glMat[1] = -arMat.m10;
-      glMat[2] = arMat.m20;
-      glMat[3] = 0;
-      glMat[4] = arMat.m01;
-      glMat[5] = -arMat.m11;
-      glMat[6] = arMat.m21;
-      glMat[7] = 0;
-      glMat[8] = -arMat.m02;
-      glMat[9] = arMat.m12;
-      glMat[10] = -arMat.m22;
-      glMat[11] = 0;
-      glMat[12] = arMat.m03;
-      glMat[13] = -arMat.m13;
-      glMat[14] = arMat.m23;
-      glMat[15] = 1;
-    }
+    var isOrbiting = true;
 
     var options = {
         trackingSceneFxaa: false,
@@ -73,13 +52,67 @@
         cameraMotionSpeed: 0.2,
         cameraMotionTiltAmp: 0.2,
         cameraMotionTiltOffset: 0.1,
-        togglePauseOrbit: togglePauseOrbit,
+        togglePauseOrbit: function () {
+            isOrbiting = !isOrbiting;
+        },
         displayRefCube: true,
         displayDebugView: false,
         displayOriginPlane: true,
         displayWireframe: false,
         displayLocalAxis: false
     };
+
+    function checkWebGl() {
+        if (!Detector.webgl) {
+            $('div').remove();
+            Detector.addGetWebGLMessage();
+            throw new Error('Your browser does not seem to support WebGL');
+        }
+    }
+
+    // From http://www.html5rocks.com/en/tutorials/webgl/jsartoolkit_webrtc/
+    // I'm going to use a glMatrix-style matrix as an intermediary.
+    // So the first step is to create a function to convert a glMatrix matrix into a Three.js Matrix4.
+    THREE.Matrix4.prototype.setFromArray = function (m) {
+        return this.set(
+            m[0], m[4], m[8], m[12],
+            m[1], m[5], m[9], m[13],
+            m[2], m[6], m[10], m[14],
+            m[3], m[7], m[11], m[15]
+        );
+    };
+
+    // From http://www.html5rocks.com/en/tutorials/webgl/jsartoolkit_webrtc/
+    function copyMarkerMatrix(arMat, glMat) {
+        glMat[0] = arMat.m00;
+        glMat[1] = -arMat.m10;
+        glMat[2] = arMat.m20;
+        glMat[3] = 0;
+        glMat[4] = arMat.m01;
+        glMat[5] = -arMat.m11;
+        glMat[6] = arMat.m21;
+        glMat[7] = 0;
+        glMat[8] = -arMat.m02;
+        glMat[9] = arMat.m12;
+        glMat[10] = -arMat.m22;
+        glMat[11] = 0;
+        glMat[12] = arMat.m03;
+        glMat[13] = -arMat.m13;
+        glMat[14] = arMat.m23;
+        glMat[15] = 1;
+    }
+
+    function showChildren(object3d, visible) {
+        var children = object3d.children;
+        var i, len;
+        for (i = 0, len = children.length; i < len; i++) {
+            if (children[i] instanceof THREE.Mesh) {
+                children[i].visible = visible;
+            } else if (children[i] instanceof THREE.AxisHelper) {
+                children[i].visible = visible && options.displayLocalAxis;
+            }
+        }
+    }
 
     var gui;
     var trackingSceneFolder, trackingFolder, cameraMotionFolder, displayFolder;
@@ -95,8 +128,7 @@
         var control = trackingSceneFolder.add(options, 'trackingSceneFxaa').name('FXAA');
 
         control = trackingSceneFolder.add(options, 'trackingSceneMultipleTrackers').name('Multiple Markers');
-        function toggleMultipleMarkers(value)
-        {
+        function toggleMultipleMarkers(value) {
             trackScenePlaneMesh2.visible = value;
             trackScenePlaneMesh3.visible = value;
             refCubeMesh2.visible = value && options.displayRefCube;
@@ -116,8 +148,7 @@
         cameraMotionFolder.open();
 
         control = cameraMotionFolder.add(options, 'cameraMotionAutoOrbit').name('Auto Orbit');
-        function toggleCameraMotionAutoOrbit(value)
-        {
+        function toggleCameraMotionAutoOrbit(value) {
             //always turn orbiting on when auto orbit is turned on
             isOrbiting = true;
         }
@@ -138,8 +169,7 @@
         displayFolder.open();
 
         control = displayFolder.add(options, 'displayRefCube').name('Reference Cube');
-        function toggleRefCube(value)
-        {
+        function toggleRefCube(value) {
             refCubeMesh.visible = value;
             refCubeMesh2.visible = value && options.trackingSceneMultipleTrackers;
             refCubeMesh3.visible = value && options.trackingSceneMultipleTrackers;
@@ -148,26 +178,22 @@
         toggleRefCube(options.displayRefCube);
 
         control = displayFolder.add(options, 'displayDebugView').name('Debug View');
-        function toggleDebugView(value)
-        {
+        function toggleDebugView(value) {
             DEBUG = value;
         }
         control.onChange(toggleDebugView);
 
         control = displayFolder.add(options, 'displayOriginPlane').name('Origin Plane');
-        function toggleOriginPlane(value)
-        {
+        function toggleOriginPlane(value) {
             groundPlaneMesh.visible = value;
         }
         control.onChange(toggleOriginPlane);
         toggleOriginPlane(options.displayOriginPlane);
 
         control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
-        function toggleWireframe(value)
-        {
+        function toggleWireframe(value) {
             var i, len;
-            for (i = 0, len = materials.length; i < len; i++)
-            {
+            for (i = 0, len = materials.length; i < len; i++) {
                 materials[i].wireframe = value;
             }
         }
@@ -175,11 +201,9 @@
         toggleWireframe(options.displayWireframe);
 
         control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
-        function toggleLocalAxis(value)
-        {
+        function toggleLocalAxis(value) {
             var i, len;
-            for (i = 0, len = localAxes.length; i < len; i++)
-            {
+            for (i = 0, len = localAxes.length; i < len; i++) {
                 localAxes[i].visible = value;
             }
         }
@@ -187,39 +211,10 @@
         toggleLocalAxis(options.displayLocalAxis);
     }
 
-    var isOrbiting = true;
-    function togglePauseOrbit()
-    {
-        isOrbiting = !isOrbiting;
-    }
+    $(document).ready(function () {
 
-    function showChildren(object3d, visible)
-    {
-        var children = object3d.children;
-        var i, len;
-        for (i = 0, len = children.length; i < len; i++) {
-            if (children[i] instanceof THREE.Mesh) {
-                children[i].visible = visible;
-            } else if (children[i] instanceof THREE.AxisHelper) {
-                children[i].visible = visible && options.displayLocalAxis;
-            }
-        }
-    }
-
-    var refCubeMesh, refCubeMesh2, refCubeMesh3;
-    var trackScenePlaneMesh, trackScenePlaneMesh2, trackScenePlaneMesh3;
-    var groundPlaneMesh;
-    var localAxes = [];
-    var materials = [];
-    $(document).ready(function()
-    {
         //check for WebGL
-        if (!Detector.webgl)
-        {
-            $('div').remove();
-            Detector.addGetWebGLMessage();
-            return;
-        }
+        checkWebGl();
 
         console.log('Document is ready.');
 
@@ -239,17 +234,17 @@
         trackSceneRenderer.setClearColor('#888888', 1);
         var $threejsTrackSceneContainerElem = $('#mainTracking3dScene div:eq(0)');
         $threejsTrackSceneContainerElem.after(trackSceneRenderer.domElement);
-        source = trackSceneRenderer.domElement;
+        var source = trackSceneRenderer.domElement;
 
         //scene
         var trackSceneScene = new THREE.Scene();
 
         //camera
         var vfov = 40;
-        var trackSceneCamera = new THREE.PerspectiveCamera(vfov, canvasWidth/canvasHeight, 0.1, 1000);
+        var trackSceneCamera = new THREE.PerspectiveCamera(vfov, canvasWidth / canvasHeight, 0.1, 1000);
         trackSceneCamera.position.set(0.25, 0.25, 0.25);
-        trackSceneCamera.lookAt(new THREE.Vector3(0,0,0));
-        controls = new THREE.OrbitControls(trackSceneCamera);
+        trackSceneCamera.lookAt(new THREE.Vector3(0, 0, 0));
+        var controls = new THREE.OrbitControls(trackSceneCamera);
         controls.modifierKey = 'alt';
         controls.userPanSpeed = 0.04;
         controls.pan(new THREE.Vector3(0, 1, 0));
@@ -262,7 +257,7 @@
                 map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/22.jpg')
             })
         );
-        trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         trackSceneScene.add(trackScenePlaneMesh);
 
         //plane 2
@@ -272,7 +267,7 @@
                 map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/81.jpg')
             })
         );
-        trackScenePlaneMesh2.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        trackScenePlaneMesh2.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         trackScenePlaneMesh2.position.x = 0.11;
         trackScenePlaneMesh2.position.z = -0.07;
         trackSceneScene.add(trackScenePlaneMesh2);
@@ -284,7 +279,7 @@
                 map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/63.jpg')
             })
         );
-        trackScenePlaneMesh3.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        trackScenePlaneMesh3.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         trackScenePlaneMesh3.position.x = -0.14;
         trackScenePlaneMesh3.position.z = -0.02;
         trackSceneScene.add(trackScenePlaneMesh3);
@@ -339,13 +334,15 @@
         var composer = new THREE.EffectComposer(trackSceneRenderer);
         composer.addPass(new THREE.RenderPass(trackSceneScene, trackSceneCamera));
         var pass = new THREE.ShaderPass(THREE.FXAAShader);
-        pass.uniforms['resolution'].value.set(1.0/canvasWidth, 1.0/canvasHeight);
+        pass.uniforms.resolution.value.set(1.0 / canvasWidth, 1.0 / canvasHeight);
         pass.renderToScreen = true;
         composer.addPass(pass);
 
         //===================================================
         // INIT JSARTOOLKIT
         //===================================================
+        // Some of the codes below are from http://www.html5rocks.com/en/tutorials/webgl/jsartoolkit_webrtc/
+        // Modifications are done to ensure that it works in this demo
 
         // Create a RGB raster object for the 2D canvas.
         // JSARToolKit uses raster objects to read image data.
@@ -353,9 +350,8 @@
         var raster = new NyARRgbRaster_Canvas2D(canvas);
 
         // FLARParam is the thing used by FLARToolKit to set camera parameters.
-        // Here we create a FLARParam for images with 320x240 pixel dimensions.
-        // NOTE: THESE DIMENSIONS MUST BE THE SAME SIZE AS THE RASTER
-        // OTHERWISE WILL GET AN "Uncaught #<Object>" ERROR
+        // Here we create a FLARParam for images with canvasWidth*canvasHeight pixel dimensions.
+        // NOTE: THESE DIMENSIONS MUST BE THE SAME SIZE AS THE RASTER, OTHERWISE WILL GET AN "Uncaught Object" ERROR
         var param = new FLARParam(canvasWidth, canvasHeight, vfov);
 
         // The FLARMultiIdMarkerDetector is the actual detection engine for marker detection.
@@ -368,8 +364,8 @@
 
         // Copy the camera perspective matrix from the FLARParam to the WebGL library camera matrix.
         // The second and third parameters determine the zNear and zFar planes for the perspective matrix.
-        //var tmpGlMatCam   = new Float32Array(16);
-        //param.copyCameraMatrix(tmpGlMatCam, 10, 10000);
+        // var tmpGlMatCam = new Float32Array(16);
+        // param.copyCameraMatrix(tmpGlMatCam, 10, 10000);
 
         //===================================================
         // INIT THREE.JS
@@ -402,7 +398,7 @@
         //setup lights
         scene.add(new THREE.AmbientLight(0x330015));
 
-        keyLight = new THREE.SpotLight(0xffff00, 0.5);
+        var keyLight = new THREE.SpotLight(0xffff00, 0.5);
         keyLight.position.set(25, 75, 75);
         keyLight.target.position.set(0, 0, 0);
         keyLight.castShadow = true;
@@ -416,14 +412,14 @@
         keyLight.shadowMapHeight = 1024;
         scene.add(keyLight);
 
-        fillLight = new THREE.SpotLight(0x00ff00, 0.3);
+        var fillLight = new THREE.SpotLight(0x00ff00, 0.3);
         fillLight.position.set(25, 10, 75);
         fillLight.target.position.set(0, 0, 0);
         scene.add(fillLight);
 
         //create a ground plane at the origin
         var groundPlaneGeom = new THREE.PlaneGeometry(100, 100, 1, 1);
-        groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         var groundPlaneMaterial = new THREE.MeshPhongMaterial({side: THREE.DoubleSide, wireframe: false});
         materials.push(groundPlaneMaterial);
         groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
@@ -440,7 +436,7 @@
             depthTest : false,
             depthWrite : false
         });
-        var plane = new THREE.Mesh(geometry, material );
+        var plane = new THREE.Mesh(geometry, material);
         var videoScene = new THREE.Scene();
         var videoCam = new THREE.Camera();
         videoScene.add(plane);
@@ -457,9 +453,9 @@
         //===================================================
 
         //create a stats monitor
-        stats = new Stats();
-        var $threejsContainerElem = $('#threejs-container-parent');
-        $threejsContainerElem.append(stats.domElement);
+        var stats = new Stats();
+        var $threejsContainerParentElem = $('#threejs-container-parent');
+        $threejsContainerParentElem.append(stats.domElement);
 
         //===================================================
         // LOOP
@@ -482,186 +478,176 @@
 
         // On every frame do the following:
         var t = 0;
-        function loop()
-        {
+        function loop() {
+
             var dt = clock.getDelta();  //have to call this before getElapsedTime()
             var time = clock.getElapsedTime();
 
             //update camera
-            if (options.cameraMotionAutoOrbit)
-            {
-                if (isOrbiting)
-                {
+            if (options.cameraMotionAutoOrbit) {
+                if (isOrbiting) {
                     t += dt;
                     trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * t);
                     trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * t) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
                     trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * t);
                     trackSceneCamera.lookAt(lookAtPoint);
                 }
-            }
-            else
-            {
+            } else {
                 controls.update();
             }
 
             //update
             trackSceneRenderer.autoClear = false;
             trackSceneRenderer.clear();
-            if (options.trackingSceneFxaa)
-            {
+            if (options.trackingSceneFxaa) {
                 composer.render(trackSceneScene, trackSceneCamera);
-            }
-            else
-            {
+            } else {
                 trackSceneRenderer.render(trackSceneScene, trackSceneCamera);
             }
 
             // if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
             // {
-                // Draw the video frame to the canvas.
-                ctx.drawImage(source, 0, 0, canvasWidth, canvasHeight);
 
-                // Tell JSARToolKit that the canvas has changed.
-                canvas.changed = true;
+            // Draw the video frame to the canvas.
+            ctx.drawImage(source, 0, 0, canvasWidth, canvasHeight);
 
-                // Update the video texture.
-                videoTex.needsUpdate = true;
+            // Tell JSARToolKit that the canvas has changed.
+            canvas.changed = true;
 
-                // hide everything first
-                groundPlaneMesh.visible = false;
-                Object.keys(markerRoots).forEach(function (key){
-                    showChildren(markerRoots[key], false);
-                    markerRoots[key].detected = false;
+            // Update the video texture.
+            videoTex.needsUpdate = true;
+
+            // hide everything first
+            groundPlaneMesh.visible = false;
+            Object.keys(markerRoots).forEach(function (key) {
+                showChildren(markerRoots[key], false);
+                markerRoots[key].detected = false;
+            });
+
+            // Do marker detection by using the detector object on the raster object.
+            // The threshold parameter determines the threshold value
+            // for turning the video frame into a 1-bit black-and-white image.
+            var markerCount = detector.detectMarkerLite(raster, options.trackingThreshold);
+
+            // Go through the detected markers and get their IDs and transformation matrices.
+            var i, j;
+            for (i = 0; i < markerCount; i++) {
+
+                // Get the ID marker data for the current marker.
+                // ID markers are special kind of markers that encode a number.
+                // The bytes for the number are in the ID marker data.
+                var id = detector.getIdMarkerData(i);
+
+                // Read bytes from the id packet.
+                var currId = -1;
+                // This code handles only 32-bit numbers or shorter.
+                if (id.packetLength <= 4) {
+                    currId = 0;
+                    for (j = 0; j < id.packetLength; j++) {
+                        currId = (currId << 8) | id.getPacketData(j);
+                    }
+                }
+
+                // If this is a new id, let's start tracking it.
+                if (typeof markers[currId] === 'undefined') {
+
+                    //create new object for the marker
+                    markers[currId] = {};
+
+                    //create a new Three.js object as marker root
+                    var markerRoot = new THREE.Object3D();
+                    markerRoot.matrixAutoUpdate = false;
+                    markerRoots[currId] = markerRoot;
+
+                    // Add the marker models and suchlike into your marker root object.
+                    var cubeLength = MARKER_SIZE;
+                    var cubeMaterial = new THREE.MeshPhongMaterial({
+                        color: 0xff0000,
+                        side: THREE.DoubleSide,
+                        wireframe: options.displayWireframe
+                    });
+                    materials.push(cubeMaterial);
+                    var cube = new THREE.Mesh(
+                        new THREE.CubeGeometry(cubeLength, cubeLength, cubeLength),
+                        cubeMaterial
+                    );
+                    cube.position.y = cubeLength / 2.0;
+                    cube.castShadow = true;
+                    cube.receiveShadow = true;
+                    markerRoot.add(cube);
+
+                    //add a local axis for each marker root for debugging
+                    var localAxis = new THREE.AxisHelper(50);
+                    localAxis.visible = options.displayLocalAxis;
+                    localAxes.push(localAxis);
+                    markerRoot.add(localAxis);
+
+                    // Add the marker root to your scene.
+                    scene.add(markerRoot);
+
+                    //also save other variables for keeping track
+                    //TODO: probably can just store in matrix instead of currSolvedMatrix
+                    markerRoots[currId].currSolvedMatrix = new THREE.Matrix4();
+                }
+
+                try {
+                    // Get the transformation matrix for the detected marker.
+                    detector.getTransformMatrix(i, resultMat);
+
+                    // Copy the marker matrix to the tmp matrix.
+                    copyMarkerMatrix(resultMat, tmp);
+
+                    //store tmp for this marker first
+                    markerRoots[currId].currSolvedMatrix.setFromArray(tmp);
+
+                    //mark that this id has been detected
+                    markerRoots[currId].detected = true;
+                } catch (err) {
+                    //just print to console but let the error pass so that the program can continue
+                    console.log(err.message);
+                }
+            }
+
+            //start iterating if main marker id is detected
+            if (markerRoots[MAIN_MARKER_ID] && markerRoots[MAIN_MARKER_ID].detected) {
+
+                //move the camera instead of the marker root
+                camera.matrix.copy(compensationMatrix);  //compensate coordinate system and up vector differences
+                camera.matrix.multiply(mainMarkerRootSolvedMatrixInv.getInverse(markerRoots[MAIN_MARKER_ID].currSolvedMatrix));  //multiply inverse of main marker's matrix will force main marker to be at origin and the camera to transform around this world space
+                camera.matrixWorldNeedsUpdate = true;
+
+                //for each of the marker root detected, move into the space of the main marker root
+                Object.keys(markerRoots).forEach(function (key) {
+                    if (markerRoots[key].detected) {
+                         //transform and compensate
+                        markerRoots[key].matrix.copy(camera.matrix);  //transform into new camera world space first
+                        markerRoots[key].matrix.multiply(markerRoots[key].currSolvedMatrix);  //since currSolvedMatrix is relative to camera space, multiplying by it next will bring this object into world space
+                        markerRoots[key].matrix.multiply(compensationMatrix);  //compensate back into the right coordinate system, locally
+                        markerRoots[key].matrixWorldNeedsUpdate = true;
+
+                        //show the object
+                        showChildren(markerRoots[key], true);
+                    }
                 });
 
-                // Do marker detection by using the detector object on the raster object.
-                // The threshold parameter determines the threshold value
-                // for turning the video frame into a 1-bit black-and-white image.
-                var markerCount = detector.detectMarkerLite(raster, options.trackingThreshold);
+                //also show the ground plane if necessary
+                groundPlaneMesh.visible = options.displayOriginPlane;
+            }
 
-                // Go through the detected markers and get their IDs and transformation matrices.
-                for (var i = 0; i < markerCount; i++)
-                {
+            // Render the scene.
+            renderer.autoClear = false;
+            renderer.clear();
+            renderer.render(videoScene, videoCam);
+            renderer.render(scene, camera);
 
-                    // Get the ID marker data for the current marker.
-                    // ID markers are special kind of markers that encode a number.
-                    // The bytes for the number are in the ID marker data.
-                    var id = detector.getIdMarkerData(i);
+            //update stats
+            stats.update();
 
-                    // Read bytes from the id packet.
-                    var currId = -1;
-                    // This code handles only 32-bit numbers or shorter.
-                    if (id.packetLength <= 4) {
-                        currId = 0;
-                        for (var j = 0; j < id.packetLength; j++) {
-                            currId = (currId << 8) | id.getPacketData(j);
-                        }
-                    }
-
-                    // If this is a new id, let's start tracking it.
-                    if (markers[currId] == null) {
-
-                        //create new object for the marker
-                        markers[currId] = {};
-
-                        //create a new Three.js object as marker root
-                        var markerRoot = new THREE.Object3D();
-                        markerRoot.matrixAutoUpdate = false;
-                        markerRoots[currId] = markerRoot;
-
-                        // Add the marker models and suchlike into your marker root object.
-                        var cubeLength = MARKER_SIZE * 1.0;
-                        var cubeMaterial = new THREE.MeshPhongMaterial({
-                            color: 0xff0000,
-                            side: THREE.DoubleSide,
-                            wireframe: options.displayWireframe
-                        });
-                        materials.push(cubeMaterial);
-                        var cube = new THREE.Mesh(
-                            new THREE.CubeGeometry(cubeLength, cubeLength, cubeLength),
-                            cubeMaterial
-                        );
-                        cube.position.y = cubeLength / 2.0;
-                        cube.castShadow = true;
-                        cube.receiveShadow = true;
-                        markerRoot.add(cube);
-
-                        //add a local axis for each marker root for debugging
-                        var localAxis = new THREE.AxisHelper(50);
-                        localAxis.visible = options.displayLocalAxis;
-                        localAxes.push(localAxis);
-                        markerRoot.add(localAxis);
-
-                        // Add the marker root to your scene.
-                        scene.add(markerRoot);
-
-                        //also save other variables for keeping track
-                        //TODO: probably can just store in matrix instead of currSolvedMatrix
-                        markerRoots[currId].currSolvedMatrix = new THREE.Matrix4();
-                    }
-
-                    try
-                    {
-                        // Get the transformation matrix for the detected marker.
-                        detector.getTransformMatrix(i, resultMat);
-
-                        // Copy the marker matrix to the tmp matrix.
-                        copyMarkerMatrix(resultMat, tmp);
-
-                        //store tmp for this marker first
-                        markerRoots[currId].currSolvedMatrix.setFromArray(tmp);
-
-                        //mark that this id has been detected
-                        markerRoots[currId].detected = true;
-                    }
-                    catch (err)
-                    {
-                        //just print to console but let the error pass so that the program can continue
-                        console.log(err.message);
-                    }
-                }
-
-                //start iterating if main marker id is detected
-                if (markerRoots[MAIN_MARKER_ID] && markerRoots[MAIN_MARKER_ID].detected)
-                {
-                    //move the camera instead of the marker root
-                    camera.matrix.copy(compensationMatrix);  //compensate coordinate system and up vector differences
-                    camera.matrix.multiply(mainMarkerRootSolvedMatrixInv.getInverse(markerRoots[MAIN_MARKER_ID].currSolvedMatrix));  //multiply inverse of main marker's matrix will force main marker to be at origin and the camera to transform around this world space
-                    camera.matrixWorldNeedsUpdate = true;
-
-                    //for each of the marker root detected, move into the space of the main marker root
-                    Object.keys(markerRoots).forEach(function (key){
-                        if (markerRoots[key].detected)
-                        {
-                             //transform and compensate
-                            markerRoots[key].matrix.copy(camera.matrix);  //transform into new camera world space first
-                            markerRoots[key].matrix.multiply(markerRoots[key].currSolvedMatrix);  //since currSolvedMatrix is relative to camera space, multiplying by it next will bring this object into world space
-                            markerRoots[key].matrix.multiply(compensationMatrix);  //compensate back into the right coordinate system, locally
-                            markerRoots[key].matrixWorldNeedsUpdate = true;
-
-                            //show the object
-                            showChildren(markerRoots[key], true);
-                        }
-                    });
-
-                    //also show the ground plane if necessary
-                    groundPlaneMesh.visible = options.displayOriginPlane;
-                }
-
-                // Render the scene.
-                renderer.autoClear = false;
-                renderer.clear();
-                renderer.render(videoScene, videoCam);
-                renderer.render(scene, camera);
-
-                //update stats
-                stats.update();
             // }
 
-          requestAnimationFrame(loop);
+            requestAnimationFrame(loop);
         }
         loop();
-
     });
     </script>
 </head>
@@ -670,7 +656,7 @@
 
     <div class="container" id="mainTracking3dScene">
         <div class="caption">Three.js 3D scene for tracking</div>
-        <div class="caption">alt+LMB: tumble ("rotate")<br/>alt+MMB: track ("pan")<br/>alt+RMB: dolly ("zoom")</div>
+        <div class="caption">[ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
     </div>
 
     <div class="container" id="canvas-container">

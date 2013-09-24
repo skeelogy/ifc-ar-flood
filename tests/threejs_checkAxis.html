@@ -14,30 +14,26 @@
     <script type="text/javascript" src="/js/lib/three.min.js"></script>
     <script type="text/javascript" src="/js/lib/Detector.js"></script>
     <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
-    <script type="text/javascript" src="/js/lib/OBJMTLLoader.js"></script>
-    <script type="text/javascript" src="/js/lib/MTLLoader.js"></script>
     <script type="text/javascript" src="/js/lib/BinaryLoader.js"></script>
+
     <script type="text/javascript" src="/js/skarf.js"></script>
 
     <script>
-    $(document).ready(function()
-    {
-        //check for WebGL
-        if (!Detector.webgl)
-        {
+
+    function checkWebGl() {
+        if (!Detector.webgl) {
             $('div').remove();
             Detector.addGetWebGLMessage();
-            return;
+            throw new Error('Your browser does not seem to support WebGL');
         }
+    }
 
-        console.log('Document is ready.');
+    var renderer, scene, camera;
+    var controls;
+    function setupScene() {
 
-        //===================================================
-        //THREE.JS
-        //===================================================
-
-        // setup three.js renderer
-        var renderer = new THREE.WebGLRenderer({
+        //create renderer
+        renderer = new THREE.WebGLRenderer({
             antialias : true
         });
         renderer.setSize(640, 480);
@@ -45,13 +41,13 @@
         var $container = $('#threejs-heading');
         $container.after(renderer.domElement);
 
-        // create the scene
-        var scene   = new THREE.Scene();
+        //create scene
+        scene = new THREE.Scene();
 
-        // Create a camera and a marker root object for your Three.js scene.
-        var camera = new THREE.PerspectiveCamera(35, renderer.domElement.width/renderer.domElement.height, 0.1, 1000 );
+        //create camera
+        camera = new THREE.PerspectiveCamera(35, renderer.domElement.width / renderer.domElement.height, 0.1, 1000);
         camera.position.set(0.5, 0.5, 0.5);
-        camera.lookAt(new THREE.Vector3(0,0,0));
+        camera.lookAt(new THREE.Vector3(0, 0, 0));
         controls = new THREE.OrbitControls(camera);
         controls.modifierKey = 'alt';
         controls.userPanSpeed = 0.04;
@@ -59,36 +55,40 @@
         controls.pan(new THREE.Vector3(0, 1, 0));
         scene.add(camera);
 
-        // setup lights
+        //setup lights
         scene.add(new THREE.AmbientLight(0xffffff));
 
-        var light   = new THREE.DirectionalLight(0xffffff);
-        light.position.set(3, -3, 1).normalize();
+        var light = new THREE.DirectionalLight(0xffffff);
+        light.position.set(3, -3, 1);
         scene.add(light);
 
-        var light   = new THREE.DirectionalLight(0xffffff);
-        light.position.set(-0, 2, -1).normalize();
+        light = new THREE.DirectionalLight(0xffffff);
+        light.position.set(-0, 2, -1);
         scene.add(light);
 
         //load a model
-        var modelsJsonFile = '/resources/models/models_jsartoolkit_test.json';
-        var modelManager = new ModelManager(modelsJsonFile);
+        var modelsJsonFile = '/resources/models/models_jsartoolkit_checkAxis.json';
+        var markerManager = new MarkerManager(modelsJsonFile);
         var transform = new THREE.Object3D();
-        setTimeout(function(){
-            modelManager.loadForMarker('22', transform);
-            scene.add(transform);
-        }, 500);  //FIXME: should not have to do setTimeout
+        scene.add(transform);
+        markerManager.loadForMarker('22', transform, 1.0);
 
         //add an axis to tell the direction
         var localAxis = new THREE.AxisHelper(0.5);
         scene.add(localAxis);
+    }
 
-        function animate(){
-            requestAnimationFrame(animate);
-            render();
-        };
+    $(document).ready(function () {
 
-        function render(){
+        //check for WebGL
+        checkWebGl();
+
+        console.log('Document is ready.');
+
+        //setup scene
+        setupScene();
+
+        function loop() {
 
             controls.update();
 
@@ -96,25 +96,25 @@
             renderer.autoClear = false;
             renderer.clear();
             renderer.render(scene, camera);
-        };
 
-        //animate
-        animate();
+            requestAnimationFrame(loop);
+        }
+        loop();
     });
     </script>
 </head>
 <body>
-    <h2>Three.js axis check</h2>
+    <h2>Three.js Axis Check</h2>
     <div class="caption">This is a test for checking the axes in Blender and in Three.js. Blender uses a Z-up coordinate system while Three.js uses a Y-up coordinate system.</div>
     <div class="caption">This test loads in a dice model exported from Blender with the "Flip YZ" option turned on. The model appears with face 4 pointing up in +Y and face 5 pointing forward in +Z. This indicates that the "forward" direction in Blender is -Y.</div>
     <div class="caption">As you can see below, both coordinate systems are right-handed, so no flipping of coordinate system has occured during the export.</div>
     <div class="container" id="threejs-container">
         <div class="caption" id="threejs-heading">three.js &lt;canvas&gt;</div>
-        <div class="caption">alt+LMB: tumble ("rotate")<br/>alt+MMB: track ("pan")<br/>alt+RMB: dolly ("zoom")</div>
+        <div class="caption">[ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
     </div>
     <div class="container" id="blender-container">
         <div class="caption">Blender screenshot</div>
-        <img src="/resources/images/dice_blender.png"></img>
+        <img src="/resources/images/dice_blender.png">
     </div>
 </body>
 </html>

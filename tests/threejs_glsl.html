@@ -9,7 +9,7 @@
     <!--load helper libraries-->
     <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
 
-    <!--load AR and 3D libraries-->
+    <!--load 3D libraries-->
     <script type="text/javascript" src="/js/lib/three.min.js"></script>
     <script type="text/javascript" src="/js/lib/Detector.js"></script>
     <script type="text/javascript" src="/js/lib/stats.min.js"></script>
@@ -24,13 +24,14 @@
     var PLANE_RES = 256;
     var SHADOW_MAP_RES = 1024;
 
+    var options = {
+        displayLocalAxis: false
+    };
+
     var clock = new THREE.Clock();
 
-    function checkWebGl()
-    {
-        //check for WebGL
-        if (!Detector.webgl)
-        {
+    function checkWebGl() {
+        if (!Detector.webgl) {
             $('div').remove();
             Detector.addGetWebGLMessage();
             throw new Error('Your browser does not seem to support WebGL');
@@ -42,13 +43,12 @@
     var localAxis;
     var planeGeom, planeMaterial, planeMesh;
     var lightGeom, lightMaterial, lightMesh;
-    function setupThreejsScene()
-    {
+    function setupThreejsScene() {
         //create renderer
         renderer = new THREE.WebGLRenderer({
             antialias : true
         });
-        renderer.setSize(window.innerWidth, window.innerHeight-5);
+        renderer.setSize(window.innerWidth, window.innerHeight - 5);
         renderer.setClearColor('#111111', 1);
         var $container = $('#threejs-container');
         $container.append(renderer.domElement);
@@ -57,9 +57,9 @@
         scene = new THREE.Scene();
 
         //create camera
-        camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
+        camera = new THREE.PerspectiveCamera(25, renderer.domElement.width / renderer.domElement.height, 0.1, 1000);
         camera.position.set(8, 8, 15);
-        camera.lookAt(new THREE.Vector3(0,0,0));
+        camera.lookAt(new THREE.Vector3(0, 0, 0));
 
         //create controls for camera
         controls = new THREE.OrbitControls(camera);
@@ -75,7 +75,7 @@
         THREE.ShaderManager.addShader('/glsl/heightMap.vert');
         THREE.ShaderManager.addShader('/glsl/lambert.frag');
         planeGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, PLANE_RES - 1, PLANE_RES - 1);
-        planeGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        planeGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         planeMaterial = new THREE.ShaderMaterial({
             uniforms: {
                 uTime: { type: 'f', value: 0.0 },
@@ -114,34 +114,28 @@
         scene.add(lightMesh);
     }
 
-    function setupEvents()
-    {
-        window.addEventListener('resize', window_onResize, false);
-    }
+    function window_onResize(event) {
 
-    function window_onResize(event)
-    {
         //update camera projection
-        camera.aspect = window.innerWidth / (window.innerHeight-5);
+        camera.aspect = window.innerWidth / (window.innerHeight - 5);
         camera.updateProjectionMatrix();
 
         //update renderer size
-        renderer.setSize(window.innerWidth, window.innerHeight-5);
+        renderer.setSize(window.innerWidth, window.innerHeight - 5);
+    }
+
+    function setupEvents() {
+        window.addEventListener('resize', window_onResize, false);
     }
 
     var stats;
-    function setupStats()
-    {
-        //create a stats monitor
+    function setupStats() {
         stats = new Stats();
         $('body').append(stats.domElement);
     }
 
     var gui;
     var displayFolder;
-    var options = {
-        displayLocalAxis: false
-    };
     function setupGui() {
 
         gui = new dat.GUI();
@@ -150,17 +144,16 @@
         //Display folder
         displayFolder = gui.addFolder('Display');
 
-        control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
-        function toggleLocalAxis(value)
-        {
+        var control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
+        function toggleLocalAxis(value) {
             localAxis.visible = value;
         }
         control.onChange(toggleLocalAxis);
         toggleLocalAxis(options.displayLocalAxis);
     }
 
-    $(document).ready(function()
-    {
+    $(document).ready(function () {
+
         //check for WebGL
         checkWebGl();
 
@@ -179,15 +172,15 @@
         setupGui();
 
         //main loop
-        function loop()
-        {
+        function loop() {
+
             var dt = clock.getDelta();  //have to call this before getElapsedTime()
             var time = clock.getElapsedTime();
 
-            planeMaterial.uniforms['uTime'].value += dt;
-            planeMaterial.uniforms['uPointLightWorldPos'].value[0].x = 2 * Math.sin(time);
-            planeMaterial.uniforms['uPointLightWorldPos'].value[0].z = 2 * Math.cos(time);
-            lightMesh.position.copy(planeMaterial.uniforms['uPointLightWorldPos'].value[0]);
+            planeMaterial.uniforms.uTime.value += dt;
+            planeMaterial.uniforms.uPointLightWorldPos.value[0].x = 2 * Math.sin(time);
+            planeMaterial.uniforms.uPointLightWorldPos.value[0].z = 2 * Math.cos(time);
+            lightMesh.position.copy(planeMaterial.uniforms.uPointLightWorldPos.value[0]);
 
             controls.update();
 

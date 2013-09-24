@@ -9,7 +9,7 @@
     <!--load helper libraries-->
     <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
 
-    <!--load AR and 3D libraries-->
+    <!--load 3D libraries-->
     <script type="text/javascript" src="/js/lib/three.min.js"></script>
     <script type="text/javascript" src="/js/lib/Detector.js"></script>
     <script type="text/javascript" src="/js/lib/stats.min.js"></script>
@@ -23,106 +23,24 @@
     var PLANE_SIZE = 10;
     var PLANE_RES = 256;
     var PLANE_GRID_SIZE = PLANE_SIZE / PLANE_RES;
+
     var SHADOW_MAP_RES = 1024;
+
+    var options = {
+        displayFeedbackTexture: false
+    };
 
     var clock = new THREE.Clock();
 
-    function checkWebGl()
-    {
-        //check for WebGL
-        if (!Detector.webgl)
-        {
+    function checkWebGl() {
+        if (!Detector.webgl) {
             $('div').remove();
             Detector.addGetWebGLMessage();
             throw new Error('Your browser does not seem to support WebGL');
         }
     }
 
-    var renderer, scene, camera, controls;
-    var materials = [];
-    var localAxis;
-    var planeGeom, planeMaterial, planeMesh;
-    var groundGeom, groundMaterial, groundMesh;
-    var visGeom, visMaterial, visMesh;
-    var lightGeom, lightMaterial, lightMesh;
-    function setupThreejsScene()
-    {
-        //create renderer
-        renderer = new THREE.WebGLRenderer({
-            antialias : true
-        });
-        renderer.setSize(window.innerWidth, window.innerHeight-5);
-        renderer.setClearColor('#111111', 1);
-        checkExtensions(renderer);
-        var $container = $('#threejs-container');
-        $container.append(renderer.domElement);
-
-        //create scene
-        scene = new THREE.Scene();
-
-        //create camera
-        camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
-        camera.position.set(8, 8, 15);
-        camera.lookAt(new THREE.Vector3(0,0,0));
-
-        //create controls for camera
-        controls = new THREE.OrbitControls(camera);
-        controls.userPanSpeed = 0.2;
-        //controls.autoRotate = true;
-        controls.modifierKey = 'alt';
-
-        //create axis
-        localAxis = new THREE.AxisHelper();
-        scene.add(localAxis);
-
-        //create a plane for the actual height displacement
-        THREE.ShaderManager.addShader('/glsl/heightMap.vert');
-        THREE.ShaderManager.addShader('/glsl/lambert.frag');
-        planeGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, PLANE_RES - 1, PLANE_RES - 1);
-        planeGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-        planeMaterial = new THREE.ShaderMaterial({
-            uniforms: {
-                uTexture: { type: 't', value: rttRenderTarget1 },
-                uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / PLANE_RES, 1.0 / PLANE_RES) },
-                uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(PLANE_GRID_SIZE, PLANE_GRID_SIZE) },
-                uHeightMultiplier: { type: 'f', value: 1.0 },
-                uBaseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
-                uAmbientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
-                uAmbientLightIntensity: { type: 'f', value: 0.1 },
-                uPointLightWorldPos: { type: 'v3v', value: [ new THREE.Vector3(2, 0.2, 2), new THREE.Vector3(0, 2, 0) ] },
-                uPointLightColor: { type: 'v3v', value: [ new THREE.Vector3(1, 0, 0), new THREE.Vector3(1, 1, 1) ] },
-                uPointLightIntensity: { type: 'fv1', value: [ 3.0, 0.2 ] },
-                uPointLightFalloffStart: { type: 'fv1', value: [ 1.0, 1.0 ] },
-                uPointLightFalloffEnd: { type: 'fv1', value: [ 10.0, 10.0 ] }
-            },
-            vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMap.vert'),
-            fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambert.frag')
-        });
-        materials.push(planeMaterial);
-        planeMesh = new THREE.Mesh(planeGeom, planeMaterial);
-        scene.add(planeMesh);
-
-        //create a RTT visualization plane
-        visGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, 1, 1);
-        visGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-        visMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, map: rttRenderTarget1 } );
-        materials.push(visMaterial);
-        visMesh = new THREE.Mesh(visGeom, visMaterial);
-        visMesh.position.y = 3;
-        visMesh.castShadow = true;
-        visMesh.receiveShadow = true;
-        scene.add(visMesh);
-
-        //create a sphere that represents the point light
-        lightGeom = new THREE.SphereGeometry(0.1, 8, 8);
-        lightMaterial = new THREE.MeshBasicMaterial({color: 0xff0000});
-        materials.push(lightMaterial);
-        lightMesh = new THREE.Mesh(lightGeom, lightMaterial);
-        scene.add(lightMesh);
-    }
-
-    function checkExtensions(renderer)
-    {
+    function checkExtensions(renderer) {
         var context = renderer.context;
         if (!context.getExtension('OES_texture_float_linear')) {
             throw new Error('Extension not available: OES_texture_float_linear');
@@ -134,8 +52,8 @@
 
     var rttScene, rttCamera, rttRenderTarget1, rttRenderTarget2;
     var rttQuadGeom, rttQuadMaterial, rttQuadMesh;
-    function setupRttScene()
-    {
+    function setupRttScene() {
+
         //create a RTT scene
         rttScene = new THREE.Scene();
 
@@ -163,7 +81,7 @@
         rttScene.add(rttQuadMesh);
 
         //create RTT render targets (we need two to do feedback)
-        var linearFloatParams = {
+        var linearFloatRgbParams = {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter,
             wrapS: THREE.ClampToEdgeWrapping,
@@ -173,48 +91,118 @@
             depthBuffer: false,
             type: THREE.FloatType
         };
-        rttRenderTarget1 = new THREE.WebGLRenderTarget(PLANE_RES, PLANE_RES, linearFloatParams);
+        rttRenderTarget1 = new THREE.WebGLRenderTarget(PLANE_RES, PLANE_RES, linearFloatRgbParams);
         rttRenderTarget1.generateMipmaps = false;
         rttRenderTarget2 = rttRenderTarget1.clone();
     }
 
-    function swapRenderTargets()
-    {
+    var renderer, scene, camera, controls;
+    var materials = [];
+    var planeGeom, planeMaterial, planeMesh;
+    var groundGeom, groundMaterial, groundMesh;
+    var visGeom, visMaterial, visMesh;
+    var lightGeom, lightMaterial, lightMesh;
+    function setupThreejsScene() {
+
+        //create renderer
+        renderer = new THREE.WebGLRenderer({
+            antialias : true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight - 5);
+        renderer.setClearColor('#111111', 1);
+        checkExtensions(renderer);
+        var $container = $('#threejs-container');
+        $container.append(renderer.domElement);
+
+        //create scene
+        scene = new THREE.Scene();
+
+        //create camera
+        camera = new THREE.PerspectiveCamera(25, renderer.domElement.width / renderer.domElement.height, 0.1, 1000);
+        camera.position.set(8, 8, 15);
+        camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+        //create controls for camera
+        controls = new THREE.OrbitControls(camera);
+        controls.userPanSpeed = 0.2;
+        //controls.autoRotate = true;
+        controls.modifierKey = 'alt';
+
+        //create a plane for the actual height displacement
+        THREE.ShaderManager.addShader('/glsl/heightMap.vert');
+        THREE.ShaderManager.addShader('/glsl/lambert.frag');
+        planeGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, PLANE_RES - 1, PLANE_RES - 1);
+        planeGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+        planeMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uTexture: { type: 't', value: rttRenderTarget1 },
+                uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / PLANE_RES, 1.0 / PLANE_RES) },
+                uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(PLANE_GRID_SIZE, PLANE_GRID_SIZE) },
+                uHeightMultiplier: { type: 'f', value: 1.0 },
+                uBaseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
+                uAmbientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
+                uAmbientLightIntensity: { type: 'f', value: 0.1 },
+                uPointLightWorldPos: { type: 'v3v', value: [ new THREE.Vector3(2, 0.2, 2), new THREE.Vector3(0, 2, 0) ] },
+                uPointLightColor: { type: 'v3v', value: [ new THREE.Vector3(1, 0, 0), new THREE.Vector3(1, 1, 1) ] },
+                uPointLightIntensity: { type: 'fv1', value: [ 3.0, 0.2 ] },
+                uPointLightFalloffStart: { type: 'fv1', value: [ 1.0, 1.0 ] },
+                uPointLightFalloffEnd: { type: 'fv1', value: [ 10.0, 10.0 ] }
+            },
+            vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMap.vert'),
+            fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambert.frag')
+        });
+        materials.push(planeMaterial);
+        planeMesh = new THREE.Mesh(planeGeom, planeMaterial);
+        scene.add(planeMesh);
+
+        //create a RTT visualization plane
+        visGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, 1, 1);
+        visGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+        visMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: rttRenderTarget1 });
+        materials.push(visMaterial);
+        visMesh = new THREE.Mesh(visGeom, visMaterial);
+        visMesh.position.y = 3;
+        visMesh.castShadow = true;
+        visMesh.receiveShadow = true;
+        scene.add(visMesh);
+
+        //create a sphere that represents the point light
+        lightGeom = new THREE.SphereGeometry(0.1, 8, 8);
+        lightMaterial = new THREE.MeshBasicMaterial({color: 0xff0000});
+        materials.push(lightMaterial);
+        lightMesh = new THREE.Mesh(lightGeom, lightMaterial);
+        scene.add(lightMesh);
+    }
+
+    function swapRenderTargets() {
         var temp = rttRenderTarget1;
         rttRenderTarget1 = rttRenderTarget2;
         rttRenderTarget2 = temp;
-        rttQuadMaterial.uniforms['uTexture'].value = rttRenderTarget2;  //feed current texture as the input for the next step
+        rttQuadMaterial.uniforms.uTexture.value = rttRenderTarget2;  //feed current texture as the input for the next step
     }
 
-    function setupEvents()
-    {
-        window.addEventListener('resize', window_onResize, false);
-    }
+    function window_onResize(event) {
 
-    function window_onResize(event)
-    {
         //update camera projection
-        camera.aspect = window.innerWidth / (window.innerHeight-5);
+        camera.aspect = window.innerWidth / (window.innerHeight - 5);
         camera.updateProjectionMatrix();
 
         //update renderer size
-        renderer.setSize(window.innerWidth, window.innerHeight-5);
+        renderer.setSize(window.innerWidth, window.innerHeight - 5);
+    }
+
+    function setupEvents() {
+        window.addEventListener('resize', window_onResize, false);
     }
 
     var stats;
-    function setupStats()
-    {
-        //create a stats monitor
+    function setupStats() {
         stats = new Stats();
         $('body').append(stats.domElement);
     }
 
     var gui;
     var displayFolder;
-    var options = {
-        displayLocalAxis: false,
-        displayFeedbackTexture: false
-    };
     function setupGui() {
 
         gui = new dat.GUI();
@@ -224,17 +212,8 @@
         displayFolder = gui.addFolder('Display');
         displayFolder.open();
 
-        control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
-        function toggleLocalAxis(value)
-        {
-            localAxis.visible = value;
-        }
-        control.onChange(toggleLocalAxis);
-        toggleLocalAxis(options.displayLocalAxis);
-
-        control = displayFolder.add(options, 'displayFeedbackTexture').name('Feedback Texture');
-        function toggleFeedbackTexture(value)
-        {
+        var control = displayFolder.add(options, 'displayFeedbackTexture').name('Feedback Texture');
+        function toggleFeedbackTexture(value) {
             visMesh.visible = value;
         }
         control.onChange(toggleFeedbackTexture);
@@ -243,8 +222,7 @@
 
     var radius = 0.2;
     var x, z;
-    $(document).ready(function()
-    {
+    $(document).ready(function () {
         //check for WebGL
         checkWebGl();
 
@@ -266,8 +244,8 @@
         setupGui();
 
         //main loop
-        function loop()
-        {
+        function loop() {
+
             var dt = clock.getDelta();  //have to call this before getElapsedTime()
             var time = clock.getElapsedTime();
 
@@ -276,14 +254,14 @@
             z = radius * Math.cos(3 * time);
 
             //update RTT uniforms
-            rttQuadMaterial.uniforms['uBumpAmount'].value = 0.08;
-            rttQuadMaterial.uniforms['uBumpRadius'].value = 0.01;
-            rttQuadMaterial.uniforms['uBumpPos'].value.set((x + PLANE_SIZE / 2.0) / PLANE_SIZE, (z + PLANE_SIZE / 2.0) / PLANE_SIZE);
+            rttQuadMaterial.uniforms.uBumpAmount.value = 0.08;
+            rttQuadMaterial.uniforms.uBumpRadius.value = 0.01;
+            rttQuadMaterial.uniforms.uBumpPos.value.set((x + PLANE_SIZE / 2.0) / PLANE_SIZE, (z + PLANE_SIZE / 2.0) / PLANE_SIZE);
 
             //update light uniforms
-            planeMaterial.uniforms['uPointLightWorldPos'].value[0].x = x;
-            planeMaterial.uniforms['uPointLightWorldPos'].value[0].z = z;
-            lightMesh.position.copy(planeMaterial.uniforms['uPointLightWorldPos'].value[0]);
+            planeMaterial.uniforms.uPointLightWorldPos.value[0].x = x;
+            planeMaterial.uniforms.uPointLightWorldPos.value[0].z = z;
+            lightMesh.position.copy(planeMaterial.uniforms.uPointLightWorldPos.value[0]);
 
             controls.update();
 
@@ -292,8 +270,7 @@
 
             //do render-to-target
             renderer.render(rttScene, rttCamera, rttRenderTarget1, false);
-            //swap render targets so that output of current frame is the input of the next
-            swapRenderTargets();
+            swapRenderTargets();  //swap render targets so that output of current frame is the input of the next
 
             renderer.render(scene, camera);
 
@@ -302,7 +279,6 @@
             requestAnimationFrame(loop);
         }
         loop();
-
     });
     </script>
 </head>

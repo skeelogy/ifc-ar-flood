@@ -9,19 +9,25 @@
 
     <!--load helper libraries-->
     <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-
-    <!--load AR and 3D libraries-->
     <script type="text/javascript" src="/js/lib/requestanimationframe.js"></script>
+
+    <!--load AR library-->
     <script type="text/javascript" src="/js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
 
     <script>
 
     var DEBUG = true;  //for JSARToolKit built-in debugging info
     var threshold = 128;
+    var markerScale = 120;
 
-    $(document).ready(function()
-    {
+    $(document).ready(function () {
+
         console.log('Document is ready.');
+
+        $('#thresholdInput').change(function () {
+            threshold = $(this).val();
+            console.log('threshold = ' + threshold);
+        });
 
         var canvas = $('#mainCanvas')[0];
         var canvasWidth = canvas.width;
@@ -35,19 +41,14 @@
         var video = $('#mainVideo')[0];
         var img = $('#mainImage')[0];
         var source;
-        sourceId = 0;
-        if (sourceId == 0)
-        {
+        var sourceId = 0;
+        if (sourceId === 0) {
             video.src = '/resources/markers/jsartoolkit/output_4.ogg';
             source = video;
-        }
-        else if (sourceId == 1)
-        {
+        } else if (sourceId === 1) {
             video.src = '/resources/markers/jsartoolkit/swap_loop.ogg';
             source = video;
-        }
-        else if (sourceId == 2)
-        {
+        } else if (sourceId === 2) {
             img.src = '/resources/markers/jsartoolkit/chalk_multi.jpg';
             source = img;
         }
@@ -55,6 +56,8 @@
         //===================================================
         // INIT JSARTOOLKIT
         //===================================================
+        // Most of the codes below are from http://www.html5rocks.com/en/tutorials/webgl/jsartoolkit_webrtc/
+        // Slight modifications are done to ensure that it works in this demo
 
         // Create a RGB raster object for the 2D canvas.
         // JSARToolKit uses raster objects to read image data.
@@ -62,14 +65,13 @@
         var raster = new NyARRgbRaster_Canvas2D(canvas);
 
         // FLARParam is the thing used by FLARToolKit to set camera parameters.
-        // Here we create a FLARParam for images with 320x240 pixel dimensions.
-        // NOTE: THESE DIMENSIONS MUST BE THE SAME SIZE AS THE RASTER
-        // OTHERWISE WILL GET AN "Uncaught #<Object>" ERROR
+        // Here we create a FLARParam for images with canvasWidth*canvasHeight pixel dimensions.
+        // NOTE: THESE DIMENSIONS MUST BE THE SAME SIZE AS THE RASTER, OTHERWISE WILL GET AN "Uncaught Object" ERROR
         var param = new FLARParam(canvasWidth, canvasHeight);
 
         // The FLARMultiIdMarkerDetector is the actual detection engine for marker detection.
         // It detects multiple ID markers. ID markers are special markers that encode a number.
-        var detector = new FLARMultiIdMarkerDetector(param, 120);
+        var detector = new FLARMultiIdMarkerDetector(param, markerScale);
 
         // For tracking video set continue mode to true. In continue mode, the detector
         // tracks markers across multiple frames.
@@ -78,8 +80,8 @@
         // Copy the camera perspective matrix from the FLARParam to the WebGL library camera matrix.
         // The second and third parameters determine the zNear and zFar planes for the perspective matrix.
         // NOTE: the matrix below is meant for a 3D rendering library, not used in this demo
-        //var tmpGlMatCam   = new Float32Array(16);
-        //param.copyCameraMatrix(tmpGlMatCam, 10, 10000);
+        // var tmpGlMatCam   = new Float32Array(16);
+        // param.copyCameraMatrix(tmpGlMatCam, 10, 10000);
 
         //===================================================
         // LOOP
@@ -92,11 +94,11 @@
 
         var ctx = canvas.getContext('2d');
 
-        function loop()
-        {
-            if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
-            {
-                // Draw the video frame to the raster canvas, scaled to 320x240.
+        function loop() {
+
+            if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA)) {
+
+                // Draw the video frame to the raster canvas, scaled to canvasWidth*canvasHeight.
                 ctx.drawImage(source, 0, 0, canvasWidth, canvasHeight);
 
                 // Tell the raster object that the underlying canvas has changed.
@@ -108,36 +110,37 @@
                 var markerCount = detector.detectMarkerLite(raster, threshold);
 
                 // Go through the detected markers and get their IDs and transformation matrices.
-                for (var idx = 0; idx < markerCount; idx++) {
-                  // Get the ID marker data for the current marker.
-                  // ID markers are special kind of markers that encode a number.
-                  // The bytes for the number are in the ID marker data.
-                  var id = detector.getIdMarkerData(idx);
+                var idx, i;
+                for (idx = 0; idx < markerCount; idx++) {
 
-                  // Read bytes from the id packet.
-                  var currId = -1;
-                  // This code handles only 32-bit numbers or shorter.
-                  if (id.packetLength <= 4) {
-                    currId = 0;
-                    for (var i = 0; i < id.packetLength; i++) {
-                      currId = (currId << 8) | id.getPacketData(i);
+                    // Get the ID marker data for the current marker.
+                    // ID markers are special kind of markers that encode a number.
+                    // The bytes for the number are in the ID marker data.
+                    var id = detector.getIdMarkerData(idx);
+
+                    // Read bytes from the id packet.
+                    var currId = -1;
+                    // This code handles only 32-bit numbers or shorter.
+                    if (id.packetLength <= 4) {
+                        currId = 0;
+                        for (i = 0; i < id.packetLength; i++) {
+                            currId = (currId << 8) | id.getPacketData(i);
+                        }
                     }
-                  }
 
-                  // If this is a new id, let's start tracking it.
-                  if (markers[currId] == null) {
-                    markers[currId] = {};
-                  }
+                    // If this is a new id, let's start tracking it.
+                    if (typeof markers[currId] === 'undefined') {
+                        markers[currId] = {};
+                    }
 
-                  // Get the transformation matrix for the detected marker.
-                  // NOTE: this is to be used in a 3D rendering library, not in this demo
-                  //detector.getTransformMatrix(idx, resultMat);
+                    // Get the transformation matrix for the detected marker.
+                    // NOTE: this is to be used in a 3D rendering library, not in this demo
+                    // detector.getTransformMatrix(idx, resultMat);
 
-                  // Copy the result matrix into our marker tracker object.
-                  // NOTE: this is to be used in a 3D rendering library, not in this demo
-                  //markers[currId].transform = Object.asCopy(resultMat);
+                    // Copy the result matrix into our marker tracker object.
+                    // NOTE: this is to be used in a 3D rendering library, not in this demo
+                    // markers[currId].transform = Object.asCopy(resultMat);
                 }
-
             }
 
             requestAnimationFrame(loop);
@@ -147,14 +150,14 @@
     </script>
 </head>
 <body>
-    <h2>JSARToolKit marker tracking and detection</h2>
+    <h2>JSARToolKit Marker Tracking and Detection</h2>
     <div class="container" id="video-container">
         <div class="caption">&lt;video&gt;</div>
         <video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
     </div>
     <div class="container" id="image-container">
         <div class="caption">&lt;image&gt;</div>
-        <img id="mainImage" width="640" height="480"></img>
+        <img id="mainImage" width="640" height="480">
     </div>
     <div class="container" id="canvas-container">
         <div class="caption">&lt;canvas&gt;</div>
@@ -162,7 +165,7 @@
     </div>
     <div class="caption" style="margin: 2em auto;">
         Threshold (0-255):
-        <input id="thresholdInput" type="range" min="0" max="255" onchange="threshold=this.value; console.log('threshold = ' + threshold);" style="vertical-align:middle;"></input>
+        <input id="thresholdInput" type="range" min="0" max="255" style="vertical-align:middle;">
     </div>
     <div class="container" id="debugCanvas-container">
         <div class="caption">debug &lt;canvas&gt;</div>
