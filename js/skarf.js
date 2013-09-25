@@ -27,8 +27,8 @@
  *
  * Usage:
  *
- * //create an AR framework (SkArF)
- * var skarf = new SkArF({...});
+ * //create an AR framework (Skarf)
+ * var skarf = new Skarf({...});
  *
  * //within the main loop, call:
  * skarf.update(dt);
@@ -47,7 +47,7 @@
 /**
  * Factory that creates GuiMarker
  */
-GuiMarkerFactory = {
+var GuiMarkerFactory = {
     mappings: {},
 
     create: function (type, options) {
@@ -67,7 +67,7 @@ GuiMarkerFactory = {
         }
         this.mappings[mappingName] = mappingClass;
     }
-}
+};
 
 /**
  * An augmented reality marker
@@ -120,12 +120,12 @@ function GuiMarker(options) {
 
     //callback objects
     this.callbackObjs = {};
-    this.callbackObjs['moved'] = {name: this.key+'_moved', fn: undefined};
-    this.callbackObjs['rotated'] = {name: this.key+'_rotated', fn: undefined};
-    this.callbackObjs['firstDetected'] = {name: this.key+'_firstDetected', fn: undefined};
-    this.callbackObjs['firstHidden'] = {name: this.key+'_firstHidden', fn: undefined};
-    this.callbackObjs['detected'] = {name: this.key+'_detected', fn: undefined};
-    this.callbackObjs['hidden'] = {name: this.key+'_hidden', fn: undefined};
+    this.callbackObjs['moved'] = {name: this.key + '_moved', fn: undefined};
+    this.callbackObjs['rotated'] = {name: this.key + '_rotated', fn: undefined};
+    this.callbackObjs['firstDetected'] = {name: this.key + '_firstDetected', fn: undefined};
+    this.callbackObjs['firstHidden'] = {name: this.key + '_firstHidden', fn: undefined};
+    this.callbackObjs['detected'] = {name: this.key + '_detected', fn: undefined};
+    this.callbackObjs['hidden'] = {name: this.key + '_hidden', fn: undefined};
 }
 GuiMarker.prototype.detected = function (dt, worldMatrix) {
 
@@ -228,7 +228,7 @@ GuiMarker.prototype.invokeCallback = function (type, options) {
     if (callbackObj.fn) {
         callbackObj.fn.call(this, options);
     }
-}
+};
 
 /**
  * Generic GuiMarker
@@ -251,7 +251,7 @@ GuiMarkerFactory.register('generic', GenericMarker);
  */
 function ButtonMarker(options) {
     GuiMarker.call(this, options);
-    this.callbackObjs['clicked'] = {name: this.key+'_clicked', fn: undefined};
+    this.callbackObjs['clicked'] = {name: this.key + '_clicked', fn: undefined};
 }
 //inherit
 ButtonMarker.prototype = Object.create(GuiMarker.prototype);
@@ -273,7 +273,7 @@ ButtonMarker.prototype.processCallbacks = function () {
  */
 function CheckBoxMarker(options) {
     GuiMarker.call(this, options);
-    this.callbackObjs['toggled'] = {name: this.key+'_toggled', fn: undefined};
+    this.callbackObjs['toggled'] = {name: this.key + '_toggled', fn: undefined};
     this.checked = false;
 }
 //inherit
@@ -298,7 +298,7 @@ CheckBoxMarker.prototype.processCallbacks = function () {
 function SliderMarker(options) {
     GuiMarker.call(this, options);
     this.speed = options.params && options.params.speed ? options.params.speed : 1.0;
-    this.callbackObjs['changed'] = {name: this.key+'_changed', fn: undefined};
+    this.callbackObjs['changed'] = {name: this.key + '_changed', fn: undefined};
 }
 //inherit
 SliderMarker.prototype = Object.create(GuiMarker.prototype);
@@ -321,7 +321,7 @@ SliderMarker.prototype.processCallbacks = function () {
  */
 function ComboBoxMarker(options) {
     GuiMarker.call(this, options);
-    this.callbackObjs['changed'] = {name: this.key+'_changed', fn: undefined};
+    this.callbackObjs['changed'] = {name: this.key + '_changed', fn: undefined};
     if (!(options.params && options.params.numChoices)) {
         throw new Error('numChoices not specified as a parameter');
     }
@@ -350,8 +350,8 @@ ComboBoxMarker.prototype.processCallbacks = function () {
  */
 function TimerMarker(options) {
     GuiMarker.call(this, options);
-    this.callbackObjs['reached'] = {name: this.key+'_reached', fn: undefined};
-    this.time = options.params && options.params.time || 2.0;
+    this.callbackObjs['reached'] = {name: this.key + '_reached', fn: undefined};
+    this.time = (options.params && options.params.time) || 2.0;
     this.currTime = 0;
     this.reached = false;
 }
@@ -722,7 +722,7 @@ MarkerManager.prototype.loadForMarker = function (markerId, markerTransform, mar
         var guiMarker = this.markerData.guiMarkers[markerId];
         if (guiMarker) {
             var type = guiMarker.type;
-            var guiMarker = GuiMarkerFactory.create(type, {
+            guiMarker = GuiMarkerFactory.create(type, {
                 name: guiMarker.name,
                 key: guiMarker.key,
                 markerId: markerId,
@@ -974,8 +974,7 @@ JsArToolKitArLib.prototype.update = function (dt) {
             }
         }
 
-        try
-        {
+        try {
             // Get the transformation matrix for the detected marker.
             this.detector.getTransformMatrix(i, this.resultMat);
 
@@ -988,9 +987,7 @@ JsArToolKitArLib.prototype.update = function (dt) {
 
             //register that this marker has been detected
             this.renderer.setMarkerDetected(currId, true);
-        }
-        catch (err)
-        {
+        } catch (err) {
             //just print to console but let the error pass so that the program can continue
             console.log(err.message);
         }
@@ -1046,7 +1043,7 @@ JsArucoArLib.prototype.update = function (dt) {
     this.__updateScenes(dt, markers);
 };
 JsArucoArLib.prototype.__updateScenes = function (dt, markers) {
-    var corners, corner, pose, i, markerId;
+    var corners, corner, pose, markerId;
 
     //set all markers detected to false first
     var keys = Object.keys(this.markers);
@@ -1054,7 +1051,6 @@ JsArucoArLib.prototype.__updateScenes = function (dt, markers) {
     for (i = 0; i < keys.length; i++) {
         this.renderer.setMarkerDetected(keys[i], false);
     }
-
 
     for (i = 0; i < markers.length; i++) {
         markerId = markers[i].id;
@@ -1081,7 +1077,6 @@ JsArucoArLib.prototype.__updateScenes = function (dt, markers) {
         }
 
         //align corners to center of canvas
-        var j;
         for (j = 0; j < corners.length; j++) {
             corner = corners[j];
             //NOTE: there seems to be some scale away from the center, so I have to scale everything down from the center.
@@ -1357,7 +1352,7 @@ ThreeJsRenderer.prototype.showChildren = function (object3d, visible) {
             children[i].visible = visible;
             //if it is an axis, then check also whether it is suppose to be shown
             if (children[i] instanceof THREE.AxisHelper) {
-                children[i].visible &= this.isLocalAxisVisible;
+                children[i].visible = children[i].visible && this.isLocalAxisVisible;
             }
         }
     }
@@ -1506,7 +1501,7 @@ ThreeJsRenderer.prototype.setLocalAxisVisible = function (isVisible) {
  * Class which handles different augmented reality libraries
  * @constructor
  */
-function SkArF(options) {
+function Skarf(options) {
 
     //AR lib parameters
     if (typeof options.arLibType === 'undefined') {
@@ -1553,7 +1548,7 @@ function SkArF(options) {
     //init
     this.init();
 }
-SkArF.prototype.__create2dCanvas = function () {
+Skarf.prototype.__create2dCanvas = function () {
 
     //create canvas
     this.canvasElem = document.createElement('canvas');
@@ -1572,28 +1567,28 @@ SkArF.prototype.__create2dCanvas = function () {
     //store the 2d context
     this.context = this.canvasElem.getContext('2d');
 };
-SkArF.prototype.init = function () {
+Skarf.prototype.init = function () {
 
     //create a 2d canvas for copying data from tracking element
     this.__create2dCanvas();
 
     //create renderer instance
     this.renderer = RendererFactory.create(this.rendererType, {
-                                               renderer: this.renderer,
-                                               scene: this.scene,
-                                               camera: this.camera,
-                                               markersJsonFile: this.markersJsonFile
-                                           });
+        renderer: this.renderer,
+        scene: this.scene,
+        camera: this.camera,
+        markersJsonFile: this.markersJsonFile
+    });
 
     //create AR lib instance
     this.arLib = ArLibFactory.create(this.arLibType, {
-                                        trackingElem: this.trackingElem,
-                                        markerSize: this.markerSize,
-                                        verticalFov: this.verticalFov,
-                                        mainMarkerId: this.renderer.getMainMarkerId(),
-                                        threshold: this.threshold,
-                                        debug: this.debug
-                                     });
+        trackingElem: this.trackingElem,
+        markerSize: this.markerSize,
+        verticalFov: this.verticalFov,
+        mainMarkerId: this.renderer.getMainMarkerId(),
+        threshold: this.threshold,
+        debug: this.debug
+    });
 
     //assign necessary pointers of itself to each other
     this.arLib.renderer = this.renderer;
@@ -1610,15 +1605,17 @@ SkArF.prototype.init = function () {
 /**
  * Draws tracking data to canvas, and then updates both the AR lib and renderer
  */
-SkArF.prototype.update = function (dt) {
+Skarf.prototype.update = function (dt) {
     //draw the video/img to canvas
     // if (this.videoElem.readyState === this.videoElem.HAVE_ENOUGH_DATA) {
-        this.context.drawImage(this.trackingElem, 0, 0, this.canvasElem.width, this.canvasElem.height);
-        this.canvasElem.changed = true;
 
-        //call updates
-        this.arLib.update(dt);
-        this.renderer.update(dt);
+    this.context.drawImage(this.trackingElem, 0, 0, this.canvasElem.width, this.canvasElem.height);
+    this.canvasElem.changed = true;
+
+    //call updates
+    this.arLib.update(dt);
+    this.renderer.update(dt);
+
     // }
 };
 /**
@@ -1626,7 +1623,7 @@ SkArF.prototype.update = function (dt) {
  * @param {string} type Type of callback e.g. 'render'
  * @param {function} callbackFn Callback function to call
  */
-SkArF.prototype.addCallback = function (type, callbackFn) {
+Skarf.prototype.addCallback = function (type, callbackFn) {
     //pass all callbacks to renderer for now
     //TODO: manage callbacks better
     this.renderer.addCallback(type, callbackFn);
@@ -1635,15 +1632,14 @@ SkArF.prototype.addCallback = function (type, callbackFn) {
  * Returns true if the designated main marker has been detected
  * @return {bool} true if the designated main marker has been detected
  */
-SkArF.prototype.mainMarkerDetected = function () {
+Skarf.prototype.mainMarkerDetected = function () {
     return this.arLib.mainMarkerHasEverBeenDetected;
 };
 /**
  * Inits camera projection matrix
  */
-SkArF.prototype.initCameraProjMatrix = function () {
+Skarf.prototype.initCameraProjMatrix = function () {
     if (this.arLib instanceof JsArToolKitArLib) {
         this.arLib.initCameraProjMatrix();
     }
 };
-

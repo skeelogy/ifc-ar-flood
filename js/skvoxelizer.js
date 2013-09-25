@@ -165,11 +165,11 @@ SkVoxelizer.prototype.hideAllVoxels = function () {
     for (xId in this.__voxelMeshes) {
         if (this.__voxelMeshes.hasOwnProperty(xId)) {
             x = this.__voxelMeshes[xId];
-            for (zId in z) {
-                if (this.__voxelMeshes.hasOwnProperty(zId)) {
-                    x = x[zId];
+            for (zId in x) {
+                if (x.hasOwnProperty(zId)) {
+                    z = x[zId];
                     for (yId in z) {
-                        if (this.__voxelMeshes.hasOwnProperty(yId)) {
+                        if (z.hasOwnProperty(yId)) {
                             y = z[yId];
                             y.visible = false;
                         }

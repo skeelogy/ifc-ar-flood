@@ -178,7 +178,7 @@
         var temp = rttRenderTarget1;
         rttRenderTarget1 = rttRenderTarget2;
         rttRenderTarget2 = temp;
-        rttQuadMaterial.uniforms.uTexture.value = rttRenderTarget2;  //feed current texture as the input for the next step
+        rttQuadMaterial.uniforms['uTexture'].value = rttRenderTarget2;  //feed current texture as the input for the next step
     }
 
     function window_onResize(event) {
@@ -254,14 +254,14 @@
             z = radius * Math.cos(3 * time);
 
             //update RTT uniforms
-            rttQuadMaterial.uniforms.uBumpAmount.value = 0.08;
-            rttQuadMaterial.uniforms.uBumpRadius.value = 0.01;
-            rttQuadMaterial.uniforms.uBumpPos.value.set((x + PLANE_SIZE / 2.0) / PLANE_SIZE, (z + PLANE_SIZE / 2.0) / PLANE_SIZE);
+            rttQuadMaterial.uniforms['uBumpAmount'].value = 0.08;
+            rttQuadMaterial.uniforms['uBumpRadius'].value = 0.01;
+            rttQuadMaterial.uniforms['uBumpPos'].value.set((x + PLANE_SIZE / 2.0) / PLANE_SIZE, (z + PLANE_SIZE / 2.0) / PLANE_SIZE);
 
             //update light uniforms
-            planeMaterial.uniforms.uPointLightWorldPos.value[0].x = x;
-            planeMaterial.uniforms.uPointLightWorldPos.value[0].z = z;
-            lightMesh.position.copy(planeMaterial.uniforms.uPointLightWorldPos.value[0]);
+            planeMaterial.uniforms['uPointLightWorldPos'].value[0].x = x;
+            planeMaterial.uniforms['uPointLightWorldPos'].value[0].z = z;
+            lightMesh.position.copy(planeMaterial.uniforms['uPointLightWorldPos'].value[0]);
 
             controls.update();
 

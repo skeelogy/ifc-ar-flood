@@ -334,7 +334,7 @@
         var composer = new THREE.EffectComposer(trackSceneRenderer);
         composer.addPass(new THREE.RenderPass(trackSceneScene, trackSceneCamera));
         var pass = new THREE.ShaderPass(THREE.FXAAShader);
-        pass.uniforms.resolution.value.set(1.0 / canvasWidth, 1.0 / canvasHeight);
+        pass.uniforms['resolution'].value.set(1.0 / canvasWidth, 1.0 / canvasHeight);
         pass.renderToScreen = true;
         composer.addPass(pass);
 

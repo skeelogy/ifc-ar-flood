@@ -65,7 +65,7 @@ THREE.ShaderManager.shaderContents['heightmapVS'] = [
     "varying vec3 vViewNormal;",
     "varying vec2 vUv;",
 
-    THREE.ShaderChunk[ "shadowmap_pars_vertex" ],
+    THREE.ShaderChunk['shadowmap_pars_vertex'],
 
     "void main() {",
 
@@ -98,7 +98,7 @@ THREE.ShaderManager.shaderContents['heightmapVS'] = [
 
         "gl_Position = projectionMatrix * viewPos;",
 
-        THREE.ShaderChunk[ "shadowmap_vertex" ],
+        THREE.ShaderChunk['shadowmap_vertex'],
 
     "}"
 ].join("\n");
@@ -118,7 +118,7 @@ THREE.ShaderManager.shaderContents['lambertFS'] = [
         "uniform vec3 directionalLightDirection[ MAX_DIR_LIGHTS ];",
     "#endif",
 
-    THREE.ShaderChunk[ "shadowmap_pars_fragment" ],
+    THREE.ShaderChunk['shadowmap_pars_fragment'],
 
     "void main() {",
 
@@ -140,7 +140,7 @@ THREE.ShaderManager.shaderContents['lambertFS'] = [
 
         "gl_FragColor = vec4(uBaseColor * (ambient + diffuse), 1.0);",
 
-        THREE.ShaderChunk[ "shadowmap_fragment" ],
+        THREE.ShaderChunk['shadowmap_fragment'],
 
     "}"
 
@@ -166,7 +166,7 @@ THREE.ShaderManager.shaderContents['lambertCursorFS'] = [
         "uniform vec3 directionalLightDirection[ MAX_DIR_LIGHTS ];",
     "#endif",
 
-    THREE.ShaderChunk[ "shadowmap_pars_fragment" ],
+    THREE.ShaderChunk['shadowmap_pars_fragment'],
 
     "void main() {",
 
@@ -197,7 +197,7 @@ THREE.ShaderManager.shaderContents['lambertCursorFS'] = [
 
         "gl_FragColor = vec4(finalColor, 1.0);",
 
-        THREE.ShaderChunk[ "shadowmap_fragment" ],
+        THREE.ShaderChunk['shadowmap_fragment'],
 
     "}"
 

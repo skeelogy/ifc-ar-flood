@@ -8,19 +8,21 @@
 
     <!--load helper libraries-->
     <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+    <script type="text/javascript" src="/js/lib/seedrandom.js"></script>
 
-    <!--load AR and 3D libraries-->
+    <!--load 3D libraries-->
     <script type="text/javascript" src="/js/lib/three.min.js"></script>
     <script type="text/javascript" src="/js/lib/Detector.js"></script>
     <script type="text/javascript" src="/js/lib/stats.min.js"></script>
     <script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
     <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
 
+    <!--load terrain libraries-->
+    <script type="text/javascript" src="/js/skulpt.js"></script>
     <script type="text/javascript" src="/js/lib/SimplexNoise.js"></script>
     <script type="text/javascript" src="/js/lib/StackBlur.js"></script>
-    <script type="text/javascript" src="/js/lib/seedrandom.js"></script>
 
-    <script type="text/javascript" src="/js/skulpt.js"></script>
+    <!--load water libraries-->
     <script type="text/javascript" src="/js/skheightfieldwater.js"></script>
     <script type="text/javascript" src="/js/skvoxelizer.js"></script>
 
@@ -44,7 +46,7 @@
     var WATER_SINK_AMOUNT = 0.5;
 
     var GLOBAL_POS = new THREE.Vector3(0.5, 1, 1);
-    var GLOBAL_ROT = new THREE.Vector3(THREE.Math.degToRad(10),-THREE.Math.degToRad(10),THREE.Math.degToRad(10));
+    var GLOBAL_ROT = new THREE.Vector3(THREE.Math.degToRad(10), -THREE.Math.degToRad(10), THREE.Math.degToRad(10));
     var GLOBAL_SCALE = new THREE.Vector3(1.25, 1.25, 1.25);
 
     var GLOBAL_MAT = new THREE.Matrix4();
@@ -56,23 +58,23 @@
 
     var clock = new THREE.Clock();
     var currWaterHeight = MEAN_WATER_HEIGHT;
+    var skulpt;
 
     var terrainImages = {
-        'IGMS1':'/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg',
-        'IGMS2':'/resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg',
-        'IGMS3':'/resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg',
-        'IGMS4':'/resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg',
-        'IGMS5':'/resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg',
-        'Clouds':'/resources/images/terrain/clouds_256.png'
+        'IGMS1': '/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg',
+        'IGMS2': '/resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg',
+        'IGMS3': '/resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg',
+        'IGMS4': '/resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg',
+        'IGMS5': '/resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg',
+        'Clouds': '/resources/images/terrain/clouds_256.png'
     };
-    //TODO: clean up these settings into json file
     var terrainImageSettings = {
-        '/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg': { 'preblur':5, 'height':1.5, 'midGreyIsLowest':true },
-        '/resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg': { 'preblur':1, 'height':0.3, 'midGreyIsLowest':true },
-        '/resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg': { 'preblur':3, 'height':0.3, 'midGreyIsLowest':true },
-        '/resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg': { 'preblur':2, 'height':0.3, 'midGreyIsLowest':true },
-        '/resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg': { 'preblur':3, 'height':0.3, 'midGreyIsLowest':true },
-        '/resources/images/terrain/clouds_256.png': { 'preblur':0, 'height':2, 'midGreyIsLowest':false }
+        '/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg': { 'preblur': 5, 'height': 1.5, 'midGreyIsLowest': true },
+        '/resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg': { 'preblur': 1, 'height': 0.3, 'midGreyIsLowest': true },
+        '/resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg': { 'preblur': 3, 'height': 0.3, 'midGreyIsLowest': true },
+        '/resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg': { 'preblur': 2, 'height': 0.3, 'midGreyIsLowest': true },
+        '/resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg': { 'preblur': 3, 'height': 0.3, 'midGreyIsLowest': true },
+        '/resources/images/terrain/clouds_256.png': { 'preblur': 0, 'height': 2, 'midGreyIsLowest': false }
     };
     var waterSimTypes = {
         'Pipe Model': 'pipeModelWater',
@@ -82,11 +84,11 @@
         'Muller GDC2008 HelloWorld': 'muellerGdc2008HwWater'
     };
     var waterSimTypeSettings = {
-        'pipeModelWater': { 'disturbAmount':0.1, 'dampingFactor':0.995 },
-        'xWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 },
-        'iWaveWater': { 'disturbAmount':0.01, 'dampingFactor':0.7 },
-        'muellerGdc2008Water': { 'disturbAmount':0.5, 'dampingFactor':0.95 },
-        'muellerGdc2008HwWater': { 'disturbAmount':0.25, 'dampingFactor':0.95 }
+        'pipeModelWater': { 'disturbAmount': 0.1, 'dampingFactor': 0.995 },
+        'xWater': { 'disturbAmount': 0.25, 'dampingFactor': 0.95 },
+        'iWaveWater': { 'disturbAmount': 0.01, 'dampingFactor': 0.7 },
+        'muellerGdc2008Water': { 'disturbAmount': 0.5, 'dampingFactor': 0.95 },
+        'muellerGdc2008HwWater': { 'disturbAmount': 0.25, 'dampingFactor': 0.95 }
     };
     var options = {
         waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
@@ -98,7 +100,9 @@
         terrainHeight: terrainImageSettings[Object.keys(terrainImageSettings)[0]].height,
         sculptSize: TERRAIN_SCULPT_SIZE,
         sculptAmount: TERRAIN_SCULPT_AMOUNT,
-        sculptClearSculpts: sculptClearSculpts,
+        sculptClearSculpts: function () {
+            skulpt.getMesh('terrainMesh').clearCurrLayer();
+        },
         renderingShadows: true,
         renderingShadowCasters: false,
         displayWireframe: false,
@@ -107,101 +111,28 @@
         displayVelDir: false
     };
 
-    function checkWebGl()
-    {
-        //check for WebGL
-        if (!Detector.webgl)
-        {
+    function checkWebGl() {
+        if (!Detector.webgl) {
             $('div').remove();
             Detector.addGetWebGLMessage();
             throw new Error('Your browser does not seem to support WebGL');
         }
     }
 
-    var terrainImageData;
-    function filterTerrainImageAndGenerateHeight()
-    {
-        //draw image onto canvas
-        //NO NEED TO DO THIS WHEN USING stackBlurImage()
-        //imageCanvasElemContext.drawImage($scaledImageObj, 0, 0, terrainImageWidth, terrainImageHeight);
-
-        //do pre-blur filtering first
-        stackBlurImage('scaledTerrainImage', 'terrainImageCanvas', options.terrainPreBlur, false);
-
-        //get filtered image data
-        terrainImageData = imageCanvasElemContext.getImageData(0, 0, TERRAIN_RES, TERRAIN_RES).data;
-
-        //update base layer
-        baseLayer.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
-
-        //update the terrain obstacle
-        terrainObstacle.update();
-    }
-
-    var $imageCanvasElem, imageCanvasElemContext;
-    var $scaledImageObj, $origImageObj;
-    function prepareTerrainImageElements()
-    {
-        //create canvas that is same size as terrain res so that one vertex maps to one resized pixel
-        $imageCanvasElem = $(document.createElement('canvas'));
-        $imageCanvasElem[0].id = 'terrainImageCanvas';
-        $imageCanvasElem[0].width = TERRAIN_RES;
-        $imageCanvasElem[0].height = TERRAIN_RES;
-        $imageCanvasElem.css({'position':'fixed', 'top':'55px', 'left':0});
-        $('body').append($imageCanvasElem);
-
-        //get canvas context
-        imageCanvasElemContext = $imageCanvasElem[0].getContext('2d');
-
-        //load terrain image
-        $scaledImageObj = $(new Image());
-        $scaledImageObj[0].id = 'scaledTerrainImage';
-        $scaledImageObj[0].onload = function()
-        {
-            //this function is triggered from $origImageObj setting this src
-
-            //start filtering and changing heights
-            filterTerrainImageAndGenerateHeight();
-        };
-        $scaledImageObj.css({'display':'none'});
-        $('body').append($scaledImageObj);
-
-        //load original terrain image, scale it using canvas, then set scaled image to $scaledImageObj
-        $origImageObj = $(new Image());
-        $origImageObj[0].onload = function()
-        {
-            //copy to scaled canvas to scale this image
-            imageCanvasElemContext.drawImage($origImageObj[0], 0, 0, TERRAIN_RES, TERRAIN_RES);
-
-            //get scaled data from canvas and set data for scaledImageObj
-            $scaledImageObj[0].src = $imageCanvasElem[0].toDataURL();
-        };
-    }
-
-    function loadTerrainImage(image)
-    {
-        console.log('Loading terrain image: ' + image);
-        $origImageObj[0].src = image;
-    }
-
-    function sculptClearSculpts()
-    {
-        skulpt.getMesh('terrainMesh').clearCurrLayer();
-    }
-
     var renderer, scene, camera, globalTransform;
+    var controls;
     var keyLight, fillLight;
     var worldAxis, localAxis;
     var materials = [];
     var torusKnotMesh, boxMesh, sphereMesh;
     var groundPlaneMesh;
-    function setupThreejsScene()
-    {
+    function setupThreejsScene() {
+
         //create renderer
         renderer = new THREE.WebGLRenderer({
             antialias : true
         });
-        renderer.setSize(window.innerWidth, window.innerHeight-5);
+        renderer.setSize(window.innerWidth, window.innerHeight - 5);
         renderer.setClearColor('#111111', 1);
         renderer.shadowMapEnabled = true;
         renderer.shadowMapType = THREE.PCFShadowMap;
@@ -220,9 +151,9 @@
         scene.add(globalTransform);
 
         //create camera
-        camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000 );
+        camera = new THREE.PerspectiveCamera(25, renderer.domElement.width / renderer.domElement.height, 0.1, 1000);
         camera.position.set(8, 8, 15);
-        camera.lookAt(new THREE.Vector3(0,0,0));
+        camera.lookAt(new THREE.Vector3(0, 0, 0));
 
         //create controls for camera
         controls = new THREE.OrbitControls(camera);
@@ -232,7 +163,7 @@
 
         //create plane for reference and for intersection test
         var groundPlaneGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);  //much faster for intersection test when there are no divisions
-        groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         var groundPlaneMaterial = new THREE.MeshPhongMaterial();
         materials.push(groundPlaneMaterial);
         groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
@@ -242,7 +173,7 @@
         globalTransform.add(groundPlaneMesh);
 
         var torusKnotGeom = new THREE.TorusKnotGeometry(0.35, 0.1, 50, 8);
-        var torusKnotMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
+        var torusKnotMaterial = new THREE.MeshPhongMaterial({color: '#ff4444'});
         torusKnotMaterial.shininess = 50;
         materials.push(torusKnotMaterial);
         torusKnotMesh = new THREE.Mesh(torusKnotGeom, torusKnotMaterial);
@@ -253,7 +184,7 @@
         globalTransform.add(torusKnotMesh);
 
         var boxGeom = new THREE.CubeGeometry(1, 1, 1);
-        var boxMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
+        var boxMaterial = new THREE.MeshPhongMaterial({color: '#ff4444'});
         materials.push(boxMaterial);
         boxMesh = new THREE.Mesh(boxGeom, boxMaterial);
         boxMesh.position.y = 1;
@@ -262,7 +193,7 @@
         globalTransform.add(boxMesh);
 
         var sphereGeom = new THREE.SphereGeometry(0.65, 10, 10);
-        var sphereMaterial = new THREE.MeshPhongMaterial({color:'#ff4444'});
+        var sphereMaterial = new THREE.MeshPhongMaterial({color: '#ff4444'});
         sphereMaterial.shininess = 50;
         materials.push(sphereMaterial);
         sphereMesh = new THREE.Mesh(sphereGeom, sphereMaterial);
@@ -301,11 +232,104 @@
         globalTransform.add(fillLight);
     }
 
+    var terrainGeom, terrainMesh, skulptTerrainMesh;
+    var baseLayer, sculptLayer;
+    function setupSkulpt() {
+
+        //create a terrain mesh for sculpting
+        terrainGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_RES - 1, TERRAIN_RES - 1);
+        terrainGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+        terrainGeom.computeFaceNormals();
+        terrainGeom.computeVertexNormals();
+        terrainGeom.normalsNeedUpdate = true;
+        var terrainMaterial = new THREE.MeshPhongMaterial();
+        materials.push(terrainMaterial);
+        terrainMesh = new THREE.Mesh(terrainGeom, terrainMaterial);
+        terrainMesh.castShadow = true;
+        terrainMesh.receiveShadow = true;
+        globalTransform.add(terrainMesh);
+
+        //create a Skulpt first
+        skulpt = new Skulpt(globalTransform);
+
+        //create a SkulptMesh, add a layer
+        skulptTerrainMesh = new SkulptTerrainMesh(terrainMesh, TERRAIN_SIZE, TERRAIN_RES);
+        baseLayer = skulptTerrainMesh.addLayer('baseLayer');
+        // baseLayer.addNoise(1, 0.5, 0.5, 0.5, 0, 0, 0);
+        sculptLayer = skulptTerrainMesh.addLayer('sculptLayer1');
+
+        //add mesh to Skulpt
+        skulpt.addMesh(skulptTerrainMesh, 'terrainMesh');
+    }
+
+    var terrainImageData;
+    var $imageCanvasElem, imageCanvasElemContext;
+    var terrainObstacle;
+    function filterTerrainImageAndGenerateHeight() {
+
+        //draw image onto canvas
+        //NO NEED TO DO THIS WHEN USING stackBlurImage()
+        //imageCanvasElemContext.drawImage($scaledImageObj, 0, 0, terrainImageWidth, terrainImageHeight);
+
+        //do pre-blur filtering first
+        stackBlurImage('scaledTerrainImage', 'terrainImageCanvas', options.terrainPreBlur, false);
+
+        //get filtered image data
+        terrainImageData = imageCanvasElemContext.getImageData(0, 0, TERRAIN_RES, TERRAIN_RES).data;
+
+        //update base layer
+        baseLayer.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
+
+        //update the terrain obstacle
+        terrainObstacle.update();
+    }
+
+    var $scaledImageObj, $origImageObj;
+    function prepareTerrainImageElements() {
+
+        //create canvas that is same size as terrain res so that one vertex maps to one resized pixel
+        $imageCanvasElem = $(document.createElement('canvas'));
+        $imageCanvasElem[0].id = 'terrainImageCanvas';
+        $imageCanvasElem[0].width = TERRAIN_RES;
+        $imageCanvasElem[0].height = TERRAIN_RES;
+        $imageCanvasElem.css({'position': 'fixed', 'top': '55px', 'left': 0});
+        $('body').append($imageCanvasElem);
+
+        //get canvas context
+        imageCanvasElemContext = $imageCanvasElem[0].getContext('2d');
+
+        //load terrain image
+        $scaledImageObj = $(new Image());
+        $scaledImageObj[0].id = 'scaledTerrainImage';
+        $scaledImageObj[0].onload = function () {
+            //this function is triggered from $origImageObj setting this src
+
+            //start filtering and changing heights
+            filterTerrainImageAndGenerateHeight();
+        };
+        $scaledImageObj.css({'display': 'none'});
+        $('body').append($scaledImageObj);
+
+        //load original terrain image, scale it using canvas, then set scaled image to $scaledImageObj
+        $origImageObj = $(new Image());
+        $origImageObj[0].onload = function () {
+            //copy to scaled canvas to scale this image
+            imageCanvasElemContext.drawImage($origImageObj[0], 0, 0, TERRAIN_RES, TERRAIN_RES);
+
+            //get scaled data from canvas and set data for scaledImageObj
+            $scaledImageObj[0].src = $imageCanvasElem[0].toDataURL();
+        };
+    }
+
+    function loadTerrainImage(image) {
+        console.log('Loading terrain image: ' + image);
+        $origImageObj[0].src = image;
+    }
+
     var RANDOM_SEED = 1;
     Math.seedrandom(RANDOM_SEED);
     var waterMesh;
-    var hfWater, iWaveWater, muellerGdc2008Water, muellerGdc2008HwWater, xWater;
-    var terrainObstacle;
+    var hfWater, iWaveWater, muellerGdc2008Water, muellerGdc2008HwWater, xWater, pipeModelWater;
     var iSegments = 3;
     var jSegments = 3;
     var iSegmentSize = WATER_SIZE / iSegments;
@@ -313,12 +337,12 @@
     var halfWaterSize = WATER_SIZE / 2.0;
     var obstacles = [];
     var shouldUpdateObstacles;
-    function setupWaterScene()
-    {
+    function setupWaterScene() {
+
         //create a height-field water sim from the plane
-        var waterGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_RES-1, WATER_RES-1);
-        waterGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-        var waterMaterial = new THREE.MeshPhongMaterial({emissive:'#113366'});
+        var waterGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_RES - 1, WATER_RES - 1);
+        waterGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+        var waterMaterial = new THREE.MeshPhongMaterial({emissive: '#113366'});
         materials.push(waterMaterial);
         waterMesh = new THREE.Mesh(waterGeom, waterMaterial);
         waterMesh.castShadow = true;
@@ -362,7 +386,6 @@
             size: WATER_SIZE,
             res: WATER_RES,
             dampingFactor: WATER_DAMPING_FACTOR,
-            meanHeight: MEAN_WATER_HEIGHT,  //TODO: figure out if this is needed for pipe model
             scene: scene,
             terrainMesh: terrainMesh
         });
@@ -387,7 +410,7 @@
                 // obstacleMesh.rotation.y = (Math.random() * 360);
                 // // obstacleMesh.visible = false;
                 // globalTransform.add(obstacleMesh);
-//
+
                 // //create Obstacle
                 // var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE, globalTransform.matrixWorld);
                 // iWaveWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
@@ -397,18 +420,18 @@
                 // pipeModelWater.addObstacle(obstacle, 'obstacle'+obstacles.length);
                 // obstacle.updateAlways = false;
                 // // obstacle.update();  //NOTE: this does not work because we are updating the obstacle before the mesh has updated
-//
+
                 // obstacles.push(obstacle);
             // }
         // }
-//
+
         // //temp, just to make the demo nicer
         // obstacles[1].mesh.position.x += -1;
         // obstacles[2].mesh.position.x = 10000;
         // obstacles[2].mesh.position.x = 10000;
-//
+
         // shouldUpdateObstacles = true;
-//
+
         //add terrain as an obstacle
         terrainObstacle = new TerrainObstacle(terrainMesh);
         iWaveWater.addObstacle(terrainObstacle, 'terrainObstacle');
@@ -417,6 +440,235 @@
         xWater.addObstacle(terrainObstacle, 'terrainObstacle');
         pipeModelWater.addObstacle(terrainObstacle, 'terrainObstacle');
         terrainObstacle.updateAlways = true;
+    }
+
+    var projector = new THREE.Projector();
+    var raycaster = new THREE.Raycaster();
+    var intersectPoint = new THREE.Vector3();
+    var mousePosNorm = new THREE.Vector2();
+    function detectIntersection() {
+
+        mousePosNorm.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mousePosNorm.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        //cast a ray from camera into screen
+        var worldPos = new THREE.Vector3(mousePosNorm.x, mousePosNorm.y, 1);
+        projector.unprojectVector(worldPos, camera);
+        raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
+        var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
+
+        //get intersection point
+        if (intersectInfo && intersectInfo[0]) {
+            return intersectInfo[0].point;
+        }
+
+        return null;
+    }
+
+    function detectIntersectionAndShowSculptCursor() {
+        //detect intersection and show cursor
+        intersectPoint = detectIntersection();
+        if (intersectPoint) {
+            skulpt.updateCursor(intersectPoint, skulptTerrainMesh);
+            skulpt.showCursor();
+        } else {
+            skulpt.hideCursor();
+        }
+    }
+
+    function sculptTerrain(operation) {
+
+        skulpt.hideCursor();
+        skulpt.setBrush(operation);
+        skulpt.showCursor();
+        var affectedVertexInfos = skulpt.sculpt(intersectPoint);
+
+        //update the terrain obstacle
+        terrainObstacle.update();
+
+        //disturb water if not pipe model
+        if (!(hfWater instanceof PipeModelWater)) {
+            var i, len, vertexInfo;
+            for (i = 0, len = affectedVertexInfos.length; i < len; i++) {
+
+                vertexInfo = affectedVertexInfos[i];
+
+                //if terrain height change cuts across the current water height, it should disturb the water
+                if ((vertexInfo.oldDisplacement - currWaterHeight) * (vertexInfo.newDisplacement - currWaterHeight) < 0) {  //change of sign
+                    //must spread to neighbours, otherwise will be blocked by the terrain itself
+                    hfWater.disturbNeighboursById(vertexInfo.id, vertexInfo.newDisplacement - vertexInfo.oldDisplacement);  //should really divide by 4.0, but can't really see the effect
+                }
+            }
+        }
+    }
+
+    function window_onResize(event) {
+        //update camera projection
+        camera.aspect = window.innerWidth / (window.innerHeight - 5);
+        camera.updateProjectionMatrix();
+
+        //update renderer size
+        renderer.setSize(window.innerWidth, window.innerHeight - 5);
+    }
+
+    var activateDisturb = false;
+    function window_onKeyDown(event) {
+        if (event.keyCode === 32) {  //space
+            activateDisturb = true;
+        }
+    }
+
+    function window_onKeyUp(event) {
+        if (event.keyCode === 32) {  //space
+            activateDisturb = false;
+        }
+    }
+
+    var isSculpting = false;
+    var isDisturbing = false;
+    function window_onMouseDown(event) {
+
+        if (event.ctrlKey) {
+
+            //detect intersection and show cursor
+            detectIntersectionAndShowSculptCursor();
+
+            //do actual sculpting if clicked
+            if (event.button === 0) {  //LMB
+                isSculpting = true;
+                sculptTerrain('add');
+            } else if (event.button === 2) {  //RMB
+                isSculpting = true;
+                sculptTerrain('remove');
+            }
+
+        } else if (event.shiftKey) {
+
+            //detect intersection and show cursor
+            detectIntersectionAndShowSculptCursor();
+
+            //do actual sculpting if clicked
+            if (event.button === 0) {  //LMB
+                isSculpting = true;
+                sculptTerrain('flatten');
+            }
+
+        } else {
+
+            //for water
+            if (activateDisturb) {
+                if (event.button === 0) {  //LMB
+
+                    isDisturbing = true;
+
+                    //detect intersection
+                    intersectPoint = detectIntersection();
+                    if (intersectPoint) {
+                        hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
+                    }
+
+                } else if (event.button === 1) {  //MMB
+
+                    isDisturbing = true;
+
+                    //detect intersection
+                    intersectPoint = detectIntersection();
+                    if (intersectPoint) {
+                        hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
+                    }
+
+                } else if (event.button === 2) {  //RMB
+
+                    isDisturbing = true;
+
+                    //detect intersection
+                    intersectPoint = detectIntersection();
+                    if (intersectPoint) {
+                        hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
+                    }
+
+                }
+            }
+        }
+    }
+
+    function window_onMouseMove(event) {
+
+        event.preventDefault();
+
+        skulpt.hideCursor();
+
+        if (event.ctrlKey) {
+
+            //detect intersection and show cursor
+            detectIntersectionAndShowSculptCursor();
+
+            //do actual sculpting if clicked
+            if (isSculpting) {
+                if (event.button === 0) {  //LMB
+                    sculptTerrain('add');
+                } else if (event.button === 2) {  //RMB
+                    sculptTerrain('remove');
+                }
+            }
+
+        } else if (event.shiftKey) {
+
+            //detect intersection and show cursor
+            detectIntersectionAndShowSculptCursor();
+
+            //do actual sculpting if necessary
+            if (isSculpting) {
+                if (event.button === 0) {  //LMB
+                    sculptTerrain('flatten');
+                }
+            }
+
+        } else {
+
+            //for water
+            if (activateDisturb && isDisturbing) {
+                if (event.button === 0) {  //LMB
+                    //detect intersection
+                    intersectPoint = detectIntersection();
+                    if (intersectPoint) {
+                        hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
+                    }
+                } else if (event.button === 1) {  //MMB
+                    //detect intersection
+                    intersectPoint = detectIntersection();
+                    if (intersectPoint) {
+                        hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
+                    }
+                } else if (event.button === 2) {  //LMB
+                    //detect intersection
+                    intersectPoint = detectIntersection();
+                    if (intersectPoint) {
+                        hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
+                    }
+                }
+            }
+        }
+    }
+
+    function window_onMouseUp(event) {
+        isSculpting = false;
+        isDisturbing = false;
+    }
+
+    function setupEvents() {
+        window.addEventListener('resize', window_onResize, false);
+        window.addEventListener('keydown', window_onKeyDown, false);
+        window.addEventListener('keyup', window_onKeyUp, false);
+        window.addEventListener('mousedown', window_onMouseDown, false);
+        window.addEventListener('mousemove', window_onMouseMove, false);
+        window.addEventListener('mouseup', window_onMouseUp, false);
+    }
+
+    var stats;
+    function setupStats() {
+        stats = new Stats();
+        $('body').append(stats.domElement);
     }
 
     var gui;
@@ -431,8 +683,8 @@
         waterSimFolder.open();
 
         var control = waterSimFolder.add(options, 'waterSimType', waterSimTypes).name('Type');
-        function changeWaterSimType(value)
-        {
+        function changeWaterSimType(value) {
+
             //swap the sim
             hfWater = eval(value);
 
@@ -456,10 +708,9 @@
         terrainFolder = gui.addFolder('Terrain');
         // terrainFolder.open();
 
-        var control = terrainFolder.add(options, 'terrainImage', terrainImages).name('Image');
-        function changeTerrainImage(value)
-        {
-            terrainImage = value;
+        control = terrainFolder.add(options, 'terrainImage', terrainImages).name('Image');
+        function changeTerrainImage(value) {
+
             loadTerrainImage(value);
 
             //load some presets so that the loaded terrain looks nicer
@@ -468,7 +719,8 @@
             options.terrainMidGreyIsLowest = terrainImageSettings[value].midGreyIsLowest;
 
             //update display
-            for (var i in terrainFolder.__controllers) {
+            var i, len;
+            for (i = 0, len = terrainFolder.__controllers.length; i < len; i++) {
                 terrainFolder.__controllers[i].updateDisplay();
             }
         }
@@ -476,25 +728,18 @@
         //changeTerrainPreBlur('/resources/images/clouds_256.png');
 
         control = terrainFolder.add(options, 'terrainShowImage').name('Show Image');
-        function changeTerrainShowImage(value)
-        {
-            terrainShowImage = value;
-            if (value)
-            {
-                $imageCanvasElem.css({'display':'block'});
-            }
-            else
-            {
-                $imageCanvasElem.css({'display':'none'});
+        function changeTerrainShowImage(value) {
+            if (value) {
+                $imageCanvasElem.css({'display': 'block'});
+            } else {
+                $imageCanvasElem.css({'display': 'none'});
             }
         }
         control.onChange(changeTerrainShowImage);
         changeTerrainShowImage(options.terrainShowImage);
 
         control = terrainFolder.add(options, 'terrainMidGreyIsLowest').name('Mid Grey Lowest');
-        function changeTerrainMidGreyIsLowest(value)
-        {
-            terrainMidGreyIsLowest = value;
+        function changeTerrainMidGreyIsLowest(value) {
             baseLayer.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
 
             //update the terrain obstacle
@@ -504,18 +749,14 @@
         //changeTerrainMidGreyIsLowest(options.terrainMidGreyIsLowest);
 
         control = terrainFolder.add(options, 'terrainPreBlur', 0, 10).name('Pre-Blur');
-        function changeTerrainPreBlur(value)
-        {
-            terrainPreBlur = value;
+        function changeTerrainPreBlur(value) {
             filterTerrainImageAndGenerateHeight(value);
         }
         control.onChange(changeTerrainPreBlur);
         //changeTerrainPreBlur(options.terrainPreBlur);
 
         control = terrainFolder.add(options, 'terrainHeight', 0, 4).name('Height');
-        function changeTerrainHeight(value)
-        {
-            terrainHeight = value;
+        function changeTerrainHeight(value) {
             baseLayer.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
 
             //update the terrain obstacle
@@ -529,16 +770,14 @@
         sculptFolder.open();
 
         control = sculptFolder.add(options, 'sculptSize', 0.1, 10.0).name('Size');
-        function changeSculptSize(value)
-        {
+        function changeSculptSize(value) {
             skulpt.setBrushSize(value);
         }
         control.onChange(changeSculptSize);
         changeSculptSize(options.sculptSize);
 
         control = sculptFolder.add(options, 'sculptAmount', 0.01, 1.0).name('Amount');
-        function changeSculptAmount(value)
-        {
+        function changeSculptAmount(value) {
             skulpt.setBrushAmount(value);
         }
         control.onChange(changeSculptAmount);
@@ -550,11 +789,10 @@
         renderingFolder = gui.addFolder('Rendering');
 
         control = renderingFolder.add(options, 'renderingShadows').name('Shadows');
-        function changeRenderingShadows(value)
-        {
+        function changeRenderingShadows(value) {
             renderer.shadowMapAutoUpdate = value;
-            if (!value)
-            {
+            if (!value) {
+                renderer.clear();
                 renderer.clearTarget(keyLight.shadowMap);
             }
         }
@@ -562,8 +800,7 @@
         changeRenderingShadows(options.renderingShadows);
 
         control = renderingFolder.add(options, 'renderingShadowCasters').name('Shadow Casters');
-        function changeRenderingShadowCasters(value)
-        {
+        function changeRenderingShadowCasters(value) {
             torusKnotMesh.visible = value;
             boxMesh.visible = value;
             sphereMesh.visible = value;
@@ -576,19 +813,17 @@
         displayFolder.open();
 
         control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
-        function toggleWireframe(value)
-        {
-            for (materialId in materials)
-            {
-                materials[materialId].wireframe = value;
+        function toggleWireframe(value) {
+            var i, len;
+            for (i = 0, len = materials.length; i < len; i++) {
+                materials[i].wireframe = value;
             }
         }
         control.onChange(toggleWireframe);
         toggleWireframe(options.displayWireframe);
 
         control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
-        function toggleLocalAxis(value)
-        {
+        function toggleLocalAxis(value) {
             worldAxis.visible = value;
             localAxis.visible = value;
         }
@@ -596,10 +831,8 @@
         toggleLocalAxis(options.displayLocalAxis);
 
         control = displayFolder.add(options, 'displayVelMag').name('Velocity Mag');
-        function toggleVelMag(value)
-        {
-            if (hfWater instanceof HeightFieldWaterWithVel)
-            {
+        function toggleVelMag(value) {
+            if (hfWater instanceof HeightFieldWaterWithVel) {
                 hfWater.visualizeVelColors(value);
             }
         }
@@ -607,10 +840,8 @@
         toggleVelMag(options.displayVelMag);
 
         control = displayFolder.add(options, 'displayVelDir').name('Velocity Dir');
-        function displayVelDir(value)
-        {
-            if (hfWater instanceof HeightFieldWaterWithVel)
-            {
+        function displayVelDir(value) {
+            if (hfWater instanceof HeightFieldWaterWithVel) {
                 hfWater.visualizeVelLines(value);
             }
         }
@@ -618,321 +849,9 @@
         displayVelDir(options.displayVelDir);
     }
 
-    function setupEvents()
-    {
-        window.addEventListener('resize', window_onResize, false);
-        window.addEventListener('keydown', window_onKeyDown, false);
-        window.addEventListener('keyup', window_onKeyUp, false);
-        window.addEventListener('mousedown', window_onMouseDown, false);
-        window.addEventListener('mousemove', window_onMouseMove, false);
-        window.addEventListener('mouseup', window_onMouseUp, false);
-    }
-
-    function setupStats()
-    {
-        //create a stats monitor
-        stats = new Stats();
-        $('body').append(stats.domElement);
-    }
-
-    function window_onResize(event)
-    {
-        //update camera projection
-        camera.aspect = window.innerWidth / (window.innerHeight-5);
-        camera.updateProjectionMatrix();
-
-        //update renderer size
-        renderer.setSize(window.innerWidth, window.innerHeight-5);
-    }
-
-    var activateDisturb = false;
-    function window_onKeyDown(event)
-    {
-        if (event.keyCode === 32)  //space
-        {
-            activateDisturb = true;
-        }
-    }
-
-    function window_onKeyUp(event)
-    {
-        if (event.keyCode === 32)  //space
-        {
-            activateDisturb = false;
-        }
-    }
-
-    var isSculpting = false;
-    var isDisturbing = false;
-    function window_onMouseDown(event)
-    {
-        if (event.ctrlKey)
-        {
-            //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
-
-            //do actual sculpting if clicked
-            if (event.button === 0)  //LMB
-            {
-                isSculpting = true;
-                sculptTerrain('add');
-            }
-            else if (event.button === 2)  //RMB
-            {
-                isSculpting = true;
-                sculptTerrain('remove');
-            }
-
-        }
-        else if (event.shiftKey)
-        {
-            //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
-
-            //do actual sculpting if clicked
-            if (event.button === 0)  //LMB
-            {
-                isSculpting = true;
-                sculptTerrain('flatten');
-            }
-        }
-        else
-        {
-            //for water
-            if (activateDisturb) {
-                if (event.button === 0)  //LMB
-                {
-                    isDisturbing = true;
-
-                    //detect intersection
-                    intersectPoint = detectIntersection();
-                    if (intersectPoint)
-                    {
-                        hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
-                    }
-                }
-                else if (event.button === 1)  //MMB
-                {
-                    isDisturbing = true;
-
-                    //detect intersection
-                    intersectPoint = detectIntersection();
-                    if (intersectPoint)
-                    {
-                        hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
-                    }
-                }
-                else if (event.button === 2)  //RMB
-                {
-                    isDisturbing = true;
-
-                    //detect intersection
-                    intersectPoint = detectIntersection();
-                    if (intersectPoint)
-                    {
-                        hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
-                    }
-                }
-            }
-        }
-    }
-
-    function window_onMouseMove(event)
-    {
-        event.preventDefault();
-
-        skulpt.hideCursor();
-
-        if (event.ctrlKey)
-        {
-            //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
-
-            //do actual sculpting if clicked
-            if (isSculpting)
-            {
-                if (event.button === 0)  //LMB
-                {
-                    sculptTerrain('add');
-                }
-                else if (event.button === 2)  //RMB
-                {
-                    sculptTerrain('remove');
-                }
-            }
-        }
-        else if (event.shiftKey)
-        {
-            //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
-
-            //do actual sculpting if necessary
-            if (isSculpting)
-            {
-                if (event.button === 0)  //LMB
-                {
-                    sculptTerrain('flatten');
-                }
-            }
-        }
-        else
-        {
-            //for water
-            if (activateDisturb && isDisturbing) {
-                if (event.button === 0)  //LMB
-                {
-                    //detect intersection
-                    intersectPoint = detectIntersection();
-                    if (intersectPoint)
-                    {
-                        hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
-                    }
-                }
-                else if (event.button === 1)  //MMB
-                {
-                    //detect intersection
-                    intersectPoint = detectIntersection();
-                    if (intersectPoint)
-                    {
-                        hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
-                    }
-                }
-                else if (event.button === 2)  //LMB
-                {
-                    //detect intersection
-                    intersectPoint = detectIntersection();
-                    if (intersectPoint)
-                    {
-                        hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
-                    }
-                }
-            }
-        }
-    }
-
-    function window_onMouseUp(event)
-    {
-        isSculpting = false;
-        isDisturbing = false;
-    }
-
-    var projector = new THREE.Projector();
-    var raycaster = new THREE.Raycaster();
-    var intersectPoint = new THREE.Vector3();
-    var mousePosNorm = new THREE.Vector2();
-    function detectIntersection()
-    {
-        mousePosNorm.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-        mousePosNorm.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
-
-        //cast a ray from camera into screen
-        var worldPos = new THREE.Vector3(mousePosNorm.x, mousePosNorm.y, 1);
-        projector.unprojectVector(worldPos, camera);
-        raycaster.set(camera.position, worldPos.sub(camera.position).normalize());
-        var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
-
-        //get intersection point
-        if (intersectInfo && intersectInfo[0])
-        {
-            return intersectInfo[0].point;
-        }
-        else
-        {
-            return null;
-        }
-    }
-
-    function detectIntersectionAndShowSculptCursor()
-    {
-        //detect intersection and show cursor
-        intersectPoint = detectIntersection();
-        if (intersectPoint)
-        {
-            skulpt.updateCursor(intersectPoint, skulptTerrainMesh);
-            skulpt.showCursor();
-        }
-        else
-        {
-            skulpt.hideCursor();
-        }
-    }
-
-    function sculptTerrain(operation)
-    {
-        skulpt.hideCursor();
-        skulpt.setBrush(operation);
-        skulpt.showCursor();
-        var affectedVertexInfos = skulpt.sculpt(intersectPoint);
-
-        //update the terrain obstacle
-        terrainObstacle.update();
-
-        //disturb water
-        var i, len, vertexInfo;
-        for (i = 0, len = affectedVertexInfos.length; i < len; i++) {
-
-            vertexInfo = affectedVertexInfos[i];
-
-            //if terrain height change cuts across the current water height, it should disturb the water
-            if ((vertexInfo.oldDisplacement-currWaterHeight)*(vertexInfo.newDisplacement-currWaterHeight) < 0)  //change of sign
-            {
-                //must spread to neighbours, otherwise will be blocked by the terrain itself
-                hfWater.disturbNeighboursById(vertexInfo.id, vertexInfo.newDisplacement - vertexInfo.oldDisplacement);  //should really divide by 4.0, but can't really see the effect
-            }
-        }
-    }
-
-    function updateGeometry(geometry, fullUpdate)
-    {
-        geometry.verticesNeedUpdate = true;
-
-        if (fullUpdate)
-        {
-            //geometry.dynamic = true;
-            geometry.computeFaceNormals();  //must call this first before computeVertexNormals()
-            geometry.computeVertexNormals();
-            //geometry.computeCentroids();
-            //geometry.computeBoundingBox();
-            //geometry.computeBoundingSphere();
-
-            geometry.normalsNeedUpdate = true;
-        }
-    }
-
-    var terrainGeom, terrainMesh, skulptTerrainMesh;
-    var skulpt;
-    var baseLayer, sculptLayer;
-    function setupSkulpt()
-    {
-        //create a terrain mesh for sculpting
-        terrainGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_RES-1, TERRAIN_RES-1);
-        terrainGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-        terrainGeom.computeFaceNormals();
-        terrainGeom.computeVertexNormals();
-        terrainGeom.normalsNeedUpdate = true;
-        var terrainMaterial = new THREE.MeshPhongMaterial();
-        materials.push(terrainMaterial);
-        terrainMesh = new THREE.Mesh(terrainGeom, terrainMaterial);
-        terrainMesh.castShadow = true;
-        terrainMesh.receiveShadow = true;
-        globalTransform.add(terrainMesh);
-
-        //create a Skulpt first
-        skulpt = new Skulpt(globalTransform);
-
-        //create a SkulptMesh, add a layer
-        skulptTerrainMesh = new SkulptTerrainMesh(terrainMesh, TERRAIN_SIZE, TERRAIN_RES);
-        baseLayer = skulptTerrainMesh.addLayer('baseLayer');
-        // baseLayer.addNoise(1, 0.5, 0.5, 0.5, 0, 0, 0);
-        sculptLayer = skulptTerrainMesh.addLayer('sculptLayer1');
-
-        //add mesh to Skulpt
-        skulpt.addMesh(skulptTerrainMesh, 'terrainMesh');
-    }
-
     var dV;
-    $(document).ready(function()
-    {
+    $(document).ready(function () {
+
         //check for WebGL
         checkWebGl();
 
@@ -942,11 +861,10 @@
         setupThreejsScene();
 
         //setup Skulpt
-        setupSkulpt()
+        setupSkulpt();
 
         //load terrain image
-        if (USE_TERRAIN_IMAGE)
-        {
+        if (USE_TERRAIN_IMAGE) {
             prepareTerrainImageElements();
             loadTerrainImage(options.terrainImage);
         }
@@ -964,18 +882,17 @@
         setupGui();
 
         //main loop
-        function loop()
-        {
+        function loop() {
+
             var dt = clock.getDelta();  //have to call this before getElapsedTime()
             var time = clock.getElapsedTime();
 
             hfWater.update(dt);
 
-            if (options.renderingShadowCasters)
-            {
-                torusKnotMesh.position.y = 1.5 + 0.25 * Math.sin(time*3-0.5);
-                boxMesh.position.y = 1.5 + 0.25 * Math.sin(time*3);
-                sphereMesh.position.y = 1.5 + 0.25 * Math.sin(time*3+0.5);
+            if (options.renderingShadowCasters) {
+                torusKnotMesh.position.y = 1.5 + 0.25 * Math.sin(time * 3 - 0.5);
+                boxMesh.position.y = 1.5 + 0.25 * Math.sin(time * 3);
+                sphereMesh.position.y = 1.5 + 0.25 * Math.sin(time * 3 + 0.5);
             }
 
             renderer.autoClear = false;
@@ -990,15 +907,14 @@
             if (shouldUpdateObstacles) {
                 console.log('updating obstacles');
                 var i, len;
-                for (i = 0, len = obstacles.length; i < len; i++)
-                {
+                for (i = 0, len = obstacles.length; i < len; i++) {
                     obstacles[i].update();
                 }
                 shouldUpdateObstacles = false;
             }
 
             //animating mean height to increase flood levels
-            dV = options.waterSimFloodRate * dt
+            dV = options.waterSimFloodRate * dt;
             currWaterHeight += dV / (WATER_SIZE * WATER_SIZE * 10);  //scale down 10 times more for the sims which uses mean height because it looks better
             hfWater.setMeanHeight(currWaterHeight);
             hfWater.flood(dV);
@@ -1006,7 +922,6 @@
             requestAnimationFrame(loop);
         }
         loop();
-
     });
     </script>
 </head>

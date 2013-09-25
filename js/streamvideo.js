@@ -1,13 +1,12 @@
-function streamVideo(videoElement)
-{
+function streamVideo(videoElement) {
+
     //use getUserMedia() to stream the webcam video
-    if (getUserMedia)
-    {
+    if (getUserMedia) {
+
         console.log("Calling getUserMedia()...");
         getUserMedia(
-            {'audio':false, 'video':true},
-            function(localMediaStream)
-            {
+            {'audio': false, 'video': true},
+            function (localMediaStream) {
                 console.log("User has granted access to local media.");
 
                 var localMediaStreamUrl = URL.createObjectURL(localMediaStream);
@@ -18,15 +17,14 @@ function streamVideo(videoElement)
                 attachMediaStream(videoElement, localMediaStream);
                 console.log('Done.');
             },
-            function(error)
-            {
-                errorMsg = 'ERROR: getUserMedia(): ' + JSON.stringify(error);
+            function (error) {
+                var errorMsg = 'ERROR: getUserMedia(): ' + JSON.stringify(error);
                 console.error(errorMsg);
                 alert(errorMsg);
             }
         );
     } else {
-        errorMsg = 'ERROR: Your browser does not support getUserMedia()';
+        var errorMsg = 'ERROR: Your browser does not support getUserMedia()';
         console.error(errorMsg);
         alert(errorMsg);
     }

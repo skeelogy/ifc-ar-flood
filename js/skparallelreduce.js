@@ -85,8 +85,8 @@ var ParallelReducer = {
         var scale = 1.0;
         var dummyTexture = new THREE.Texture();
         this.rttQuadMeshes = [];
-        for (w = this.res; w >= 1; w /= 2)
-        {
+        for (w = this.res; w >= 1; w /= 2) {
+
             //generate the plane geom
             var rttQuadGeom = new THREE.PlaneGeometry(size, size);
             rttQuadGeom.faceVertexUvs[0][0][0].set(0.0, 1.0);
@@ -178,8 +178,8 @@ var ParallelReducer = {
         var texelSize = 1.0 / this.res;
         var level = 1;
         this.currRes = this.res;
-        while (this.currRes > this.stopRes)
-        {
+        while (this.currRes > this.stopRes) {
+
             //reduce width by half
             this.currRes /= 2;
             // console.log('currRes: ' + this.currRes);
@@ -188,10 +188,10 @@ var ParallelReducer = {
             this.__swapRenderTargets();
             this.rttQuadMeshes[level].visible = true;
             this.rttQuadMeshes[level].material = currMaterial;
-            currMaterial.uniforms.uTexture.value = firstIteration ? texture : this.rttRenderTarget2;
-            currMaterial.uniforms.uTexelSize.value = texelSize;
-            currMaterial.uniforms.uHalfTexelSize.value = texelSize / 2.0;
-            currMaterial.uniforms.uChannelMask.value.copy(this.channelVectors[channelId]);
+            currMaterial.uniforms['uTexture'].value = firstIteration ? texture : this.rttRenderTarget2;
+            currMaterial.uniforms['uTexelSize'].value = texelSize;
+            currMaterial.uniforms['uHalfTexelSize'].value = texelSize / 2.0;
+            currMaterial.uniforms['uChannelMask'].value.copy(this.channelVectors[channelId]);
             this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
             this.rttQuadMeshes[level].visible = false;
 
@@ -215,8 +215,8 @@ var ParallelReducer = {
         this.__swapRenderTargets();
         this.rttQuadMeshes[0].visible = true;
         this.rttQuadMeshes[0].material = this.rttEncodeFloatMaterial;
-        this.rttEncodeFloatMaterial.uniforms.uTexture.value = this.rttRenderTarget2;
-        this.rttEncodeFloatMaterial.uniforms.uChannelMask.value.copy(this.channelVectors[channelId]);
+        this.rttEncodeFloatMaterial.uniforms['uTexture'].value = this.rttRenderTarget2;
+        this.rttEncodeFloatMaterial.uniforms['uChannelMask'].value.copy(this.channelVectors[channelId]);
         this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
         this.rttQuadMeshes[0].visible = false;
 

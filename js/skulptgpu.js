@@ -190,7 +190,7 @@ GpuSkulpt.prototype.__setupRttScene = function () {
 //Sets up the vertex-texture-fetch for the given mesh
 GpuSkulpt.prototype.__setupVtf = function () {
     this.mesh.material = new THREE.ShaderMaterial({
-        uniforms: THREE.UniformsUtils.merge( [
+        uniforms: THREE.UniformsUtils.merge([
             THREE.UniformsLib['lights'],
             THREE.UniformsLib['shadowmap'],
             {
@@ -220,7 +220,7 @@ GpuSkulpt.prototype.update = function () {
     //clear sculpts if necessary
     if (this.shouldClear) {
         this.rttQuadMesh.material = this.clearMaterial;
-        this.clearMaterial.uniforms.uColor.value.set(0.0, 0.0, 0.0, 0.0);
+        this.clearMaterial.uniforms['uColor'].value.set(0.0, 0.0, 0.0, 0.0);
         this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
         this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget2, false);
         this.shouldClear = false;
@@ -230,10 +230,10 @@ GpuSkulpt.prototype.update = function () {
     //do the main sculpting
     if (this.isSculpting) {
         this.rttQuadMesh.material = this.skulptMaterial;
-        this.skulptMaterial.uniforms.uBaseTexture.value = this.imageDataTexture;
-        this.skulptMaterial.uniforms.uSculptTexture1.value = this.rttRenderTarget2;
-        this.skulptMaterial.uniforms.uIsSculpting.value = this.isSculpting;
-        this.skulptMaterial.uniforms.uSculptPos.value.copy(this.sculptUvPos);
+        this.skulptMaterial.uniforms['uBaseTexture'].value = this.imageDataTexture;
+        this.skulptMaterial.uniforms['uSculptTexture1'].value = this.rttRenderTarget2;
+        this.skulptMaterial.uniforms['uIsSculpting'].value = this.isSculpting;
+        this.skulptMaterial.uniforms['uSculptPos'].value.copy(this.sculptUvPos);
         this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
         this.swapRenderTargets();
         this.isSculpting = false;
@@ -244,17 +244,17 @@ GpuSkulpt.prototype.update = function () {
     if (this.updateCombinedLayers) {  //this can be triggered somewhere else without sculpting
 
         this.rttQuadMesh.material = this.combineTexturesMaterial;
-        this.combineTexturesMaterial.uniforms.uTexture1.value = this.imageDataTexture;
-        this.combineTexturesMaterial.uniforms.uTexture2.value = this.rttRenderTarget2;
+        this.combineTexturesMaterial.uniforms['uTexture1'].value = this.imageDataTexture;
+        this.combineTexturesMaterial.uniforms['uTexture2'].value = this.rttRenderTarget2;
         this.renderer.render(this.rttScene, this.rttCamera, this.rttCombinedLayer, false);
         this.updateCombinedLayers = false;
 
         //need to rebind rttCombinedLayer to uTexture
-        this.mesh.material.uniforms.uTexture.value = this.rttCombinedLayer;
+        this.mesh.material.uniforms['uTexture'].value = this.rttCombinedLayer;
 
         //check for the callback of type 'update'
         if (this.callbacks.hasOwnProperty('update')) {
-            var renderCallbacks = this.callbacks.update;
+            var renderCallbacks = this.callbacks['update'];
             var i, len;
             for (i = 0, len = renderCallbacks.length; i < len; i++) {
                 renderCallbacks[i]();
@@ -266,7 +266,7 @@ GpuSkulpt.prototype.swapRenderTargets = function () {
     var temp = this.rttRenderTarget1;
     this.rttRenderTarget1 = this.rttRenderTarget2;
     this.rttRenderTarget2 = temp;
-    // this.skulptMaterial.uniforms.uSculptTexture1.value = this.rttRenderTarget2;
+    // this.skulptMaterial.uniforms['uSculptTexture1'].value = this.rttRenderTarget2;
 };
 /**
  * Sets brush size
@@ -274,15 +274,15 @@ GpuSkulpt.prototype.swapRenderTargets = function () {
  */
 GpuSkulpt.prototype.setBrushSize = function (size) {
     var normSize = size / (this.size * 2.0);
-    this.skulptMaterial.uniforms.uSculptRadius.value = normSize;
-    this.mesh.material.uniforms.uCursorRadius.value = normSize;
+    this.skulptMaterial.uniforms['uSculptRadius'].value = normSize;
+    this.mesh.material.uniforms['uCursorRadius'].value = normSize;
 };
 /**
  * Sets brush amount
  * @param {number} amount Brush amount
  */
 GpuSkulpt.prototype.setBrushAmount = function (amount) {
-    this.skulptMaterial.uniforms.uSculptAmount.value = amount;
+    this.skulptMaterial.uniforms['uSculptAmount'].value = amount;
 };
 /**
  * Loads terrain heights from image data
@@ -290,8 +290,8 @@ GpuSkulpt.prototype.setBrushAmount = function (amount) {
  * @param  {number} amount Height multiplier
  * @param  {boolean} midGreyIsLowest Whether mid grey is considered the lowest part of the image
  */
-GpuSkulpt.prototype.loadFromImageData = function (data, amount, midGreyIsLowest)
-{
+GpuSkulpt.prototype.loadFromImageData = function (data, amount, midGreyIsLowest) {
+
     //convert data from Uint8ClampedArray to Float32Array so that DataTexture can use
     var normalizedHeight;
     var min = 99999;
@@ -318,9 +318,9 @@ GpuSkulpt.prototype.loadFromImageData = function (data, amount, midGreyIsLowest)
     //assign data to DataTexture
     this.imageDataTexture.image.data = this.imageProcessedData;
     this.imageDataTexture.needsUpdate = true;
-    this.skulptMaterial.uniforms.uBaseTexture.value = this.imageDataTexture;
-    this.combineTexturesMaterial.uniforms.uTexture1.value = this.imageDataTexture;
-    // this.mesh.material.uniforms.uBaseTexture.value = this.imageDataTexture;
+    this.skulptMaterial.uniforms['uBaseTexture'].value = this.imageDataTexture;
+    this.combineTexturesMaterial.uniforms['uTexture1'].value = this.imageDataTexture;
+    // this.mesh.material.uniforms['uBaseTexture'].value = this.imageDataTexture;
     this.updateCombinedLayers = true;
 };
 /**
@@ -330,14 +330,14 @@ GpuSkulpt.prototype.loadFromImageData = function (data, amount, midGreyIsLowest)
  * @param  {number} amount Amount to sculpt
  */
 GpuSkulpt.prototype.sculpt = function (type, position, amount) {
-    this.skulptMaterial.uniforms.uSculptType.value = type;
+    this.skulptMaterial.uniforms['uSculptType'].value = type;
     this.isSculpting = true;
     this.sculptUvPos.x = (position.x + this.halfSize) / this.size;
     this.sculptUvPos.y = (position.z + this.halfSize) / this.size;
     if (type === 1) {
-        this.mesh.material.uniforms.uCursorColor.value.copy(this.cursorAddColor);
+        this.mesh.material.uniforms['uCursorColor'].value.copy(this.cursorAddColor);
     } else if (type === 2) {
-        this.mesh.material.uniforms.uCursorColor.value.copy(this.cursorRemoveColor);
+        this.mesh.material.uniforms['uCursorColor'].value.copy(this.cursorRemoveColor);
     }
 };
 /**
@@ -353,20 +353,20 @@ GpuSkulpt.prototype.clear = function () {
 GpuSkulpt.prototype.updateCursor = function (position) {
     this.sculptUvPos.x = (position.x + this.halfSize) / this.size;
     this.sculptUvPos.y = (position.z + this.halfSize) / this.size;
-    this.mesh.material.uniforms.uCursorPos.value.set(this.sculptUvPos.x, this.sculptUvPos.y);
-    this.mesh.material.uniforms.uCursorColor.value.copy(this.cursorHoverColor);
+    this.mesh.material.uniforms['uCursorPos'].value.set(this.sculptUvPos.x, this.sculptUvPos.y);
+    this.mesh.material.uniforms['uCursorColor'].value.copy(this.cursorHoverColor);
 };
 /**
  * Shows the sculpt cursor
  */
 GpuSkulpt.prototype.showCursor = function () {
-    this.mesh.material.uniforms.uShowCursor.value = 1;
+    this.mesh.material.uniforms['uShowCursor'].value = 1;
 };
 /**
  * Hides the sculpt cursor
  */
 GpuSkulpt.prototype.hideCursor = function () {
-    this.mesh.material.uniforms.uShowCursor.value = 0;
+    this.mesh.material.uniforms['uShowCursor'].value = 0;
 };
 //Returns the pixel unsigned byte data for the render target texture (readPixels() can only return unsigned byte data)
 GpuSkulpt.prototype.__getPixelByteDataForRenderTarget = function (renderTarget, pixelByteData, width, height) {
@@ -393,8 +393,8 @@ GpuSkulpt.prototype.__getPixelEncodedByteData = function (renderTarget, pixelByt
 
     //encode the float data into an unsigned byte RGBA texture
     this.rttQuadMesh.material = this.rttEncodeFloatMaterial;
-    this.rttEncodeFloatMaterial.uniforms.uTexture.value = renderTarget;
-    this.rttEncodeFloatMaterial.uniforms.uChannelMask.value.copy(this.channelVectors[channelId]);
+    this.rttEncodeFloatMaterial.uniforms['uTexture'].value = renderTarget;
+    this.rttEncodeFloatMaterial.uniforms['uChannelMask'].value.copy(this.channelVectors[channelId]);
     this.renderer.render(this.rttScene, this.rttCamera, this.rttFloatEncoderRenderTarget, false);
 
     this.__getPixelByteDataForRenderTarget(this.rttFloatEncoderRenderTarget, pixelByteData, width, height);
@@ -420,8 +420,8 @@ GpuSkulpt.prototype.getProxyPixelFloatData = function () {
 
     //render to proxy render target
     this.rttQuadMesh.material = this.rttProxyMaterial;
-    this.rttProxyMaterial.uniforms.uTexture.value = this.rttCombinedLayer;
-    this.rttProxyMaterial.uniforms.uScale.value = this.actualToProxyRatio;
+    this.rttProxyMaterial.uniforms['uTexture'].value = this.rttCombinedLayer;
+    this.rttProxyMaterial.uniforms['uScale'].value = this.actualToProxyRatio;
     this.renderer.render(this.rttScene, this.rttCamera, this.rttProxyRenderTarget, false);
 
     //get the encoded byte data first

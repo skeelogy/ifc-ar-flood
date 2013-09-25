@@ -177,10 +177,10 @@
             var dt = clock.getDelta();  //have to call this before getElapsedTime()
             var time = clock.getElapsedTime();
 
-            planeMaterial.uniforms.uTime.value += dt;
-            planeMaterial.uniforms.uPointLightWorldPos.value[0].x = 2 * Math.sin(time);
-            planeMaterial.uniforms.uPointLightWorldPos.value[0].z = 2 * Math.cos(time);
-            lightMesh.position.copy(planeMaterial.uniforms.uPointLightWorldPos.value[0]);
+            planeMaterial.uniforms['uTime'].value += dt;
+            planeMaterial.uniforms['uPointLightWorldPos'].value[0].x = 2 * Math.sin(time);
+            planeMaterial.uniforms['uPointLightWorldPos'].value[0].z = 2 * Math.cos(time);
+            lightMesh.position.copy(planeMaterial.uniforms['uPointLightWorldPos'].value[0]);
 
             controls.update();
 

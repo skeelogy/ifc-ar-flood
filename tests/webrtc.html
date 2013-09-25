@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>IFC - WebRTC getUserMedia() Test</title>
+    <title>IFC - WebRTC getUserMedia Test</title>
     <meta charset="UTF-8"/>
 
     <link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
@@ -14,19 +14,17 @@
     <script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
 
     <script>
-    $(document).ready(function()
-    {
+    $(document).ready(function () {
+
         console.log('Document is ready.');
 
         //use getUserMedia() to stream the webcam video
         var video = $('#mainVideo')[0];
-        if (getUserMedia)
-        {
+        if (getUserMedia) {
             console.log("Calling getUserMedia()...");
             getUserMedia(
-                {'audio':false, 'video':true},
-                function(localMediaStream)
-                {
+                {'audio': false, 'video': true},
+                function (localMediaStream) {
                     console.log("User has granted access to local media.");
 
                     var localMediaStreamUrl = URL.createObjectURL(localMediaStream);
@@ -37,15 +35,14 @@
                     attachMediaStream(video, localMediaStream);
                     console.log('Done.');
                 },
-                function(error)
-                {
-                    errorMsg = 'ERROR: getUserMedia(): ' + JSON.stringify(error);
+                function (error) {
+                    var errorMsg = 'ERROR: getUserMedia(): ' + JSON.stringify(error);
                     console.error(errorMsg);
                     alert(errorMsg);
                 }
             );
         } else {
-            errorMsg = 'ERROR: Your browser does not support getUserMedia()';
+            var errorMsg = 'ERROR: Your browser does not support getUserMedia()';
             console.error(errorMsg);
             alert(errorMsg);
         }

@@ -16,14 +16,13 @@
     <script type="text/javascript" src="/js/lib/stats.min.js"></script>
 
     <script>
-    $(document).ready(function()
-    {
+    $(document).ready(function () {
+
         //check for WebGL
-        if (!Detector.webgl)
-        {
+        if (!Detector.webgl) {
             $('div').remove();
             Detector.addGetWebGLMessage();
-            return;
+            throw new Error('Your browser does not seem to support WebGL');
         }
 
         console.log('Document is ready.');
@@ -36,19 +35,14 @@
         var video = $('#mainVideo')[0];
         var img = $('#mainImage')[0];
         var source;
-        sourceId = 0;
-        if (sourceId == 0)
-        {
+        var sourceId = 0;
+        if (sourceId === 0) {
             video.src = '/resources/markers/jsartoolkit/output_4.ogg';
             source = video;
-        }
-        else if (sourceId == 1)
-        {
+        } else if (sourceId === 1) {
             video.src = '/resources/markers/jsartoolkit/swap_loop.ogg';
             source = video;
-        }
-        else if (sourceId == 2)
-        {
+        } else if (sourceId === 2) {
             img.src = '/resources/markers/jsartoolkit/chalk_multi.jpg';
             source = img;
         }
@@ -69,7 +63,7 @@
         var scene = new THREE.Scene();
 
         // Create a camera and a marker root object for your Three.js scene.
-        var camera = new THREE.PerspectiveCamera(35, renderer.domElement.width/renderer.domElement.height, 1, 10000);
+        var camera = new THREE.PerspectiveCamera(35, renderer.domElement.width / renderer.domElement.height, 1, 10000);
         camera.position.set(0, 0, 5);
 
         // setup lights
@@ -79,19 +73,19 @@
         light.position.set(3, -3, 1).normalize();
         scene.add(light);
 
-        var light = new THREE.DirectionalLight(0xffffff);
+        light = new THREE.DirectionalLight(0xffffff);
         light.position.set(-0, 2, -1).normalize();
         scene.add(light);
 
-        var material = new THREE.MeshNormalMaterial();
-        var geometry = new THREE.TorusGeometry(10, 3);
-        var mesh = new THREE.Mesh(geometry, material);
-        mesh.position.z = -50;
-        scene.add(mesh);
+        var torusGeom = new THREE.TorusGeometry(10, 3);
+        var torusMaterial = new THREE.MeshNormalMaterial();
+        var torusMesh = new THREE.Mesh(torusGeom, torusMaterial);
+        torusMesh.position.z = -50;
+        scene.add(torusMesh);
 
         // Create scene and quad for the video.
-        var videoTex = new THREE.Texture(source);
         var geometry = new THREE.PlaneGeometry(2, 2);
+        var videoTex = new THREE.Texture(source);
         var material = new THREE.MeshBasicMaterial({
             map : videoTex,
             depthTest : false,
@@ -104,7 +98,7 @@
         videoScene.add(videoCam);
 
         //create a stats monitor
-        stats = new Stats();
+        var stats = new Stats();
         var $threejsContainerElem = $('#threejs-container');
         $threejsContainerElem.append(stats.domElement);
 
@@ -112,30 +106,25 @@
         // LOOP
         //===================================================
 
-        function animate(){
-            requestAnimationFrame(animate);
-            render();
-            stats.update();
-        };
+        function loop() {
 
-        function render(){
-
-            if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA))
-            {
+            if (source instanceof HTMLImageElement || (source instanceof HTMLVideoElement && source.readyState === source.HAVE_ENOUGH_DATA)) {
                 videoTex.needsUpdate = true;
             }
 
-            mesh.rotation.y += 0.01;
+            torusMesh.rotation.y += 0.01;
 
             // trigger the rendering
             renderer.autoClear = false;
             renderer.clear();
             renderer.render(videoScene, videoCam);
             renderer.render(scene, camera);
-        };
 
-        //animate
-        animate();
+            stats.update();
+
+            requestAnimationFrame(loop);
+        }
+        loop();
     });
     </script>
 </head>
@@ -147,7 +136,7 @@
     </div>
     <div class="container" id="image-container">
         <div class="caption">&lt;image&gt;</div>
-        <img id="mainImage" width="640" height="480"></img>
+        <img id="mainImage" width="640" height="480">
     </div>
     <div class="container" id="threejs-container">
         <div class="caption">three.js &lt;canvas&gt;</div>

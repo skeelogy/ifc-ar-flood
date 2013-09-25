@@ -37,6 +37,10 @@
     var clock = new THREE.Clock();
     var lookAtPoint = new THREE.Vector3();
 
+    var isOrbiting = true;
+    var canvas, canvasWidth, canvasHeight;
+    var skarf;
+
     var options = {
         trackingSceneThreshold: 128,
         trackingSceneFxaa: false,
@@ -46,7 +50,9 @@
         cameraMotionSpeed: 0.2,
         cameraMotionTiltAmp: 0.2,
         cameraMotionTiltOffset: 0.1,
-        togglePauseOrbit: togglePauseOrbit,
+        togglePauseOrbit: function () {
+            isOrbiting = !isOrbiting;
+        },
         displayRefCube: false,
         displayDebugView: false,
         displayOriginPlane: true,
@@ -54,11 +60,8 @@
         displayLocalAxis: false
     };
 
-    function checkWebGl()
-    {
-        //check for WebGL
-        if (!Detector.webgl)
-        {
+    function checkWebGl() {
+        if (!Detector.webgl) {
             $('div').remove();
             Detector.addGetWebGLMessage();
             throw new Error('Your browser does not seem to support WebGL');
@@ -71,8 +74,8 @@
     var refCubeMesh, refCubeMesh2, refCubeMesh3;
     var composer;
     var source;
-    function setupThreejsTrackingScene()
-    {
+    function setupThreejsTrackingScene() {
+
         //renderer
         trackSceneRenderer = new THREE.WebGLRenderer({
             antialias : true
@@ -88,9 +91,9 @@
 
         //camera
         vfov = 40;
-        trackSceneCamera = new THREE.PerspectiveCamera(vfov, canvasWidth/canvasHeight, 0.1, 1000);
+        trackSceneCamera = new THREE.PerspectiveCamera(vfov, canvasWidth / canvasHeight, 0.1, 1000);
         trackSceneCamera.position.set(0.25, 0.25, 0.25);
-        trackSceneCamera.lookAt(new THREE.Vector3(0,0,0));
+        trackSceneCamera.lookAt(new THREE.Vector3(0, 0, 0));
         trackSceneCameraControls = new THREE.OrbitControls(trackSceneCamera);
         trackSceneCameraControls.modifierKey = 'alt';
         trackSceneCameraControls.userPanSpeed = 0.04;
@@ -104,7 +107,7 @@
                 map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/22.jpg')
             })
         );
-        trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        trackScenePlaneMesh.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         trackSceneScene.add(trackScenePlaneMesh);
 
         //plane 2
@@ -114,7 +117,7 @@
                 map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/81.jpg')
             })
         );
-        trackScenePlaneMesh2.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        trackScenePlaneMesh2.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         trackScenePlaneMesh2.position.x = 0.11;
         trackScenePlaneMesh2.position.z = -0.07;
         trackSceneScene.add(trackScenePlaneMesh2);
@@ -126,7 +129,7 @@
                 map: THREE.ImageUtils.loadTexture('/resources/markers/jsartoolkit/63.jpg')
             })
         );
-        trackScenePlaneMesh3.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+        trackScenePlaneMesh3.geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         trackScenePlaneMesh3.position.x = -0.14;
         trackScenePlaneMesh3.position.z = -0.02;
         trackSceneScene.add(trackScenePlaneMesh3);
@@ -136,7 +139,8 @@
             new THREE.CubeGeometry(0.1, 0.1, 0.1),
             new THREE.MeshBasicMaterial({
                 color: 0x00ff00,
-                side: THREE.DoubleSide,wireframe: true,
+                side: THREE.DoubleSide,
+                wireframe: true,
                 depthTest : false,
                 depthWrite : false
             })
@@ -149,7 +153,8 @@
             new THREE.CubeGeometry(0.1, 0.1, 0.1),
             new THREE.MeshBasicMaterial({
                 color: 0x00ff00,
-                side: THREE.DoubleSide,wireframe: true,
+                side: THREE.DoubleSide,
+                wireframe: true,
                 depthTest : false,
                 depthWrite : false
             })
@@ -179,7 +184,7 @@
         composer = new THREE.EffectComposer(trackSceneRenderer);
         composer.addPass(new THREE.RenderPass(trackSceneScene, trackSceneCamera));
         var pass = new THREE.ShaderPass(THREE.FXAAShader);
-        pass.uniforms['resolution'].value.set(1.0/canvasWidth, 1.0/canvasHeight);
+        pass.uniforms['resolution'].value.set(1.0 / canvasWidth, 1.0 / canvasHeight);
         pass.renderToScreen = true;
         composer.addPass(pass);
     }
@@ -188,8 +193,8 @@
     var keyLight, fillLight;
     var materials = [];
     var originPlaneMesh;
-    function setupMainScene()
-    {
+    function setupMainScene() {
+
         //create renderer
         renderer = new THREE.WebGLRenderer({
             antialias : true
@@ -206,9 +211,9 @@
         scene = new THREE.Scene();
 
         //create camera
-        camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
+        camera = new THREE.PerspectiveCamera(25, renderer.domElement.width / renderer.domElement.height, 0.1, 1000);
         camera.position.set(8, 8, 15);
-        camera.lookAt(new THREE.Vector3(0,0,0));
+        camera.lookAt(new THREE.Vector3(0, 0, 0));
         camera.matrixAutoUpdate = false;
 
         //create plane at origin
@@ -251,11 +256,10 @@
         scene.add(fillLight);
     }
 
-    var skarf;
-    function setupSkarf()
-    {
-        //create a SkArF framework
-        skarf = new SkArF({
+    function setupSkarf() {
+
+        //create a Skarf framework
+        skarf = new Skarf({
 
             arLibType: 'jsartoolkit',
             trackingElem: source,
@@ -276,12 +280,11 @@
         });
     }
 
-    function setupStats()
-    {
-        //create a stats monitor
+    var stats;
+    function setupStats() {
         stats = new Stats();
-        var $threejsContainerElem = $('#threejs-container-parent');
-        $threejsContainerElem.append(stats.domElement);
+        var $threejsContainerParentElem = $('#threejs-container-parent');
+        $threejsContainerParentElem.append(stats.domElement);
     }
 
     var gui;
@@ -296,8 +299,7 @@
         trackingSceneFolder.open();
 
         var control = trackingSceneFolder.add(options, 'trackingSceneThreshold', 0, 255).name('Threshold');
-        function trackingThreshold_onChange(value)
-        {
+        function trackingThreshold_onChange(value) {
             skarf.arLib.threshold = value;
         }
         control.onChange(trackingThreshold_onChange);
@@ -305,8 +307,7 @@
         control = trackingSceneFolder.add(options, 'trackingSceneFxaa').name('FXAA');
 
         control = trackingSceneFolder.add(options, 'trackingSceneMultipleTrackers').name('Multiple Markers');
-        function toggleMultipleMarkers(value)
-        {
+        function toggleMultipleMarkers(value) {
             trackScenePlaneMesh2.visible = value;
             trackScenePlaneMesh3.visible = value;
             refCubeMesh2.visible = value && options.displayRefCube;
@@ -320,8 +321,7 @@
         cameraMotionFolder.open();
 
         control = cameraMotionFolder.add(options, 'cameraMotionAutoOrbit').name('Auto Orbit');
-        function toggleCameraMotionAutoOrbit(value)
-        {
+        function toggleCameraMotionAutoOrbit(value) {
             //always turn orbiting on when auto orbit is turned on
             isOrbiting = true;
         }
@@ -342,8 +342,7 @@
         displayFolder.open();
 
         control = displayFolder.add(options, 'displayRefCube').name('Reference Cube');
-        function toggleRefCube(value)
-        {
+        function toggleRefCube(value) {
             refCubeMesh.visible = value;
             refCubeMesh2.visible = value && options.trackingSceneMultipleTrackers;
             refCubeMesh3.visible = value && options.trackingSceneMultipleTrackers;
@@ -352,28 +351,24 @@
         toggleRefCube(options.displayRefCube);
 
         control = displayFolder.add(options, 'displayDebugView').name('Debug View');
-        function toggleDebugView(value)
-        {
+        function toggleDebugView(value) {
             skarf.arLib.debug = value;
         }
         control.onChange(toggleDebugView);
         toggleDebugView(options.displayDebugView);
 
         control = displayFolder.add(options, 'displayOriginPlane').name('Origin Plane');
-        function toggleOriginPlane(value)
-        {
+        function toggleOriginPlane(value) {
             originPlaneMesh.visible = value;
         }
         control.onChange(toggleOriginPlane);
         toggleOriginPlane(options.displayOriginPlane);
 
         control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
-        function toggleWireframe(value)
-        {
+        function toggleWireframe(value) {
             skarf.renderer.setWireframeVisible(value);
             var i, len;
-            for (i = 0, len = materials.length; i < len; i++)
-            {
+            for (i = 0, len = materials.length; i < len; i++) {
                 materials[i].wireframe = value;
             }
         }
@@ -381,26 +376,18 @@
         toggleWireframe(options.displayWireframe);
 
         control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
-        function toggleLocalAxis(value)
-        {
+        function toggleLocalAxis(value) {
             skarf.renderer.setLocalAxisVisible(value);
         }
         control.onChange(toggleLocalAxis);
         toggleLocalAxis(options.displayLocalAxis);
     }
 
-    var isOrbiting = true;
-    function togglePauseOrbit()
-    {
-        isOrbiting = !isOrbiting;
-    }
-
-    var canvas, canvasWidth, canvasHeight;
     var ctx;
     var markers = {};
     var t = 0;
-    $(document).ready(function()
-    {
+    $(document).ready(function () {
+
         //check for WebGL
         checkWebGl();
 
@@ -428,37 +415,30 @@
         setupGui();
 
         //main loop
-        function loop()
-        {
+        function loop() {
+
             var dt = clock.getDelta();  //have to call this before getElapsedTime()
             var time = clock.getElapsedTime();
 
             //update tracking camera
-            if (options.cameraMotionAutoOrbit)
-            {
-                if (isOrbiting)
-                {
+            if (options.cameraMotionAutoOrbit) {
+                if (isOrbiting) {
                     t += dt;
                     trackSceneCamera.position.x = options.cameraMotionRadius * Math.sin(options.cameraMotionSpeed * t);
                     trackSceneCamera.position.y = (options.cameraMotionTiltAmp / 2.0) * Math.sin(options.cameraMotionSpeed * t) + (options.cameraMotionTiltAmp / 2.0) + options.cameraMotionTiltOffset;
                     trackSceneCamera.position.z = options.cameraMotionRadius * Math.cos(options.cameraMotionSpeed * t);
                     trackSceneCamera.lookAt(lookAtPoint);
                 }
-            }
-            else
-            {
+            } else {
                 trackSceneCameraControls.update();
             }
 
             //update tracking scene
             trackSceneRenderer.autoClear = false;
             trackSceneRenderer.clear();
-            if (options.trackingSceneFxaa)
-            {
+            if (options.trackingSceneFxaa) {
                 composer.render(trackSceneScene, trackSceneCamera);
-            }
-            else
-            {
+            } else {
                 trackSceneRenderer.render(trackSceneScene, trackSceneCamera);
             }
 
@@ -475,13 +455,11 @@
     </script>
 </head>
 <body>
-    <h2>SkArF.js (JSARToolKit with Three.js)</h2>
-
+    <h2>skarf.js (JSARToolKit with Three.js)</h2>
     <div class="container" id="mainTracking3dScene">
         <div class="caption">Three.js 3D scene for tracking</div>
-        <div class="caption">alt+LMB: tumble ("rotate")<br/>alt+MMB: track ("pan")<br/>alt+RMB: dolly ("zoom")</div>
+        <div class="caption">[ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
     </div>
-
     <div class="container" id="canvas-container">
         <div class="caption">&lt;canvas&gt;</div>
         <canvas id="mainCanvas" width="1280" height="720"></canvas>
@@ -490,7 +468,6 @@
         <div class="caption">debug &lt;canvas&gt;</div>
         <canvas id="debugCanvas" width="1280" height="720"></canvas>
     </div>
-
     <div class="container" id="threejs-container-parent">
         <div class="caption">three.js &lt;canvas&gt;</div>
         <div id="threejs-container"></div>

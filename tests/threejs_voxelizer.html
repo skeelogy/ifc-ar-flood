@@ -8,22 +8,34 @@
 
     <!--load helper libraries-->
     <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+    <script type="text/javascript" src="/js/lib/seedrandom.js"></script>
 
-    <!--load AR and 3D libraries-->
+    <!--load 3D libraries-->
     <script type="text/javascript" src="/js/lib/three.min.js"></script>
     <script type="text/javascript" src="/js/lib/Detector.js"></script>
     <script type="text/javascript" src="/js/lib/stats.min.js"></script>
     <script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
     <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
 
-    <script type="text/javascript" src="/js/lib/seedrandom.js"></script>
-
+    <!--load voxelizer library-->
     <script type="text/javascript" src="/js/skvoxelizer.js"></script>
 
     <script>
 
+    var shapesTypes = {
+        'Cube': 'cubeMesh',
+        'Sphere': 'sphereMesh',
+        'Cylinder': 'cylinderMesh'
+    };
+    var options = {
+        shapesType: shapesTypes[Object.keys(shapesTypes)[0]],
+        renderingShadows: false,
+        displayWireframe: true,
+        displayLocalAxis: false
+    };
+
     var GLOBAL_POS = new THREE.Vector3(0.5, 1, 1);
-    var GLOBAL_ROT = new THREE.Vector3(THREE.Math.degToRad(30),-THREE.Math.degToRad(30),THREE.Math.degToRad(30));
+    var GLOBAL_ROT = new THREE.Vector3(THREE.Math.degToRad(30), -THREE.Math.degToRad(30), THREE.Math.degToRad(30));
     var GLOBAL_SCALE = new THREE.Vector3(1, 1, 1);
 
     var GLOBAL_MAT = new THREE.Matrix4();
@@ -35,11 +47,8 @@
 
     var clock = new THREE.Clock();
 
-    function checkWebGl()
-    {
-        //check for WebGL
-        if (!Detector.webgl)
-        {
+    function checkWebGl() {
+        if (!Detector.webgl) {
             $('div').remove();
             Detector.addGetWebGLMessage();
             throw new Error('Your browser does not seem to support WebGL');
@@ -47,17 +56,18 @@
     }
 
     var renderer, scene, camera, controls, globalTransform;
+    var keyLight, fillLight;
     var materials = [];
     var worldAxis, localAxis;
     var cubeMesh, sphereMesh, cylinderMesh;
     var testMesh;
-    function setupThreejsScene()
-    {
+    function setupThreejsScene() {
+
         //create renderer
         renderer = new THREE.WebGLRenderer({
             antialias : true
         });
-        renderer.setSize(window.innerWidth, window.innerHeight-5);
+        renderer.setSize(window.innerWidth, window.innerHeight - 5);
         renderer.setClearColor('#111111', 1);
         var $container = $('#threejs-container');
         $container.append(renderer.domElement);
@@ -73,9 +83,9 @@
         scene.add(globalTransform);
 
         //create camera
-        camera = new THREE.PerspectiveCamera(25, renderer.domElement.width/renderer.domElement.height, 0.1, 1000);
+        camera = new THREE.PerspectiveCamera(25, renderer.domElement.width / renderer.domElement.height, 0.1, 1000);
         camera.position.set(8, 8, 15);
-        camera.lookAt(new THREE.Vector3(0,0,0));
+        camera.lookAt(new THREE.Vector3(0, 0, 0));
 
         //create controls for camera
         controls = new THREE.OrbitControls(camera);
@@ -126,52 +136,35 @@
         globalTransform.add(cylinderMesh);
     }
 
-    function setupEvents()
-    {
-        window.addEventListener('resize', window_onResize, false);
-        window.addEventListener('keypress', window_onKeyPress, false);
-    }
-
-    function window_onResize(event)
-    {
+    function window_onResize(event) {
         //update camera projection
-        camera.aspect = window.innerWidth / (window.innerHeight-5);
+        camera.aspect = window.innerWidth / (window.innerHeight - 5);
         camera.updateProjectionMatrix();
 
         //update renderer size
-        renderer.setSize(window.innerWidth, window.innerHeight-5);
+        renderer.setSize(window.innerWidth, window.innerHeight - 5);
     }
 
-    isAnimating = true;
-    function window_onKeyPress(event)
-    {
-        if (event.keyCode === 32)
-        {
+    var isAnimating = true;
+    function window_onKeyPress(event) {
+        if (event.keyCode === 32) {
             isAnimating = !isAnimating;
         }
     }
 
+    function setupEvents() {
+        window.addEventListener('resize', window_onResize, false);
+        window.addEventListener('keypress', window_onKeyPress, false);
+    }
+
     var stats;
-    function setupStats()
-    {
-        //create a stats monitor
+    function setupStats() {
         stats = new Stats();
         $('body').append(stats.domElement);
     }
 
     var gui;
     var shapesFolder, renderingFolder, displayFolder;
-    var shapesTypes = {
-        'Cube': 'cubeMesh',
-        'Sphere': 'sphereMesh',
-        'Cylinder': 'cylinderMesh'
-    };
-    var options = {
-        shapesType: shapesTypes[Object.keys(shapesTypes)[0]],
-        renderingShadows: true,  //FIXME: this has to be init to true
-        displayWireframe: true,
-        displayLocalAxis: false,
-    };
     function setupGui() {
 
         gui = new dat.GUI();
@@ -182,11 +175,10 @@
         shapesFolder.open();
 
         var control = shapesFolder.add(options, 'shapesType', shapesTypes).name('Type');
-        function changeShapesType(value)
-        {
+        function changeShapesType(value) {
+
             //hide current shape first
-            if (testMesh)
-            {
+            if (testMesh) {
                 testMesh.visible = false;
                 testMesh.voxelizer.hideAllVoxels();
             }
@@ -202,11 +194,10 @@
         renderingFolder = gui.addFolder('Rendering');
 
         control = renderingFolder.add(options, 'renderingShadows').name('Shadows');
-        function changeRenderingShadows(value)
-        {
+        function changeRenderingShadows(value) {
             renderer.shadowMapAutoUpdate = value;
-            if (!value)
-            {
+            if (!value) {
+                renderer.clear();
                 renderer.clearTarget(keyLight.shadowMap);
             }
         }
@@ -217,19 +208,17 @@
         displayFolder = gui.addFolder('Display');
 
         control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
-        function toggleWireframe(value)
-        {
-            for (materialId in materials)
-            {
-                materials[materialId].wireframe = value;
+        function toggleWireframe(value) {
+            var i, len;
+            for (i = 0, len = materials.length; i < len; i++) {
+                materials[i].wireframe = value;
             }
         }
         control.onChange(toggleWireframe);
         toggleWireframe(options.displayWireframe);
 
         control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
-        function toggleLocalAxis(value)
-        {
+        function toggleLocalAxis(value) {
             worldAxis.visible = value;
             localAxis.visible = value;
         }
@@ -238,8 +227,8 @@
     }
 
     var voxelizer;
-    $(document).ready(function()
-    {
+    $(document).ready(function () {
+
         //check for WebGL
         checkWebGl();
 
@@ -258,19 +247,18 @@
         setupGui();
 
         //main loop
-        function loop()
-        {
+        function loop() {
+
             var dt = clock.getDelta();  //have to call this before getElapsedTime()
             var time = clock.getElapsedTime();
 
             controls.update();
 
             //update sphere
-            if (isAnimating)
-            {
-                testMesh.position.x = Math.cos(time*1.5);
-                testMesh.position.y = Math.sin(time*2.5);
-                testMesh.position.z = Math.cos(time*2);
+            if (isAnimating) {
+                testMesh.position.x = Math.cos(time * 1.5);
+                testMesh.position.y = Math.sin(time * 2.5);
+                testMesh.position.z = Math.cos(time * 2);
                 testMesh.rotation.x = time;
                 testMesh.rotation.z = time / 2;
             }
@@ -288,7 +276,6 @@
             requestAnimationFrame(loop);
         }
         loop();
-
     });
     </script>
 </head>

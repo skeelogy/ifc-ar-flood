@@ -343,10 +343,7 @@ function HeightFieldWater(options) {
         throw new Error('dampingFactor not specified');
     }
     this.dampingFactor = options.dampingFactor;
-    if (typeof options.meanHeight === 'undefined') {
-        throw new Error('meanHeight not specified');
-    }
-    this.__meanHeight = options.meanHeight;
+    this.__meanHeight = options.meanHeight || 0.0;
 
     this.geometry = this.mesh.geometry;
     this.numVertices = this.res * this.res;
@@ -1194,7 +1191,7 @@ HeightFieldWaterWithVel.prototype.visualizeVelLines = function (shouldVisualize)
 HeightFieldWaterWithVel.prototype.updateVelColors = function () {
 
     var i, len, f, j, n, vertexIndex, velMag;
-    for (i = 0, len = this.geometry.faces.length; i < len; i ++) {
+    for (i = 0, len = this.geometry.faces.length; i < len; i++) {
         f  = this.geometry.faces[i];
         n = (f instanceof THREE.Face3) ? 3 : 4;
         for (j = 0; j < n; j++) {
@@ -1266,7 +1263,7 @@ function PipeModelWater(options) {
     this.dHeights = [];
 
     //TODO: this should really be in the superclass
-    this.terrainMesh = typeof options.terrainMesh === 'undefined' ? null: options.terrainMesh;
+    this.terrainMesh = typeof options.terrainMesh === 'undefined' ? null : options.terrainMesh;
 
     HeightFieldWaterWithVel.call(this, options);
 
