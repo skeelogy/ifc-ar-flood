@@ -13,10 +13,9 @@
     <!--load 3D libraries-->
     <script type="text/javascript" src="/js/lib/three.min.js"></script>
     <script type="text/javascript" src="/js/lib/Detector.js"></script>
-    <script type="text/javascript" src="/js/ShaderManager.js"></script>
 
     <!--load parallel reducer library-->
-    <script type="text/javascript" src="/js/skparallelreduce.js"></script>
+    <script type="text/javascript" src="/js/skparallelreduce.min.js"></script>
 
     <script>
 
@@ -32,6 +31,7 @@
     }
 
     var renderer;
+    var pr;
     function setupParallelReduction() {
 
         //create renderer
@@ -39,8 +39,8 @@
         renderer.setSize(320, 320);  //arbitrary
         renderer.setClearColor('#000000', 0);
 
-        //init the parallel reducer
-        ParallelReducer.init(renderer, RES, stopRes);
+        //create a parallel reducer
+        pr = new SKPR.ParallelReducer(renderer, RES, stopRes);
     }
 
     var numValues = RES * RES;
@@ -101,13 +101,13 @@
         var i, len;
         gpuSum = 0;
         var start = new Date().getTime();
-        ParallelReducer.reduce(dataTexture, 'sum', 'r');
-        var pixelFloatData = ParallelReducer.getPixelFloatData('r');
+        pr.reduce(dataTexture, 'sum', 'r');
+        var end = new Date().getTime();
+        var timeTaken = (end - start) / 1000;  //timing only the parallel reduction process, not including the reading of data from GPU to CPU
+        var pixelFloatData = pr.getPixelFloatData('r');
         for (i = 0, len = pixelFloatData.length; i < len; i++) {
             gpuSum += pixelFloatData[i];
         }
-        var end = new Date().getTime();
-        var timeTaken = (end - start) / 1000;
         var text = 'GPU sum: ' + gpuSum.toFixed(2) + ' (' + timeTaken.toFixed(3) + ' seconds)';
         $('#results-container').append('<p>' + text + '<\/p>');
         console.log(text);
@@ -124,5 +124,6 @@
 <body>
     <h1>GLSL Parallel Sum Reduction in Three.js</h1>
     <div><h2 id="results-container" class="container"></h2></div>
+    <div class="caption">This is a check to show that the GPU reduction calculations gives the same results as the CPU calculations</div>
 </body>
 </html>

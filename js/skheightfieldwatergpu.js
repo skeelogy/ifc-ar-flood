@@ -124,7 +124,7 @@ GpuHeightFieldWater.prototype.init = function () {
     this.__initDataAndTextures();
 
     //init parallel reducer
-    ParallelReducer.init(this.renderer, this.res, 1);
+    this.pr = new SKPR.ParallelReducer(this.renderer, this.res, 1);
 };
 GpuHeightFieldWater.prototype.getWaterFragmentShaderUrl = function () {
     throw new Error('Abstract method not implemented');
@@ -777,8 +777,8 @@ GpuHeightFieldWater.prototype.updateDynObstacleTexture = function (dt) {
             //TODO: reduce the number of texture reads to speed up (getPixels() is very expensive)
 
             //find total water volume displaced by this object (from A channel data)
-            ParallelReducer.reduce(that.rttDynObstaclesRenderTarget, 'sum', 'a');
-            object.__skhfwater.totalDisplacedVol = ParallelReducer.getPixelFloatData('a')[0] * that.segmentSizeSquared;  //cubic metres
+            that.pr.reduce(that.rttDynObstaclesRenderTarget, 'sum', 'a');
+            object.__skhfwater.totalDisplacedVol = that.pr.getPixelFloatData('a')[0] * that.segmentSizeSquared;  //cubic metres
 
             //mask out velocity field using object's alpha
             that.rttQuadMesh.material = that.maskWaterMaterial;
@@ -787,14 +787,14 @@ GpuHeightFieldWater.prototype.updateDynObstacleTexture = function (dt) {
             that.renderer.render(that.rttScene, that.rttCamera, that.rttMaskedWaterRenderTarget, false);
 
             //find total horizontal velocities affecting this object
-            ParallelReducer.reduce(that.rttMaskedWaterRenderTarget, 'sum', 'g');
-            object.__skhfwater.totalVelocityX = ParallelReducer.getPixelFloatData('g')[0];
-            ParallelReducer.reduce(that.rttMaskedWaterRenderTarget, 'sum', 'b');
-            object.__skhfwater.totalVelocityZ = ParallelReducer.getPixelFloatData('b')[0];
+            that.pr.reduce(that.rttMaskedWaterRenderTarget, 'sum', 'g');
+            object.__skhfwater.totalVelocityX = that.pr.getPixelFloatData('g')[0];
+            that.pr.reduce(that.rttMaskedWaterRenderTarget, 'sum', 'b');
+            object.__skhfwater.totalVelocityZ = that.pr.getPixelFloatData('b')[0];
 
             //calculate total area covered by this object
-            ParallelReducer.reduce(that.rttObstacleTopRenderTarget, 'sum', 'a');
-            object.__skhfwater.totalArea = ParallelReducer.getPixelFloatData('a')[0];
+            that.pr.reduce(that.rttObstacleTopRenderTarget, 'sum', 'a');
+            object.__skhfwater.totalArea = that.pr.getPixelFloatData('a')[0];
 
             //calculate average velocities affecting this object
             if (object.__skhfwater.totalArea === 0.0) {
