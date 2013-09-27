@@ -1,853 +1,884 @@
 /**
- * @fileOverview A JavaScript sculpting script for sculpting Three.js meshes
+ * @fileOverview A JavaScript/GLSL sculpting script for sculpting Three.js meshes
  * @author Skeel Lee <skeel@skeelogy.com>
  * @version 1.0.0
  *
- * Probably only works for flat planes now. Need to check with spherical objects.
- * This file still needs some clean up and checking.
+ * @example
+ * //How to setup a GPU Skulpt:
+ *
+ * //create a terrain mesh for sculpting
+ * var TERRAIN_SIZE = 10;
+ * var TERRAIN_RES = 256;
+ * var terrainGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_RES - 1, TERRAIN_RES - 1);
+ * terrainGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+ * var terrainMesh = new THREE.Mesh(terrainGeom, null);  //a custom material will be assigned later when using SKULPT.GpuSkulpt
+ * scene.add(terrainMesh);
+ *
+ * //create a SKULPT.GpuSkulpt instance
+ * var gpuSkulpt = new SKULPT.GpuSkulpt({
+ *     renderer: renderer,
+ *     mesh: terrainMesh,
+ *     size: TERRAIN_SIZE,
+ *     res: TERRAIN_RES
+ * });
+ *
+ * //update gpuSkulpt every frame
+ * renderer.clear();
+ * gpuSkulpt.update(dt);
+ * renderer.render(scene, camera);
+ *
+ * @example
+ * //How to sculpt:
+ *
+ * //get sculpt position and show/hide cursor
+ * var sculptPosition = getSculptPosition();  //do ray-intersection tests, for example, to determine where the user is clicking on the terrain mesh
+ * if (sculptPosition) {
+ *     gpuSkulpt.updateCursor(sculptPosition);
+ *     gpuSkulpt.showCursor();
+ * } else {
+ *     gpuSkulpt.hideCursor();
+ * }
+ *
+ * //sculpt
+ * var sculptType = SKULPT.ADD;
+ * var sculptAmount = 1.0;
+ * gpuSkulpt.sculpt(sculptType, sculptPosition, sculptAmount);
+ *
+ * @example
+ * //How to clear sculpts:
+ *
+ * //clear sculpts
+ * gpuSkulpt.clear();
+ *
+ * @example
+ * //How to change sculpt brush parameters:
+ *
+ * //change brush size
+ * var brushSize = 1.0;
+ * gpuSkulpt.setBrushSize(brushSize);
+ *
+ * //change brush amount
+ * var brushAmount = 1.0;
+ * gpuSkulpt.setBrushAmount(brushAmount);
+ *
+ * @example
+ * //How to load sculpt data from an img:
+ *
+ * //get image data from canvas
+ * var canvas = document.createElement('canvas');
+ * var context = canvas.getContext('2d');
+ * var img = document.getElementById('yourImageId');
+ * context.drawImage(img, 0, 0, TERRAIN_RES, TERRAIN_RES);
+ * var terrainImageData = context.getImageData(0, 0, TERRAIN_RES, TERRAIN_RES).data;
+ *
+ * //load sculpt using image data
+ * var height = 1.0;
+ * var midGreyIsLowest = false;
+ * gpuSkulpt.loadFromImageData(terrainImageData, height, midGreyIsLowest);
  */
-
-//===================================
-// SKULPT LAYERS
-//===================================
 
 /**
- * Sculpting layer for a SkulptMesh
- * @constructor
- * @param {SkulptMesh} mesh
+ * @namespace
  */
-function SkulptLayer(skulptMesh) {
-    this.__skulptMesh = skulptMesh;
+var SKULPT = SKULPT || { version: '1.0.0' };
+console.log('Using SKULPT ' + SKULPT.version);
 
-    this.data = [];
+/**
+ * Creates a GpuSkulpt instance for sculpting
+ * @constructor
+ * @param {object} options Options
+ * @param {THREE.WebGLRenderer} options.renderer Three.js WebGL renderer
+ * @param {THREE.Mesh} options.mesh Three.js mesh for sculpting
+ * @param {number} options.size size of mesh
+ * @param {number} options.res resolution of mesh
+ * @param {number} [options.proxyRes] resolution of proxy mesh
+ */
+SKULPT.GpuSkulpt = function (options) {
 
-    this.__simplex = undefined;
+    if (typeof options.mesh === 'undefined') {
+        throw new Error('mesh not specified');
+    }
+    this.__mesh = options.mesh;
+    if (typeof options.renderer === 'undefined') {
+        throw new Error('renderer not specified');
+    }
+    this.__renderer = options.renderer;
+    if (typeof options.size === 'undefined') {
+        throw new Error('size not specified');
+    }
+    this.__size = options.size;
+    this.__halfSize = this.__size / 2.0;
+    if (typeof options.res === 'undefined') {
+        throw new Error('res not specified');
+    }
+    this.__res = options.res;
+    this.__proxyRes = options.proxyRes || this.__res;
+
+    this.__actualToProxyRatio = this.__res / this.__proxyRes;
+    this.__gridSize = this.__size / this.__res;
+    this.__texelSize = 1.0 / this.__res;
+
+    this.__imageProcessedData = new Float32Array(4 * this.__res * this.__res);
+    this.__imageDataTexture = new THREE.DataTexture(null, this.__res, this.__res, THREE.RGBAFormat, THREE.FloatType);
+
+    this.__isSculpting = false;
+    this.__sculptUvPos = new THREE.Vector2();
+
+    this.__cursorHoverColor = new THREE.Vector3(0.4, 0.4, 0.4);
+    this.__cursorAddColor = new THREE.Vector3(0.3, 0.5, 0.1);
+    this.__cursorRemoveColor = new THREE.Vector3(0.5, 0.2, 0.1);
+
+    this.__shouldClear = false;
+
+    this.__linearFloatRgbParams = {
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        wrapS: THREE.ClampToEdgeWrapping,
+        wrapT: THREE.ClampToEdgeWrapping,
+        format: THREE.RGBFormat,
+        stencilBuffer: false,
+        depthBuffer: false,
+        type: THREE.FloatType
+    };
+
+    this.__nearestFloatRgbaParams = {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        wrapS: THREE.ClampToEdgeWrapping,
+        wrapT: THREE.ClampToEdgeWrapping,
+        format: THREE.RGBAFormat,
+        stencilBuffer: false,
+        depthBuffer: false,
+        type: THREE.FloatType
+    };
+
+    this.__pixelByteData = new Uint8Array(this.__res * this.__res * 4);
+    this.__proxyPixelByteData = new Uint8Array(this.__proxyRes * this.__proxyRes * 4);
+
+    this.__callbacks = {};
 
     this.__init();
-}
-SkulptLayer.prototype.__init = function () {
-    this.clear();
+};
+SKULPT.GpuSkulpt.prototype.__shaders = {
+
+    vert: {
+
+        passUv: [
+
+            //Pass-through vertex shader for passing interpolated UVs to fragment shader
+
+            "varying vec2 vUv;",
+
+            "void main() {",
+                "vUv = vec2(uv.x, uv.y);",
+                "gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);",
+            "}"
+
+        ].join('\n'),
+
+        heightMap: [
+
+            //Vertex shader that displaces vertices in local Y based on a texture
+
+            "uniform sampler2D uTexture;",
+            "uniform vec2 uTexelSize;",
+            "uniform vec2 uTexelWorldSize;",
+            "uniform float uHeightMultiplier;",
+
+            "varying vec3 vViewPos;",
+            "varying vec3 vViewNormal;",
+            "varying vec2 vUv;",
+
+            THREE.ShaderChunk['shadowmap_pars_vertex'],
+
+            "void main() {",
+
+                "vUv = uv;",
+
+                //displace y based on texel value
+                "vec4 t = texture2D(uTexture, vUv) * uHeightMultiplier;",
+                "vec3 displacedPos = vec3(position.x, t.r, position.z);",
+
+                //find normal
+                "vec2 du = vec2(uTexelSize.r, 0.0);",
+                "vec2 dv = vec2(0.0, uTexelSize.g);",
+                "vec3 vecPosU = vec3(displacedPos.x + uTexelWorldSize.r,",
+                                    "texture2D(uTexture, vUv + du).r * uHeightMultiplier,",
+                                    "displacedPos.z) - displacedPos;",
+                "vec3 vecNegU = vec3(displacedPos.x - uTexelWorldSize.r,",
+                                    "texture2D(uTexture, vUv - du).r * uHeightMultiplier,",
+                                    "displacedPos.z) - displacedPos;",
+                "vec3 vecPosV = vec3(displacedPos.x,",
+                                    "texture2D(uTexture, vUv + dv).r * uHeightMultiplier,",
+                                    "displacedPos.z - uTexelWorldSize.g) - displacedPos;",
+                "vec3 vecNegV = vec3(displacedPos.x,",
+                                    "texture2D(uTexture, vUv - dv).r * uHeightMultiplier,",
+                                    "displacedPos.z + uTexelWorldSize.g) - displacedPos;",
+                "vViewNormal = normalize(normalMatrix * 0.25 * (cross(vecPosU, vecPosV) + cross(vecPosV, vecNegU) + cross(vecNegU, vecNegV) + cross(vecNegV, vecPosU)));",
+
+                "vec4 worldPosition = modelMatrix * vec4(displacedPos, 1.0);",
+                "vec4 viewPos = modelViewMatrix * vec4(displacedPos, 1.0);",
+                "vViewPos = viewPos.rgb;",
+
+                "gl_Position = projectionMatrix * viewPos;",
+
+                THREE.ShaderChunk['shadowmap_vertex'],
+
+            "}"
+
+        ].join('\n')
+
+    },
+
+    frag: {
+
+        skulpt: [
+
+            //Fragment shader for sculpting
+
+            "uniform sampler2D uBaseTexture;",
+            "uniform sampler2D uSculptTexture1;",
+            "uniform vec2 uTexelSize;",
+            "uniform int uIsSculpting;",
+            "uniform int uSculptType;",
+            "uniform float uSculptAmount;",
+            "uniform float uSculptRadius;",
+            "uniform vec2 uSculptPos;",
+
+            "varying vec2 vUv;",
+
+            "float add(vec2 uv) {",
+                "float len = length(uv - vec2(uSculptPos.x, 1.0 - uSculptPos.y));",
+                "return uSculptAmount * smoothstep(uSculptRadius, 0.0, len);",
+            "}",
+
+            "void main() {",
+
+                //r channel: height
+
+                //read base texture
+                "vec4 tBase = texture2D(uBaseTexture, vUv);",
+
+                //read texture from previous step
+                "vec4 t1 = texture2D(uSculptTexture1, vUv);",
+
+                //add sculpt
+                "if (uIsSculpting == 1) {",
+                    "if (uSculptType == 1) {",  //add
+                        "t1.r += add(vUv);",
+                    "} else if (uSculptType == 2) {",  //remove
+                        "t1.r -= add(vUv);",
+                        "t1.r = max(0.0, tBase.r + t1.r) - tBase.r;",
+                    "}",
+                "}",
+
+                //write out to texture for next step
+                "gl_FragColor = t1;",
+            "}"
+
+        ].join('\n'),
+
+        combineTextures: [
+
+            //Fragment shader to combine textures
+
+            "uniform sampler2D uTexture1;",
+            "uniform sampler2D uTexture2;",
+
+            "varying vec2 vUv;",
+
+            "void main() {",
+                "gl_FragColor = texture2D(uTexture1, vUv) + texture2D(uTexture2, vUv);",
+            "}"
+
+        ].join('\n'),
+
+        setColor: [
+
+            //Fragment shader to set colors on a render target
+
+            "uniform vec4 uColor;",
+
+            "void main() {",
+                "gl_FragColor = uColor;",
+            "}"
+
+        ].join('\n'),
+
+        scaleAndFlipV: [
+
+            //Fragment shader to scale and flip a texture
+
+            "uniform sampler2D uTexture;",
+            "uniform float uScale;",
+
+            "varying vec2 vUv;",
+
+            "void main() {",
+                "vec2 scaledAndFlippedUv = vec2(vUv.x * uScale, 1.0 - (vUv.y * uScale));",
+                "gl_FragColor = texture2D(uTexture, scaledAndFlippedUv);",
+            "}"
+
+        ].join('\n'),
+
+        encodeFloat: [
+
+            //Fragment shader that encodes float value in input R channel to 4 unsigned bytes in output RGBA channels
+            //Most of this code is from original GLSL codes from Piotr Janik, only slight modifications are done to fit the needs of this script
+            //http://concord-consortium.github.io/lab/experiments/webgl-gpgpu/script.js
+            //Using method 1 of the code.
+
+            "uniform sampler2D uTexture;",
+            "uniform vec4 uChannelMask;",
+
+            "varying vec2 vUv;",
+
+            "float shift_right(float v, float amt) {",
+                "v = floor(v) + 0.5;",
+                "return floor(v / exp2(amt));",
+            "}",
+
+            "float shift_left(float v, float amt) {",
+                "return floor(v * exp2(amt) + 0.5);",
+            "}",
+
+            "float mask_last(float v, float bits) {",
+                "return mod(v, shift_left(1.0, bits));",
+            "}",
+
+            "float extract_bits(float num, float from, float to) {",
+                "from = floor(from + 0.5);",
+                "to = floor(to + 0.5);",
+                "return mask_last(shift_right(num, from), to - from);",
+            "}",
+
+            "vec4 encode_float(float val) {",
+
+                "if (val == 0.0) {",
+                    "return vec4(0, 0, 0, 0);",
+                "}",
+
+                "float sign = val > 0.0 ? 0.0 : 1.0;",
+                "val = abs(val);",
+                "float exponent = floor(log2(val));",
+                "float biased_exponent = exponent + 127.0;",
+                "float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0;",
+
+                "float t = biased_exponent / 2.0;",
+                "float last_bit_of_biased_exponent = fract(t) * 2.0;",
+                "float remaining_bits_of_biased_exponent = floor(t);",
+
+                "float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0;",
+                "float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0;",
+                "float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0;",
+                "float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0;",
+
+                "return vec4(byte4, byte3, byte2, byte1);",
+            "}",
+
+            "void main() {",
+                "vec4 t = texture2D(uTexture, vUv);",
+                "gl_FragColor = encode_float(dot(t, uChannelMask));",
+            "}"
+
+        ].join('\n'),
+
+        lambertCursor: [
+
+            //Fragment shader that does basic lambert shading.
+            //This is the version that overlays a circular cursor patch.
+
+            "uniform vec3 uBaseColor;",
+            "uniform vec3 uAmbientLightColor;",
+            "uniform float uAmbientLightIntensity;",
+
+            "uniform int uShowCursor;",
+            "uniform vec2 uCursorPos;",
+            "uniform float uCursorRadius;",
+            "uniform vec3 uCursorColor;",
+
+            "varying vec3 vViewPos;",
+            "varying vec3 vViewNormal;",
+            "varying vec2 vUv;",
+
+            "#if MAX_DIR_LIGHTS > 0",
+                "uniform vec3 directionalLightColor[ MAX_DIR_LIGHTS ];",
+                "uniform vec3 directionalLightDirection[ MAX_DIR_LIGHTS ];",
+            "#endif",
+
+            THREE.ShaderChunk['shadowmap_pars_fragment'],
+
+            "void main() {",
+
+                //ambient component
+                "vec3 ambient = uAmbientLightColor * uAmbientLightIntensity;",
+
+                //diffuse component
+                "vec3 diffuse = vec3(0.0);",
+
+                "#if MAX_DIR_LIGHTS > 0",
+
+                    "for (int i = 0; i < MAX_DIR_LIGHTS; i++) {",
+                        "vec4 lightVector = viewMatrix * vec4(directionalLightDirection[i], 0.0);",
+                        "float normalModulator = dot(normalize(vViewNormal), normalize(lightVector.xyz));",
+                        "diffuse += normalModulator * directionalLightColor[i];",
+                    "}",
+
+                "#endif",
+
+                //combine components to get final color
+                "vec3 finalColor = uBaseColor * (ambient + diffuse);",
+
+                //mix in cursor color
+                "if (uShowCursor == 1) {",
+                    "float len = length(vUv - vec2(uCursorPos.x, 1.0 - uCursorPos.y));",
+                    "finalColor = mix(finalColor, uCursorColor, smoothstep(uCursorRadius, 0.0, len));",
+                "}",
+
+                "gl_FragColor = vec4(finalColor, 1.0);",
+
+                THREE.ShaderChunk['shadowmap_fragment'],
+
+            "}"
+
+        ].join('\n')
+
+    }
+
 };
 /**
- * Loads terrain heights from an image data
- * @param  {array} imageData Image data
- * @param  {number} amount Height multiplier of read data
- * @param  {boolean} midGreyIsLowest Whether grey areas are considered the lowest parts instead of black
+ * Gets the color of the cursor in hover mode
+ * @return {THREE.Vector3} A vector that represents the color of the cursor in hover mode
  */
-SkulptLayer.prototype.loadFromImageData = function (imageData, amount, midGreyIsLowest) {
+SKULPT.GpuSkulpt.prototype.getCursorHoverColor = function (r, g, b) {
+    return this.__cursorHoverColor;
+};
+/**
+ * Sets the color of the cursor in hover mode
+ * @param {number} r Red floating-point value between 0 and 1, inclusive
+ * @param {number} g Green floating-point value between 0 and 1, inclusive
+ * @param {number} b Blue floating-point value between 0 and 1, inclusive
+ */
+SKULPT.GpuSkulpt.prototype.setCursorHoverColor = function (r, g, b) {
+    this.__cursorHoverColor.copy(r, g, b);
+};
+/**
+ * Gets the color of the cursor in add mode
+ * @return {THREE.Vector3} A vector that represents the color of the cursor in add mode
+ */
+SKULPT.GpuSkulpt.prototype.getCursorAddColor = function (r, g, b) {
+    return this.__cursorAddColor;
+};
+/**
+ * Sets the color of the cursor in add mode
+ * @param {number} r Red floating-point value between 0 and 1, inclusive
+ * @param {number} g Green floating-point value between 0 and 1, inclusive
+ * @param {number} b Blue floating-point value between 0 and 1, inclusive
+ */
+SKULPT.GpuSkulpt.prototype.setCursorAddColor = function (r, g, b) {
+    this.__cursorAddColor.copy(r, g, b);
+};
+/**
+ * Gets the color of the cursor in remove mode
+ * @return {THREE.Vector3} A vector that represents the color of the cursor in remove mode
+ */
+SKULPT.GpuSkulpt.prototype.getCursorRemoveColor = function (r, g, b) {
+    return this.__cursorRemoveColor;
+};
+/**
+ * Sets the color of the cursor in remove mode
+ * @param {number} r Red floating-point value between 0 and 1, inclusive
+ * @param {number} g Green floating-point value between 0 and 1, inclusive
+ * @param {number} b Blue floating-point value between 0 and 1, inclusive
+ */
+SKULPT.GpuSkulpt.prototype.setCursorRemoveColor = function (r, g, b) {
+    this.__cursorRemoveColor.copy(r, g, b);
+};
+SKULPT.GpuSkulpt.prototype.__init = function () {
+    this.__checkExtensions();
+    this.__setupShaders();
+    this.__setupRttScene();
+    this.__setupVtf();
+};
+SKULPT.GpuSkulpt.prototype.__checkExtensions = function (renderer) {
+    var context = this.__renderer.context;
+    if (!context.getExtension('OES_texture_float_linear')) {
+        throw new Error('Extension not available: OES_texture_float_linear');
+    }
+    if (!context.getParameter(context.MAX_VERTEX_TEXTURE_IMAGE_UNITS)) {
+        throw new Error('Vertex textures not supported on your graphics card');
+    }
+};
+SKULPT.GpuSkulpt.prototype.__setupShaders = function () {
 
-    //read the image data and use that as height
-    var vertices = this.__skulptMesh.__mesh.geometry.vertices;
+    this.__skulptMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uBaseTexture: { type: 't', value: null },
+            uSculptTexture1: { type: 't', value: null },
+            uTexelSize: { type: 'v2', value: new THREE.Vector2(this.__texelSize, this.__texelSize) },
+            uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.__size / this.__res, this.__size / this.__res) },
+            uIsSculpting: { type: 'i', value: 0 },
+            uSculptType: { type: 'i', value: 0 },
+            uSculptPos: { type: 'v2', value: new THREE.Vector2() },
+            uSculptAmount: { type: 'f', value: 0.05 },
+            uSculptRadius: { type: 'f', value: 0.0 }
+        },
+        vertexShader: this.__shaders.vert['passUv'],
+        fragmentShader: this.__shaders.frag['skulpt']
+    });
+
+    this.__combineTexturesMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTexture1: { type: 't', value: null },
+            uTexture2: { type: 't', value: null }
+        },
+        vertexShader: this.__shaders.vert['passUv'],
+        fragmentShader: this.__shaders.frag['combineTextures']
+    });
+
+    this.__clearMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uColor: { type: 'v4', value: new THREE.Vector4() }
+        },
+        vertexShader: this.__shaders.vert['passUv'],
+        fragmentShader: this.__shaders.frag['setColor']
+    });
+
+    this.__rttEncodeFloatMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTexture: { type: 't', value: null },
+            uChannelMask: { type: 'v4', value: new THREE.Vector4() }
+        },
+        vertexShader: this.__shaders.vert['passUv'],
+        fragmentShader: this.__shaders.frag['encodeFloat']
+    });
+
+    this.__rttProxyMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTexture: { type: 't', value: null },
+            uScale: { type: 'f', value: 0 }
+        },
+        vertexShader: this.__shaders.vert['passUv'],
+        fragmentShader: this.__shaders.frag['scaleAndFlipV']
+    });
+
+    this.__channelVectors = {
+        'r': new THREE.Vector4(1, 0, 0, 0),
+        'g': new THREE.Vector4(0, 1, 0, 0),
+        'b': new THREE.Vector4(0, 0, 1, 0),
+        'a': new THREE.Vector4(0, 0, 0, 1)
+    };
+};
+//Sets up the render-to-texture scene (2 render targets for accumulative feedback)
+SKULPT.GpuSkulpt.prototype.__setupRttScene = function () {
+
+    //create a RTT scene
+    this.__rttScene = new THREE.Scene();
+
+    //create an orthographic RTT camera
+    var far = 10000;
+    var near = -far;
+    this.__rttCamera = new THREE.OrthographicCamera(-this.__halfSize, this.__halfSize, this.__halfSize, -this.__halfSize, near, far);
+
+    //create a quad which we will use to invoke the shaders
+    this.__rttQuadGeom = new THREE.PlaneGeometry(this.__size, this.__size);
+    this.__rttQuadMesh = new THREE.Mesh(this.__rttQuadGeom, this.__skulptMaterial);
+    this.__rttScene.add(this.__rttQuadMesh);
+
+    //create RTT render targets (we need two to do feedback)
+    this.__rttRenderTarget1 = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__linearFloatRgbParams);
+    this.__rttRenderTarget1.generateMipmaps = false;
+    this.__rttRenderTarget2 = this.__rttRenderTarget1.clone();
+
+    //create a RTT render target for storing the combine results of all layers
+    this.__rttCombinedLayer = this.__rttRenderTarget1.clone();
+
+    //create RTT render target for storing proxy terrain data
+    this.__rttProxyRenderTarget = new THREE.WebGLRenderTarget(this.__proxyRes, this.__proxyRes, this.__linearFloatRgbParams);
+
+    //create another RTT render target encoding float to 4-byte data
+    this.__rttFloatEncoderRenderTarget = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__nearestFloatRgbaParams);
+    this.__rttFloatEncoderRenderTarget.generateMipmaps = false;
+};
+//Sets up the vertex-texture-fetch for the given mesh
+SKULPT.GpuSkulpt.prototype.__setupVtf = function () {
+    this.__mesh.material = new THREE.ShaderMaterial({
+        uniforms: THREE.UniformsUtils.merge([
+            THREE.UniformsLib['lights'],
+            THREE.UniformsLib['shadowmap'],
+            {
+                uTexture: { type: 't', value: null },
+                uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / this.__res, 1.0 / this.__res) },
+                uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(this.__gridSize, this.__gridSize) },
+                uHeightMultiplier: { type: 'f', value: 1.0 },
+                uBaseColor: { type: 'v3', value: new THREE.Vector3(0.6, 0.8, 0.0) },
+                uShowCursor: { type: 'i', value: 0 },
+                uCursorPos: { type: 'v2', value: new THREE.Vector2() },
+                uCursorRadius: { type: 'f', value: 0.0 },
+                uCursorColor: { type: 'v3', value: new THREE.Vector3() }
+            }
+        ]),
+        vertexShader: this.__shaders.vert['heightMap'],
+        fragmentShader: this.__shaders.frag['lambertCursor'],
+        lights: true
+    });
+};
+/**
+ * Updates the skulpt<br/><strong>NOTE:  This needs to be called every frame, after renderer.clear() and before renderer.render(...)</strong>
+ * @param {number} dt Elapsed time from previous frame
+ */
+SKULPT.GpuSkulpt.prototype.update = function (dt) {
+
+    //have to set flags from other places and then do all steps at once during update
+
+    //clear sculpts if necessary
+    if (this.__shouldClear) {
+        this.__rttQuadMesh.material = this.__clearMaterial;
+        this.__clearMaterial.uniforms['uColor'].value.set(0.0, 0.0, 0.0, 0.0);
+        this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttRenderTarget1, false);
+        this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttRenderTarget2, false);
+        this.__shouldClear = false;
+        this.__updateCombinedLayers = true;
+    }
+
+    //do the main sculpting
+    if (this.__isSculpting) {
+        this.__rttQuadMesh.material = this.__skulptMaterial;
+        this.__skulptMaterial.uniforms['uBaseTexture'].value = this.__imageDataTexture;
+        this.__skulptMaterial.uniforms['uSculptTexture1'].value = this.__rttRenderTarget2;
+        this.__skulptMaterial.uniforms['uIsSculpting'].value = this.__isSculpting;
+        this.__skulptMaterial.uniforms['uSculptPos'].value.copy(this.__sculptUvPos);
+        this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttRenderTarget1, false);
+        this.__swapRenderTargets();
+        this.__isSculpting = false;
+        this.__updateCombinedLayers = true;
+    }
+
+    //combine layers into one
+    if (this.__updateCombinedLayers) {  //this can be triggered somewhere else without sculpting
+
+        this.__rttQuadMesh.material = this.__combineTexturesMaterial;
+        this.__combineTexturesMaterial.uniforms['uTexture1'].value = this.__imageDataTexture;
+        this.__combineTexturesMaterial.uniforms['uTexture2'].value = this.__rttRenderTarget2;
+        this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttCombinedLayer, false);
+        this.__updateCombinedLayers = false;
+
+        //need to rebind rttCombinedLayer to uTexture
+        this.__mesh.material.uniforms['uTexture'].value = this.__rttCombinedLayer;
+
+        //check for the callback of type 'update'
+        if (this.__callbacks.hasOwnProperty('update')) {
+            var renderCallbacks = this.__callbacks['update'];
+            var i, len;
+            for (i = 0, len = renderCallbacks.length; i < len; i++) {
+                renderCallbacks[i]();
+            }
+        }
+    }
+};
+SKULPT.GpuSkulpt.prototype.__swapRenderTargets = function () {
+    var temp = this.__rttRenderTarget1;
+    this.__rttRenderTarget1 = this.__rttRenderTarget2;
+    this.__rttRenderTarget2 = temp;
+    // this.__skulptMaterial.uniforms['uSculptTexture1'].value = this.__rttRenderTarget2;
+};
+/**
+ * Sets brush size
+ * @param {number} size Brush size
+ */
+SKULPT.GpuSkulpt.prototype.setBrushSize = function (size) {
+    var normSize = size / (this.__size * 2.0);
+    this.__skulptMaterial.uniforms['uSculptRadius'].value = normSize;
+    this.__mesh.material.uniforms['uCursorRadius'].value = normSize;
+};
+/**
+ * Sets brush amount
+ * @param {number} amount Brush amount
+ */
+SKULPT.GpuSkulpt.prototype.setBrushAmount = function (amount) {
+    this.__skulptMaterial.uniforms['uSculptAmount'].value = amount;
+};
+/**
+ * Loads terrain heights from image data
+ * @param  {array} data Image data from canvas
+ * @param  {number} amount Height multiplier
+ * @param  {boolean} midGreyIsLowest Whether mid grey is considered the lowest part of the image
+ */
+SKULPT.GpuSkulpt.prototype.loadFromImageData = function (data, amount, midGreyIsLowest) {
+
+    //convert data from Uint8ClampedArray to Float32Array so that DataTexture can use
     var normalizedHeight;
     var min = 99999;
     var i, len;
-    for (i = 0, len = vertices.length; i < len; i++) {
-
+    for (i = 0, len = this.__imageProcessedData.length; i < len; i++) {
         if (midGreyIsLowest) {
-            normalizedHeight = Math.abs(imageData[i * 4] / 255.0 - 0.5);
+            normalizedHeight = Math.abs(data[i] / 255.0 - 0.5);
         } else {
-            normalizedHeight = imageData[i * 4] / 255.0;
+            normalizedHeight = data[i] / 255.0;
         }
-        this.data[i] = normalizedHeight * amount;
+        this.__imageProcessedData[i] = normalizedHeight * amount;
 
         //store min
-        //FIXME: this assumes that it's a flat plane again...
-        if (this.data[i] < min) {
-            min = this.data[i];
+        if (this.__imageProcessedData[i] < min) {
+            min = this.__imageProcessedData[i];
         }
     }
 
     //shift down so that min is at 0
-    for (i = 0, len = vertices.length; i < len; i++) {
-        this.data[i] -= min;
+    for (i = 0, len = this.__imageProcessedData.length; i < len; i++) {
+        this.__imageProcessedData[i] -= min;
     }
 
-    //update whole mesh
-    this.__skulptMesh.updateAll();
+    //assign data to DataTexture
+    this.__imageDataTexture.image.data = this.__imageProcessedData;
+    this.__imageDataTexture.needsUpdate = true;
+    this.__skulptMaterial.uniforms['uBaseTexture'].value = this.__imageDataTexture;
+    this.__combineTexturesMaterial.uniforms['uTexture1'].value = this.__imageDataTexture;
+    // this.__mesh.material.uniforms['uBaseTexture'].value = this.__imageDataTexture;
+    this.__updateCombinedLayers = true;
 };
 /**
- * Adds noise to the layer
- * @param {number} amp Amplitude
- * @param {number} freqX Frequency X
- * @param {number} freqY Frequency Y
- * @param {number} freqZ Frequency Z
- * @param {number} offsetX Offset X
- * @param {number} offsetY Offset Y
- * @param {number} offsetZ Offset Z
+ * Sculpt the terrain
+ * @param  {enum} type Sculpt operation type: SKULPT.GpuSkulpt.ADD, SKULPT.GpuSkulpt.REMOVE
+ * @param  {THREE.Vector3} position World-space position to sculpt at
+ * @param  {number} amount Amount to sculpt
  */
-SkulptLayer.prototype.addNoise = function (amp, freqX, freqY, freqZ, offsetX, offsetY, offsetZ) {
-
-    amp = amp || 1;
-    freqX = freqX || 1;
-    freqY = freqY || 1;
-    freqZ = freqZ || 1;
-    offsetX = offsetX || 0;
-    offsetY = offsetY || 0;
-    offsetZ = offsetZ || 0;
-
-    if (!this.__simplex) {
-        this.__simplex = new SimplexNoise();
+SKULPT.GpuSkulpt.prototype.sculpt = function (type, position, amount) {
+    this.__skulptMaterial.uniforms['uSculptType'].value = type;
+    this.__isSculpting = true;
+    this.__sculptUvPos.x = (position.x + this.__halfSize) / this.__size;
+    this.__sculptUvPos.y = (position.z + this.__halfSize) / this.__size;
+    if (type === 1) {
+        this.__mesh.material.uniforms['uCursorColor'].value.copy(this.__cursorAddColor);
+    } else if (type === 2) {
+        this.__mesh.material.uniforms['uCursorColor'].value.copy(this.__cursorRemoveColor);
     }
+};
+/**
+ * Clears all sculpts
+ */
+SKULPT.GpuSkulpt.prototype.clear = function () {
+    this.__shouldClear = true;
+};
+/**
+ * Updates the cursor position
+ * @param  {THREE.Vector3} position World-space position to update the cursor to
+ */
+SKULPT.GpuSkulpt.prototype.updateCursor = function (position) {
+    this.__sculptUvPos.x = (position.x + this.__halfSize) / this.__size;
+    this.__sculptUvPos.y = (position.z + this.__halfSize) / this.__size;
+    this.__mesh.material.uniforms['uCursorPos'].value.set(this.__sculptUvPos.x, this.__sculptUvPos.y);
+    this.__mesh.material.uniforms['uCursorColor'].value.copy(this.__cursorHoverColor);
+};
+/**
+ * Shows the sculpt cursor
+ */
+SKULPT.GpuSkulpt.prototype.showCursor = function () {
+    this.__mesh.material.uniforms['uShowCursor'].value = 1;
+};
+/**
+ * Hides the sculpt cursor
+ */
+SKULPT.GpuSkulpt.prototype.hideCursor = function () {
+    this.__mesh.material.uniforms['uShowCursor'].value = 0;
+};
+/**
+ * Gets the sculpt texture that is used for displacement of mesh
+ * @return {THREE.WebGLRenderTarget} Sculpt texture that is used for displacement of mesh
+ */
+SKULPT.GpuSkulpt.prototype.getSculptTexture = function () {
+    return this.__rttCombinedLayer;
+};
+//Returns the pixel unsigned byte data for the render target texture (readPixels() can only return unsigned byte data)
+SKULPT.GpuSkulpt.prototype.__getPixelByteDataForRenderTarget = function (renderTarget, pixelByteData, width, height) {
 
-    //apply noise
-    //TODO: use FBm instead
-    var vertices = this.__skulptMesh.__mesh.geometry.vertices;
-    var i, len, vertex;
-    var min = 99999;
-    for (i = 0, len = vertices.length; i < len; i++) {
-        vertex = vertices[i];
-        this.data[i] = (this.__simplex.noise3d(freqX * vertex.x + offsetX, freqY * vertex.y + offsetY, freqZ * vertex.z + offsetZ) / 2.0 + 0.5) * amp;
-        //FIXME: this assumes that it's a flat plane again...
-        if (this.data[i] < min) {
-            min = this.data[i];
+    //I need to read in pixel data from WebGLRenderTarget but there seems to be no direct way.
+    //Seems like I have to do some native WebGL stuff with readPixels().
+
+    var gl = this.__renderer.getContext();
+
+    //bind texture to gl context
+    gl.bindFramebuffer(gl.FRAMEBUFFER, renderTarget.__webglFramebuffer);
+
+    //attach texture
+    // gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, renderTarget.__webglTexture, 0);
+
+    //read pixels
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixelByteData);
+
+    //unbind
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+};
+SKULPT.GpuSkulpt.prototype.__getPixelEncodedByteData = function (renderTarget, pixelByteData, channelId, width, height) {
+
+    //encode the float data into an unsigned byte RGBA texture
+    this.__rttQuadMesh.material = this.__rttEncodeFloatMaterial;
+    this.__rttEncodeFloatMaterial.uniforms['uTexture'].value = renderTarget;
+    this.__rttEncodeFloatMaterial.uniforms['uChannelMask'].value.copy(this.__channelVectors[channelId]);
+    this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttFloatEncoderRenderTarget, false);
+
+    this.__getPixelByteDataForRenderTarget(this.__rttFloatEncoderRenderTarget, pixelByteData, width, height);
+};
+/**
+ * Gets float data for every pixel of the terrain texture<br/><strong>NOTE: This is an expensive operation.</strong>
+ * @return {Float32Array} Float data of every pixel of the terrain texture
+ */
+SKULPT.GpuSkulpt.prototype.getPixelFloatData = function () {
+
+    //get the encoded byte data first
+    this.__getPixelEncodedByteData(this.__rttCombinedLayer, this.__pixelByteData, 'r', this.__res, this.__res);
+
+    //cast to float
+    var pixelFloatData = new Float32Array(this.__pixelByteData.buffer);
+    return pixelFloatData;
+};
+/**
+ * Gets float data for every pixel of the proxy terrain texture<br/><strong>NOTE: This is an expensive operation.</strong>
+ * @return {Float32Array} Float data of every pixel of the proxy terrain texture
+ */
+SKULPT.GpuSkulpt.prototype.getProxyPixelFloatData = function () {
+
+    //render to proxy render target
+    this.__rttQuadMesh.material = this.__rttProxyMaterial;
+    this.__rttProxyMaterial.uniforms['uTexture'].value = this.__rttCombinedLayer;
+    this.__rttProxyMaterial.uniforms['uScale'].value = this.__actualToProxyRatio;
+    this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttProxyRenderTarget, false);
+
+    //get the encoded byte data first
+    this.__getPixelEncodedByteData(this.__rttProxyRenderTarget, this.__proxyPixelByteData, 'r', this.__proxyRes, this.__proxyRes);
+
+    //cast to float
+    var pixelFloatData = new Float32Array(this.__proxyPixelByteData.buffer);
+    return pixelFloatData;
+};
+/**
+ * Adds callback function that are executed at specific times
+ * @param {string} type Type of callback: 'update' (only choice available now)
+ * @param {function} callbackFn Callback function
+ */
+SKULPT.GpuSkulpt.prototype.addCallback = function (type, callbackFn) {
+    if (!this.__callbacks.hasOwnProperty(type)) {
+        this.__callbacks[type] = [];
+    }
+    if (callbackFn) {
+        if (typeof callbackFn === 'function') {
+            this.__callbacks[type].push(callbackFn);
+        } else {
+            throw new Error('Specified callbackFn is not a function');
         }
-    }
-
-    //shift down so that min is at 0
-    for (i = 0, len = vertices.length; i < len; i++) {
-        this.data[i] -= min;
-    }
-
-    //update whole mesh
-    this.__skulptMesh.updateAll();
-};
-/**
- * Clears the layer
- */
-SkulptLayer.prototype.clear = function () {
-    var i, len;
-    for (i = 0, len = this.__skulptMesh.__mesh.geometry.vertices.length; i < len; i++) {
-        this.data[i] = 0;
+    } else {
+        throw new Error('Callback function not defined');
     }
 };
 
-//===================================
-// SKULPT MESHES
-//===================================
-
 /**
- * An abstract class for sculptable meshes
- * @constructor
- * @param {THREE.Mesh} mesh
+ * Add sculpt operation
+ * @const
  */
-function SkulptMesh(mesh) {
-    this.__mesh = mesh;
-    this.__layers = {};
-    this.__currLayer = undefined;
-    this.__displacements = [];  //need to always keep this in sync
-
-    //temp variables to prevent recreation every frame
-    this.__worldMatInv = new THREE.Matrix4();
-    this.__localPos = new THREE.Vector3();
-
-    this.__init();
-}
-SkulptMesh.prototype.__init = function () {
-    var i, len;
-    for (i = 0, len = this.__mesh.geometry.vertices.length; i < len; i++) {
-        this.__displacements[i] = 0;
-    }
-};
+SKULPT.ADD = 1;
 /**
- * Adds a sculpting layer
- * @param {string} name Name of the layer to add
+ * Remove sculpt operation
+ * @const
  */
-SkulptMesh.prototype.addLayer = function (name) {
-    if (Object.keys(this.__layers).indexOf(name) !== -1) {
-        throw new Error('Layer name already exists: ' + name);
-    }
-    this.__layers[name] = new SkulptLayer(this);
-    this.__currLayer = this.__layers[name];
-    return this.__layers[name];
-};
-/**
- * Removes layer
- * @param  {string} name Name of the layer to remove
- */
-SkulptMesh.prototype.removeLayer = function (name) {
-    //TODO
-};
-/**
- * Gets current sculpting layer
- * @return {SkulptLayer} Current sculpting layer
- */
-SkulptMesh.prototype.getCurrLayer = function () {
-    return this.__currLayer;
-};
-/**
- * Sets current sculpting layer
- */
-SkulptMesh.prototype.setCurrLayer = function () {
-    //TODO
-};
-/**
- * Clears current sculpting layer
- */
-SkulptMesh.prototype.clearCurrLayer = function () {
-    this.__currLayer.clear();
-    this.updateAll();
-};
-SkulptMesh.prototype.getDisplacements = function () {
-    return this.__displacements;
-};
-SkulptMesh.prototype.getAffectedVertexInfo = function (position) {
-    throw new Error('Abstract method not implemented');
-};
-SkulptMesh.prototype.update = function (position) {
-    throw new Error('Abstract method not implemented');
-};
-SkulptMesh.prototype.updateAll = function () {
-    throw new Error('Abstract method not implemented');
-};
-
-/**
- * A sculptable flat plane mesh
- * @constructor
- * @extends {SkulptMesh}
- * @param {THREE.Mesh} mesh Mesh to use as the terrain mesh
- * @param {number} size Length of the mesh
- * @param {number} res Resolution of the mesh
- */
-function SkulptTerrainMesh(mesh, size, res) {
-    SkulptMesh.call(this, mesh);
-    this.__size = size;
-    this.__halfSize = size / 2.0;
-    this.__res = res;
-    this.__stepSize = size / res;
-}
-SkulptTerrainMesh.prototype = Object.create(SkulptMesh.prototype);
-SkulptTerrainMesh.prototype.constructor = SkulptTerrainMesh;
-//Calculates vertex id on this terrain using x and z values in local space
-SkulptTerrainMesh.prototype.__calcTerrainVertexId = function (x, z) {
-    var row = Math.floor((z + this.__halfSize) / this.__size * this.__res);
-    var col = Math.floor((x + this.__halfSize) / this.__size * this.__res);
-    return (row * this.__res) + col;
-};
-SkulptTerrainMesh.prototype.getAffectedVertexInfo = function (position, radius) {
-
-    //convert back to local space first
-    this.__worldMatInv.getInverse(this.__mesh.matrixWorld);
-    this.__localPos.copy(position).applyMatrix4(this.__worldMatInv);
-
-    var centerX = this.__localPos.x;
-    var centerZ = this.__localPos.z;
-
-    //find all vertices that are in radius
-    //iterate in the square with width of 2*radius first
-    var affectedVertexInfos = [];
-    var dist;
-    var x, z;
-    for (x = -radius; x <= radius; x += this.__stepSize) {
-        for (z = -radius; z <= radius; z += this.__stepSize) {
-            dist = Math.sqrt(x * x + z * z);
-            if (dist < radius) { //within the circle
-                //get vertex id for this (x, z) point
-                var vertexId = this.__calcTerrainVertexId(centerX + x, centerZ + z);
-                var vertex = this.__mesh.geometry.vertices[vertexId];
-                if (vertex) {
-                    //add to current layer
-                    var vertexInfo = {
-                        id: vertexId,
-                        weight: dist / radius
-                    };
-                    affectedVertexInfos.push(vertexInfo);
-                }
-            }
-        }
-    }
-
-    return affectedVertexInfos;
-};
-/**
- * Updates the terrain with the affected vertex info
- * @param  {array} affectedVertexInfos Array which contains a list of affected vertex info
- */
-SkulptTerrainMesh.prototype.update = function (affectedVertexInfos) {
-
-    var geom = this.__mesh.geometry;
-
-    var affectedVertexInfo;
-    var i, len;
-    for (i = 0, len = affectedVertexInfos.length; i < len; i++) {
-
-        affectedVertexInfo = affectedVertexInfos[i];
-
-        //sum all layers
-        var layer, layerName;
-        var sum = 0;
-        for (layerName in this.__layers) {
-            if (this.__layers.hasOwnProperty(layerName)) {
-                layer = this.__layers[layerName];
-                sum += layer.data[affectedVertexInfo.id];
-            }
-        }
-
-        //keep this.__displacements in sync
-        this.__displacements[affectedVertexInfo.id] = sum;
-
-        //TODO: push towards normal instead of just y
-        var vertex = geom.vertices[affectedVertexInfo.id];
-        vertex.y = sum;
-    }
-
-    //update terrain geometry
-    geom.verticesNeedUpdate = true;
-    geom.computeFaceNormals();
-    geom.computeVertexNormals();
-    geom.normalsNeedUpdate = true;
-};
-/**
- * Updates all
- */
-SkulptTerrainMesh.prototype.updateAll = function () {
-
-    var geom = this.__mesh.geometry;
-
-    var i, len;
-    for (i = 0, len = geom.vertices.length; i < len; i++) {
-
-        //sum all layers
-        var layer, layerName;
-        var sum = 0;
-        for (layerName in this.__layers) {
-            if (this.__layers.hasOwnProperty(layerName)) {
-                layer = this.__layers[layerName];
-                sum += layer.data[i];
-            }
-        }
-
-        //keep this.__displacements in sync
-        this.__displacements[i] = sum;
-
-        //TODO: push towards normal instead of just y
-        var vertex = geom.vertices[i];
-        vertex.y = sum;
-    }
-
-    //update terrain geometry
-    geom.verticesNeedUpdate = true;
-    geom.computeFaceNormals();
-    geom.computeVertexNormals();
-    geom.normalsNeedUpdate = true;
-};
-
-//===================================
-// SKULPT CURSORS
-//===================================
-
-/**
- * Abstract class for cursors
- * @constructor
- * @param {number} size
- * @param {number} amount
- */
-function SkulptCursor(size, amount) {
-    this.__size = size || 1.0;
-    this.__amount = amount || 1.0;
-}
-SkulptCursor.prototype.getSize = function () {
-    return this.__size;
-};
-SkulptCursor.prototype.setSize = function (size) {
-    this.__size = size;
-};
-SkulptCursor.prototype.getAmount = function () {
-    return this.__amount;
-};
-SkulptCursor.prototype.setAmount = function (amount) {
-    this.__amount = amount;
-};
-SkulptCursor.prototype.show = function () {
-    throw new Error('Abstract method not implemented');
-};
-SkulptCursor.prototype.hide = function () {
-    throw new Error('Abstract method not implemented');
-};
-SkulptCursor.prototype.update = function (position, skulptMesh) {
-    throw new Error('Abstract method not implemented');
-};
-
-/**
- * Brush cursor that is created from a THREE.Mesh
- * @constructor
- * @extends {SkulptCursor}
- * @param {number} size
- * @param {number} amount
- * @param {THREE.Scene} scene
- * @param {number} radiusSegments
- */
-function SkulptMeshCursor(size, amount, scene, radiusSegments) {
-
-    SkulptCursor.call(this, size, amount);
-
-    if (!scene) {
-        throw new Error('scene not specified');
-    }
-    this.__scene = scene;
-    this.__radiusSegments = radiusSegments || 32;
-
-    //create the cursor mesh
-    this.__createMesh();
-
-    //hide the mesh by default
-    this.hide();
-
-    //temp variables to avoid recreation every frame
-    this.__pos = new THREE.Vector3();
-    this.__matInv = new THREE.Matrix4();
-}
-SkulptMeshCursor.prototype = Object.create(SkulptCursor.prototype);
-SkulptMeshCursor.prototype.constructor = SkulptMeshCursor;
-SkulptMeshCursor.prototype.__createMesh = function () {
-
-    this.__cursorGeom = new THREE.CylinderGeometry(0.5, 0.5, 1, this.__radiusSegments, 1, true);
-    this.__brushGeomVertexCountHalf = this.__cursorGeom.vertices.length / 2.0;
-    var brushMaterial = new THREE.MeshBasicMaterial({color: '#000000'});
-    brushMaterial.wireframe = true;
-    this.__cursorMesh = new THREE.Mesh(this.__cursorGeom, brushMaterial);
-    this.__cursorMesh.castShadow = false;
-    this.__cursorMesh.receiveShadow = false;
-
-    this.__scene.add(this.__cursorMesh);
-};
-SkulptCursor.prototype.setSize = function (size) {
-    this.__size = size;
-    this.__cursorMesh.scale.x = size;
-    this.__cursorMesh.scale.z = size;
-};
-SkulptCursor.prototype.setAmount = function (amount) {
-    this.__amount = amount;
-    this.__cursorMesh.scale.y = amount;
-};
-SkulptMeshCursor.prototype.show = function () {
-    this.__cursorMesh.visible = true;
-};
-SkulptMeshCursor.prototype.hide = function () {
-    this.__cursorMesh.visible = false;
-};
-/**
- * Updates the cursor to <tt>position</tt>
- * @param  {THREE.Vector3} position - world space position
- * @param  {SkulptMesh} skulptMesh
- */
-SkulptMeshCursor.prototype.update = function (position, skulptMesh) {
-
-    //move cursor to position
-    this.__pos.copy(position);
-    if (this.__scene instanceof THREE.Object3D) {
-        this.__pos.applyMatrix4(this.__matInv.getInverse(this.__scene.matrixWorld));
-    }
-    this.__cursorMesh.position.copy(this.__pos);
-
-    //rotate cursor to same orientation as skulptMesh
-    //TODO: orient to geom normal instead
-    this.__cursorMesh.rotation.copy(skulptMesh.__mesh.rotation);
-
-    //store some transformation matrices for getting from one space to another
-    var cursorWorldMat = this.__cursorMesh.matrixWorld;
-    var cursorWorldMatInv = new THREE.Matrix4().getInverse(cursorWorldMat);
-    var meshWorldMat = skulptMesh.__mesh.matrixWorld;
-    var meshWorldMatInv = new THREE.Matrix4().getInverse(meshWorldMat);
-    var cursorLocalToMeshLocalMat = new THREE.Matrix4().multiplyMatrices(meshWorldMatInv, cursorWorldMat);
-    var meshLocalToCursorLocalMatInv = new THREE.Matrix4().multiplyMatrices(cursorWorldMatInv, meshWorldMat);
-
-    var displacements = skulptMesh.getDisplacements();
-    var i, len;
-    for (i = 0, len = this.__cursorGeom.vertices.length; i < len; i++) {
-
-        var brushGeomVertex = this.__cursorGeom.vertices[i];
-
-        //transform from local space of cursor to local space of skulptMesh
-        brushGeomVertex.applyMatrix4(cursorLocalToMeshLocalMat);
-
-        //get nearest terrain geom vertex id
-        var terrainVertexId = skulptMesh.__calcTerrainVertexId(brushGeomVertex.x, brushGeomVertex.z);
-
-        //get height of current terrain at that point
-        brushGeomVertex.y = displacements[terrainVertexId];
-
-        //transform from local space of skulptMesh back to local space of cursor
-        brushGeomVertex.applyMatrix4(meshLocalToCursorLocalMatInv);
-    }
-
-    //offset top row using sculpt amount to give thickness
-    for (i = 0; i < this.__brushGeomVertexCountHalf; i++) {
-        this.__cursorGeom.vertices[i].y = this.__cursorGeom.vertices[i + this.__brushGeomVertexCountHalf].y + 1;
-    }
-
-    //update cursor geom
-    this.__cursorGeom.verticesNeedUpdate = true;
-};
-
-//===================================
-// SKULPT PROFILES
-//===================================
-
-/**
- * Abstract class for sculpt profiles
- * @constructor
- */
-function SkulptProfile() { }
-/**
- * Returns a value based on given <tt>weight</tt>
- * @abstract
- * @param  {number} weight - a 0 - 1 float number that determines the returned value
- * @return {number}
- */
-SkulptProfile.prototype.getValue = function (weight) {
-    throw new Error('Abstract method not implemented');
-};
-
-/**
- * Sculpt profile that is based on a cosine curve
- * @constructor
- * @extends {SkulptProfile}
- */
-function CosineSkulptProfile() {
-    SkulptProfile.call(this);
-    this.__halfPi = Math.PI / 2.0;
-}
-CosineSkulptProfile.prototype = Object.create(SkulptProfile.prototype);
-CosineSkulptProfile.prototype.constructor = CosineSkulptProfile;
-CosineSkulptProfile.prototype.getValue = function (weight) {
-    return Math.cos(weight * this.__halfPi);
-};
-
-/**
- * Sculpt profile that is based on constant value of 1
- * @constructor
- * @extends {SkulptProfile}
- */
-function ConstantSkulptProfile() {
-    SkulptProfile.call(this);
-}
-ConstantSkulptProfile.prototype = Object.create(SkulptProfile.prototype);
-ConstantSkulptProfile.prototype.constructor = ConstantSkulptProfile;
-ConstantSkulptProfile.prototype.getValue = function (weight) {
-    return 1;
-};
-
-//===================================
-// SKULPT BRUSHES
-//===================================
-
-/**
- * Abstract class for sculpt brushes
- * @constructor
- * @param {number} size
- */
-function SkulptBrush(size, amount, scene) {
-    this.__cursor = new SkulptMeshCursor(size, amount, scene);
-}
-/**
- * Performs sculpting
- * @abstract
- */
-SkulptBrush.prototype.sculpt = function (mesh, position, profile) {
-    throw new Error('Abstract method not implemented');
-};
-SkulptBrush.prototype.getSize = function (size) {
-    return this.__cursor.getSize();
-};
-SkulptBrush.prototype.setSize = function (size) {
-    this.__cursor.setSize(size);
-};
-SkulptBrush.prototype.getAmount = function (amount) {
-    return this.__cursor.getAmount();
-};
-SkulptBrush.prototype.setAmount = function (amount) {
-    this.__cursor.setAmount(amount);
-};
-SkulptBrush.prototype.showCursor = function () {
-    this.__cursor.show();
-};
-SkulptBrush.prototype.hideCursor = function () {
-    this.__cursor.hide();
-};
-SkulptBrush.prototype.updateCursor = function (position, skulptMesh) {
-    this.__cursor.update(position, skulptMesh);
-};
-
-/**
- * Sculpt brush that adds to a mesh
- * @constructor
- * @extends {SkulptBrush}
- * @param {number} size
- */
-function SkulptAddBrush(size, amount, scene) {
-    SkulptBrush.call(this, size, amount, scene);
-}
-SkulptAddBrush.prototype = Object.create(SkulptBrush.prototype);
-SkulptAddBrush.prototype.constructor = SkulptAddBrush;
-/**
- * Performs sculpting
- * @override
- */
-SkulptAddBrush.prototype.sculpt = function (mesh, position, profile) {
-
-    var layer = mesh.getCurrLayer();
-    var radius = this.getSize() / 2.0;
-    var amount = this.getAmount();
-    var displacements = mesh.getDisplacements();
-    var affectedVertexInfos = mesh.getAffectedVertexInfo(position, radius);
-    var vertexInfo;
-    var i, len, delta;
-    for (i = 0, len = affectedVertexInfos.length; i < len; i++) {
-
-        vertexInfo = affectedVertexInfos[i];
-
-        //store current total displacement
-        affectedVertexInfos[i].oldDisplacement = displacements[vertexInfo.id];
-
-        //modify layer displacement
-        delta = amount * profile.getValue(vertexInfo.weight);
-        layer.data[vertexInfo.id] += delta;
-
-        //store new displacement
-        affectedVertexInfos[i].newDisplacement = affectedVertexInfos[i].oldDisplacement + delta;
-    }
-
-    //update the mesh at the affected vertices
-    mesh.update(affectedVertexInfos);
-
-    //return affectedVertexInfos in case the data is needed outside this function
-    return affectedVertexInfos;
-};
-
-/**
- * Sculpt brush that removes from a mesh
- * @constructor
- * @extends {SkulptBrush}
- * @param {number} size
- */
-function SkulptRemoveBrush(size, amount, scene) {
-    SkulptBrush.call(this, size, amount, scene);
-}
-SkulptRemoveBrush.prototype = Object.create(SkulptBrush.prototype);
-SkulptRemoveBrush.prototype.constructor = SkulptRemoveBrush;
-/**
- * Performs sculpting
- * @override
- */
-SkulptRemoveBrush.prototype.sculpt = function (mesh, position, profile) {
-
-    var layer = mesh.getCurrLayer();
-    var radius = this.getSize() / 2.0;
-    var amount = this.getAmount();
-    var displacements = mesh.getDisplacements();
-    var affectedVertexInfos = mesh.getAffectedVertexInfo(position, radius);
-
-    var sumOtherLayersForThisVertex;
-    var vertexInfo;
-    var i, len, delta;
-    for (i = 0, len = affectedVertexInfos.length; i < len; i++) {
-
-        vertexInfo = affectedVertexInfos[i];
-
-        //store current total displacement
-        affectedVertexInfos[i].oldDisplacement = displacements[vertexInfo.id];
-
-        //find the sum of all other layers
-        sumOtherLayersForThisVertex = displacements[vertexInfo.id] - layer.data[vertexInfo.id];
-
-        //modify displacement amount in-place
-        delta = -(amount * profile.getValue(vertexInfo.weight));
-        layer.data[vertexInfo.id] += delta;
-
-        //prevent going below 0
-        if (layer.data[vertexInfo.id] + sumOtherLayersForThisVertex < 0) {
-            //just set to negative of the other layers will set the sum to 0
-            layer.data[vertexInfo.id] = -sumOtherLayersForThisVertex;
-        }
-
-        //store new displacement
-        affectedVertexInfos[i].newDisplacement = affectedVertexInfos[i].oldDisplacement + delta;
-    }
-
-    //update the mesh at the affected vertices
-    mesh.update(affectedVertexInfos);
-
-    //return affectedVertexInfos in case the data is needed outside this function
-    return affectedVertexInfos;
-};
-
-/**
- * Sculpt brush that flattens a mesh
- * @constructor
- * @extends {SkulptBrush}
- * @param {number} size
- */
-function SkulptFlattenBrush(size, amount, scene) {
-    SkulptBrush.call(this, size, amount, scene);
-}
-SkulptFlattenBrush.prototype = Object.create(SkulptBrush.prototype);
-SkulptFlattenBrush.prototype.constructor = SkulptFlattenBrush;
-/**
- * Performs sculpting
- * @override
- */
-SkulptFlattenBrush.prototype.sculpt = function (mesh, position, profile) {
-
-    var layer = mesh.getCurrLayer();
-    var radius = this.getSize() / 2.0;
-    var affectedVertexInfos = mesh.getAffectedVertexInfo(position, radius);
-    var displacements = mesh.getDisplacements();
-
-    //calculate average displacements
-    var totalAffectedDisplacements = 0;
-    var vertexInfo;
-    var i, len;
-    for (i = 0, len = affectedVertexInfos.length; i < len; i++) {
-        vertexInfo = affectedVertexInfos[i];
-        totalAffectedDisplacements += displacements[vertexInfo.id];
-    }
-    var averageDisp = totalAffectedDisplacements / affectedVertexInfos.length;
-
-    //blend average displacement with existing displacement to flatten
-    var modulator, currDisp, newDisp, dispFromOtherLayers, prev;
-    for (i = 0, len = affectedVertexInfos.length; i < len; i++) {
-
-        vertexInfo = affectedVertexInfos[i];
-        modulator = profile.getValue(vertexInfo.weight);
-        currDisp = displacements[vertexInfo.id];
-
-        //store current total displacement
-        affectedVertexInfos[i].oldDisplacement = displacements[vertexInfo.id];
-
-        //store displacements from other layers
-        dispFromOtherLayers = currDisp - layer.data[vertexInfo.id];
-
-        //calculate new displacements
-        prev = layer.data[vertexInfo.id];
-        layer.data[vertexInfo.id] = modulator * averageDisp + (1 - modulator) * currDisp;
-
-        //need to subtract away all the other layers to force flattening
-        layer.data[vertexInfo.id] -= dispFromOtherLayers;
-
-        //store new displacement
-        affectedVertexInfos[i].newDisplacement = affectedVertexInfos[i].oldDisplacement + (layer.data[vertexInfo.id] - prev);
-    }
-
-    //update the mesh at the affected vertices
-    mesh.update(affectedVertexInfos);
-
-    //return affectedVertexInfos in case the data is needed outside this function
-    return affectedVertexInfos;
-};
-
-//===================================
-// SKULPT
-//===================================
-
-/**
- * Creates a Skulpt instance that manages sculpting
- * @constructor
- * @param {THREE.Scene} scene - main scene to add meshes
- */
-function Skulpt(scene) {
-    if (!scene) {
-        throw new Error('scene not specified');
-    }
-    this.__scene = scene;
-
-    this.__meshes = {};
-    this.__currMesh = undefined;  //defined when intersection test is done
-    this.__brushes = {
-        'add': new SkulptAddBrush(1.0, 1.0, scene),
-        'remove': new SkulptRemoveBrush(1.0, 1.0, scene),
-        'flatten': new SkulptFlattenBrush(1.0, 1.0, scene)
-    };  //TODO: probably should be managed by a singleton
-    this.__currBrush = this.__brushes[Object.keys(this.__brushes)[0]];
-    this.__currProfile = new CosineSkulptProfile(); //TODO: methods for profile, probably should be managed by a singleton
-}
-/**
- * Adds a mesh with name <tt>name</tt>
- * @param  {SkulptMesh} skulptMesh
- * @param  {string} name
- */
-Skulpt.prototype.addMesh = function (skulptMesh, name) {
-    if (!(skulptMesh instanceof SkulptMesh)) {
-        throw new Error('skulptMesh must be of type SkulptMesh');
-    }
-    if (Object.keys(this.__meshes).indexOf(name) !== -1) {
-        throw new Error('Skulpt mesh name already exists: ' + name);
-    }
-    this.__meshes[name] = skulptMesh;
-    this.__currMesh = skulptMesh;
-};
-Skulpt.prototype.getMesh = function (name) {
-    if (Object.keys(this.__meshes).indexOf(name) === -1) {
-        throw new Error('Skulpt mesh name does not exist: ' + name);
-    }
-    return this.__meshes[name];
-};
-/**
- * Removes mesh with name <tt>name</tt>
- * @param  {string} name
- */
-Skulpt.prototype.removeMesh = function (name) {
-    if (Object.keys(this.__meshes).indexOf(name) === -1) {
-        throw new Error('Skulpt mesh name does not exist: ' + name);
-    }
-    delete this.__meshes[name];  //TODO: check this
-};
-/**
- * Set current brush to brush with name <tt>name</tt>
- * @param {string} name
- */
-Skulpt.prototype.setBrush = function (name) {
-    if (Object.keys(this.__brushes).indexOf(name) === -1) {
-        throw new Error('Brush name not recognised: ' + name);
-    }
-    this.__currBrush = this.__brushes[name];
-};
-Skulpt.prototype.getBrushSize = function () {
-    return this.__currBrush.getSize();
-};
-Skulpt.prototype.setBrushSize = function (size) {
-    //TODO: let the singleton manager do this
-    var brushId;
-    for (brushId in this.__brushes) {
-        if (this.__brushes.hasOwnProperty(brushId)) {
-            var brush = this.__brushes[brushId];
-            brush.setSize(size);
-        }
-    }
-};
-Skulpt.prototype.getBrushAmount = function () {
-    return this.__currBrush.getAmount();
-};
-Skulpt.prototype.setBrushAmount = function (amount) {
-    //TODO: let the singleton manager do this
-    var brushId;
-    for (brushId in this.__brushes) {
-        if (this.__brushes.hasOwnProperty(brushId)) {
-            var brush = this.__brushes[brushId];
-            brush.setAmount(amount);
-        }
-    }
-};
-Skulpt.prototype.updateCursor = function (position, mesh) {
-    this.__currBrush.updateCursor(position, mesh);
-};
-Skulpt.prototype.showCursor = function () {
-    this.__currBrush.showCursor();
-};
-Skulpt.prototype.hideCursor = function () {
-    this.__currBrush.hideCursor();
-};
-/**
- * Sculpts at <tt>position</tt> on the current mesh
- * @param {THREE.Vector3} position - position to sculpt at
- */
-Skulpt.prototype.sculpt = function (position) {
-    return this.__currBrush.sculpt(this.__currMesh, position, this.__currProfile);
-};
-// Skulpt.prototype.export = function()
-// {
-
-// }
-// Skulpt.prototype.import = function()
-// {
-
-// }
+SKULPT.REMOVE = 2;

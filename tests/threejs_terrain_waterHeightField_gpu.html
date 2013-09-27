@@ -9,6 +9,7 @@
     <!--load helper libraries-->
     <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
     <script type="text/javascript" src="/js/lib/seedrandom.js"></script>
+    <script type="text/javascript" src="/js/lib/StackBlur.js"></script>
 
     <!--load AR and 3D libraries-->
     <script type="text/javascript" src="/js/lib/three.min.js"></script>
@@ -18,9 +19,7 @@
     <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
 
     <!--load terrain libraries-->
-    <script type="text/javascript" src="/js/skulptgpu.js"></script>
-    <script type="text/javascript" src="/js/lib/SimplexNoise.js"></script>
-    <script type="text/javascript" src="/js/lib/StackBlur.js"></script>
+    <script type="text/javascript" src="/js/skulpt.min.js"></script>
 
     <!--load water libraries-->
     <script type="text/javascript" src="/js/skheightfieldwatergpu.js"></script>
@@ -247,18 +246,13 @@
         //create a terrain mesh for sculpting
         terrainGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_RES - 1, TERRAIN_RES - 1);
         terrainGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-        terrainGeom.computeFaceNormals();
-        terrainGeom.computeVertexNormals();
-        terrainGeom.normalsNeedUpdate = true;
-        var terrainMaterial = new THREE.MeshPhongMaterial();
-        materials.push(terrainMaterial);
-        terrainMesh = new THREE.Mesh(terrainGeom, terrainMaterial);
+        terrainMesh = new THREE.Mesh(terrainGeom, null);
         terrainMesh.castShadow = true;
         terrainMesh.receiveShadow = true;
         globalTransform.add(terrainMesh);
 
         //create a Skulpt first
-        gpuSkulpt = new GpuSkulpt({
+        gpuSkulpt = new SKULPT.GpuSkulpt({
             renderer: renderer,
             mesh: terrainMesh,
             size: TERRAIN_SIZE,
@@ -296,7 +290,7 @@
         $imageCanvasElem[0].id = 'terrainImageCanvas';
         $imageCanvasElem[0].width = TERRAIN_RES;
         $imageCanvasElem[0].height = TERRAIN_RES;
-        $imageCanvasElem.css({'position': 'fixed', 'top': '55px', 'left': 0});
+        $imageCanvasElem.css({'position': 'fixed', 'top': '55px', 'left': 0, 'display': 'none'});
         $('body').append($imageCanvasElem);
 
         //get canvas context
@@ -364,7 +358,7 @@
             res: WATER_RES,
             dampingFactor: waterDampingFactor,
             initialWaterHeight: 0.1,
-            terrainTexture: gpuSkulpt.rttCombinedLayer
+            terrainTexture: gpuSkulpt.getSculptTexture()
         });
         gpuXWater = new GpuXWater({
             renderer: renderer,
@@ -466,8 +460,6 @@
         materials.push(visMaterial);
         visMesh = new THREE.Mesh(visGeom, visMaterial);
         visMesh.position.y = 3;
-        visMesh.castShadow = true;
-        visMesh.receiveShadow = true;
         scene.add(visMesh);
     }
 
@@ -553,10 +545,10 @@
                 //do actual sculpting if clicked
                 if (event.button === 0) {  //LMB
                     isSculpting = true;
-                    gpuSkulpt.sculpt(GpuSkulpt.ADD, intersectPoint, options.amount);
+                    gpuSkulpt.sculpt(SKULPT.ADD, intersectPoint, options.amount);
                 } else if (event.button === 2) {  //RMB
                     isSculpting = true;
-                    gpuSkulpt.sculpt(GpuSkulpt.REMOVE, intersectPoint, options.amount);
+                    gpuSkulpt.sculpt(SKULPT.REMOVE, intersectPoint, options.amount);
                 }
             }
 
@@ -608,9 +600,9 @@
             detectIntersectionAndShowSculptCursor();
             if (intersectPoint && isSculpting) {
                 if (event.button === 0) {  //LMB
-                    gpuSkulpt.sculpt(GpuSkulpt.ADD, intersectPoint, options.amount);
+                    gpuSkulpt.sculpt(SKULPT.ADD, intersectPoint, options.amount);
                 } else if (event.button === 2) {  //RMB
-                    gpuSkulpt.sculpt(GpuSkulpt.REMOVE, intersectPoint, options.amount);
+                    gpuSkulpt.sculpt(SKULPT.REMOVE, intersectPoint, options.amount);
                 }
             }
 
@@ -724,7 +716,6 @@
             }
         }
         control.onChange(changeTerrainImage);
-        //changeTerrainPreBlur('/resources/images/clouds_256.png');
 
         control = terrainFolder.add(options, 'terrainShowImage').name('Show Image');
         function changeTerrainShowImage(value) {
@@ -735,7 +726,6 @@
             }
         }
         control.onChange(changeTerrainShowImage);
-        changeTerrainShowImage(options.terrainShowImage);
 
         control = terrainFolder.add(options, 'terrainMidGreyIsLowest').name('Mid Grey Lowest');
         function changeTerrainMidGreyIsLowest(value) {
@@ -745,14 +735,12 @@
             // terrainObstacle.update();
         }
         control.onChange(changeTerrainMidGreyIsLowest);
-        //changeTerrainMidGreyIsLowest(options.terrainMidGreyIsLowest);
 
         control = terrainFolder.add(options, 'terrainPreBlur', 0, 10).name('Pre-Blur');
         function changeTerrainPreBlur(value) {
             filterTerrainImageAndGenerateHeight(value);
         }
         control.onChange(changeTerrainPreBlur);
-        //changeTerrainPreBlur(options.terrainPreBlur);
 
         control = terrainFolder.add(options, 'terrainHeight', 0, 4).name('Height');
         function changeTerrainHeight(value) {
@@ -762,7 +750,6 @@
             // terrainObstacle.update();
         }
         control.onChange(changeTerrainHeight);
-        //changeTerrainHeight(options.terrainHeight);
 
         //Sculpt folder
         sculptFolder = gui.addFolder('Sculpt');
@@ -905,13 +892,13 @@
                 sphereMesh.position.y = 1.5 + 0.25 * Math.sin(time * 3 + 0.5);
             }
 
-            // visMaterial.map = gpuSkulpt.rttCombinedLayer;
+            // visMaterial.map = gpuSkulpt.getSculptTexture();
             hfWater.shouldDisplay = true;
             visMaterial.map = hfWater.rttDisplay;
 
             renderer.autoClear = false;
             renderer.clear();
-            gpuSkulpt.update();
+            gpuSkulpt.update(dt);
             hfWater.update(dt);
             renderer.render(scene, camera);
 

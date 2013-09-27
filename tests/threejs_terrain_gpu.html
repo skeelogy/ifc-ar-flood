@@ -8,6 +8,7 @@
 
     <!--load helper libraries-->
     <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+    <script type="text/javascript" src="/js/lib/StackBlur.js"></script>
 
     <!--load 3D libraries-->
     <script type="text/javascript" src="/js/lib/three.min.js"></script>
@@ -17,9 +18,7 @@
     <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
 
     <!--load terrain libraries-->
-    <script type="text/javascript" src="/js/skulptgpu.js"></script>
-    <script type="text/javascript" src="/js/lib/StackBlur.js"></script>
-    <script type="text/javascript" src="/js/ShaderManager.js"></script>
+    <script type="text/javascript" src="/js/skulpt.min.js"></script>
 
     <script>
 
@@ -75,9 +74,7 @@
         },
         renderingShadows: true,
         renderingShadowCasters: false,
-        displayWireframe: false,
-        displayLocalAxis: false,
-        displaySimTexture: false
+        displaySculptTexture: false
     };
 
     function checkWebGl() {
@@ -90,7 +87,6 @@
 
     var renderer, scene, camera, globalTransform;
     var keyLight, fillLight;
-    var worldAxis, localAxis;
     var controls;
     var materials = [];
     var torusKnotMesh, boxMesh, sphereMesh;
@@ -173,12 +169,6 @@
         sphereMesh.receiveShadow = false;
         globalTransform.add(sphereMesh);
 
-        //create axis
-        worldAxis = new THREE.AxisHelper();
-        scene.add(worldAxis);
-        localAxis = new THREE.AxisHelper();
-        globalTransform.add(localAxis);
-
         //setup lights
         globalTransform.add(new THREE.AmbientLight(0x111111));
 
@@ -212,18 +202,13 @@
         //create a terrain mesh for sculpting
         terrainGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_RES - 1, TERRAIN_RES - 1);
         terrainGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-        terrainGeom.computeFaceNormals();
-        terrainGeom.computeVertexNormals();
-        terrainGeom.normalsNeedUpdate = true;
-        terrainMaterial = new THREE.MeshPhongMaterial();
-        materials.push(terrainMaterial);
-        terrainMesh = new THREE.Mesh(terrainGeom, terrainMaterial);
+        terrainMesh = new THREE.Mesh(terrainGeom, null);
         terrainMesh.castShadow = true;
         terrainMesh.receiveShadow = true;
         globalTransform.add(terrainMesh);
 
         //create a GpuSkulpt
-        gpuSkulpt = new GpuSkulpt({
+        gpuSkulpt = new SKULPT.GpuSkulpt({
             renderer: renderer,
             mesh: terrainMesh,
             size: TERRAIN_SIZE,
@@ -233,12 +218,10 @@
         //create a RTT visualization plane
         visGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);
         visGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-        visMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: gpuSkulpt.rttCombinedLayer });
+        visMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: gpuSkulpt.getSculptTexture() });
         materials.push(visMaterial);
         visMesh = new THREE.Mesh(visGeom, visMaterial);
         visMesh.position.y = 3;
-        visMesh.castShadow = true;
-        visMesh.receiveShadow = true;
         scene.add(visMesh);
     }
 
@@ -267,7 +250,7 @@
         $imageCanvasElem[0].id = 'terrainImageCanvas';
         $imageCanvasElem[0].width = TERRAIN_RES;
         $imageCanvasElem[0].height = TERRAIN_RES;
-        $imageCanvasElem.css({'position': 'fixed', 'top': '55px', 'left': 0});
+        $imageCanvasElem.css({'position': 'fixed', 'top': '55px', 'left': 0, 'display': 'none'});
         $('body').append($imageCanvasElem);
 
         //get canvas context
@@ -367,10 +350,10 @@
                 //do actual sculpting if clicked
                 if (event.button === 0) {  //LMB
                     isSculpting = true;
-                    gpuSkulpt.sculpt(GpuSkulpt.ADD, intersectPoint, options.amount);
+                    gpuSkulpt.sculpt(SKULPT.ADD, intersectPoint, options.amount);
                 } else if (event.button === 2) {  //RMB
                     isSculpting = true;
-                    gpuSkulpt.sculpt(GpuSkulpt.REMOVE, intersectPoint, options.amount);
+                    gpuSkulpt.sculpt(SKULPT.REMOVE, intersectPoint, options.amount);
                 }
             }
 
@@ -399,9 +382,9 @@
             detectIntersectionAndShowSculptCursor();
             if (intersectPoint && isSculpting) {
                 if (event.button === 0) {  //LMB
-                    gpuSkulpt.sculpt(GpuSkulpt.ADD, intersectPoint, options.amount);
+                    gpuSkulpt.sculpt(SKULPT.ADD, intersectPoint, options.amount);
                 } else if (event.button === 2) {  //RMB
-                    gpuSkulpt.sculpt(GpuSkulpt.REMOVE, intersectPoint, options.amount);
+                    gpuSkulpt.sculpt(SKULPT.REMOVE, intersectPoint, options.amount);
                 }
             }
 
@@ -463,7 +446,6 @@
             }
         }
         control.onChange(changeTerrainImage);
-        //changeTerrainPreBlur('/resources/images/clouds_256.png');
 
         control = terrainFolder.add(options, 'terrainShowImage').name('Show Image');
         function changeTerrainShowImage(value) {
@@ -474,28 +456,24 @@
             }
         }
         control.onChange(changeTerrainShowImage);
-        changeTerrainShowImage(options.terrainShowImage);
 
         control = terrainFolder.add(options, 'terrainMidGreyIsLowest').name('Mid Grey Lowest');
         function changeTerrainMidGreyIsLowest(value) {
             gpuSkulpt.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
         }
         control.onChange(changeTerrainMidGreyIsLowest);
-        //changeTerrainMidGreyIsLowest(options.terrainMidGreyIsLowest);
 
         control = terrainFolder.add(options, 'terrainPreBlur', 0, 10).name('Pre-Blur');
         function changeTerrainPreBlur(value) {
             filterTerrainImageAndGenerateHeight(value);
         }
         control.onChange(changeTerrainPreBlur);
-        //changeTerrainPreBlur(options.terrainPreBlur);
 
         control = terrainFolder.add(options, 'terrainHeight', 0, 4).name('Height');
         function changeTerrainHeight(value) {
             gpuSkulpt.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
         }
         control.onChange(changeTerrainHeight);
-        //changeTerrainHeight(options.terrainHeight);
 
         //Sculpt folder
         sculptFolder = gui.addFolder('Sculpt');
@@ -544,20 +522,12 @@
         displayFolder = gui.addFolder('Display');
         // displayFolder.open();
 
-        control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
-        function toggleLocalAxis(value) {
-            worldAxis.visible = value;
-            localAxis.visible = value;
-        }
-        control.onChange(toggleLocalAxis);
-        toggleLocalAxis(options.displayLocalAxis);
-
-        control = displayFolder.add(options, 'displaySimTexture').name('Sim Texture');
-        function toggleSimTexture(value) {
+        control = displayFolder.add(options, 'displaySculptTexture').name('Sculpt Texture');
+        function toggleSculptTexture(value) {
             visMesh.visible = value;
         }
-        control.onChange(toggleSimTexture);
-        toggleSimTexture(options.displaySimTexture);
+        control.onChange(toggleSculptTexture);
+        toggleSculptTexture(options.displaySculptTexture);
     }
 
     $(document).ready(function () {
@@ -591,6 +561,7 @@
         //main loop
         function loop() {
 
+            var dt = clock.getDelta();  //have to call this before getElapsedTime()
             var time = clock.getElapsedTime();
 
             if (options.renderingShadowCasters) {
@@ -599,11 +570,11 @@
                 sphereMesh.position.y = 1.5 + 0.25 * Math.sin(time * 3 + 0.5);
             }
 
-            visMaterial.map = gpuSkulpt.rttCombinedLayer;
+            visMaterial.map = gpuSkulpt.getSculptTexture();
 
             renderer.autoClear = false;
             renderer.clear();
-            gpuSkulpt.update();
+            gpuSkulpt.update(dt);
             renderer.render(scene, camera);
 
             controls.update();

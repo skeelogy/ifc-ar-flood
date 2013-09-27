@@ -8,6 +8,8 @@
 
     <!--load helper libraries-->
     <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+    <script type="text/javascript" src="/js/lib/SimplexNoise.js"></script>
+    <script type="text/javascript" src="/js/lib/StackBlur.js"></script>
 
     <!--load 3D libraries-->
     <script type="text/javascript" src="/js/lib/three.min.js"></script>
@@ -17,9 +19,7 @@
     <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
 
     <!--load terrain libraries-->
-    <script type="text/javascript" src="/js/skulpt.js"></script>
-    <script type="text/javascript" src="/js/lib/SimplexNoise.js"></script>
-    <script type="text/javascript" src="/js/lib/StackBlur.js"></script>
+    <script type="text/javascript" src="/js/skulpt-cpu.min.js"></script>
 
     <script>
 
@@ -216,10 +216,10 @@
         globalTransform.add(terrainMesh);
 
         //create a Skulpt first
-        skulpt = new Skulpt(globalTransform);
+        skulpt = new SKULPTCPU.Skulpt(globalTransform);
 
         //create a SkulptMesh, add a layer
-        skulptTerrainMesh = new SkulptTerrainMesh(terrainMesh, TERRAIN_SIZE, TERRAIN_RES);
+        skulptTerrainMesh = new SKULPTCPU.SkulptTerrainMesh(terrainMesh, TERRAIN_SIZE, TERRAIN_RES);
         baseLayer = skulptTerrainMesh.addLayer('baseLayer');
         // baseLayer.addNoise(1, 0.5, 0.5, 0.5, 0, 0, 0);
         sculptLayer = skulptTerrainMesh.addLayer('sculptLayer1');
@@ -254,7 +254,7 @@
         $imageCanvasElem[0].id = 'terrainImageCanvas';
         $imageCanvasElem[0].width = TERRAIN_RES;
         $imageCanvasElem[0].height = TERRAIN_RES;
-        $imageCanvasElem.css({'position': 'fixed', 'top': '55px', 'left': 0});
+        $imageCanvasElem.css({'position': 'fixed', 'top': '55px', 'left': 0, 'display': 'none'});
         $('body').append($imageCanvasElem);
 
         //get canvas context
@@ -449,7 +449,6 @@
             }
         }
         control.onChange(changeTerrainImage);
-        //changeTerrainPreBlur('/resources/images/clouds_256.png');
 
         control = terrainFolder.add(options, 'terrainShowImage').name('Show Image');
         function changeTerrainShowImage(value) {
@@ -460,28 +459,24 @@
             }
         }
         control.onChange(changeTerrainShowImage);
-        changeTerrainShowImage(options.terrainShowImage);
 
         control = terrainFolder.add(options, 'terrainMidGreyIsLowest').name('Mid Grey Lowest');
         function changeTerrainMidGreyIsLowest(value) {
             baseLayer.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
         }
         control.onChange(changeTerrainMidGreyIsLowest);
-        //changeTerrainMidGreyIsLowest(options.terrainMidGreyIsLowest);
 
         control = terrainFolder.add(options, 'terrainPreBlur', 0, 10).name('Pre-Blur');
         function changeTerrainPreBlur(value) {
             filterTerrainImageAndGenerateHeight(value);
         }
         control.onChange(changeTerrainPreBlur);
-        //changeTerrainPreBlur(options.terrainPreBlur);
 
         control = terrainFolder.add(options, 'terrainHeight', 0, 4).name('Height');
         function changeTerrainHeight(value) {
             baseLayer.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
         }
         control.onChange(changeTerrainHeight);
-        //changeTerrainHeight(options.terrainHeight);
 
         //Sculpt folder
         sculptFolder = gui.addFolder('Sculpt');
