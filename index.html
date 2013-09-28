@@ -25,6 +25,7 @@
     <!--load helper libraries-->
     <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
     <script type="text/javascript" src="/js/lib/StackBlur.js"></script>
+    <script type="text/javascript" src="/js/skparallelreduce.min.js"></script>
 
     <!--load 3D libraries-->
     <script type="text/javascript" src="/js/lib/three.min.js"></script>
@@ -56,11 +57,7 @@
     <script type="text/javascript" src="/js/lib/physics/physi.js"></script>
 
     <!--load water libraries-->
-    <script type="text/javascript" src="/js/skheightfieldwatergpu.js"></script>
-
-    <!--load GPU-related libraries-->
-    <script type="text/javascript" src="/js/ShaderManager.js"></script>
-    <script type="text/javascript" src="/js/skparallelreduce.min.js"></script>
+    <script type="text/javascript" src="/js/skunami.min.js"></script>
 
     <script>
 
@@ -458,16 +455,14 @@
         //create a plane for height field water sim
         var waterGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_RES - 1, WATER_RES - 1);
         waterGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-        var waterMaterial = new THREE.MeshPhongMaterial({emissive: '#113366'});
-        materials.push(waterMaterial);
-        waterMesh = new THREE.Mesh(waterGeom, waterMaterial);
+        waterMesh = new THREE.Mesh(waterGeom, null);
         waterMesh.castShadow = true;
         waterMesh.receiveShadow = true;
         // waterMesh.visible = false;
         scene.add(waterMesh);
 
         //create a pipe model water as the height field water sim
-        gpuWater = new GpuPipeModelWater({
+        gpuWater = new SKUNAMI.GpuPipeModelWater({
             renderer: renderer,
             scene: scene,
             mesh: waterMesh,
@@ -482,7 +477,7 @@
         //create a RTT visualization plane for the water
         waterVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
         waterVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-        waterVisMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: gpuWater.rttDisplay });
+        waterVisMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: gpuWater.getWaterDisplayTexture() });
         materials.push(waterVisMaterial);
         waterVisMesh = new THREE.Mesh(waterVisGeom, waterVisMaterial);
         waterVisMesh.position.y = 2;
@@ -491,7 +486,7 @@
         //create a RTT visualization plane for obstacles
         obstaclesVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
         obstaclesVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-        obstaclesVisMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: gpuWater.rttDynObstaclesBlurredRenderTarget });
+        obstaclesVisMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: gpuWater.getObstaclesDisplayTexture() });
         materials.push(obstaclesVisMaterial);
         obstaclesVisMesh = new THREE.Mesh(obstaclesVisGeom, obstaclesVisMaterial);
         obstaclesVisMesh.position.y = 2;
@@ -1360,7 +1355,7 @@
         control = debugFolder.add(options, 'debugObstaclesTexture').name('Obstacles Texture').listen();
         toggleDebugObstaclesTexture = function (value) {
             obstaclesVisMesh.visible = value;
-            gpuWater.shouldDisplaySimTexture = value;
+            gpuWater.setShouldDisplaySimTexture(value);
             options.debugObstaclesTexture = value;
         };
         control.onChange(toggleDebugObstaclesTexture);
@@ -1369,7 +1364,7 @@
         control = debugFolder.add(options, 'debugWaterTexture').name('Water Texture').listen();
         toggleDebugWaterTexture = function (value) {
             waterVisMesh.visible = value;
-            gpuWater.shouldDisplaySimTexture = value;
+            gpuWater.setShouldDisplaySimTexture(value);
             options.debugWaterTexture = value;
         };
         control.onChange(toggleDebugWaterTexture);
@@ -1618,7 +1613,7 @@
             var time = clock.getElapsedTime();
 
             terrainVisMaterial.map = gpuSkulpt.getSculptTexture();
-            waterVisMaterial.map = gpuWater.rttDisplay;
+            waterVisMaterial.map = gpuWater.getWaterDisplayTexture();
 
             if (options.arOn) {
 

@@ -4,6 +4,12 @@
  * @version 1.0.0
  */
 
+/**
+ * @namespace
+ */
+var SKUNAMICPU = SKUNAMICPU || { version: '1.0.0' };
+console.log('Using SKUNAMICPU ' + SKUNAMICPU.version);
+
 //===================================
 // OBSTACLES
 //===================================
@@ -13,47 +19,47 @@
  * @constructor
  * @param {THREE.Mesh} mesh Mesh to use as an obstacle
  */
-function Obstacle(mesh) {
+SKUNAMICPU.Obstacle = function (mesh) {
     this.mesh = mesh;
     this.updateAlways = false;  //updates obstacle representation whenever calculations are done, meant for dynamic obstacles that are always moving
     this.update();
-}
-Obstacle.prototype.update = function () {
+};
+SKUNAMICPU.Obstacle.prototype.update = function () {
     throw new Error('Abstract method not implemented');
 };
-Obstacle.prototype.updateObstacleField = function (waterSim) {
+SKUNAMICPU.Obstacle.prototype.updateObstacleField = function (waterSim) {
     throw new Error('Abstract method not implemented');
 };
-Obstacle.prototype.updateFlowObstaclesField = function (waterSim) {
+SKUNAMICPU.Obstacle.prototype.updateFlowObstaclesField = function (waterSim) {
     throw new Error('Abstract method not implemented');
 };
 
 /**
  * Obstacles that are voxelized
  * @constructor
- * @extends {Obstacle}
+ * @extends {SKUNAMICPU.Obstacle}
  * @param {THREE.Mesh} mesh Mesh to use as an obstacle
  * @param {number} voxelSizeX Voxel size in X
  * @param {number} voxelSizeY Voxel size in Y
  * @param {number} voxelSizeZ Voxel size in Z
  */
-function VoxelizedObstacle(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, globalTransform) {
+SKUNAMICPU.VoxelizedObstacle = function (mesh, voxelSizeX, voxelSizeY, voxelSizeZ, globalTransform) {
     this.voxelizer = new SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, globalTransform);
-    Obstacle.call(this, mesh);
-}
-VoxelizedObstacle.prototype = Object.create(Obstacle.prototype);
-VoxelizedObstacle.prototype.constructor = VoxelizedObstacle;
+    SKUNAMICPU.Obstacle.call(this, mesh);
+};
+SKUNAMICPU.VoxelizedObstacle.prototype = Object.create(SKUNAMICPU.Obstacle.prototype);
+SKUNAMICPU.VoxelizedObstacle.prototype.constructor = SKUNAMICPU.VoxelizedObstacle;
 /**
  * Updates the obstacle
  */
-VoxelizedObstacle.prototype.update = function () {
+SKUNAMICPU.VoxelizedObstacle.prototype.update = function () {
     this.voxelizer.updateIntersections();
 };
 /**
  * Updates the obstacle 2D array of the given water simulation
- * @param  {HeightFieldWater} waterSim Water simulation instance
+ * @param  {SKUNAMICPU.HeightFieldWater} waterSim Water simulation instance
  */
-VoxelizedObstacle.prototype.updateObstacleField = function (waterSim) {
+SKUNAMICPU.VoxelizedObstacle.prototype.updateObstacleField = function (waterSim) {
 
     if (this.updateAlways) {
         this.update();
@@ -82,9 +88,9 @@ VoxelizedObstacle.prototype.updateObstacleField = function (waterSim) {
 };
 /**
  * Updates the flux array of the given water simulation
- * @param  {HeightFieldWaterWithVel} waterSim Water simulation instance
+ * @param  {SKUNAMICPU.HeightFieldWaterWithVel} waterSim Water simulation instance
  */
-VoxelizedObstacle.prototype.updateFlux = function (waterSim) {
+SKUNAMICPU.VoxelizedObstacle.prototype.updateFlux = function (waterSim) {
 
     if (this.updateAlways) {
         this.update();
@@ -137,21 +143,21 @@ VoxelizedObstacle.prototype.updateFlux = function (waterSim) {
 };
 
 /**
- * Obstacle that is a height-field terrain
+ * SKUNAMICPU.Obstacle that is a height-field terrain
  * @constructor
- * @extends {Obstacle}
+ * @extends {SKUNAMICPU.Obstacle}
  * @param {THREE.Mesh} mesh Mesh to use as a terrain obstacle
  */
-function TerrainObstacle(mesh) {
+SKUNAMICPU.TerrainObstacle = function (mesh) {
     this.intersectionHeights = [];
-    Obstacle.call(this, mesh);
-}
-TerrainObstacle.prototype = Object.create(Obstacle.prototype);
-TerrainObstacle.prototype.constructor = TerrainObstacle;
+    SKUNAMICPU.Obstacle.call(this, mesh);
+};
+SKUNAMICPU.TerrainObstacle.prototype = Object.create(SKUNAMICPU.Obstacle.prototype);
+SKUNAMICPU.TerrainObstacle.prototype.constructor = SKUNAMICPU.TerrainObstacle;
 /**
  * Updates the obstacle
  */
-TerrainObstacle.prototype.update = function () {
+SKUNAMICPU.TerrainObstacle.prototype.update = function () {
     //since we are using a height-field terrain, we can just get the height without doing intersection tests
     var vertices = this.mesh.geometry.vertices;
     var i, len;
@@ -163,9 +169,9 @@ TerrainObstacle.prototype.update = function () {
 };
 /**
  * Updates the obstacle 2D array of the given water simulation
- * @param  {HeightFieldWater} waterSim Water simulation instance
+ * @param  {SKUNAMICPU.HeightFieldWater} waterSim Water simulation instance
  */
-TerrainObstacle.prototype.updateObstacleField = function (waterSim) {
+SKUNAMICPU.TerrainObstacle.prototype.updateObstacleField = function (waterSim) {
 
     if (this.updateAlways) {
         this.update();
@@ -194,9 +200,9 @@ TerrainObstacle.prototype.updateObstacleField = function (waterSim) {
 };
 /**
  * Updates the flux array of the given water simulation
- * @param  {HeightFieldWaterWithVel} waterSim Water simulation instance
+ * @param  {SKUNAMICPU.HeightFieldWaterWithVel} waterSim Water simulation instance
  */
-TerrainObstacle.prototype.updateFlux = function (waterSim) {
+SKUNAMICPU.TerrainObstacle.prototype.updateFlux = function (waterSim) {
 
     //NOTE: looks like there's no need for the terrain to be an obstacle itself for updating flux
 
@@ -240,7 +246,7 @@ TerrainObstacle.prototype.updateFlux = function (waterSim) {
 };
 
 //TODO: obsolete, should be removed
-var DepthMapObstacleManager = {
+SKUNAMICPU.DepthMapObstacleManager = {
 
     depthMapSize: 10,
     depthMapRes: 512,
@@ -324,7 +330,7 @@ var DepthMapObstacleManager = {
  * @param {number} dampingFactor Damping factor
  * @param {number} meanHeight Mean height
  */
-function HeightFieldWater(options) {
+SKUNAMICPU.HeightFieldWater = function (options) {
 
     if (typeof options.mesh === 'undefined') {
         throw new Error('mesh not specified');
@@ -360,10 +366,10 @@ function HeightFieldWater(options) {
     this.obstacleField = [];
     this.verticalVelField = [];
 
-    // DepthMapObstacleManager.depthMapSize = this.size;
-    // DepthMapObstacleManager.depthMapRes = this.res;
-    // DepthMapObstacleManager.depthMapNear = -2;
-    // DepthMapObstacleManager.depthMapFar = 2;
+    // SKUNAMICPU.DepthMapObstacleManager.depthMapSize = this.size;
+    // SKUNAMICPU.DepthMapObstacleManager.depthMapRes = this.res;
+    // SKUNAMICPU.DepthMapObstacleManager.depthMapNear = -2;
+    // SKUNAMICPU.DepthMapObstacleManager.depthMapFar = 2;
 
     this.obstaclesActive = true;
     //FIXME: remove these hardcoded values
@@ -375,9 +381,9 @@ function HeightFieldWater(options) {
     this.__localPos = new THREE.Vector3();
 
     this.init();
-}
+};
 
-HeightFieldWater.prototype.init = function () {
+SKUNAMICPU.HeightFieldWater.prototype.init = function () {
 
     //init fields first
     var i;
@@ -388,21 +394,21 @@ HeightFieldWater.prototype.init = function () {
         this.verticalVelField[i] = 0;
     }
 
-    //init DepthMapObstacleManager
-    // DepthMapObstacleManager.init();
+    //init SKUNAMICPU.DepthMapObstacleManager
+    // SKUNAMICPU.DepthMapObstacleManager.init();
 };
 
 /**
  * Updates the simulation
  * @param  {number} dt Elapsed time
  */
-HeightFieldWater.prototype.update = function (dt) {
+SKUNAMICPU.HeightFieldWater.prototype.update = function (dt) {
 
-    // DepthMapObstacleManager.update();
+    // SKUNAMICPU.DepthMapObstacleManager.update();
 
     // //update obstacle field using the depth map
     // if (this.obstaclesActive) {
-    //     var obstacleDepthMapData = DepthMapObstacleManager.getObstacleDepthMap();
+    //     var obstacleDepthMapData = SKUNAMICPU.DepthMapObstacleManager.getObstacleDepthMap();
     //     var i, len;
     //     var norm;
     //     for (i = 0, len = this.res * this.res; i < len; i++) {
@@ -435,7 +441,7 @@ HeightFieldWater.prototype.update = function (dt) {
     this.__clearFields();
 };
 
-HeightFieldWater.prototype.sim = function (dt) {
+SKUNAMICPU.HeightFieldWater.prototype.sim = function (dt) {
     throw new Error('Abstract method not implemented');
 };
 
@@ -443,7 +449,7 @@ HeightFieldWater.prototype.sim = function (dt) {
  * Sets the mean height
  * @param {number} meanHeight Mean height to set to
  */
-HeightFieldWater.prototype.setMeanHeight = function (meanHeight) {
+SKUNAMICPU.HeightFieldWater.prototype.setMeanHeight = function (meanHeight) {
 
     this.__meanHeight = meanHeight;
 
@@ -483,7 +489,7 @@ HeightFieldWater.prototype.setMeanHeight = function (meanHeight) {
 };
 
 //Calculates the vertex id of the mesh that is nearest position
-HeightFieldWater.prototype.__calcVertexId = function (x, z) {
+SKUNAMICPU.HeightFieldWater.prototype.__calcVertexId = function (x, z) {
     var row = Math.floor((z + this.halfSize) / this.size * this.res);
     var col = Math.floor((x + this.halfSize) / this.size * this.res);
     return (row * this.res) + col;
@@ -494,7 +500,7 @@ HeightFieldWater.prototype.__calcVertexId = function (x, z) {
  * @param  {THREE.Vector3} position World-space position to disturb at
  * @param  {number} amount Amount to disturb
  */
-HeightFieldWater.prototype.disturb = function (position, amount) {
+SKUNAMICPU.HeightFieldWater.prototype.disturb = function (position, amount) {
 
     //convert back to local space first
     this.__worldMatInv.getInverse(this.mesh.matrixWorld);
@@ -510,7 +516,7 @@ HeightFieldWater.prototype.disturb = function (position, amount) {
  * @param  {number} id Vertex ID of the water mesh
  * @param  {number} amount Amount to disturb
  */
-HeightFieldWater.prototype.disturbById = function (id, amount) {
+SKUNAMICPU.HeightFieldWater.prototype.disturbById = function (id, amount) {
     this.disturbField[id] = amount;
 };
 
@@ -519,7 +525,7 @@ HeightFieldWater.prototype.disturbById = function (id, amount) {
  * @param  {THREE.Vector3} position World-space position to disturb at
  * @param  {number} amount Amount to disturb
  */
-HeightFieldWater.prototype.disturbNeighbours = function (position, amount) {
+SKUNAMICPU.HeightFieldWater.prototype.disturbNeighbours = function (position, amount) {
 
     //convert back to local space first
     this.__worldMatInv.getInverse(this.mesh.matrixWorld);
@@ -536,7 +542,7 @@ HeightFieldWater.prototype.disturbNeighbours = function (position, amount) {
  * @param  {number} id Neighbours of this vertex ID will be disturbed
  * @param  {number} amount Amount to disturb
  */
-HeightFieldWater.prototype.disturbNeighboursById = function (id, amount) {
+SKUNAMICPU.HeightFieldWater.prototype.disturbNeighboursById = function (id, amount) {
 
     var vertices = this.geometry.vertices;
 
@@ -571,7 +577,7 @@ HeightFieldWater.prototype.disturbNeighboursById = function (id, amount) {
  * @param  {number} amount Amount of water to source
  * @param  {number} radius Radius of water to source
  */
-HeightFieldWater.prototype.source = function (position, amount, radius) {
+SKUNAMICPU.HeightFieldWater.prototype.source = function (position, amount, radius) {
 
     //convert back to local space first
     this.__worldMatInv.getInverse(this.mesh.matrixWorld);
@@ -598,7 +604,7 @@ HeightFieldWater.prototype.source = function (position, amount, radius) {
  * @param  {number} id Vertex ID to source at
  * @param  {number} amount Amount of water to source
  */
-HeightFieldWater.prototype.sourceById = function (id, amount) {
+SKUNAMICPU.HeightFieldWater.prototype.sourceById = function (id, amount) {
     this.sourceField[id] = amount;
 };
 
@@ -606,7 +612,7 @@ HeightFieldWater.prototype.sourceById = function (id, amount) {
  * Floods the water simulation by the given volume
  * @param  {number} volume Volume to flood the system with
  */
-HeightFieldWater.prototype.flood = function (volume) {
+SKUNAMICPU.HeightFieldWater.prototype.flood = function (volume) {
     var i, j, idx;
     for (i = 0; i < this.res; i++) {
         for (j = 0; j < this.res; j++) {
@@ -620,13 +626,13 @@ HeightFieldWater.prototype.flood = function (volume) {
 
 /**
  * Adds obstacle to the system
- * @param {Obstacle} obstacle Obstacle to add
+ * @param {SKUNAMICPU.Obstacle} obstacle SKUNAMICPU.Obstacle to add
  * @param {string} name String ID of this obstacle
  */
-HeightFieldWater.prototype.addObstacle = function (obstacle, name) {
-    // DepthMapObstacleManager.addObstacle(mesh);
-    if (!(obstacle instanceof Obstacle)) {
-        throw new Error('obstacle must be of type Obstacle');
+SKUNAMICPU.HeightFieldWater.prototype.addObstacle = function (obstacle, name) {
+    // SKUNAMICPU.DepthMapObstacleManager.addObstacle(mesh);
+    if (!(obstacle instanceof SKUNAMICPU.Obstacle)) {
+        throw new Error('obstacle must be of type SKUNAMICPU.Obstacle');
     }
     if (typeof name !== 'string') {
         throw new Error('name must be of type string');
@@ -641,14 +647,14 @@ HeightFieldWater.prototype.addObstacle = function (obstacle, name) {
  * Sets obstacles state to active/inactive
  * @param {boolean} isActive Whether the obstacles are active
  */
-HeightFieldWater.prototype.setObstaclesActive = function (isActive) {
+SKUNAMICPU.HeightFieldWater.prototype.setObstaclesActive = function (isActive) {
     this.obstaclesActive = isActive;
 };
 
 /**
  * Resets the water simulation
  */
-HeightFieldWater.prototype.reset = function () {
+SKUNAMICPU.HeightFieldWater.prototype.reset = function () {
 
     //set mesh back to 0
     var i;
@@ -661,7 +667,7 @@ HeightFieldWater.prototype.reset = function () {
     this.__clearFields();
 };
 
-HeightFieldWater.prototype.__clearFields = function () {
+SKUNAMICPU.HeightFieldWater.prototype.__clearFields = function () {
     var i;
     for (i = 0; i < this.numVertices; i++) {
         this.sourceField[i] = 0;
@@ -670,7 +676,7 @@ HeightFieldWater.prototype.__clearFields = function () {
     }
 };
 
-HeightFieldWater.prototype.__updateMesh = function () {
+SKUNAMICPU.HeightFieldWater.prototype.__updateMesh = function () {
     this.geometry.verticesNeedUpdate = true;
     this.geometry.computeFaceNormals();  //must call this first before computeVertexNormals()
     this.geometry.computeVertexNormals();
@@ -680,16 +686,16 @@ HeightFieldWater.prototype.__updateMesh = function () {
 /**
  * Height field water simulation based on HelloWorld code of "Fast Water Simulation for Games Using Height Fields" (Matthias Mueller-Fisher, GDC2008)
  * @constructor
- * @extends {HeightFieldWater}
+ * @extends {SKUNAMICPU.HeightFieldWater}
  */
-function MuellerGdc2008HwWater(options) {
-    HeightFieldWater.call(this, options);
-}
-//inherit from HeightFieldWater
-MuellerGdc2008HwWater.prototype = Object.create(HeightFieldWater.prototype);
-MuellerGdc2008HwWater.prototype.constructor = MuellerGdc2008HwWater;
+SKUNAMICPU.MuellerGdc2008HwWater = function (options) {
+    SKUNAMICPU.HeightFieldWater.call(this, options);
+};
+//inherit from SKUNAMICPU.HeightFieldWater
+SKUNAMICPU.MuellerGdc2008HwWater.prototype = Object.create(SKUNAMICPU.HeightFieldWater.prototype);
+SKUNAMICPU.MuellerGdc2008HwWater.prototype.constructor = SKUNAMICPU.MuellerGdc2008HwWater;
 //override
-MuellerGdc2008HwWater.prototype.sim = function (dt) {
+SKUNAMICPU.MuellerGdc2008HwWater.prototype.sim = function (dt) {
 
     var i, j, idx;
     var vertexPos = this.geometry.vertices;
@@ -729,22 +735,22 @@ MuellerGdc2008HwWater.prototype.sim = function (dt) {
 /**
  * Height field water simulation based on "Fast Water Simulation for Games Using Height Fields" (Matthias Mueller-Fisher, GDC2008)
  * @constructor
- * @extends {HeightFieldWater}
+ * @extends {SKUNAMICPU.HeightFieldWater}
  */
-function MuellerGdc2008Water(options) {
-    HeightFieldWater.call(this, options);
+SKUNAMICPU.MuellerGdc2008Water = function (options) {
+    SKUNAMICPU.HeightFieldWater.call(this, options);
 
     if (typeof options.horizontalSpeed === 'undefined') {
         throw new Error('horizontalSpeed not specified');
     }
     this.horizontalSpeed = options.horizontalSpeed;
     this.horizontalSpeedSquared = this.horizontalSpeed * this.horizontalSpeed;
-}
-//inherit from HeightFieldWater
-MuellerGdc2008Water.prototype = Object.create(HeightFieldWater.prototype);
-MuellerGdc2008Water.prototype.constructor = MuellerGdc2008Water;
+};
+//inherit from SKUNAMICPU.HeightFieldWater
+SKUNAMICPU.MuellerGdc2008Water.prototype = Object.create(SKUNAMICPU.HeightFieldWater.prototype);
+SKUNAMICPU.MuellerGdc2008Water.prototype.constructor = SKUNAMICPU.MuellerGdc2008Water;
 //override
-MuellerGdc2008Water.prototype.sim = function (dt) {
+SKUNAMICPU.MuellerGdc2008Water.prototype.sim = function (dt) {
 
     //fixing dt: better to be in slow motion than to explode
     dt = 1.0 / 60.0;
@@ -796,19 +802,19 @@ MuellerGdc2008Water.prototype.sim = function (dt) {
 /**
  * Height field water simulation based on http://freespace.virgin.net/hugo.elias/graphics/x_water.htm
  * @constructor
- * @extends {HeightFieldWater}
+ * @extends {SKUNAMICPU.HeightFieldWater}
  */
-function XWater(options) {
+SKUNAMICPU.XWater = function (options) {
     this.field1 = [];
     this.field2 = [];
 
-    HeightFieldWater.call(this, options);
-}
-//inherit from HeightFieldWater
-XWater.prototype = Object.create(HeightFieldWater.prototype);
-XWater.prototype.constructor = XWater;
+    SKUNAMICPU.HeightFieldWater.call(this, options);
+};
+//inherit from SKUNAMICPU.HeightFieldWater
+SKUNAMICPU.XWater.prototype = Object.create(SKUNAMICPU.HeightFieldWater.prototype);
+SKUNAMICPU.XWater.prototype.constructor = SKUNAMICPU.XWater;
 //override
-XWater.prototype.init = function () {
+SKUNAMICPU.XWater.prototype.init = function () {
 
     //init fields first
     var i;
@@ -818,18 +824,18 @@ XWater.prototype.init = function () {
     }
 
     //call super class init to initialize other fields
-    HeightFieldWater.prototype.init.call(this);
+    SKUNAMICPU.HeightFieldWater.prototype.init.call(this);
 };
-XWater.prototype.reset = function () {
+SKUNAMICPU.XWater.prototype.reset = function () {
     var i;
     for (i = 0; i < this.numVertices; i++) {
         this.field1[i] = this.__meanHeight;
         this.field2[i] = this.__meanHeight;
     }
 
-    HeightFieldWater.prototype.reset.call(this);
+    SKUNAMICPU.HeightFieldWater.prototype.reset.call(this);
 };
-XWater.prototype.setMeanHeight = function (meanHeight) {
+SKUNAMICPU.XWater.prototype.setMeanHeight = function (meanHeight) {
 
     this.__meanHeight = meanHeight;
 
@@ -863,9 +869,9 @@ XWater.prototype.setMeanHeight = function (meanHeight) {
         this.field2[idx] = this.__meanHeight;
     }
 
-    HeightFieldWater.prototype.setMeanHeight.call(this, meanHeight);
+    SKUNAMICPU.HeightFieldWater.prototype.setMeanHeight.call(this, meanHeight);
 };
-XWater.prototype.sim = function (dt) {
+SKUNAMICPU.XWater.prototype.sim = function (dt) {
 
     var i, j, idx;
     var vertexPos = this.geometry.vertices;
@@ -919,14 +925,14 @@ XWater.prototype.sim = function (dt) {
 /**
  * Height field water simulation based on "Interactive Water Surfaces" (Jerry Tessendorf, Game Programming Gems 4)
  * @constructor
- * @extends {HeightFieldWater}
+ * @extends {SKUNAMICPU.HeightFieldWater}
  */
-function TessendorfIWaveWater(options) {
+SKUNAMICPU.TessendorfIWaveWater = function (options) {
 
     this.prevHeight = [];
     this.vertDeriv = [];
 
-    HeightFieldWater.call(this, options);
+    SKUNAMICPU.HeightFieldWater.call(this, options);
 
     if (typeof options.kernelRadius === 'undefined') {
         throw new Error('kernelRadius not specified');
@@ -950,12 +956,12 @@ function TessendorfIWaveWater(options) {
     }).error(function (xhr, textStatus, error) {
         throw new Error('error loading ' + url + ': ' + error);
     });
-}
-//inherit from HeightFieldWater
-TessendorfIWaveWater.prototype = Object.create(HeightFieldWater.prototype);
-TessendorfIWaveWater.prototype.constructor = TessendorfIWaveWater;
+};
+//inherit from SKUNAMICPU.HeightFieldWater
+SKUNAMICPU.TessendorfIWaveWater.prototype = Object.create(SKUNAMICPU.HeightFieldWater.prototype);
+SKUNAMICPU.TessendorfIWaveWater.prototype.constructor = SKUNAMICPU.TessendorfIWaveWater;
 //override
-TessendorfIWaveWater.prototype.init = function () {
+SKUNAMICPU.TessendorfIWaveWater.prototype.init = function () {
 
     //init fields first
     var i;
@@ -965,18 +971,18 @@ TessendorfIWaveWater.prototype.init = function () {
     }
 
     //call super class init to initialize other fields
-    HeightFieldWater.prototype.init.call(this);
+    SKUNAMICPU.HeightFieldWater.prototype.init.call(this);
 };
-TessendorfIWaveWater.prototype.reset = function () {
+SKUNAMICPU.TessendorfIWaveWater.prototype.reset = function () {
     var i;
     for (i = 0; i < this.numVertices; i++) {
         this.prevHeight[i] = 0;
         this.vertDeriv[i] = 0;
     }
 
-    HeightFieldWater.prototype.reset.call(this);
+    SKUNAMICPU.HeightFieldWater.prototype.reset.call(this);
 };
-TessendorfIWaveWater.prototype.sim = function (dt) {
+SKUNAMICPU.TessendorfIWaveWater.prototype.sim = function (dt) {
 
     //fixing dt: better to be in slow motion than to explode
     dt = 1.0 / 60.0;
@@ -1034,7 +1040,7 @@ TessendorfIWaveWater.prototype.sim = function (dt) {
     this.__updateMesh();
 };
 //methods
-TessendorfIWaveWater.prototype.__symmetricalConvolve = function () {
+SKUNAMICPU.TessendorfIWaveWater.prototype.__symmetricalConvolve = function () {
 
     var i, j, k, l, iMax, jMax, idx;
     var vertexPos = this.geometry.vertices;
@@ -1067,7 +1073,7 @@ TessendorfIWaveWater.prototype.__symmetricalConvolve = function () {
         }
     }
 };
-TessendorfIWaveWater.prototype.__convolve = function () {
+SKUNAMICPU.TessendorfIWaveWater.prototype.__convolve = function () {
     //NOTE: this is not used. I left it here for debugging if necessary.
     var i, j, k, l, iMax, jMax, idx;
     var vertexPos = this.geometry.vertices;
@@ -1091,9 +1097,9 @@ TessendorfIWaveWater.prototype.__convolve = function () {
 /**
  * Height field water that is able to generate a full 3D velocity field
  * @constructor
- * @extends {HeightFieldWater}
+ * @extends {SKUNAMICPU.HeightFieldWater}
  */
-function HeightFieldWaterWithVel(options) {
+SKUNAMICPU.HeightFieldWaterWithVel = function (options) {
 
     this.vel = [];
     this.velColors = [];
@@ -1102,7 +1108,7 @@ function HeightFieldWaterWithVel(options) {
     }
     this.scene = options.scene;
 
-    HeightFieldWater.call(this, options);
+    SKUNAMICPU.HeightFieldWater.call(this, options);
 
     this.minVisVel = options.minVisVel || 0;  //for remapping of visualizing colors
     this.maxVisVel = options.maxVisVel || 0.25;  //for remapping of visualizing colors
@@ -1122,12 +1128,12 @@ function HeightFieldWaterWithVel(options) {
 
     this.__visVelColors = false;
     this.__visVelLines = false;
-}
+};
 //inherit
-HeightFieldWaterWithVel.prototype = Object.create(HeightFieldWater.prototype);
-HeightFieldWaterWithVel.prototype.constructor = HeightFieldWaterWithVel;
+SKUNAMICPU.HeightFieldWaterWithVel.prototype = Object.create(SKUNAMICPU.HeightFieldWater.prototype);
+SKUNAMICPU.HeightFieldWaterWithVel.prototype.constructor = SKUNAMICPU.HeightFieldWaterWithVel;
 //override
-HeightFieldWaterWithVel.prototype.init = function () {
+SKUNAMICPU.HeightFieldWaterWithVel.prototype.init = function () {
 
     //init arrays
     var i, len;
@@ -1150,11 +1156,11 @@ HeightFieldWaterWithVel.prototype.init = function () {
     this.velLinesMesh = new THREE.Line(velLinesGeom, velLinesMaterial, THREE.LinePieces);
     this.scene.add(this.velLinesMesh);
 
-    HeightFieldWater.prototype.init.call(this);
+    SKUNAMICPU.HeightFieldWater.prototype.init.call(this);
 };
-HeightFieldWaterWithVel.prototype.update = function () {
+SKUNAMICPU.HeightFieldWaterWithVel.prototype.update = function () {
 
-    HeightFieldWater.prototype.update.call(this);
+    SKUNAMICPU.HeightFieldWater.prototype.update.call(this);
     if (this.__visVelColors) {
         this.updateVelColors();
     }
@@ -1168,7 +1174,7 @@ HeightFieldWaterWithVel.prototype.update = function () {
  * Visualize velocity colors
  * @param  {boolean} shouldVisualize Whether to visualize the colors
  */
-HeightFieldWaterWithVel.prototype.visualizeVelColors = function (shouldVisualize) {
+SKUNAMICPU.HeightFieldWaterWithVel.prototype.visualizeVelColors = function (shouldVisualize) {
     this.__visVelColors = shouldVisualize;
     if (shouldVisualize) {
         this.mesh.material.emissive.set('#ffffff');
@@ -1184,11 +1190,11 @@ HeightFieldWaterWithVel.prototype.visualizeVelColors = function (shouldVisualize
  * Visualize velocity vector lines
  * @param  {boolean} shouldVisualize Whether to visualize the lines
  */
-HeightFieldWaterWithVel.prototype.visualizeVelLines = function (shouldVisualize) {
+SKUNAMICPU.HeightFieldWaterWithVel.prototype.visualizeVelLines = function (shouldVisualize) {
     this.__visVelLines = shouldVisualize;
     this.velLinesMesh.visible = shouldVisualize;
 };
-HeightFieldWaterWithVel.prototype.updateVelColors = function () {
+SKUNAMICPU.HeightFieldWaterWithVel.prototype.updateVelColors = function () {
 
     var i, len, f, j, n, vertexIndex, velMag;
     for (i = 0, len = this.geometry.faces.length; i < len; i++) {
@@ -1208,7 +1214,7 @@ HeightFieldWaterWithVel.prototype.updateVelColors = function () {
     }
     this.geometry.colorsNeedUpdate = true;
 };
-HeightFieldWaterWithVel.prototype.updateVelLines = function () {
+SKUNAMICPU.HeightFieldWaterWithVel.prototype.updateVelLines = function () {
 
     //TODO: transform into another space
 
@@ -1246,9 +1252,9 @@ HeightFieldWaterWithVel.prototype.updateVelLines = function () {
 /**
  * Height field water based on the hydrostatic pipe model
  * @constructor
- * @extends {HeightFieldWaterWithVel}
+ * @extends {SKUNAMICPU.HeightFieldWaterWithVel}
  */
-function PipeModelWater(options) {
+SKUNAMICPU.PipeModelWater = function (options) {
 
     //per-grid variables
     this.baseHeights = [];  //height of the base terrain layer
@@ -1265,7 +1271,7 @@ function PipeModelWater(options) {
     //TODO: this should really be in the superclass
     this.terrainMesh = typeof options.terrainMesh === 'undefined' ? null : options.terrainMesh;
 
-    HeightFieldWaterWithVel.call(this, options);
+    SKUNAMICPU.HeightFieldWaterWithVel.call(this, options);
 
     //some constants
     this.gravity = 9.81;
@@ -1276,12 +1282,12 @@ function PipeModelWater(options) {
 
     //sources and sinks
     this.flowChangers = [];
-}
+};
 //inherit
-PipeModelWater.prototype = Object.create(HeightFieldWaterWithVel.prototype);
-PipeModelWater.prototype.constructor = PipeModelWater;
+SKUNAMICPU.PipeModelWater.prototype = Object.create(SKUNAMICPU.HeightFieldWaterWithVel.prototype);
+SKUNAMICPU.PipeModelWater.prototype.constructor = SKUNAMICPU.PipeModelWater;
 //override
-PipeModelWater.prototype.init = function () {
+SKUNAMICPU.PipeModelWater.prototype.init = function () {
 
     var i, len;
     for (i = 0, len = this.numVertices; i < len; i++) {
@@ -1296,22 +1302,22 @@ PipeModelWater.prototype.init = function () {
         this.dHeights[i] = 0;
     }
 
-    HeightFieldWaterWithVel.prototype.init.call(this);
+    SKUNAMICPU.HeightFieldWaterWithVel.prototype.init.call(this);
 };
-PipeModelWater.prototype.reset = function () {
+SKUNAMICPU.PipeModelWater.prototype.reset = function () {
 
     var i, len;
     for (i = 0, len = this.numVertices; i < len; i++) {
         this.extPressures[i] = 0;
     }
 
-    HeightFieldWaterWithVel.prototype.reset.call(this);
+    SKUNAMICPU.HeightFieldWaterWithVel.prototype.reset.call(this);
 };
 /**
  * Updates the simulation
  * @param  {number} dt Elapsed time
  */
-PipeModelWater.prototype.update = function (dt) {
+SKUNAMICPU.PipeModelWater.prototype.update = function (dt) {
 
     //TODO: update only the changed base heights during sculpting
     //update baseHeights using terrainMesh data
@@ -1323,9 +1329,9 @@ PipeModelWater.prototype.update = function (dt) {
         }
     }
 
-    HeightFieldWaterWithVel.prototype.update.call(this, dt);
+    SKUNAMICPU.HeightFieldWaterWithVel.prototype.update.call(this, dt);
 };
-PipeModelWater.prototype.sim = function (dt) {
+SKUNAMICPU.PipeModelWater.prototype.sim = function (dt) {
 
     var i, j, idx;
     var vertexPos = this.geometry.vertices;
@@ -1510,7 +1516,7 @@ PipeModelWater.prototype.sim = function (dt) {
     //update mesh
     this.__updateMesh();
 };
-PipeModelWater.prototype.__matchEdges = function () {
+SKUNAMICPU.PipeModelWater.prototype.__matchEdges = function () {
 
     var i, j, idx;
     var vertexPos = this.geometry.vertices;

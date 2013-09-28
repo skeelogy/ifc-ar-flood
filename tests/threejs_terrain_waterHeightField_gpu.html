@@ -10,6 +10,7 @@
     <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
     <script type="text/javascript" src="/js/lib/seedrandom.js"></script>
     <script type="text/javascript" src="/js/lib/StackBlur.js"></script>
+    <script type="text/javascript" src="/js/skparallelreduce.min.js"></script>
 
     <!--load AR and 3D libraries-->
     <script type="text/javascript" src="/js/lib/three.min.js"></script>
@@ -22,9 +23,7 @@
     <script type="text/javascript" src="/js/skulpt.min.js"></script>
 
     <!--load water libraries-->
-    <script type="text/javascript" src="/js/skheightfieldwatergpu.js"></script>
-    <script type="text/javascript" src="/js/ShaderManager.js"></script>
-    <script type="text/javascript" src="/js/skparallelreduce.min.js"></script>
+    <script type="text/javascript" src="/js/skunami.min.js"></script>
 
     <script>
 
@@ -87,11 +86,11 @@
         'Muller GDC2008 HelloWorld': 'gpuMuellerGdc2008HwWater'
     };
     var waterSimTypeSettings = {
-        'gpuPipeModelWater': { 'disturbAmount': 0.15, 'disturbRadius': 0.25, 'dampingFactor': 0.995 },
-        'gpuXWater': { 'disturbAmount': 0.035, 'disturbRadius': 0.25, 'dampingFactor': 0.95 },
-        'gpuIWaveWater': { 'disturbAmount': 0.004, 'disturbRadius': 0.25, 'dampingFactor': 0.7 },
-        'gpuMuellerGdc2008Water': { 'disturbAmount': 0.2, 'disturbRadius': 0.25, 'dampingFactor': 0.95 },
-        'gpuMuellerGdc2008HwWater': { 'disturbAmount': 0.2, 'disturbRadius': 0.25, 'dampingFactor': 0.95 }
+        'gpuPipeModelWater': { 'disturbAmount': 0.15, 'disturbRadius': 0.25 },
+        'gpuXWater': { 'disturbAmount': 0.035, 'disturbRadius': 0.25 },
+        'gpuIWaveWater': { 'disturbAmount': 0.004, 'disturbRadius': 0.25 },
+        'gpuMuellerGdc2008Water': { 'disturbAmount': 0.2, 'disturbRadius': 0.25 },
+        'gpuMuellerGdc2008HwWater': { 'disturbAmount': 0.2, 'disturbRadius': 0.25 }
     };
     var options = {
         waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
@@ -342,62 +341,61 @@
         //create a height-field water sim from the plane
         var waterGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_RES - 1, WATER_RES - 1);
         waterGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-        var waterMaterial = new THREE.MeshPhongMaterial({emissive: '#113366'});
-        materials.push(waterMaterial);
-        waterMesh = new THREE.Mesh(waterGeom, waterMaterial);
+        waterMesh = new THREE.Mesh(waterGeom, null);
         waterMesh.castShadow = true;
         waterMesh.receiveShadow = true;
         globalTransform.add(waterMesh);
 
         //create the different water sims
-        gpuPipeModelWater = new GpuPipeModelWater({
+        gpuPipeModelWater = new SKUNAMI.GpuPipeModelWater({
             renderer: renderer,
             scene: scene,
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
-            dampingFactor: waterDampingFactor,
+            dampingFactor: 0.995,
+            multisteps: 1,
             initialWaterHeight: 0.1,
             terrainTexture: gpuSkulpt.getSculptTexture()
         });
-        gpuXWater = new GpuXWater({
+        gpuXWater = new SKUNAMI.GpuXWater({
             renderer: renderer,
             scene: scene,
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
-            dampingFactor: waterDampingFactor,
+            dampingFactor: 0.95,
             multisteps: 2,
             meanHeight: MEAN_WATER_HEIGHT
         });
-        gpuIWaveWater = new GpuTessendorfIWaveWater({
+        gpuIWaveWater = new SKUNAMI.GpuTessendorfIWaveWater({
             renderer: renderer,
             scene: scene,
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
-            dampingFactor: waterDampingFactor,
-            multisteps: 3,
+            dampingFactor: 0.6,
+            multisteps: 8,
             meanHeight: MEAN_WATER_HEIGHT
         });
-        gpuMuellerGdc2008Water = new GpuMuellerGdc2008Water({
+        gpuMuellerGdc2008Water = new SKUNAMI.GpuMuellerGdc2008Water({
             renderer: renderer,
             scene: scene,
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
-            dampingFactor: waterDampingFactor,
+            dampingFactor: 0.95,
             horizontalSpeed: 4.0,
             multisteps: 1,
             meanHeight: MEAN_WATER_HEIGHT
         });
-        gpuMuellerGdc2008HwWater = new GpuMuellerGdc2008HwWater({
+        gpuMuellerGdc2008HwWater = new SKUNAMI.GpuMuellerGdc2008HwWater({
             renderer: renderer,
             scene: scene,
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
-            dampingFactor: waterDampingFactor,
+            dampingFactor: 0.95,
             multisteps: 3,
             meanHeight: MEAN_WATER_HEIGHT
         });
@@ -456,7 +454,7 @@
         //create a RTT visualization plane
         visGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
         visGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-        visMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: hfWater.rttRenderTarget1 });
+        visMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: hfWater.getWaterDisplayTexture() });
         materials.push(visMaterial);
         visMesh = new THREE.Mesh(visGeom, visMaterial);
         visMesh.position.y = 3;
@@ -576,11 +574,11 @@
                     if (event.button === 0) {  //LMB
                         hfWater.disturb(intersectPoint, waterDisturbAmount, waterDisturbRadius);
                     } else if (event.button === 1) {  //MMB
-                        if (hfWater instanceof GpuPipeModelWater) {  //only pipe model water can source
+                        if (hfWater instanceof SKUNAMI.GpuPipeModelWater) {  //only pipe model water can source
                             hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
                         }
                     } else if (event.button === 2) {  //RMB
-                        if (hfWater instanceof GpuPipeModelWater) {  //only pipe model water can source
+                        if (hfWater instanceof SKUNAMI.GpuPipeModelWater) {  //only pipe model water can source
                             hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
                         }
                     }
@@ -627,11 +625,11 @@
                     if (event.button === 0) {  //LMB
                         hfWater.disturb(intersectPoint, waterDisturbAmount, waterDisturbRadius);
                     } else if (event.button === 1) {  //MMB
-                        if (hfWater instanceof GpuPipeModelWater) {  //only pipe model water can source
+                        if (hfWater instanceof SKUNAMI.GpuPipeModelWater) {  //only pipe model water can source
                             hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
                         }
                     } else if (event.button === 2) {  //LMB
-                        if (hfWater instanceof GpuPipeModelWater) {  //only pipe model water can source
+                        if (hfWater instanceof SKUNAMI.GpuPipeModelWater) {  //only pipe model water can source
                             hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
                         }
                     }
@@ -682,14 +680,18 @@
 
             //reset sim and restore some prev sim values
             hfWater.reset();
-            hfWater.shouldDisplaySimTexture = prevHfWater.shouldDisplaySimTexture;
-            hfWater.meanHeight = prevHfWater.meanHeight;
+            hfWater.setShouldDisplaySimTexture(prevHfWater.getShouldDisplaySimTexture());
+            var prevMeanHeight = 0;
+            if (prevHfWater instanceof SKUNAMI.GpuHeightFieldSurfaceWater) {
+                prevMeanHeight = prevHfWater.getMeanHeight();
+            }
+            if (hfWater instanceof SKUNAMI.GpuHeightFieldSurfaceWater) {
+                hfWater.setMeanHeight(prevMeanHeight);
+            }
 
             //load some presets so that that sim works well
             waterDisturbAmount = waterSimTypeSettings[value].disturbAmount;
             waterDisturbRadius = waterSimTypeSettings[value].disturbRadius;
-            waterDampingFactor = waterSimTypeSettings[value].dampingFactor;
-            hfWater.dampingFactor = waterDampingFactor;
         }
         control.onChange(changeWaterSimType);
         changeWaterSimType(options.waterSimType);
@@ -819,7 +821,7 @@
 
         control = displayFolder.add(options, 'displaySimTexture').name('Sim Texture');
         function toggleSimTexture(value) {
-            hfWater.shouldDisplaySimTexture = value;
+            hfWater.setShouldDisplaySimTexture(value);
             visMesh.visible = value;
         }
         control.onChange(toggleSimTexture);
@@ -893,8 +895,7 @@
             }
 
             // visMaterial.map = gpuSkulpt.getSculptTexture();
-            hfWater.shouldDisplay = true;
-            visMaterial.map = hfWater.rttDisplay;
+            visMaterial.map = hfWater.getWaterDisplayTexture();
 
             renderer.autoClear = false;
             renderer.clear();

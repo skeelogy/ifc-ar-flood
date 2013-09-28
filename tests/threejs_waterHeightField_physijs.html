@@ -18,7 +18,7 @@
     <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
 
     <!--load water libraries-->
-    <script type="text/javascript" src="/js/skheightfieldwater.js"></script>
+    <script type="text/javascript" src="/js/skunami-cpu.min.js"></script>
     <script type="text/javascript" src="/js/skvoxelizer.js"></script>
 
     <!--load Physijs library-->
@@ -191,7 +191,7 @@
         scene.add(waterMesh);
 
         //create the different water sims
-        iWaveWater = new TessendorfIWaveWater({
+        iWaveWater = new SKUNAMICPU.TessendorfIWaveWater({
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
@@ -200,7 +200,7 @@
             substeps: 3,
             meanHeight: MEAN_WATER_HEIGHT
         });
-        muellerGdc2008Water = new MuellerGdc2008Water({
+        muellerGdc2008Water = new SKUNAMICPU.MuellerGdc2008Water({
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
@@ -208,21 +208,21 @@
             horizontalSpeed: 5.0,
             meanHeight: MEAN_WATER_HEIGHT
         });
-        muellerGdc2008HwWater = new MuellerGdc2008HwWater({
+        muellerGdc2008HwWater = new SKUNAMICPU.MuellerGdc2008HwWater({
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
             dampingFactor: WATER_DAMPING_FACTOR,
             meanHeight: MEAN_WATER_HEIGHT
         });
-        xWater = new XWater({
+        xWater = new SKUNAMICPU.XWater({
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
             dampingFactor: WATER_DAMPING_FACTOR,
             meanHeight: MEAN_WATER_HEIGHT
         });
-        pipeModelWater = new PipeModelWater({
+        pipeModelWater = new SKUNAMICPU.PipeModelWater({
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
@@ -312,7 +312,7 @@
                 scene.add(obstacleMesh);
 
                 //create Obstacle
-                var obstacle = new VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
+                var obstacle = new SKUNAMICPU.VoxelizedObstacle(obstacleMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
                 iWaveWater.addObstacle(obstacle, 'obstacle' + obstacles.length);
                 muellerGdc2008Water.addObstacle(obstacle, 'obstacle' + obstacles.length);
                 muellerGdc2008HwWater.addObstacle(obstacle, 'obstacle' + obstacles.length);
@@ -435,7 +435,7 @@
                     vertexId = calcVertexId(x, z);
                     if (displacedVoxelCount[vertexId]) {
                         totalDisplacedVoxels += displacedVoxelCount[vertexId];
-                        if (hfWater instanceof HeightFieldWaterWithVel) {
+                        if (hfWater instanceof SKUNAMICPU.HeightFieldWaterWithVel) {
                             acceleration.add(hfWater.vel[vertexId]);
                         }
                     }
@@ -739,7 +739,7 @@
 
         control = displayFolder.add(options, 'displayVelMag').name('Velocity Mag');
         function toggleVelMag(value) {
-            if (hfWater instanceof HeightFieldWaterWithVel) {
+            if (hfWater instanceof SKUNAMICPU.HeightFieldWaterWithVel) {
                 hfWater.visualizeVelColors(value);
             }
         }
@@ -748,7 +748,7 @@
 
         control = displayFolder.add(options, 'displayVelDir').name('Velocity Dir');
         function displayVelDir(value) {
-            if (hfWater instanceof HeightFieldWaterWithVel) {
+            if (hfWater instanceof SKUNAMICPU.HeightFieldWaterWithVel) {
                 hfWater.visualizeVelLines(value);
             }
         }

@@ -23,7 +23,7 @@
     <script type="text/javascript" src="/js/skulpt-cpu.min.js"></script>
 
     <!--load water libraries-->
-    <script type="text/javascript" src="/js/skheightfieldwater.js"></script>
+    <script type="text/javascript" src="/js/skunami-cpu.min.js"></script>
     <script type="text/javascript" src="/js/skvoxelizer.js"></script>
 
     <script>
@@ -350,7 +350,7 @@
         globalTransform.add(waterMesh);
 
         //create the different water sims
-        iWaveWater = new TessendorfIWaveWater({
+        iWaveWater = new SKUNAMICPU.TessendorfIWaveWater({
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
@@ -359,7 +359,7 @@
             substeps: 3,
             meanHeight: MEAN_WATER_HEIGHT
         });
-        muellerGdc2008Water = new MuellerGdc2008Water({
+        muellerGdc2008Water = new SKUNAMICPU.MuellerGdc2008Water({
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
@@ -367,21 +367,21 @@
             horizontalSpeed: 5.0,
             meanHeight: MEAN_WATER_HEIGHT
         });
-        muellerGdc2008HwWater = new MuellerGdc2008HwWater({
+        muellerGdc2008HwWater = new SKUNAMICPU.MuellerGdc2008HwWater({
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
             dampingFactor: WATER_DAMPING_FACTOR,
             meanHeight: MEAN_WATER_HEIGHT
         });
-        xWater = new XWater({
+        xWater = new SKUNAMICPU.XWater({
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
             dampingFactor: WATER_DAMPING_FACTOR,
             meanHeight: MEAN_WATER_HEIGHT
         });
-        pipeModelWater = new PipeModelWater({
+        pipeModelWater = new SKUNAMICPU.PipeModelWater({
             mesh: waterMesh,
             size: WATER_SIZE,
             res: WATER_RES,
@@ -433,7 +433,7 @@
         // shouldUpdateObstacles = true;
 
         //add terrain as an obstacle
-        terrainObstacle = new TerrainObstacle(terrainMesh);
+        terrainObstacle = new SKUNAMICPU.TerrainObstacle(terrainMesh);
         iWaveWater.addObstacle(terrainObstacle, 'terrainObstacle');
         muellerGdc2008Water.addObstacle(terrainObstacle, 'terrainObstacle');
         muellerGdc2008HwWater.addObstacle(terrainObstacle, 'terrainObstacle');
@@ -487,7 +487,7 @@
         terrainObstacle.update();
 
         //disturb water if not pipe model
-        if (!(hfWater instanceof PipeModelWater)) {
+        if (!(hfWater instanceof SKUNAMICPU.PipeModelWater)) {
             var i, len, vertexInfo;
             for (i = 0, len = affectedVertexInfos.length; i < len; i++) {
 
@@ -827,7 +827,7 @@
 
         control = displayFolder.add(options, 'displayVelMag').name('Velocity Mag');
         function toggleVelMag(value) {
-            if (hfWater instanceof HeightFieldWaterWithVel) {
+            if (hfWater instanceof SKUNAMICPU.HeightFieldWaterWithVel) {
                 hfWater.visualizeVelColors(value);
             }
         }
@@ -836,7 +836,7 @@
 
         control = displayFolder.add(options, 'displayVelDir').name('Velocity Dir');
         function displayVelDir(value) {
-            if (hfWater instanceof HeightFieldWaterWithVel) {
+            if (hfWater instanceof SKUNAMICPU.HeightFieldWaterWithVel) {
                 hfWater.visualizeVelLines(value);
             }
         }
