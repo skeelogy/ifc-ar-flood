@@ -20,7 +20,7 @@
 
     <!--load AR libraries-->
     <script type="text/javascript" src="/js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
-    <script type="text/javascript" src="/js/skarf.js"></script>
+    <script type="text/javascript" src="/js/skarf.min.js"></script>
 
     <!--load terrain libraries-->
     <script type="text/javascript" src="/js/skulpt-cpu.min.js"></script>
@@ -416,7 +416,7 @@
     function setupSkarf() {
 
         //create a Skarf framework
-        skarf = new Skarf({
+        skarf = new SKARF.Skarf({
 
             arLibType: 'jsartoolkit',
             trackingElem: source,
@@ -428,7 +428,6 @@
 
             canvasContainerElem: $canvas,
 
-            rendererType: 'threejs',
             renderer: renderer,
             scene: scene,
             camera: camera,

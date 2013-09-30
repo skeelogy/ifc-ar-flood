@@ -28,7 +28,7 @@
 
     <!--load AR libraries-->
     <script type="text/javascript" src="/js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
-    <script type="text/javascript" src="/js/skarf.js"></script>
+    <script type="text/javascript" src="/js/skarf.min.js"></script>
 
     <script>
 
@@ -55,7 +55,7 @@
         },
         displayRefCube: false,
         displayDebugView: false,
-        displayOriginPlane: true,
+        displayOriginPlane: false,
         displayWireframe: false,
         displayLocalAxis: false
     };
@@ -259,7 +259,7 @@
     function setupSkarf() {
 
         //create a Skarf framework
-        skarf = new Skarf({
+        skarf = new SKARF.Skarf({
 
             arLibType: 'jsartoolkit',
             trackingElem: source,
@@ -270,7 +270,6 @@
 
             canvasContainerElem: $('#canvas-container'),
 
-            rendererType: 'threejs',
             renderer: renderer,
             scene: scene,
             camera: camera,
@@ -443,7 +442,7 @@
             }
 
             //update skarf
-            skarf.update();
+            skarf.update(dt);
 
             //update stats
             stats.update();
@@ -456,22 +455,22 @@
 </head>
 <body>
     <h2>skarf.js (JSARToolKit with Three.js)</h2>
-    <div class="container" id="mainTracking3dScene">
+    <div class="invisible" id="mainTracking3dScene">
         <div class="caption">Three.js 3D scene for tracking</div>
         <div class="caption">[ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
     </div>
-    <div class="container" id="canvas-container">
+    <div class="invisible" id="canvas-container">
         <div class="caption">&lt;canvas&gt;</div>
         <canvas id="mainCanvas" width="1280" height="720"></canvas>
     </div>
-    <div class="container" id="debugCanvas-container">
+    <div class="invisible" id="debugCanvas-container">
         <div class="caption">debug &lt;canvas&gt;</div>
         <canvas id="debugCanvas" width="1280" height="720"></canvas>
     </div>
     <div class="container" id="threejs-container-parent">
         <div class="caption">three.js &lt;canvas&gt;</div>
         <div id="threejs-container"></div>
-        <div class="caption">NOTE: Plane is at the origin</div>
+        <div class="caption">[ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
     </div>
 </body>
 </html>

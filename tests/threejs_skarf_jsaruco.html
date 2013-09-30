@@ -24,7 +24,7 @@
     <script type="text/javascript" src="/js/lib/ar/js-aruco/posit1.js"></script>
     <script type="text/javascript" src="/js/lib/ar/js-aruco/cv.js"></script>
     <script type="text/javascript" src="/js/lib/ar/js-aruco/aruco.js"></script>
-    <script type="text/javascript" src="/js/skarf.js"></script>
+    <script type="text/javascript" src="/js/skarf.min.js"></script>
 
     <!--load webcam streaming libraries-->
     <script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
@@ -140,7 +140,7 @@
     function setupAr() {
 
         //create a Skarf framework
-        skarf = new Skarf({
+        skarf = new SKARF.Skarf({
 
             arLibType: 'jsaruco',
             trackingElem: source,
@@ -150,7 +150,6 @@
 
             canvasContainerElem: $canvasContainerElem,
 
-            rendererType: 'threejs',
             renderer: renderer,
             scene: scene,
             camera: camera,

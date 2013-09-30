@@ -44,7 +44,7 @@
     <script type="text/javascript" src="/js/lib/ar/js-aruco/posit1.js"></script>
     <script type="text/javascript" src="/js/lib/ar/js-aruco/cv.js"></script>
     <script type="text/javascript" src="/js/lib/ar/js-aruco/aruco.js"></script>
-    <script type="text/javascript" src="/js/skarf.js"></script>
+    <script type="text/javascript" src="/js/skarf.min.js"></script>
 
     <!--load webcam streaming libraries-->
     <script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
@@ -293,13 +293,12 @@
 
         //also create a marker manager to load in markers
         if (ARLIB === 'jsartoolkit') {
-            markerManager = new MarkerManager(JSARTOOLKIT_MARKERS_JSON);
+            markerManager = new SKARF.MarkerManager(JSARTOOLKIT_MARKERS_JSON);
         } else if (ARLIB === 'jsaruco') {
-            markerManager = new MarkerManager(JSARUCO_MARKERS_JSON);
+            markerManager = new SKARF.MarkerManager(JSARUCO_MARKERS_JSON);
         } else {
             throw new Error('ARLIB type not recognised: ' + ARLIB);
         }
-        markerManager.load();
     }
 
     var proxyTerrainGeom, proxyTerrainMaterial, proxyTerrainMesh;
@@ -504,7 +503,7 @@
 
         //create a Skarf framework
         if (ARLIB === 'jsartoolkit') {
-            skarf = new Skarf({
+            skarf = new SKARF.Skarf({
 
                 arLibType: 'jsartoolkit',
                 trackingElem: source,
@@ -516,7 +515,6 @@
 
                 canvasContainerElem: $canvasContainerElem,
 
-                rendererType: 'threejs',
                 renderer: renderer,
                 scene: scene,
                 camera: camera,
@@ -525,7 +523,7 @@
 
             });
         } else if (ARLIB === 'jsaruco') {
-            skarf = new Skarf({
+            skarf = new SKARF.Skarf({
 
                 arLibType: 'jsaruco',
                 trackingElem: source,
@@ -535,7 +533,6 @@
 
                 canvasContainerElem: $canvasContainerElem,
 
-                rendererType: 'threejs',
                 renderer: renderer,
                 scene: scene,
                 camera: camera,
@@ -1418,7 +1415,7 @@
         sculptAddGeneric_moved = function (params) {
             gpuSkulpt.updateCursor(params.position);
             gpuSkulpt.showCursor();
-            gpuSkulpt.sculpt(GpuSkulpt.ADD, params.position, options.sculptAmount);
+            gpuSkulpt.sculpt(SKULPT.ADD, params.position, options.sculptAmount);
         };
         sculptAddGeneric_hidden = function (params) {
             gpuSkulpt.hideCursor();
@@ -1426,7 +1423,7 @@
         sculptRemoveGeneric_moved = function (params) {
             gpuSkulpt.updateCursor(params.position);
             gpuSkulpt.showCursor();
-            gpuSkulpt.sculpt(GpuSkulpt.REMOVE, params.position, options.sculptAmount);
+            gpuSkulpt.sculpt(SKULPT.REMOVE, params.position, options.sculptAmount);
         };
         sculptRemoveGeneric_hidden = function (params) {
             gpuSkulpt.hideCursor();
