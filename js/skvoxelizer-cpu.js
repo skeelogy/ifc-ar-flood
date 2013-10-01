@@ -5,6 +5,12 @@
  */
 
 /**
+ * @namespace
+ */
+var SKVOXCPU = SKVOXCPU || { version: '1.0.0' };
+console.log('Using SKVOXCPU ' + SKVOXCPU.version);
+
+/**
  * Voxelizer for <tt>mesh</tt>
  * @constructor
  * @param {THREE.Mesh} mesh Mesh to voxelize from
@@ -13,7 +19,7 @@
  * @param {number} voxelSizeZ Voxel size in Z
  * @param {THREE.Matrix4} transformMatrix Transform matrix to change the space of the voxelizing
  */
-function SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, transformMatrix) {
+SKVOXCPU.Voxelizer = function (mesh, voxelSizeX, voxelSizeY, voxelSizeZ, transformMatrix) {
 
     this.mesh = mesh;
     this.voxelSizeX = voxelSizeX || 1;
@@ -56,9 +62,9 @@ function SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, transformMatrix) 
     //store some private variables for voxel mesh generation
     this.__voxelGeom = new THREE.CubeGeometry(this.voxelSizeX, this.voxelSizeY, this.voxelSizeZ);
     this.__voxelMaterial = new THREE.MeshPhongMaterial();
-}
+};
 
-SkVoxelizer.prototype.__updateMinMax = function () {
+SKVOXCPU.Voxelizer.prototype.__updateMinMax = function () {
 
     //get a matrix that represents conversion to transform's space
     this.__mat.getInverse(this.transformMatrix);
@@ -81,7 +87,7 @@ SkVoxelizer.prototype.__updateMinMax = function () {
 /**
  * Updates the first and last intersection data
  */
-SkVoxelizer.prototype.updateIntersections = function () {
+SKVOXCPU.Voxelizer.prototype.updateIntersections = function () {
 
     //cast rays from bottom up and keep list of first and last intersections
     //based on ray stabbing method from "Simplification and Repair of Polygonal Models Using Volumetric Techniques", F. S. Nooruddin and G. Turk
@@ -131,7 +137,7 @@ SkVoxelizer.prototype.updateIntersections = function () {
 /**
  * Voxelizes the mesh
  */
-SkVoxelizer.prototype.voxelize = function () {
+SKVOXCPU.Voxelizer.prototype.voxelize = function () {
 
     //calculate the intersection points first
     this.updateIntersections();
@@ -160,7 +166,7 @@ SkVoxelizer.prototype.voxelize = function () {
 /**
  * Hides all voxels
  */
-SkVoxelizer.prototype.hideAllVoxels = function () {
+SKVOXCPU.Voxelizer.prototype.hideAllVoxels = function () {
     var x, y, z, xId, zId, yId;
     for (xId in this.__voxelMeshes) {
         if (this.__voxelMeshes.hasOwnProperty(xId)) {
@@ -184,7 +190,7 @@ SkVoxelizer.prototype.hideAllVoxels = function () {
  * Visualize the voxels. Use this for debugging purposes only. It is very slow.
  * @param  {THREE.Scene} scene Scene
  */
-SkVoxelizer.prototype.visualize = function (scene) {
+SKVOXCPU.Voxelizer.prototype.visualize = function (scene) {
 
     //turn off all voxels first
     this.hideAllVoxels();

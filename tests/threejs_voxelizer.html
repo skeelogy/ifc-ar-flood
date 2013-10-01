@@ -18,7 +18,7 @@
     <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
 
     <!--load voxelizer library-->
-    <script type="text/javascript" src="/js/skvoxelizer.js"></script>
+    <script type="text/javascript" src="/js/skvoxelizer-cpu.min.js"></script>
 
     <script>
 
@@ -118,21 +118,21 @@
         materials.push(testMaterial);
         cubeMesh = new THREE.Mesh(testGeom, testMaterial);
         cubeMesh.visible = false;
-        cubeMesh.voxelizer = new SkVoxelizer(cubeMesh, 0.25, 0.25, 0.25, globalTransform.matrixWorld);
+        cubeMesh.voxelizer = new SKVOXCPU.Voxelizer(cubeMesh, 0.25, 0.25, 0.25, globalTransform.matrixWorld);
         globalTransform.add(cubeMesh);
 
         //sphere
         testGeom = new THREE.SphereGeometry(1.5, 8, 8);
         sphereMesh = new THREE.Mesh(testGeom, testMaterial);
         sphereMesh.visible = false;
-        sphereMesh.voxelizer = new SkVoxelizer(sphereMesh, 0.4, 0.4, 0.4, globalTransform.matrixWorld);
+        sphereMesh.voxelizer = new SKVOXCPU.Voxelizer(sphereMesh, 0.4, 0.4, 0.4, globalTransform.matrixWorld);
         globalTransform.add(sphereMesh);
 
         //cylinder
         testGeom = new THREE.CylinderGeometry(1, 1, 3, 8, 2);
         cylinderMesh = new THREE.Mesh(testGeom, testMaterial);
         cylinderMesh.visible = false;
-        cylinderMesh.voxelizer = new SkVoxelizer(cylinderMesh, 0.25, 0.25, 0.25, globalTransform.matrixWorld);
+        cylinderMesh.voxelizer = new SKVOXCPU.Voxelizer(cylinderMesh, 0.25, 0.25, 0.25, globalTransform.matrixWorld);
         globalTransform.add(cylinderMesh);
     }
 

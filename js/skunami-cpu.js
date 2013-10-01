@@ -44,7 +44,7 @@ SKUNAMICPU.Obstacle.prototype.updateFlowObstaclesField = function (waterSim) {
  * @param {number} voxelSizeZ Voxel size in Z
  */
 SKUNAMICPU.VoxelizedObstacle = function (mesh, voxelSizeX, voxelSizeY, voxelSizeZ, globalTransform) {
-    this.voxelizer = new SkVoxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, globalTransform);
+    this.voxelizer = new SKVOXCPU.Voxelizer(mesh, voxelSizeX, voxelSizeY, voxelSizeZ, globalTransform);
     SKUNAMICPU.Obstacle.call(this, mesh);
 };
 SKUNAMICPU.VoxelizedObstacle.prototype = Object.create(SKUNAMICPU.Obstacle.prototype);

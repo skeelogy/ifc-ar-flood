@@ -19,7 +19,7 @@
 
     <!--load water libraries-->
     <script type="text/javascript" src="/js/skunami-cpu.min.js"></script>
-    <script type="text/javascript" src="/js/skvoxelizer.js"></script>
+    <script type="text/javascript" src="/js/skvoxelizer-cpu.min.js"></script>
 
     <!--load Physijs library-->
     <script type="text/javascript" src="/js/lib/physics/physi.js"></script>
@@ -251,7 +251,7 @@
         boxDynMesh.receiveShadow = true;
         scene.add(boxDynMesh);
         dynMeshes.push(boxDynMesh);
-        boxDynMesh.voxelizer = new SkVoxelizer(boxDynMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
+        boxDynMesh.voxelizer = new SKVOXCPU.Voxelizer(boxDynMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
 
         //create a dynamic sphere
         var sphereGeom = new THREE.SphereGeometry(0.75, 8, 8);
@@ -264,7 +264,7 @@
         sphereDynMesh.receiveShadow = true;
         scene.add(sphereDynMesh);
         dynMeshes.push(sphereDynMesh);
-        sphereDynMesh.voxelizer = new SkVoxelizer(sphereDynMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
+        sphereDynMesh.voxelizer = new SKVOXCPU.Voxelizer(sphereDynMesh, WATER_GRID_SIZE, WATER_GRID_SIZE, WATER_GRID_SIZE);
 
         //create 4 walls to prevent dynamic object from flying off
         var thickness = 1;
