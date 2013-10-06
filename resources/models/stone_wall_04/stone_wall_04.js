@@ -26,7 +26,7 @@
 		"colorSpecular" : [0.16500000655651093, 0.16500000655651093, 0.16500000655651093],
 		"depthTest" : true,
 		"depthWrite" : true,
-		"mapDiffuse" : "_11_-_Default1noCulling.JPG",
+		"mapDiffuse" : "texture.jpg",
 		"mapDiffuseWrap" : ["repeat", "repeat"],
 		"shading" : "Lambert",
 		"specularCoef" : 20,
