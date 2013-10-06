@@ -7,7 +7,7 @@
         },
         "1001": {
             "name": "crate",
-            "url": "/resources/models/crate/Crate1.obj",
+            "url": "resources/models/crate/Crate1.obj",
             "type": "obj",
             "translate": [0, 0.3, 0],
             "rotate": [0, 0, 0],
@@ -21,7 +21,7 @@
         },
         "1002": {
             "name": "stone_wall_04",
-            "url": "/resources/models/stone_wall_04/stone_wall_04.obj",
+            "url": "resources/models/stone_wall_04/stone_wall_04.obj",
             "type": "obj",
             "translate": [0, 0, 0],
             "rotate": [0, 0, 0],
