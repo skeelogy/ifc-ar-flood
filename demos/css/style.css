@@ -1,0 +1,57 @@
+body {
+    background: #F7F7F7;
+    margin: 0;
+    padding: 0;
+}
+
+h1 {
+    font-family: 'Fauna One', serif;
+    text-align: center;
+}
+
+h2 {
+    font-family: 'Fauna One', serif;
+    text-align: center;
+}
+
+.invisible {
+    display: none;
+}
+
+.container {
+    margin: 2em auto 0;
+    width: 640px;
+    padding: 2em;
+    background: white;
+    -webkit-box-shadow: 0 1px 10px #D9D9D9;
+    -moz-box-shadow: 0 1px 10px #D9D9D9;
+    -ms-box-shadow: 0 1px 10px #D9D9D9;
+    -o-box-shadow: 0 1px 10px #D9D9D9;
+    box-shadow: 0 1px 10px #D9D9D9;
+}
+
+.caption {
+    font-family: 'Fauna One', serif;
+    font-style: italic;
+    text-align: center;
+    padding: 1em;
+}
+
+.translucent {
+    margin: 5px 100px 0;
+    width: 400px;
+    padding: 10px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background: rgba(128, 128, 128, 0.2);
+    border-radius: 5px;
+    font-family: Helvetica, serif;
+    font-style: italic;
+    font-size: 12px;
+    color: white;
+}
+
+#stats { position: absolute; top:0; left: 0 }
+#stats #fps #fpsText { color: #aaa !important }
+#stats #fps #fpsGraph { display: block }

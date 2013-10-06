@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IFC - HTML5 AR Flood Simulation</title>
+    <meta charset="UTF-8"/>
+
+    <link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" href="/css/style.css">
+    <style type="text/css">
+        #info-container {
+            margin:0px 0px 0;
+            width:160px;
+            padding: 10px;
+            position:fixed;
+            top:100px;
+            left:0;
+            background: rgba(128, 128, 128, 0.4);
+            font-family: Helvetica, serif;
+            font-style: italic;
+            font-size: 12px;
+            color: white;
+        }
+    </style>
+
+    <!--load helper libraries-->
+    <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+    <script type="text/javascript" src="/js/lib/StackBlur.js"></script>
+    <script type="text/javascript" src="/js/skparallelreduce.min.js"></script>
+
+    <!--load 3D libraries-->
+    <script type="text/javascript" src="/js/lib/three.min.js"></script>
+    <script type="text/javascript" src="/js/lib/Detector.js"></script>
+    <script type="text/javascript" src="/js/lib/stats.min.js"></script>
+    <script type="text/javascript" src="/js/lib/threex.rendererstats.js"></script>
+    <script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
+    <script type="text/javascript" src="/js/lib/OBJMTLLoader.js"></script>
+    <script type="text/javascript" src="/js/lib/MTLLoader.js"></script>
+    <script type="text/javascript" src="/js/lib/BinaryLoader.js"></script>
+    <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
+
+    <!--load AR libraries-->
+    <script type="text/javascript" src="/js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/svd.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/posit1.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/cv.js"></script>
+    <script type="text/javascript" src="/js/lib/ar/js-aruco/aruco.js"></script>
+    <script type="text/javascript" src="/js/skarf.min.js"></script>
+
+    <!--load webcam streaming libraries-->
+    <script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
+    <script type="text/javascript" src="/js/streamvideo.js"></script>
+
+    <!--load terrain libraries-->
+    <script type="text/javascript" src="/js/skulpt.min.js"></script>
+
+    <!--load RBD libraries-->
+    <script type="text/javascript" src="/js/lib/physics/physi.js"></script>
+
+    <!--load water libraries-->
+    <script type="text/javascript" src="/js/skunami.min.js"></script>
+
+    <script>
+
+    var ARLIB = 'jsartoolkit';
+    // var ARLIB = 'jsaruco';
+    var CAM_VERTICAL_FOV = 40;  //estimate for your camera
+    var JSARTOOLKIT_MARKERS_JSON = '/resources/models/models_jsartoolkit_main.json';
+    var JSARUCO_MARKERS_JSON = '/resources/models/models_jsaruco_main.json';
+
+    var SHADOW_MAP_RES = 1024;
+
+    var TERRAIN_RES = 256;
+    var TERRAIN_SIZE = 6;
+    var TERRAIN_GRID_SIZE = TERRAIN_SIZE / TERRAIN_RES;
+
+    var PROXY_TERRAIN_RES = 64;  //64 is the lowest possible in this example. Anything below cannot represent the terrain. Anything above will cause Physijs to go too slow.
+    var TERRAIN_FRICTION = 0.8;
+    var TERRAIN_RESTITUTION = 0.2;
+
+    var WATER_RES = TERRAIN_RES;
+    var WATER_SIZE = TERRAIN_SIZE;
+    var WATER_GRID_SIZE = WATER_SIZE / WATER_RES;
+    var WATER_DISTURB_AMOUNT = 0.04;
+    var WATER_DISTURB_RADIUS = 0.25;
+    var WATER_DENSITY = 1000;  //1000 kg per cubic metres, for dual coupling
+
+    var GRAVITATIONAL_ACC = -9.81;  //m per squared second
+
+    var HIGHLIGHT_COLOR_ADD = new THREE.Color('#00ff00');
+    var HIGHLIGHT_COLOR_REMOVE = new THREE.Color('#ff0000');
+    var HIGHLIGHT_COLOR_NORMAL = new THREE.Color('#776655');
+
+    var terrainHalfSize = TERRAIN_SIZE / 2.0;
+    var waterHalfSize = WATER_SIZE / 2.0;
+
+    var gpuSkulpt;
+    var renderer, scene, camera;
+    var $canvasContainerElem, $threejsContainerElem, $threejsCanvasElem;
+    var renderStats, physijsStats, glStats;
+    var markerManager;
+    var isAddingObject = false;
+
+    var terrainImages = {
+        'IGMS1': '/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg',
+        'IGMS2': '/resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg',
+        'IGMS3': '/resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg',
+        'IGMS4': '/resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg',
+        'IGMS5': '/resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg',
+        'Clouds': '/resources/images/terrain/clouds_256.png'
+    };
+    var terrainImageSettings = {
+        '/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg': { 'preblur': 2, 'height': 0.3, 'midGreyIsLowest': true },
+        '/resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg': { 'preblur': 1, 'height': 0.3, 'midGreyIsLowest': true },
+        '/resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg': { 'preblur': 3, 'height': 0.3, 'midGreyIsLowest': true },
+        '/resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg': { 'preblur': 2, 'height': 0.3, 'midGreyIsLowest': true },
+        '/resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg': { 'preblur': 3, 'height': 0.3, 'midGreyIsLowest': true },
+        '/resources/images/terrain/clouds_256.png': { 'preblur': 0, 'height': 2, 'midGreyIsLowest': false }
+    };
+    var staticObjects = {
+        'Crate': 1001,
+        'Stone Wall': 1002
+    };
+    var dynObjects = {
+        'Crate': 1001
+    };
+
+    var options = {
+        arOn: false,
+        arTrackingThreshold: 128,
+        terrainImage: terrainImages[Object.keys(terrainImages)[0]],
+        terrainMidGreyIsLowest: true,
+        terrainPreBlur: terrainImageSettings[Object.keys(terrainImageSettings)[0]].preblur,
+        terrainHeight: terrainImageSettings[Object.keys(terrainImageSettings)[0]].height,
+        sculptSize: 1.0,
+        sculptAmount: 0.1,
+        sculptClearSculpts: function () {
+            gpuSkulpt.clear();
+        },
+        objectsStaticObject: staticObjects[Object.keys(staticObjects)[0]],
+        objectsAddStaticObject: objectsAddStaticObject,
+        objectsDynObject: dynObjects[Object.keys(dynObjects)[0]],
+        objectsAddDynObject: objectsAddDynObject,
+        objectsRemoveObject: objectsRemoveObject,
+        waterFloodVolRate: 0.0,
+        waterResetFloodRate: function () {
+            options.waterFloodVolRate = 0.0;
+        },
+        waterSourceRadius: 0.5,
+        waterSourceAmount: 0.08,
+        waterSinkRadius: 0.5,
+        waterSinkAmount: 0.2,
+        debugMarkerAxis: false,
+        debugTerrainImage: false,
+        debugTerrainProxy: false,
+        debugSculptTexture: false,
+        debugObstaclesTexture: false,
+        debugWaterTexture: false,
+        debugGlStats: false
+    };
+
+    var clock = new THREE.Clock();
+
+    //config Physijs
+    Physijs.scripts.worker = '/js/lib/physics/physijs_worker.js';
+    Physijs.scripts.ammo = '/js/lib/physics/ammo.js';
+
+    function checkWebGl() {
+        if (!Detector.webgl) {
+            $('div').remove();
+            Detector.addGetWebGLMessage();
+            throw new Error('Your browser does not seem to support WebGL');
+        }
+    }
+
+    var video, source;
+    function setupVideo() {
+        video = $('#mainVideo')[0];
+        source = video;
+    }
+
+    var controls;
+    var keyLight, fillLight;
+    var materials = [];
+    var groundPlaneMesh;
+    function setupMainScene() {
+
+        //create renderer
+        renderer = new THREE.WebGLRenderer({
+            antialias : true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight - 5);
+        renderer.setClearColor('#081419', 1);
+        renderer.shadowMapEnabled = true;
+        renderer.shadowMapType = THREE.PCFShadowMap;
+        renderer.shadowMapSoft = true;
+        renderer.domElement.id = 'threejs-canvas';
+        $threejsContainerElem.append(renderer.domElement);
+
+        //create scene
+        scene = new Physijs.Scene({ fixedTimeStep: 1 / 60 });
+        scene.addEventListener(
+            'ready',
+            function () {
+                console.log('Physijs scene is ready');
+                //do things that can only be done after scene is ready, such as changing damping values
+            }
+        );
+        scene.addEventListener(  //https://github.com/chandlerprall/Physijs/issues/19
+            'update',
+            function () {
+                scene.simulate(undefined, 1);
+                physijsStats.update();
+            }
+        );
+        // scene.setGravity(new THREE.Vector3(0, -5, 0));
+
+        //create camera
+        camera = new THREE.PerspectiveCamera(CAM_VERTICAL_FOV, video.width / video.height, 0.1, 1000);
+        camera.position.set(4, 4, 7);
+        camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+        //create controls for camera
+        controls = new THREE.OrbitControls(camera);
+        controls.userPanSpeed = 0.2;
+        controls.modifierKey = 'alt';
+
+        //create plane for reference and for intersection test
+        var groundPlaneGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);  //much faster for intersection test when there are no divisions
+        groundPlaneGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+        var groundPlaneMaterial = new THREE.MeshPhongMaterial({
+            color: 0x99ff66
+        });
+        materials.push(groundPlaneMaterial);
+        groundPlaneMesh = new THREE.Mesh(groundPlaneGeom, groundPlaneMaterial);
+        groundPlaneMesh.castShadow = true;
+        groundPlaneMesh.receiveShadow = true;
+        groundPlaneMesh.visible = false;
+        scene.add(groundPlaneMesh);
+
+        //setup lights
+        scene.add(new THREE.AmbientLight(0x111111));
+
+        var keyLight = new THREE.DirectionalLight(0xFFBBBB, 0.75);
+        keyLight.position.set(5, 15, -15);
+        keyLight.target.position.set(0, 0, 0);
+        keyLight.castShadow = true;
+        keyLight.shadowCameraNear = 18;
+        keyLight.shadowCameraFar = 25;
+        keyLight.shadowCameraRight = 4;
+        keyLight.shadowCameraLeft = -4;
+        keyLight.shadowCameraTop = 4;
+        keyLight.shadowCameraBottom = -4;
+        // keyLight.shadowCameraVisible = true;
+        keyLight.shadowBias = 0.005;
+        keyLight.shadowDarkness = 0.5;
+        keyLight.shadowMapWidth = SHADOW_MAP_RES;
+        keyLight.shadowMapHeight = SHADOW_MAP_RES;
+        scene.add(keyLight);
+
+        var fillLight = new THREE.DirectionalLight(0x33DDFF, 0.4);
+        fillLight.position.set(5, 2, 15);
+        fillLight.target.position.set(0, 0, 0);
+        scene.add(fillLight);
+
+        //create 4 walls to prevent dynamic object from flying off
+        var thickness = 1;
+        var halfThickness = thickness / 2.0;
+        var halfWaterSize = WATER_SIZE / 2.0;
+        var wallGeom = new THREE.CubeGeometry(WATER_SIZE, WATER_SIZE * 2, thickness);
+        var wallRotatedGeom = new THREE.CubeGeometry(WATER_SIZE, WATER_SIZE * 2, thickness);
+        wallRotatedGeom.applyMatrix(new THREE.Matrix4().makeRotationY(-Math.PI / 2));
+        var wallMaterial = new THREE.MeshPhongMaterial();
+        //+z wall
+        var wallMesh = new Physijs.BoxMesh(wallGeom, wallMaterial, 0);
+        wallMesh.position.z = halfWaterSize + halfThickness;
+        wallMesh.visible = false;
+        scene.add(wallMesh);
+        //-z wall
+        wallMesh = new Physijs.BoxMesh(wallGeom, wallMaterial, 0);
+        wallMesh.position.z = -(halfWaterSize + halfThickness);
+        wallMesh.visible = false;
+        scene.add(wallMesh);
+        //+x wall
+        wallMesh = new Physijs.BoxMesh(wallRotatedGeom, wallMaterial, 0);
+        wallMesh.position.x = halfWaterSize + halfThickness;
+        wallMesh.visible = false;
+        scene.add(wallMesh);
+        //-x wall
+        wallMesh = new Physijs.BoxMesh(wallRotatedGeom, wallMaterial, 0);
+        wallMesh.position.x = -(halfWaterSize + halfThickness);
+        wallMesh.visible = false;
+        scene.add(wallMesh);
+
+        //also create a marker manager to load in markers
+        if (ARLIB === 'jsartoolkit') {
+            markerManager = new SKARF.MarkerManager(JSARTOOLKIT_MARKERS_JSON);
+        } else if (ARLIB === 'jsaruco') {
+            markerManager = new SKARF.MarkerManager(JSARUCO_MARKERS_JSON);
+        } else {
+            throw new Error('ARLIB type not recognised: ' + ARLIB);
+        }
+    }
+
+    var proxyTerrainGeom, proxyTerrainMaterial, proxyTerrainMesh;
+    function createPhysijsHeightfieldMesh() {
+        proxyTerrainMesh = new Physijs.HeightfieldMesh(proxyTerrainGeom, proxyTerrainMaterial, 0);
+        proxyTerrainMesh.rotation.x = -Math.PI / 2;
+        proxyTerrainMesh.castShadow = true;
+        proxyTerrainMesh.receiveShadow = true;
+        proxyTerrainMesh.visible = options.debugTerrainProxy;
+        scene.add(proxyTerrainMesh);
+    }
+
+    function updateProxyTerrain(pixelData) {
+        var v = proxyTerrainGeom.vertices;
+        var i, len;
+        for (i = 0, len = v.length; i < len; i++) {
+            v[i].z = pixelData[i];
+        }
+        proxyTerrainGeom.verticesNeedUpdate = true;
+        // proxyTerrainGeom.computeFaceNormals();
+        // proxyTerrainGeom.computeVertexNormals();
+        // proxyTerrainGeom.normalsNeedUpdate = true;
+    }
+
+    function matchProxyToActualTerrain() {
+        //get pixel float data from gpu skulpt and update the proxy geometry
+        var pixelFloatData = gpuSkulpt.getProxyPixelFloatData();
+        updateProxyTerrain(pixelFloatData);
+
+        //update Physijs heightfield mesh
+        //NOTE: have to recreate a new Physijs.HeightfieldMesh every time we change the vertex positions
+        scene.remove(proxyTerrainMesh);  //TODO: check if there is a need to delete the mesh to free the memory
+        createPhysijsHeightfieldMesh();
+    }
+
+    var terrainGeom, terrainMaterial, terrainMesh, skulptTerrainMesh;
+    var terrainVisGeom, terrainVisMaterial, terrainVisMesh;
+    function setupSkulpt() {
+
+        //create a terrain mesh for sculpting
+        terrainGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_RES - 1, TERRAIN_RES - 1);
+        terrainGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+        terrainMesh = new THREE.Mesh(terrainGeom, null);
+        terrainMesh.castShadow = true;
+        terrainMesh.receiveShadow = true;
+        // terrainMesh.visible = false;
+        scene.add(terrainMesh);
+
+        //create a GpuSkulpt
+        gpuSkulpt = new SKULPT.GpuSkulpt({
+            renderer: renderer,
+            mesh: terrainMesh,
+            size: TERRAIN_SIZE,
+            res: TERRAIN_RES,
+            proxyRes: PROXY_TERRAIN_RES
+        });
+
+        //create a RTT visualization plane
+        terrainVisGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);
+        terrainVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+        terrainVisMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: gpuSkulpt.getSculptDisplayTexture() });
+        materials.push(terrainVisMaterial);
+        terrainVisMesh = new THREE.Mesh(terrainVisGeom, terrainVisMaterial);
+        terrainVisMesh.position.y = 2;
+        scene.add(terrainVisMesh);
+
+        //also create a proxy mesh for Physijs collision
+        proxyTerrainGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, PROXY_TERRAIN_RES - 1, PROXY_TERRAIN_RES - 1);
+        proxyTerrainMaterial = Physijs.createMaterial(
+            new THREE.MeshPhongMaterial({
+                color: 0xffffff,
+                wireframe: false
+            }),
+            TERRAIN_FRICTION,
+            TERRAIN_RESTITUTION
+        );
+        materials.push(proxyTerrainMaterial);
+        createPhysijsHeightfieldMesh();
+
+        //finally, create a callback that updates the proxy geometry automatically when GPU skulpt updates texture
+        gpuSkulpt.addCallback('update', function () {
+            matchProxyToActualTerrain();
+        });
+    }
+
+    var $imageCanvasElem, imageCanvasElemContext;
+    var terrainImageData, terrainImageProcessedData;
+    function filterTerrainImageAndGenerateHeight() {
+        //draw image onto canvas
+        //NO NEED TO DO THIS WHEN USING stackBlurImage()
+        //imageCanvasElemContext.drawImage($scaledImageObj, 0, 0, terrainImageWidth, terrainImageHeight);
+
+        //do pre-blur filtering first
+        stackBlurImage('scaledTerrainImage', 'terrainImageCanvas', options.terrainPreBlur, false);
+
+        //get filtered image data
+        terrainImageData = imageCanvasElemContext.getImageData(0, 0, TERRAIN_RES, TERRAIN_RES).data;
+
+        //update skulpt
+        gpuSkulpt.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
+    }
+
+    var $scaledImageObj, $origImageObj;
+    function prepareTerrainImageElements() {
+
+        //create canvas that is same size as terrain res so that one vertex maps to one resized pixel
+        $imageCanvasElem = $(document.createElement('canvas'));
+        $imageCanvasElem[0].id = 'terrainImageCanvas';
+        $imageCanvasElem[0].width = TERRAIN_RES;
+        $imageCanvasElem[0].height = TERRAIN_RES;
+        $imageCanvasElem.css({'position': 'fixed', 'top': '0px', 'left': '80px', 'display': 'none'});
+        $('body').append($imageCanvasElem);
+
+        //get canvas context
+        imageCanvasElemContext = $imageCanvasElem[0].getContext('2d');
+
+        //load terrain image
+        $scaledImageObj = $(new Image());
+        $scaledImageObj[0].id = 'scaledTerrainImage';
+        $scaledImageObj[0].onload = function () {
+            //this function is triggered from $origImageObj setting this src
+
+            //start filtering and changing heights
+            filterTerrainImageAndGenerateHeight();
+        };
+        $scaledImageObj.css({'display': 'none'});
+        $('body').append($scaledImageObj);
+
+        //load original terrain image, scale it using canvas, then set scaled image to $scaledImageObj
+        $origImageObj = $(new Image());
+        $origImageObj[0].onload = function () {
+            //copy to scaled canvas to scale this image
+            imageCanvasElemContext.drawImage($origImageObj[0], 0, 0, TERRAIN_RES, TERRAIN_RES);
+
+            //get scaled data from canvas and set data for scaledImageObj
+            $scaledImageObj[0].src = $imageCanvasElem[0].toDataURL();
+        };
+    }
+
+    function loadTerrainImage(image) {
+        console.log('Loading terrain image: ' + image);
+        $origImageObj[0].src = image;
+    }
+
+    var waterMesh;
+    var gpuWater;
+    var waterVisGeom, waterVisMaterial, waterVisMesh;
+    var obstaclesVisGeom, obstaclesVisMaterial, obstaclesVisMesh;
+    var staticObstacleMeshes = [];
+    var dynObstacleMeshes = [];
+    function setupWater() {
+
+        //create a plane for height field water sim
+        var waterGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_RES - 1, WATER_RES - 1);
+        waterGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+        waterMesh = new THREE.Mesh(waterGeom, null);
+        waterMesh.castShadow = true;
+        waterMesh.receiveShadow = true;
+        // waterMesh.visible = false;
+        scene.add(waterMesh);
+
+        //create a pipe model water as the height field water sim
+        gpuWater = new SKUNAMI.GpuPipeModelWater({
+            renderer: renderer,
+            scene: scene,
+            mesh: waterMesh,
+            size: WATER_SIZE,
+            res: WATER_RES,
+            dampingFactor: 0.995,
+            initialWaterHeight: 0.1,
+            terrainTexture: gpuSkulpt.getSculptDisplayTexture(),
+            density: WATER_DENSITY
+        });
+
+        //create a RTT visualization plane for the water
+        waterVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
+        waterVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+        waterVisMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: gpuWater.getWaterDisplayTexture() });
+        materials.push(waterVisMaterial);
+        waterVisMesh = new THREE.Mesh(waterVisGeom, waterVisMaterial);
+        waterVisMesh.position.y = 2;
+        scene.add(waterVisMesh);
+
+        //create a RTT visualization plane for obstacles
+        obstaclesVisGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
+        obstaclesVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+        obstaclesVisMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: gpuWater.getObstaclesDisplayTexture() });
+        materials.push(obstaclesVisMaterial);
+        obstaclesVisMesh = new THREE.Mesh(obstaclesVisGeom, obstaclesVisMaterial);
+        obstaclesVisMesh.position.y = 2;
+        scene.add(obstaclesVisMesh);
+
+        //create a callback that exerts forces on dynamic meshes for dual coupling
+        gpuWater.addCallback('exertForce', function (object, force) {
+            //apply force on Physijs object
+            object.applyCentralForce(force);
+        });
+    }
+
+    var skarf;
+    function setupAr() {
+
+        //create a Skarf framework
+        if (ARLIB === 'jsartoolkit') {
+            skarf = new SKARF.Skarf({
+
+                arLibType: 'jsartoolkit',
+                trackingElem: source,
+                markerSize: 1,  //this is an overall scale, just set to 1 for now
+                //NOTE: not using verticalFov for now because the JSARToolKit default projection matrix seems to work better
+                //verticalFov: CAM_VERTICAL_FOV,  //must be the same as the render cam
+                threshold: options.arTrackingThreshold,
+                debug: false,
+
+                canvasContainerElem: $canvasContainerElem,
+
+                renderer: renderer,
+                scene: scene,
+                camera: camera,
+
+                markersJsonFile: JSARTOOLKIT_MARKERS_JSON
+
+            });
+        } else if (ARLIB === 'jsaruco') {
+            skarf = new SKARF.Skarf({
+
+                arLibType: 'jsaruco',
+                trackingElem: source,
+                markerSize: 1,  //this is an overall scale, just set to 1 for now
+                verticalFov: CAM_VERTICAL_FOV,  //must be the same as the render cam
+                debug: false,
+
+                canvasContainerElem: $canvasContainerElem,
+
+                renderer: renderer,
+                scene: scene,
+                camera: camera,
+
+                markersJsonFile: JSARUCO_MARKERS_JSON
+
+            });
+        } else {
+            throw new Error('ARLIB type not recognised: ' + ARLIB);
+        }
+
+        //Create callback that will call gpuSkulpt.update after clearing renderer but before rendering the main scene
+        skarf.addCallback('render', function (dt) {
+            gpuSkulpt.update(dt);
+            gpuWater.update(dt);
+        });
+    }
+
+    var worldPos = new THREE.Vector3();
+    var camPos = new THREE.Vector3();
+    var projector = new THREE.Projector();
+    var raycaster = new THREE.Raycaster();
+    var intersectPoint = new THREE.Vector3();
+    var mousePosNorm = new THREE.Vector2();
+    function detectIntersection(event) {
+
+        //get normalized [-1, 1] mouse position within the canvas
+        mousePosNorm.x = (event.layerX / $threejsCanvasElem.width()) * 2 - 1;
+        mousePosNorm.y = -(event.layerY / $threejsCanvasElem.height()) * 2 + 1;
+
+        //unproject 2d point to get 3d point
+        worldPos.set(mousePosNorm.x, mousePosNorm.y, 1);
+        projector.unprojectVector(worldPos, camera);
+
+        //get camera position
+        camPos.getPositionFromMatrix(camera.matrixWorld);
+
+        //do raycasting
+        raycaster.set(camPos, worldPos.sub(camPos).normalize());
+        var intersectInfo = raycaster.intersectObject(groundPlaneMesh);
+
+        //get intersection point
+        if (intersectInfo && intersectInfo[0]) {
+            return intersectInfo[0].point;
+        }
+
+        return null;
+    }
+
+    function detectIntersectionAndShowSculptCursor(event) {
+
+        //detect intersection and show cursor
+        intersectPoint = detectIntersection(event);
+        if (intersectPoint) {
+            //show cursor at intersection point
+            gpuSkulpt.updateCursor(intersectPoint);
+            gpuSkulpt.showCursor();
+        } else {
+            //cursor is out of terrain, so hide it, otherwise it will remain at the edge
+            gpuSkulpt.hideCursor();
+        }
+    }
+
+    function sculptTerrain(type, position, amount) {
+        gpuSkulpt.sculpt(type, position, amount);
+    }
+
+    function highlightMesh(mesh, color) {
+        var material = mesh.material;
+        if (material instanceof THREE.MeshFaceMaterial) {
+            var i, len;
+            for (i = 0, len = material.materials.length; i < len; i++) {
+                material.materials[i].emissive.copy(color);
+            }
+        } else {
+            material.emissive.copy(color);
+        }
+    }
+
+    function getPixelIndex(position) {
+        var row = Math.floor((-position.z + terrainHalfSize) / TERRAIN_SIZE * TERRAIN_RES);
+        var col = Math.floor((position.x + terrainHalfSize) / TERRAIN_SIZE * TERRAIN_RES);
+        return (row * TERRAIN_RES) + col;
+    }
+
+    function createPhysijsMeshFromThreejsMesh(mesh, position, rotation, params) {
+
+        var mass = typeof params.mass === 'undefined' ? 10 : params.mass;
+        var friction = typeof params.friction === 'undefined' ? 0.8 : params.friction;
+        var restitution = typeof params.restitution === 'undefined' ? 0.2 : params.restitution;
+        var linearDamping = typeof params.linearDamping === 'undefined' ? 0.9 : params.linearDamping;
+        var angularDamping = typeof params.angularDamping === 'undefined' ? 0.5 : params.angularDamping;
+
+        //get geometry
+        var geometry = mesh.geometry;
+
+        //create Physijs material out of the existing material
+        var material = Physijs.createMaterial(
+            mesh.material,
+            friction,
+            restitution
+        );
+        materials.push(mesh.material);
+
+        //create the Physijs mesh (assume everything is using ConvexMesh)
+        var physijsMesh = new Physijs.ConvexMesh(geometry, material, mass);
+        physijsMesh.position.copy(position);
+        physijsMesh.rotation.copy(rotation);
+        physijsMesh.castShadow = true;
+        physijsMesh.receiveShadow = true;
+        // physijsMesh.visible = false;
+        scene.add(physijsMesh);
+        physijsMesh.setDamping(linearDamping, angularDamping);  //can only call this after adding to scene
+
+        return physijsMesh;
+    }
+
+    var userAddedMeshes = [];
+    var currTransform = null;
+    var transformAddedToScene = false;
+    var indicatorMesh;
+    var objectToAddMarkerId;
+    function objectsAddObject() {
+
+        //return if already adding object
+        if (isAddingObject) {
+            return;
+        }
+
+        if (!indicatorMesh) {
+            var indicatorGeom = new THREE.SphereGeometry(0.05);
+            var indicatorMaterial = new THREE.MeshLambertMaterial({color: '#00ff00'});
+            indicatorMesh = new THREE.Mesh(indicatorGeom, indicatorMaterial);
+            scene.add(indicatorMesh);
+        }
+
+        //create an Object3D in the scene first
+        currTransform = new THREE.Object3D();
+        transformAddedToScene = false;
+
+        //load the object to the transform
+        markerManager.loadForMarker(objectToAddMarkerId, currTransform, 1, options.displayWireframe);
+
+        //turn on flag for object to follow mouse detected intersection point
+        isAddingObject = true;
+    }
+
+    var objectToAddIsDynamic;
+    function objectsAddStaticObject() {
+        objectToAddIsDynamic = false;
+        objectToAddMarkerId = options.objectsStaticObject;
+        objectsAddObject();
+    }
+
+    function objectsAddDynObject() {
+        objectToAddIsDynamic = true;
+        objectToAddMarkerId = options.objectsDynObject;
+        objectsAddObject();
+    }
+
+    function objectsAddObjectCancel() {
+
+        //return if not adding object
+        if (!isAddingObject) {
+            return;
+        }
+
+        //turn off flag
+        isAddingObject = false;
+
+        //hide indicator
+        indicatorMesh.visible = false;
+
+        //remove object from scene
+        try {
+            scene.remove(currTransform);
+        } catch (err) {
+            //just let one of the Physijs error pass silently (happens because I'm removing a THREE.Object3D from a Physijs scene)
+        }
+    }
+
+    function objectsAddObjectProject(transform, position) {
+
+        //return if not adding object
+        if (!isAddingObject) {
+            return;
+        }
+
+        transform.position.copy(position);
+
+        //highlight the object
+        if (transform.children[0] && !transformAddedToScene) {
+
+            //add transform to scene (now that the object has finished loading)
+            scene.add(currTransform);
+
+            //also highlight the object
+            highlightMesh(transform.children[0], HIGHLIGHT_COLOR_ADD);
+
+            transformAddedToScene = true;
+        }
+
+        //read in terrain height
+        //TODO: read this in once until terrain has been sculpted
+        var terrainPixelFloatData = gpuSkulpt.getPixelFloatData();
+        var index = getPixelIndex(position);
+
+        //shift up in Y
+        var height = terrainPixelFloatData[index];
+        if (objectToAddIsDynamic) {
+
+            //for dynamic objects, take into account water level too
+            var waterPixelFloatData = gpuWater.getPixelFloatData();
+            height += waterPixelFloatData[index];
+
+            //move the indicator
+            indicatorMesh.position.set(position.x, height, position.z);
+            indicatorMesh.visible = true;
+
+            //add offset so that we can release the object above water for some ripples
+            height += 0.5;
+        } else {
+            //hide the indicator
+            indicatorMesh.visible = false;
+        }
+        transform.position.y = height;
+    }
+
+    function objectsAddObjectRotate(currTransform, rotation) {
+
+        //return if not adding object
+        if (!isAddingObject) {
+            return;
+        }
+
+        currTransform.rotation.y = THREE.Math.degToRad(rotation);
+    }
+
+    function objectsAddObjectConfirm(transform) {
+
+        //return if not adding object
+        if (!isAddingObject) {
+            return;
+        }
+
+        isAddingObject = false;
+
+        //hide indicator mesh
+        indicatorMesh.visible = false;
+
+        //remove from Object3D
+        var origMesh = transform.children[0];
+        transform.remove(origMesh);
+
+        //remove highlight on the object
+        highlightMesh(origMesh, HIGHLIGHT_COLOR_NORMAL);
+
+        //get JSON data
+        var dataFromJson = origMesh.geometry.__jsonData;
+
+        //for static objects, set mass to 0
+        var mass = objectToAddIsDynamic ? dataFromJson.mass : 0;
+
+        //convert into Physijs mesh
+        var physijsMesh = createPhysijsMeshFromThreejsMesh(origMesh, transform.position, transform.rotation, {
+            mass: mass,
+            friction: dataFromJson.friction,
+            restitution: dataFromJson.restitution,
+            linearDamping: dataFromJson.linearDamping,
+            angularDamping: dataFromJson.angularDamping
+        });
+        userAddedMeshes.push(physijsMesh);
+
+        //register dynamic objects with gpu water, and store in array for easy retrieval later
+        if (objectToAddIsDynamic) {
+            gpuWater.addDynamicObstacle(physijsMesh, mass);
+            dynObstacleMeshes.push(physijsMesh);
+        } else {
+            gpuWater.addStaticObstacle(physijsMesh);
+            staticObstacleMeshes.push(physijsMesh);
+        }
+
+        //TODO: delete origMesh
+    }
+
+    var isRemovingObject = false;
+    function objectsRemoveObject() {
+
+        //return if already removing object
+        if (isRemovingObject) {
+            return;
+        }
+
+        //turn on flag for selection with mouse
+        isRemovingObject = true;
+    }
+
+    function objectsRemoveObjectCancel() {
+
+        //return if not removing object
+        if (!isRemovingObject) {
+            return;
+        }
+
+        //turn off flag
+        isRemovingObject = false;
+    }
+
+    var userAddedMeshToRemove = null;
+    function objectsRemoveObjectFind(position) {
+
+        //return if not removing object
+        if (!isRemovingObject) {
+            return;
+        }
+
+        userAddedMeshToRemove = null;
+
+        //search through all objects
+        var i, len, transform, mesh;
+        for (i = 0, len = userAddedMeshes.length; i < len; i++) {
+            mesh = userAddedMeshes[i];
+            var transformedBBox = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
+            if (!userAddedMeshToRemove && position.x >= transformedBBox.min.x && position.x <= transformedBBox.max.x && position.z >= transformedBBox.min.z && position.z <= transformedBBox.max.z) {
+                //highlight the object
+                highlightMesh(mesh, HIGHLIGHT_COLOR_REMOVE);
+
+                //store object to remove
+                userAddedMeshToRemove = mesh;
+            } else {
+                //remove highlight on the object
+                highlightMesh(mesh, HIGHLIGHT_COLOR_NORMAL);
+            }
+        }
+    }
+
+    function objectsRemoveObjectConfirm() {
+
+        //return if not removing object
+        if (!isRemovingObject) {
+            return;
+        }
+
+        if (userAddedMeshToRemove) {
+
+            //remove object transform
+            //TODO: check if there is a need to delete the mesh to free the memory
+            scene.remove(userAddedMeshToRemove);
+
+            //remove from array
+            var i, len;
+            for (i = 0, len = userAddedMeshes.length; i < len; i++) {
+                if (userAddedMeshes[i] === userAddedMeshToRemove) {
+                    userAddedMeshes.splice(i, 1);
+                }
+            }
+
+            //remove from GPU water
+            gpuWater.removeObstacle(userAddedMeshToRemove);
+        }
+
+        //turn off flag
+        isRemovingObject = false;
+    }
+
+    function window_onResize(event) {
+
+        var targetWidth = window.innerWidth;
+        var targetHeight = window.innerHeight;
+        var width, height;
+
+        //calculate width and height that maintains video aspect ratio
+        var videoAspect = video.width / video.height;
+        var windowAspect = targetWidth / targetHeight;
+        if (windowAspect > videoAspect) {
+            width = targetHeight * 4 / 3;
+            height = targetHeight - 5;
+        } else {
+            width = targetWidth;
+            height = (targetWidth * 3 / 4) - 5;
+        }
+
+        //update renderer size
+        renderer.setSize(width, height);
+
+        //centralize
+        $threejsContainerElem.css({
+            'width': (width * 1.1) + 'px',
+            'margin': '0 auto'
+        });
+    }
+
+    var activateDisturb = false;
+    var activateAddRotate = false;
+    var firstActivateAddRotate = false;
+    function window_onKeyDown(event) {
+
+        //for water
+        if (event.keyCode === 32) {  //space
+            activateDisturb = true;
+        }
+
+        //for dynamic obstacle motion
+        else if (event.keyCode === 87) {  //w
+            dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(0, 0, -1100));
+        } else if (event.keyCode === 83) {  //s
+            dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(0, 0, 1100));
+        } else if (event.keyCode === 65) {  //a
+            dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(-1100, 0, 0));
+        } else if (event.keyCode === 68) {  //d
+            dynObstacleMeshes[0].applyCentralForce(new THREE.Vector3(1100, 0, 0));
+        }
+
+        //for rotation when adding objects into scene
+        else if (event.keyCode === 82) {  //r
+            if (firstActivateAddRotate) {
+                firstActivateAddRotate = false;
+            }
+            if (!activateAddRotate) {
+                firstActivateAddRotate = true;
+            }
+            activateAddRotate = true;
+        }
+
+        //for cancelling operations
+        else if (event.keyCode === 27) {  //esc
+            if (isAddingObject) {
+                objectsAddObjectCancel();
+            }
+        }
+    }
+
+    function window_onKeyUp(event) {
+
+        //for sculpting
+        if (event.keyCode === 16 || event.keyCode === 17) {  //shift or ctrl
+            //hide cursor when shift or ctrl key is up
+            gpuSkulpt.hideCursor();
+        }
+
+        //for water
+        else if (event.keyCode === 32) {  //space
+            activateDisturb = false;
+        }
+
+        //for rotation when adding objects into scene
+        if (event.keyCode === 82) {  //r
+            firstActivateAddRotate = false;
+            activateAddRotate = false;
+        }
+    }
+
+    var isSculpting = false;
+    var sculptUvPos = new THREE.Vector2();
+    var isDisturbing = false;
+    var mouseDownButton = -1;  //firefox hack (unable to detect RMB during mousemove event)
+    function window_onMouseDown(event) {
+
+        if (event.ctrlKey) {
+
+            //detect intersection and show cursor
+            detectIntersectionAndShowSculptCursor(event);
+            if (intersectPoint) {
+
+                //do actual sculpting if clicked
+                if (event.button === 0) {  //LMB
+                    isSculpting = true;
+                    sculptTerrain(SKULPT.ADD, intersectPoint, options.sculptAmount);
+                } else if (event.button === 2) {  //RMB
+                    isSculpting = true;
+                    sculptTerrain(SKULPT.REMOVE, intersectPoint, options.sculptAmount);
+                }
+                mouseDownButton = event.button;
+            }
+
+        } else if (event.altKey) {
+            //do nothing for now
+            //this is just to prevent confirming of objects onto the terrain when rotating the camera
+        } else {
+
+            //for water
+            if (activateDisturb) {
+
+                //detect intersection
+                intersectPoint = detectIntersection(event);
+                if (intersectPoint) {
+                    isDisturbing = true;
+                    if (event.button === 0) {  //LMB
+                        gpuWater.source(intersectPoint, options.waterSourceAmount, options.waterSourceRadius);
+                    } else if (event.button === 1) {  //MMB
+                        gpuWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT, WATER_DISTURB_RADIUS);
+                    } else if (event.button === 2) {  //RMB
+                        gpuWater.source(intersectPoint, -options.waterSinkAmount, options.waterSinkRadius);
+                    }
+                }
+                mouseDownButton = event.button;
+
+            }
+
+            //for objects
+            if (isAddingObject) {
+                objectsAddObjectConfirm(currTransform);
+                isAddingObject = false;
+            } else if (isRemovingObject) {
+                objectsRemoveObjectConfirm();
+                isRemovingObject = false;
+            }
+        }
+    }
+
+    var rotationAngle = 0.0;
+    var mouseRefX = 0.0;
+    var mouseCurrX = 0.0;
+    function window_onMouseMove(event) {
+
+        event.preventDefault();
+
+        if (event.ctrlKey) {
+
+            //detect intersection and show cursor
+            detectIntersectionAndShowSculptCursor(event);
+            if (intersectPoint && isSculpting) {
+                if (mouseDownButton === 0) {  //LMB
+                    sculptTerrain(SKULPT.ADD, intersectPoint, options.sculptAmount);
+                } else if (mouseDownButton === 2) {  //RMB
+                    sculptTerrain(SKULPT.REMOVE, intersectPoint, options.sculptAmount);
+                }
+            }
+
+        } else {
+
+            //for water
+            if (activateDisturb && isDisturbing) {
+
+                //detect intersection
+                intersectPoint = detectIntersection(event);
+                if (intersectPoint) {
+                    if (mouseDownButton === 0) {  //LMB
+                        gpuWater.source(intersectPoint, options.waterSourceAmount, options.waterSourceRadius);
+                    } else if (mouseDownButton === 1) {  //MMB
+                        gpuWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT, WATER_DISTURB_RADIUS);
+                    } else if (mouseDownButton === 2) {  //LMB
+                        gpuWater.source(intersectPoint, -options.waterSinkAmount, options.waterSinkRadius);
+                    }
+                }
+
+            }
+
+            //for objects
+            if (isAddingObject) {
+
+                if (firstActivateAddRotate) {
+                    mouseRefX = event.clientX;
+                }
+
+                if (activateAddRotate) {
+                    var rotation = (event.clientX - mouseRefX);
+                    objectsAddObjectRotate(currTransform, rotation);
+                } else {
+                    intersectPoint = detectIntersection(event);
+                    if (intersectPoint) {
+                        objectsAddObjectProject(currTransform, intersectPoint);
+                    }
+                }
+
+            } else if (isRemovingObject) {
+
+                intersectPoint = detectIntersection(event);
+                if (intersectPoint) {
+                    objectsRemoveObjectFind(intersectPoint);
+                }
+
+            }
+        }
+    }
+
+    function window_onMouseUp(event) {
+        isSculpting = false;
+        isDisturbing = false;
+        mouseDownButton = -1;
+    }
+
+    function setupEvents() {
+
+        window.addEventListener('resize', window_onResize, false);
+        window.addEventListener('keydown', window_onKeyDown, false);
+        window.addEventListener('keyup', window_onKeyUp, false);
+
+        //call window resize once during init to force correct aspect ratio
+        window_onResize();
+
+        //attach events to the canvas so that we can get the relative mouse coordinates inside it
+        $threejsCanvasElem = $('#threejs-canvas');
+        $threejsCanvasElem[0].addEventListener('mousedown', window_onMouseDown, false);
+        $threejsCanvasElem[0].addEventListener('mousemove', window_onMouseMove, false);
+        $threejsCanvasElem[0].addEventListener('mouseup', window_onMouseUp, false);
+    }
+
+    function setupStats() {
+
+        //create a stats monitor for rendering
+        renderStats = new Stats();
+        $('body').append(renderStats.domElement);
+
+        //create a stats monitor for Physijs
+        physijsStats = new Stats();
+        $('body').append(physijsStats.domElement);
+        physijsStats.domElement.style.position = 'absolute';
+        physijsStats.domElement.style.left = '0px';
+        physijsStats.domElement.style.top = '50px';
+
+        //create a stats monitor for more details
+        glStats = new THREEx.RendererStats();
+        $('body').append(glStats.domElement);
+        glStats.domElement.style.position = 'absolute';
+        glStats.domElement.style.left = '0px';
+        glStats.domElement.style.top = '100px';
+    }
+
+    var gui;
+    var arFolder, terrainFolder, sculptFolder, waterFolder, objectsFolder, renderingFolder, debugFolder;
+    function setupGui() {
+
+        gui = new dat.GUI({width: 300});
+        // gui.close();  //close GUI by default
+
+        var control;
+
+        //Tracking folder
+        arFolder = gui.addFolder('Augmented Reality');
+        arFolder.open();
+
+        control = arFolder.add(options, 'arOn').name('On').listen();
+
+        if (ARLIB === 'jsartoolkit') {
+            control = arFolder.add(options, 'arTrackingThreshold', 0, 255).name('Tracking Threshold');
+            changeTrackingThreshold = function (value) {
+                var arLib = skarf.getArLib();
+                if (arLib instanceof SKARF.JsArToolKitArLib) {
+                    arLib.setThreshold(value);
+                }
+            };
+            control.onChange(changeTrackingThreshold);
+        }
+
+        //Terrain folder
+        terrainFolder = gui.addFolder('Terrain');
+        terrainFolder.open();
+
+        control = terrainFolder.add(options, 'terrainImage', terrainImages).name('Image').listen();
+        changeTerrainImage = function (value) {
+
+            loadTerrainImage(value);
+            options.terrainImage = value;
+
+            //load some presets so that the loaded terrain looks nicer
+            options.terrainPreBlur = terrainImageSettings[value].preblur;
+            options.terrainHeight = terrainImageSettings[value].height;
+            options.terrainMidGreyIsLowest = terrainImageSettings[value].midGreyIsLowest;
+
+            //update display
+            var i, len;
+            for (i = 0, len = terrainFolder.__controllers.length; i < len; i++) {
+                terrainFolder.__controllers[i].updateDisplay();
+            }
+        };
+        control.onChange(changeTerrainImage);
+
+        control = terrainFolder.add(options, 'terrainMidGreyIsLowest').name('Mid Grey Lowest').listen();
+        toggleTerrainMidGreyIsLowest = function (value) {
+            gpuSkulpt.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
+            options.terrainMidGreyIsLowest = value;
+        };
+        control.onChange(toggleTerrainMidGreyIsLowest);
+
+        terrainPreBlurControl = terrainFolder.add(options, 'terrainPreBlur', 0, 10).name('Pre-Blur').listen();
+        changeTerrainPreBlur = function (value) {
+            value = THREE.Math.clamp(value, terrainPreBlurControl.__min, terrainPreBlurControl.__max);
+            filterTerrainImageAndGenerateHeight(value);
+            options.terrainPreBlur = value;
+        };
+        terrainPreBlurControl.onChange(changeTerrainPreBlur);
+
+        terrainHeightControl = terrainFolder.add(options, 'terrainHeight', 0, 4).name('Height').listen();
+        changeTerrainHeight = function (value) {
+            value = THREE.Math.clamp(value, terrainHeightControl.__min, terrainHeightControl.__max);
+            gpuSkulpt.loadFromImageData(terrainImageData, options.terrainHeight, options.terrainMidGreyIsLowest);
+            options.terrainHeight = value;
+        };
+        terrainHeightControl.onChange(changeTerrainHeight);
+
+        //Sculpt folder
+        sculptFolder = gui.addFolder('Sculpt');
+        sculptFolder.open();
+
+        sculptSizeControl = sculptFolder.add(options, 'sculptSize', 0.1, 10.0).name('Size').listen();
+        changeSculptSize = function (value) {
+            value = THREE.Math.clamp(value, sculptSizeControl.__min, sculptSizeControl.__max);
+            gpuSkulpt.setBrushSize(value);
+            options.sculptSize = value;
+        };
+        sculptSizeControl.onChange(changeSculptSize);
+        changeSculptSize(options.sculptSize);
+
+        sculptAmountControl = sculptFolder.add(options, 'sculptAmount', 0.01, 0.5).name('Amount').listen();
+        changeSculptAmount = function (value) {
+            value = THREE.Math.clamp(value, sculptAmountControl.__min, sculptAmountControl.__max);
+            gpuSkulpt.setBrushAmount(value);
+            options.sculptAmount = value;
+        };
+        sculptAmountControl.onChange(changeSculptAmount);
+        changeSculptAmount(options.sculptAmount);
+
+        control = sculptFolder.add(options, 'sculptClearSculpts').name('Clear Sculpts');
+
+        //Objects folder
+        objectsFolder = gui.addFolder('Objects');
+        objectsFolder.open();
+
+        objectsStaticObjectControl = objectsFolder.add(options, 'objectsStaticObject', staticObjects).name('Static Object').listen();
+        changeObjectsStaticObject = function (value) {
+            options.objectsStaticObject = value;
+        };
+        objectsStaticObjectControl.onChange(changeObjectsStaticObject);
+
+        control = objectsFolder.add(options, 'objectsAddStaticObject').name('Add Static Object');
+
+        objectsDynObjectControl = objectsFolder.add(options, 'objectsDynObject', dynObjects).name('Dynamic Object').listen();
+        changeObjectsDynObject = function (value) {
+            options.objectsDynObject = value;
+        };
+        objectsDynObjectControl.onChange(changeObjectsDynObject);
+
+        control = objectsFolder.add(options, 'objectsAddDynObject').name('Add Dynamic Object');
+
+        control = objectsFolder.add(options, 'objectsRemoveObject').name('Remove');
+
+        //Water folder
+        waterFolder = gui.addFolder('Water');
+        waterFolder.open();
+
+        waterFloodVolRateControl = waterFolder.add(options, 'waterFloodVolRate', -10, 10).name('Flood Vol Rate').step(0.1).listen();
+        changeWaterFloodRate = function (value) {
+            value = THREE.Math.clamp(value, waterFloodVolRateControl.__min, waterFloodVolRateControl.__max);
+            options.waterFloodVolRate = value;
+        };
+        waterFloodVolRateControl.onChange(changeWaterFloodRate);
+        changeWaterFloodRate(options.waterFloodVolRate);
+
+        control = waterFolder.add(options, 'waterResetFloodRate').name('Reset Flood Rate');
+
+        waterSourceRadiusControl = waterFolder.add(options, 'waterSourceRadius', 0.1, 2.0).name('Source Radius').listen();
+        changeWaterSourceRadius = function (value) {
+            value = THREE.Math.clamp(value, waterSourceRadiusControl.__min, waterSourceRadiusControl.__max);
+            options.waterSourceRadius = value;
+        };
+        waterSourceRadiusControl.onChange(changeWaterSourceRadius);
+        changeWaterSourceRadius(options.waterSourceRadius);
+
+        waterSourceAmountControl = waterFolder.add(options, 'waterSourceAmount', 0.01, 0.2).name('Source Amount').listen();
+        changeWaterSourceAmount = function (value) {
+            value = THREE.Math.clamp(value, waterSourceAmountControl.__min, waterSourceAmountControl.__max);
+            options.waterSourceAmount = value;
+        };
+        waterSourceAmountControl.onChange(changeWaterSourceAmount);
+        changeWaterSourceAmount(options.waterSourceAmount);
+
+        waterSinkRadiusControl = waterFolder.add(options, 'waterSinkRadius', 0.1, 2.0).name('Sink Radius').listen();
+        changeWaterSinkRadius = function (value) {
+            value = THREE.Math.clamp(value, waterSinkRadiusControl.__min, waterSinkRadiusControl.__max);
+            options.waterSinkRadius = value;
+        };
+        waterSinkRadiusControl.onChange(changeWaterSinkRadius);
+        changeWaterSinkRadius(options.waterSinkRadius);
+
+        waterSinkAmountControl = waterFolder.add(options, 'waterSinkAmount', 0.01, 2.0).name('Sink Amount').listen();
+        changeWaterSinkAmount = function (value) {
+            value = THREE.Math.clamp(value, waterSinkAmountControl.__min, waterSinkAmountControl.__max);
+            options.waterSinkAmount = value;
+        };
+        waterSinkAmountControl.onChange(changeWaterSinkAmount);
+        changeWaterSinkAmount(options.waterSinkAmount);
+
+        //Debug folder
+        debugFolder = gui.addFolder('Debug View');
+        // debugFolder.open();
+
+        control = debugFolder.add(options, 'debugMarkerAxis').name('Marker Axis').listen();
+        toggleDebugMarkerAxis = function (value) {
+            var renderer = skarf.getRenderer();
+            renderer.setLocalAxisVisible(value);
+            options.debugMarkerAxis = value;
+        };
+        control.onChange(toggleDebugMarkerAxis);
+        toggleDebugMarkerAxis(options.debugMarkerAxis);
+
+        control = debugFolder.add(options, 'debugTerrainImage').name('Terrain Image').listen();
+        toggleDebugTerrainImage = function (value) {
+            if (value) {
+                $imageCanvasElem.css({'display': 'block'});
+            } else {
+                $imageCanvasElem.css({'display': 'none'});
+            }
+            options.debugTerrainImage = value;
+        };
+        control.onChange(toggleDebugTerrainImage);
+        toggleDebugTerrainImage(options.debugTerrainImage);
+
+        control = debugFolder.add(options, 'debugTerrainProxy').name('Terrain Proxy').listen();
+        toggleDebugTerrainProxy = function (value) {
+            proxyTerrainMesh.visible = value;
+            options.debugTerrainProxy = value;
+        };
+        control.onChange(toggleDebugTerrainProxy);
+        toggleDebugTerrainProxy(options.debugTerrainProxy);
+
+        control = debugFolder.add(options, 'debugSculptTexture').name('Sculpt Texture').listen();
+        toggleDebugSculptTexture = function (value) {
+            terrainVisMesh.visible = value;
+            options.debugSculptTexture = value;
+        };
+        control.onChange(toggleDebugSculptTexture);
+        toggleDebugSculptTexture(options.debugSculptTexture);
+
+        control = debugFolder.add(options, 'debugObstaclesTexture').name('Obstacles Texture').listen();
+        toggleDebugObstaclesTexture = function (value) {
+            obstaclesVisMesh.visible = value;
+            gpuWater.setShouldDisplaySimTexture(value);
+            options.debugObstaclesTexture = value;
+        };
+        control.onChange(toggleDebugObstaclesTexture);
+        toggleDebugObstaclesTexture(options.debugObstaclesTexture);
+
+        control = debugFolder.add(options, 'debugWaterTexture').name('Water Texture').listen();
+        toggleDebugWaterTexture = function (value) {
+            waterVisMesh.visible = value;
+            gpuWater.setShouldDisplaySimTexture(value);
+            options.debugWaterTexture = value;
+        };
+        control.onChange(toggleDebugWaterTexture);
+        toggleDebugWaterTexture(options.debugWaterTexture);
+
+        control = debugFolder.add(options, 'debugGlStats').name('GL Stats').listen();
+        toggleDebugGlStats = function (value) {
+            if (value) {
+                glStats.domElement.style.display = 'block';
+            } else {
+                glStats.domElement.style.display = 'none';
+            }
+            options.debugGlStats = value;
+        };
+        control.onChange(toggleDebugGlStats);
+        toggleDebugGlStats(options.debugGlStats);
+    }
+
+    var terrainImageComboBox_changed, terrainMidGreyLowestCheckbox_toggled, terrainPreBlurImageSlider_changed, terrainImageHeightSlider_changed;
+    function setupGuiMarkerCallbacks() {
+
+        //NOTE: not allowing changing of any options under the Tracking GUI folder using AR markers, because it just does not make sense
+
+        //terrain
+        terrainImageComboBox_changed = function (params) {
+            changeTerrainImage(terrainImages[Object.keys(terrainImages)[params.selectedId]]);
+        };
+        terrainMidGreyLowestCheckbox_toggled = function (params) {
+            toggleTerrainMidGreyIsLowest(params.checked);
+        };
+        terrainPreBlurImageSlider_changed = function (params) {
+            changeTerrainPreBlur(options.terrainPreBlur + params.delta);
+        };
+        terrainImageHeightSlider_changed = function (params) {
+            changeTerrainHeight(options.terrainHeight + params.delta);
+        };
+
+        //sculpt
+        sculptSizeSlider_changed = function (params) {
+            changeSculptSize(options.sculptSize + params.delta);
+        };
+        sculptAmountSlider_changed = function (params) {
+            changeSculptAmount(options.sculptAmount + params.delta);
+        };
+        sculptClearButton_clicked = function (params) {
+            options.sculptClearSculpts();
+        };
+        sculptShowSimTextureCheckbox_toggled = function (params) {
+            toggleDebugSculptTexture(params.checked);
+        };
+        sculptAddGeneric_moved = function (params) {
+            gpuSkulpt.updateCursor(params.position);
+            gpuSkulpt.showCursor();
+            gpuSkulpt.sculpt(SKULPT.ADD, params.position, options.sculptAmount);
+        };
+        sculptAddGeneric_hidden = function (params) {
+            gpuSkulpt.hideCursor();
+        };
+        sculptRemoveGeneric_moved = function (params) {
+            gpuSkulpt.updateCursor(params.position);
+            gpuSkulpt.showCursor();
+            gpuSkulpt.sculpt(SKULPT.REMOVE, params.position, options.sculptAmount);
+        };
+        sculptRemoveGeneric_hidden = function (params) {
+            gpuSkulpt.hideCursor();
+        };
+
+        //objects
+        objectsStaticCrateTimer_firstDetected = function (params) {
+            changeObjectsStaticObject(staticObjects['Crate']);  //set object first
+            objectsAddStaticObject();
+        };
+        objectsStaticCrateTimer_firstHidden = function (params) {
+            objectsAddObjectCancel();
+        };
+        objectsStaticCrateTimer_moved = function (params) {
+            objectsAddObjectProject(currTransform, params.position);
+        };
+        objectsStaticCrateTimer_detected = function (params) {
+            objectsAddObjectRotate(currTransform, -params.rotation);
+        };
+        objectsStaticCrateTimer_reached = function (params) {
+            objectsAddObjectConfirm(currTransform);
+        };
+        objectsStaticCrateTimer_rotated = function (params) {
+            params.guiMarker.resetTimer();
+        };
+
+        objectsStaticStoneWallTimer_firstDetected = function (params) {
+            changeObjectsStaticObject(staticObjects['Stone Wall']);  //set object first
+            objectsAddStaticObject();
+        };
+        objectsStaticStoneWallTimer_firstHidden = function (params) {
+            objectsAddObjectCancel();
+        };
+        objectsStaticStoneWallTimer_moved = function (params) {
+            objectsAddObjectProject(currTransform, params.position);
+        };
+        objectsStaticStoneWallTimer_detected = function (params) {
+            objectsAddObjectRotate(currTransform, -params.rotation);
+        };
+        objectsStaticStoneWallTimer_reached = function (params) {
+            objectsAddObjectConfirm(currTransform);
+        };
+        objectsStaticStoneWallTimer_rotated = function (params) {
+            params.guiMarker.resetTimer();
+        };
+
+        objectsDynCrateTimer_firstDetected = function (params) {
+            changeObjectsDynObject(dynObjects['Crate']);  //set object first
+            objectsAddDynObject();
+        };
+        objectsDynCrateTimer_firstHidden = function (params) {
+            objectsAddObjectCancel();
+        };
+        objectsDynCrateTimer_moved = function (params) {
+            objectsAddObjectProject(currTransform, params.position);
+        };
+        objectsDynCrateTimer_detected = function (params) {
+            objectsAddObjectRotate(currTransform, -params.rotation);
+        };
+        objectsDynCrateTimer_reached = function (params) {
+            objectsAddObjectConfirm(currTransform);
+        };
+        objectsDynCrateTimer_rotated = function (params) {
+            params.guiMarker.resetTimer();
+        };
+
+        objectsRemoveTimer_firstDetected = function (params) {
+            objectsRemoveObject();
+        };
+        objectsRemoveTimer_firstHidden = function (params) {
+            objectsRemoveObjectCancel();
+        };
+        objectsRemoveTimer_moved = function (params) {
+            objectsRemoveObjectFind(params.position);
+        };
+        objectsRemoveTimer_reached = function (params) {
+            objectsRemoveObjectConfirm();
+        };
+
+        //water
+        waterFloodRateSlider_changed = function (params) {
+            changeWaterFloodRate(options.waterFloodVolRate + params.delta);
+        };
+        waterResetFloodRateButton_clicked = function (params) {
+            options.waterResetFloodRate();
+        };
+        waterSourceRadiusSlider_changed = function (params) {
+            changeWaterSourceRadius(options.waterSourceRadius + params.delta);
+        };
+        waterSourceAmountSlider_changed = function (params) {
+            changeWaterSourceAmount(options.waterSourceAmount + params.delta);
+        };
+        waterSinkRadiusSlider_changed = function (params) {
+            changeWaterSinkRadius(options.waterSinkRadius + params.delta);
+        };
+        waterSinkAmountSlider_changed = function (params) {
+            changeWaterSinkAmount(options.waterSinkAmount + params.delta);
+        };
+        waterDisturbGeneric_moved = function (params) {
+            gpuWater.disturb(params.position, WATER_DISTURB_AMOUNT, WATER_DISTURB_RADIUS);
+        };
+        waterSourceGeneric_moved = function (params) {
+            gpuWater.source(params.position, options.waterSourceAmount, options.waterSourceRadius);
+        };
+        waterSinkGeneric_moved = function (params) {
+            gpuWater.source(params.position, -options.waterSinkAmount, options.waterSinkRadius);
+        };
+
+        //debug
+        trackingShowMarkerAxisCheckbox_toggled = function (params) {
+            toggleDebugMarkerAxis(params.checked);
+        };
+        terrainShowImageCheckbox_toggled = function (params) {
+            toggleDebugTerrainImage(params.checked);
+        };
+        terrainShowProxyCheckbox_toggled = function (params) {
+            toggleDebugTerrainProxy(params.checked);
+        };
+        sculptShowTextureCheckbox_toggled = function (params) {
+            toggleDebugSculptTexture(params.checked);
+        };
+        obstaclesShowTextureCheckbox_toggled = function (params) {
+            toggleDebugObstaclesTexture(params.checked);
+        };
+        waterShowTextureCheckbox_toggled = function (params) {
+            toggleDebugWaterTexture(params.checked);
+        };
+        statsShowGlCheckbox_toggled = function (params) {
+            toggleDebugGlStats(params.checked);
+        };
+    }
+
+    var arJustOn = true;
+    var arJustOff = true;
+    var dWaterVol;
+    $(document).ready(function () {
+
+        //check for WebGL
+        checkWebGl();
+
+        console.log('Document is ready.');
+
+        $threejsContainerElem = $('#threejs-container');
+        $canvasContainerElem = $('#canvas-container');
+
+        //stream to video element
+        setupVideo();
+
+        //setup main scene
+        setupMainScene();
+
+        //setup Skulpt
+        setupSkulpt();
+
+        //setup terrain image
+        prepareTerrainImageElements();
+        loadTerrainImage(options.terrainImage);
+
+        //setup water
+        setupWater();
+
+        //setup AR
+        setupAr();
+
+        //setup events
+        setupEvents();
+
+        //setup stats monitor
+        setupStats();
+
+        //setup GUI marker callbacks
+        setupGuiMarkerCallbacks();
+
+        //setup GUI
+        setupGui();
+
+        //start Physijs sim
+        scene.simulate();
+
+        //main loop
+        function loop() {
+
+            var dt = clock.getDelta();  //have to call this before getElapsedTime()
+            var time = clock.getElapsedTime();
+
+            terrainVisMaterial.map = gpuSkulpt.getSculptDisplayTexture();
+            waterVisMaterial.map = gpuWater.getWaterDisplayTexture();
+
+            if (options.arOn) {
+
+                //if user is using AR:
+
+                if (arJustOn) {
+
+                    //stream webcam video
+                    streamVideo(video);
+
+                    //init skarf camera again and do not allow user to control the camera
+                    skarf.initCameraProjMatrix();
+                    camera.matrixAutoUpdate = false;
+                }
+
+                //get skarf to update (this has callbacks to call update for gpuSkulpt etc too)
+                skarf.update(dt);
+
+                arJustOn = false;
+                arJustOff = true;
+
+            } else {
+
+                //otherwise, have to do manual updates as per normal
+
+                if (arJustOff) {
+
+                    //TODO: turn off video streaming
+
+                    //update cam projection matrix
+                    camera.updateProjectionMatrix();
+                    camera.matrixAutoUpdate = true;
+                }
+
+                //take back control of camera
+                controls.update();
+
+                //render
+                renderer.autoClear = false;
+                renderer.clear();
+                gpuSkulpt.update(dt);
+                gpuWater.update(dt);
+                renderer.render(scene, camera);
+
+                arJustOn = true;
+                arJustOff = false;
+            }
+
+            renderStats.update();
+            glStats.update(renderer);
+
+            //change water height based on flood levels
+            dWaterVol = options.waterFloodVolRate * dt;
+            gpuWater.flood(dWaterVol);
+
+            requestAnimationFrame(loop);
+        }
+        loop();
+    });
+    </script>
+</head>
+<body style="background-color: #081419;">
+    <div class="invisible" id="video-container">
+        <div class="caption">&lt;video&gt;</div>
+        <video id="mainVideo" width="640" height="480" autoplay="autoplay" muted="true"></video>
+    </div>
+    <div class="invisible" id="canvas-container">
+        <div class="caption">&lt;canvas&gt;</div>
+    </div>
+    <div id="threejs-container"></div>
+    <div id="info-container">
+        <div>
+            <p>mouse &amp; keyboard controls:</p>
+            <p>
+                [ camera ]<br/>
+                alt + LMB: rotate<br/>
+                alt + MMB: pan<br/>
+                alt + RMB: zoom<br/>
+            </p>
+            <p>
+                [ terrain ]<br/>
+                ctrl + LMB: add<br/>
+                ctrl + RMB: remove<br/>
+            </p>
+            <p>
+                [ water ]<br/>
+                space + LMB: source<br/>
+                space + MMB: disturb<br/>
+                space + RMB: sink<br/>
+            </p>
+            <p>
+                [ while adding objects ]<br/>
+                hold R + mouse drag: rotate<br/>
+            </p>
+            <p>
+                [ move first dyn object ]<br/>
+                W, A, S, D<br/>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

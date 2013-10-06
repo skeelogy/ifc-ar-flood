@@ -1,0 +1,224 @@
+{
+    "mainMarkerId": "64",
+    "models": {
+        "64": {
+            "name": "Origin",
+            "type": "empty"
+        },
+        "1001": {
+            "name": "crate",
+            "url": "/resources/models/crate/Crate1.obj",
+            "type": "obj",
+            "translate": [0, 0.3, 0],
+            "rotate": [0, 0, 0],
+            "rotationOrder": "XYZ",
+            "scale": [0.3, 0.3, 0.3],
+            "mass": 80,
+            "friction": 0.4,
+            "restitution": 0.2,
+            "linearDamping": 0.5,
+            "angularDamping": 0.25
+        },
+        "1002": {
+            "name": "stone_wall_04",
+            "url": "/resources/models/stone_wall_04/stone_wall_04.obj",
+            "type": "obj",
+            "translate": [0, 0, 0],
+            "rotate": [0, 0, 0],
+            "rotationOrder": "XYZ",
+            "scale": [0.3, 0.8, 0.3],
+            "mass": 0,
+            "friction": 0.4,
+            "restitution": 0.2
+        }
+    },
+    "guiMarkers": {
+        "21": {
+            "name": "Terrain Image",
+            "key": "terrainImageComboBox",
+            "type": "combobox",
+            "params": {
+                 "numChoices": 6
+            }
+        },
+        "22": {
+            "name": "Mid Grey Lowest",
+            "key": "terrainMidGreyLowestCheckbox",
+            "type": "checkbox"
+        },
+        "23": {
+            "name": "Pre-Blur Terrain Image",
+            "key": "terrainPreBlurImageSlider",
+            "type": "slider",
+            "params": {
+                 "speed": 0.2
+            }
+        },
+        "24": {
+            "name": "Terrain Image Height",
+            "key": "terrainImageHeightSlider",
+            "type": "slider",
+            "params": {
+                 "speed": 0.1
+            }
+        },
+        "31": {
+            "name": "Sculpt Size",
+            "key": "sculptSizeSlider",
+            "type": "slider",
+            "params": {
+                 "speed": 0.2
+            }
+        },
+        "32": {
+            "name": "Sculpt Amount",
+            "key": "sculptAmountSlider",
+            "type": "slider",
+            "params": {
+                 "speed": 0.01
+            }
+        },
+        "33": {
+            "name": "Clear Sculpts",
+            "key": "sculptClearButton",
+            "type": "button"
+        },
+        "34": {
+            "name": "Sculpt Add",
+            "key": "sculptAddGeneric",
+            "type": "generic"
+        },
+        "35": {
+            "name": "Sculpt Remove",
+            "key": "sculptRemoveGeneric",
+            "type": "generic"
+        },
+        "41": {
+            "name": "Objects Static Crate",
+            "key": "objectsStaticCrateTimer",
+            "type": "timer",
+            "params": {
+                 "time": 2
+            }
+        },
+        "42": {
+            "name": "Objects Static Stone Wall",
+            "key": "objectsStaticStoneWallTimer",
+            "type": "timer",
+            "params": {
+                 "time": 2
+            }
+        },
+        "43": {
+            "name": "Objects Dynamic Crate",
+            "key": "objectsDynCrateTimer",
+            "type": "timer",
+            "params": {
+                 "time": 2
+            }
+        },
+        "49": {
+            "name": "Objects Remove",
+            "key": "objectsRemoveTimer",
+            "type": "timer",
+            "params": {
+                 "time": 2
+            }
+        },
+        "51": {
+            "name": "Water Flood Rate",
+            "key": "waterFloodRateSlider",
+            "type": "slider",
+            "params": {
+                 "speed": 0.35
+            }
+        },
+        "52": {
+            "name": "Water Reset Flood Rate",
+            "key": "waterResetFloodRateButton",
+            "type": "button"
+        },
+        "53": {
+            "name": "Water Source Radius",
+            "key": "waterSourceRadiusSlider",
+            "type": "slider",
+            "params": {
+                 "speed": 0.04
+            }
+        },
+        "54": {
+            "name": "Water Source Amount",
+            "key": "waterSourceAmountSlider",
+            "type": "slider",
+            "params": {
+                 "speed": 0.004
+            }
+        },
+        "55": {
+            "name": "Water Sink Radius",
+            "key": "waterSinkRadiusSlider",
+            "type": "slider",
+            "params": {
+                 "speed": 0.04
+            }
+        },
+        "56": {
+            "name": "Water Sink Amount",
+            "key": "waterSinkAmountSlider",
+            "type": "slider",
+            "params": {
+                 "speed": 0.04
+            }
+        },
+        "57": {
+            "name": "Water Disturb",
+            "key": "waterDisturbGeneric",
+            "type": "generic"
+        },
+        "58": {
+            "name": "Water Source",
+            "key": "waterSourceGeneric",
+            "type": "generic"
+        },
+        "59": {
+            "name": "Water Sink",
+            "key": "waterSinkGeneric",
+            "type": "generic"
+        },
+        "71": {
+            "name": "Show Marker Axis",
+            "key": "trackingShowMarkerAxisCheckbox",
+            "type": "checkbox"
+        },
+        "72": {
+            "name": "Show Terrain Image",
+            "key": "terrainShowImageCheckbox",
+            "type": "checkbox"
+        },
+        "73": {
+            "name": "Show Terrain Proxy",
+            "key": "terrainShowProxyCheckbox",
+            "type": "checkbox"
+        },
+        "74": {
+            "name": "Show Sculpt Texture",
+            "key": "sculptShowTextureCheckbox",
+            "type": "checkbox"
+        },
+        "75": {
+            "name": "Show Obstacles Texture",
+            "key": "obstaclesShowTextureCheckbox",
+            "type": "checkbox"
+        },
+        "76": {
+            "name": "Show Water Texture",
+            "key": "waterShowTextureCheckbox",
+            "type": "checkbox"
+        },
+        "77": {
+            "name": "Show GL Stats",
+            "key": "statsShowGlCheckbox",
+            "type": "checkbox"
+        }
+    }
+}
