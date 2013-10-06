@@ -328,7 +328,7 @@
     var mousePosNorm = new THREE.Vector2();
     var projector = new THREE.Projector();
     var raycaster = new THREE.Raycaster();
-    function detectIntersection() {
+    function detectIntersection(event) {
 
         mousePosNorm.x = (event.clientX / window.innerWidth) * 2 - 1;
         mousePosNorm.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -368,12 +368,13 @@
     }
 
     var isDisturbing = false;
+    var mouseDownButton = -1;  //firefox hack (unable to detect RMB during mousemove event)
     function window_onMouseDown(event) {
 
         if (activateDisturb) {
 
             //detect intersection
-            intersectPoint = detectIntersection();
+            intersectPoint = detectIntersection(event);
             if (intersectPoint) {
                 isDisturbing = true;
                 if (event.button === 0) {  //LMB
@@ -387,6 +388,7 @@
                         hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
                     }
                 }
+                mouseDownButton = event.button;
             }
         }
     }
@@ -398,15 +400,15 @@
         if (activateDisturb && isDisturbing) {
 
             //detect intersection
-            intersectPoint = detectIntersection();
+            intersectPoint = detectIntersection(event);
             if (intersectPoint) {
-                if (event.button === 0) {  //LMB
+                if (mouseDownButton === 0) {  //LMB
                     hfWater.disturb(intersectPoint, waterDisturbAmount, waterDisturbRadius);
-                } else if (event.button === 1) {  //MMB
+                } else if (mouseDownButton === 1) {  //MMB
                     if (hfWater instanceof SKUNAMI.GpuPipeModelWater) {  //only pipe model water can source
                         hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
                     }
-                } else if (event.button === 2) {  //LMB
+                } else if (mouseDownButton === 2) {  //LMB
                     if (hfWater instanceof SKUNAMI.GpuPipeModelWater) {  //only pipe model water can source
                         hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
                     }
@@ -417,6 +419,7 @@
 
     function window_onMouseUp(event) {
         isDisturbing = false;
+        mouseDownButton = -1;
     }
 
     function setupEvents() {

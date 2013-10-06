@@ -1,7 +1,7 @@
 /**
  * @fileOverview JavaScript/GLSL parallel reduction for Three.js
  * @author Skeel Lee <skeel@skeelogy.com>
- * @version 1.0.0
+ * @version 1.0.3
  *
  * @example
  * //create a parallel reducer
@@ -29,7 +29,8 @@
 /**
  * @namespace
  */
-var SKPR = SKPR || { version: '1.0.0' };
+var SKPR = SKPR || { version: '1.0.3' };
+console.log('Using SKPR ' + SKPR.version);
 
 /**
  * Parallel reduction class
@@ -40,13 +41,11 @@ var SKPR = SKPR || { version: '1.0.0' };
  */
 SKPR.ParallelReducer = function (renderer, res, stopRes) {
 
-    console.log('Using SKPR ' + SKPR.version);
-
     //store renderer
     if (typeof renderer === 'undefined') {
         throw new Error('renderer not specified');
     }
-    this.renderer = renderer;
+    this.__renderer = renderer;
     this.__checkExtensions();
 
     //store res
@@ -56,17 +55,17 @@ SKPR.ParallelReducer = function (renderer, res, stopRes) {
     if (res & (res - 1)) {
         throw new Error('res is not a power of 2');
     }
-    this.res = res;
+    this.__res = res;
 
     //store stop res
     stopRes = stopRes || 1;
     if (res & (res - 1)) {
         throw new Error('res is not a power of 2');
     }
-    this.stopRes = stopRes;
+    this.__stopRes = stopRes;
 
     //check that stop res is smaller than res
-    if (this.res <= this.stopRes) {
+    if (this.__res <= this.__stopRes) {
         throw new Error('stopRes must be smaller than res');
     }
 
@@ -74,35 +73,47 @@ SKPR.ParallelReducer = function (renderer, res, stopRes) {
     this.__init();
 };
 SKPR.ParallelReducer.prototype.__checkExtensions = function () {
-    var context = this.renderer.context;
-    if (!context.getExtension('OES_texture_float_linear')) {
-        throw new Error('Extension not available: OES_texture_float_linear');
+    var context = this.__renderer.context;
+
+    //determine floating point texture support
+    //https://www.khronos.org/webgl/public-mailing-list/archives/1306/msg00002.html
+
+    //get floating point texture support
+    if (!context.getExtension('OES_texture_float')) {
+        var msg = 'No support for floating point textures. Extension not available: OES_texture_float';
+        alert(msg);
+        throw new Error(msg);
     }
+
+    //NOTE: we do not need linear filtering in this file
+    // //get floating point linear filtering support
+    // this.supportsTextureFloatLinear = context.getExtension('OES_texture_float_linear') !== null;
+    // console.log('Texture float linear filtering support: ' + this.supportsTextureFloatLinear);
 };
 SKPR.ParallelReducer.prototype.__init = function () {
     this.__setupRttScene();
     this.__setupRttRenderTargets();
     this.__setupRttShaders();
-    this.pixelByteData = new Uint8Array(this.stopRes * this.stopRes * 4);
+    this.__pixelByteData = new Uint8Array(this.__stopRes * this.__stopRes * 4);
 };
 SKPR.ParallelReducer.prototype.__setupRttScene = function () {
 
     var size = 1.0;  //arbitrary
     var halfSize = size / 2.0;
 
-    this.rttScene = new THREE.Scene();
+    this.__rttScene = new THREE.Scene();
 
     var far = 10000;
     var near = -far;
-    this.rttCamera = new THREE.OrthographicCamera(-halfSize, halfSize, halfSize, -halfSize, near, far);
+    this.__rttCamera = new THREE.OrthographicCamera(-halfSize, halfSize, halfSize, -halfSize, near, far);
 
     //create quads of different sizes to invoke the shaders
     var w;
     var newMaxUv = 1.0;
     var scale = 1.0;
     var dummyTexture = new THREE.Texture();
-    this.rttQuadMeshes = [];
-    for (w = this.res; w >= 1; w /= 2) {
+    this.__rttQuadMeshes = [];
+    for (w = this.__res; w >= 1; w /= 2) {
 
         //generate the plane geom
         var rttQuadGeom = new THREE.PlaneGeometry(size, size);
@@ -120,15 +131,15 @@ SKPR.ParallelReducer.prototype.__setupRttScene = function () {
         //http://stackoverflow.com/questions/16531759/three-js-map-material-causes-webgl-warning
         var rttQuadMesh = new THREE.Mesh(rttQuadGeom, new THREE.MeshBasicMaterial({map: dummyTexture}));
         rttQuadMesh.visible = false;
-        this.rttScene.add(rttQuadMesh);
-        this.rttQuadMeshes.push(rttQuadMesh);
+        this.__rttScene.add(rttQuadMesh);
+        this.__rttQuadMeshes.push(rttQuadMesh);
 
         newMaxUv /= 2.0;
         scale /= 2.0;
     }
 };
 SKPR.ParallelReducer.prototype.__setupRttRenderTargets = function () {
-    this.nearestFloatRGBAParams = {
+    this.__nearestFloatRgbaParams = {
         minFilter: THREE.NearestFilter,
         magFilter: THREE.NearestFilter,
         wrapS: THREE.ClampToEdgeWrapping,
@@ -138,42 +149,42 @@ SKPR.ParallelReducer.prototype.__setupRttRenderTargets = function () {
         depthBuffer: false,
         type: THREE.FloatType
     };
-    this.rttRenderTarget1 = new THREE.WebGLRenderTarget(this.res, this.res, this.nearestFloatRGBAParams);
-    this.rttRenderTarget1.generateMipmaps = false;
-    this.rttRenderTarget2 = this.rttRenderTarget1.clone();
+    this.__rttRenderTarget1 = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__nearestFloatRgbaParams);
+    this.__rttRenderTarget1.generateMipmaps = false;
+    this.__rttRenderTarget2 = this.__rttRenderTarget1.clone();
 };
 SKPR.ParallelReducer.prototype.__setupRttShaders = function () {
 
-    this.rttMaterials = {};
+    this.__rttMaterials = {};
 
-    this.rttMaterials['sum'] = new THREE.ShaderMaterial({
+    this.__rttMaterials['sum'] = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: null },
             uTexelSize: { type: 'f', value: 0 },
             uHalfTexelSize: { type: 'f', value: 0 },
             uChannelMask: { type: 'v4', value: new THREE.Vector4() }
         },
-        vertexShader: this.shaders.vert['passUv'],
-        fragmentShader: this.shaders.frag['parallelSum']
+        vertexShader: this.__shaders.vert['passUv'],
+        fragmentShader: this.__shaders.frag['parallelSum']
     });
 
-    this.rttEncodeFloatMaterial = new THREE.ShaderMaterial({
+    this.__rttEncodeFloatMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTexture: { type: 't', value: null },
             uChannelMask: { type: 'v4', value: new THREE.Vector4() }
         },
-        vertexShader: this.shaders.vert['passUv'],
-        fragmentShader: this.shaders.frag['encodeFloat']
+        vertexShader: this.__shaders.vert['passUv'],
+        fragmentShader: this.__shaders.frag['encodeFloat']
     });
 
-    this.channelVectors = {
+    this.__channelVectors = {
         'r': new THREE.Vector4(1, 0, 0, 0),
         'g': new THREE.Vector4(0, 1, 0, 0),
         'b': new THREE.Vector4(0, 0, 1, 0),
         'a': new THREE.Vector4(0, 0, 0, 1)
     };
 };
-SKPR.ParallelReducer.prototype.shaders = {
+SKPR.ParallelReducer.prototype.__shaders = {
 
     vert: {
 
@@ -295,9 +306,9 @@ SKPR.ParallelReducer.prototype.shaders = {
     }
 };
 SKPR.ParallelReducer.prototype.__swapRenderTargets = function () {
-    var temp = this.rttRenderTarget1;
-    this.rttRenderTarget1 = this.rttRenderTarget2;
-    this.rttRenderTarget2 = temp;
+    var temp = this.__rttRenderTarget1;
+    this.__rttRenderTarget1 = this.__rttRenderTarget2;
+    this.__rttRenderTarget2 = temp;
 };
 /**
  * Initiate the reduction process
@@ -306,27 +317,27 @@ SKPR.ParallelReducer.prototype.__swapRenderTargets = function () {
  * @param  {string} channelId Channel to reduce: 'r', 'g', 'b' or 'a'
  */
 SKPR.ParallelReducer.prototype.reduce = function (texture, type, channelId) {
-    var currMaterial = this.rttMaterials[type];
+    var currMaterial = this.__rttMaterials[type];
     var firstIteration = true;
-    var texelSize = 1.0 / this.res;
+    var texelSize = 1.0 / this.__res;
     var level = 1;
-    this.currRes = this.res;
-    while (this.currRes > this.stopRes) {
+    this.__currRes = this.__res;
+    while (this.__currRes > this.__stopRes) {
 
         //reduce width by half
-        this.currRes /= 2;
-        // console.log('currRes: ' + this.currRes);
+        this.__currRes /= 2;
+        // console.log('currRes: ' + this.__currRes);
 
         //render to do parallel reduction
         this.__swapRenderTargets();
-        this.rttQuadMeshes[level].visible = true;
-        this.rttQuadMeshes[level].material = currMaterial;
-        currMaterial.uniforms['uTexture'].value = firstIteration ? texture : this.rttRenderTarget2;
+        this.__rttQuadMeshes[level].visible = true;
+        this.__rttQuadMeshes[level].material = currMaterial;
+        currMaterial.uniforms['uTexture'].value = firstIteration ? texture : this.__rttRenderTarget2;
         currMaterial.uniforms['uTexelSize'].value = texelSize;
         currMaterial.uniforms['uHalfTexelSize'].value = texelSize / 2.0;
-        currMaterial.uniforms['uChannelMask'].value.copy(this.channelVectors[channelId]);
-        this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
-        this.rttQuadMeshes[level].visible = false;
+        currMaterial.uniforms['uChannelMask'].value.copy(this.__channelVectors[channelId]);
+        this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttRenderTarget1, false);
+        this.__rttQuadMeshes[level].visible = false;
 
         level += 1;
 
@@ -345,26 +356,26 @@ SKPR.ParallelReducer.prototype.getPixelFloatData = function (channelId) {
 
     //need to first render the float data into an unsigned byte RGBA texture
     this.__swapRenderTargets();
-    this.rttQuadMeshes[0].visible = true;
-    this.rttQuadMeshes[0].material = this.rttEncodeFloatMaterial;
-    this.rttEncodeFloatMaterial.uniforms['uTexture'].value = this.rttRenderTarget2;
-    this.rttEncodeFloatMaterial.uniforms['uChannelMask'].value.copy(this.channelVectors[channelId]);
-    this.renderer.render(this.rttScene, this.rttCamera, this.rttRenderTarget1, false);
-    this.rttQuadMeshes[0].visible = false;
+    this.__rttQuadMeshes[0].visible = true;
+    this.__rttQuadMeshes[0].material = this.__rttEncodeFloatMaterial;
+    this.__rttEncodeFloatMaterial.uniforms['uTexture'].value = this.__rttRenderTarget2;
+    this.__rttEncodeFloatMaterial.uniforms['uChannelMask'].value.copy(this.__channelVectors[channelId]);
+    this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttRenderTarget1, false);
+    this.__rttQuadMeshes[0].visible = false;
 
-    var gl = this.renderer.getContext();
+    var gl = this.__renderer.getContext();
 
     //bind texture to gl context
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.rttRenderTarget1.__webglFramebuffer);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.__rttRenderTarget1.__webglFramebuffer);
 
     //read pixels
-    gl.readPixels(0, this.res - this.stopRes, this.stopRes, this.stopRes, gl.RGBA, gl.UNSIGNED_BYTE, this.pixelByteData);
+    gl.readPixels(0, this.__res - this.__stopRes, this.__stopRes, this.__stopRes, gl.RGBA, gl.UNSIGNED_BYTE, this.__pixelByteData);
 
     //unbind
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     //cast to float
-    var floatData = new Float32Array(this.pixelByteData.buffer);
+    var floatData = new Float32Array(this.__pixelByteData.buffer);
 
     return floatData;
 };

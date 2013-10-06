@@ -1,12 +1,12 @@
 /**
  * @fileOverview A JavaScript/GLSL sculpting script for sculpting Three.js meshes
  * @author Skeel Lee <skeel@skeelogy.com>
- * @version 1.0.0
+ * @version 1.0.2
  *
  * @example
  * //How to setup a GPU Skulpt:
  *
- * //create a terrain mesh for sculpting
+ * //create a plane for sculpting
  * var TERRAIN_SIZE = 10;
  * var TERRAIN_RES = 256;
  * var terrainGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_RES - 1, TERRAIN_RES - 1);
@@ -14,7 +14,7 @@
  * var terrainMesh = new THREE.Mesh(terrainGeom, null);  //a custom material will be assigned later when using SKULPT.GpuSkulpt
  * scene.add(terrainMesh);
  *
- * //create a SKULPT.GpuSkulpt instance
+ * //create a GpuSkulpt instance
  * var gpuSkulpt = new SKULPT.GpuSkulpt({
  *     renderer: renderer,
  *     mesh: terrainMesh,
@@ -22,16 +22,16 @@
  *     res: TERRAIN_RES
  * });
  *
- * //update gpuSkulpt every frame
+ * //update every frame
  * renderer.clear();
- * gpuSkulpt.update(dt);
+ * gpuSkulpt.update(dt);  //have to do this after clear but before render
  * renderer.render(scene, camera);
  *
  * @example
  * //How to sculpt:
  *
  * //get sculpt position and show/hide cursor
- * var sculptPosition = getSculptPosition();  //do ray-intersection tests, for example, to determine where the user is clicking on the terrain mesh
+ * var sculptPosition = getSculptPosition();  //do ray-intersection tests, for example, to determine where the user is clicking on the plane
  * if (sculptPosition) {
  *     gpuSkulpt.updateCursor(sculptPosition);
  *     gpuSkulpt.showCursor();
@@ -80,7 +80,7 @@
 /**
  * @namespace
  */
-var SKULPT = SKULPT || { version: '1.0.0' };
+var SKULPT = SKULPT || { version: '1.0.2' };
 console.log('Using SKULPT ' + SKULPT.version);
 
 /**
@@ -119,7 +119,6 @@ SKULPT.GpuSkulpt = function (options) {
     this.__texelSize = 1.0 / this.__res;
 
     this.__imageProcessedData = new Float32Array(4 * this.__res * this.__res);
-    this.__imageDataTexture = new THREE.DataTexture(null, this.__res, this.__res, THREE.RGBAFormat, THREE.FloatType);
 
     this.__isSculpting = false;
     this.__sculptUvPos = new THREE.Vector2();
@@ -133,6 +132,17 @@ SKULPT.GpuSkulpt = function (options) {
     this.__linearFloatRgbParams = {
         minFilter: THREE.LinearFilter,
         magFilter: THREE.LinearFilter,
+        wrapS: THREE.ClampToEdgeWrapping,
+        wrapT: THREE.ClampToEdgeWrapping,
+        format: THREE.RGBFormat,
+        stencilBuffer: false,
+        depthBuffer: false,
+        type: THREE.FloatType
+    };
+
+    this.__nearestFloatRgbParams = {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
         wrapS: THREE.ClampToEdgeWrapping,
         wrapT: THREE.ClampToEdgeWrapping,
         format: THREE.RGBFormat,
@@ -495,18 +505,56 @@ SKULPT.GpuSkulpt.prototype.setCursorRemoveColor = function (r, g, b) {
     this.__cursorRemoveColor.copy(r, g, b);
 };
 SKULPT.GpuSkulpt.prototype.__init = function () {
+
     this.__checkExtensions();
-    this.__setupShaders();
     this.__setupRttScene();
+
+    //setup a reset material for clearing render targets
+    this.__clearMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uColor: { type: 'v4', value: new THREE.Vector4() }
+        },
+        vertexShader: this.__shaders.vert['passUv'],
+        fragmentShader: this.__shaders.frag['setColor']
+    });
+
+    this.__setupRttRenderTargets();
+    this.__setupShaders();
     this.__setupVtf();
+
+    //create a DataTexture, with filtering type based on whether linear filtering is available
+    if (this.__supportsTextureFloatLinear) {
+        //use linear with mipmapping
+        this.__imageDataTexture = new THREE.DataTexture(null, this.__res, this.__res, THREE.RGBAFormat, THREE.FloatType, undefined, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.LinearFilter, THREE.LinearMipMapLinearFilter);
+        this.__imageDataTexture.generateMipmaps = true;
+    } else {
+        //resort to nearest filter only, without mipmapping
+        this.__imageDataTexture = new THREE.DataTexture(null, this.__res, this.__res, THREE.RGBAFormat, THREE.FloatType, undefined, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.NearestFilter, THREE.NearestFilter);
+        this.__imageDataTexture.generateMipmaps = false;
+    }
 };
 SKULPT.GpuSkulpt.prototype.__checkExtensions = function (renderer) {
     var context = this.__renderer.context;
-    if (!context.getExtension('OES_texture_float_linear')) {
-        throw new Error('Extension not available: OES_texture_float_linear');
+
+    //determine floating point texture support
+    //https://www.khronos.org/webgl/public-mailing-list/archives/1306/msg00002.html
+
+    //get floating point texture support
+    if (!context.getExtension('OES_texture_float')) {
+        var msg = 'No support for floating point textures. Extension not available: OES_texture_float';
+        alert(msg);
+        throw new Error(msg);
     }
+
+    //get floating point linear filtering support
+    this.__supportsTextureFloatLinear = context.getExtension('OES_texture_float_linear') !== null;
+    console.log('Texture float linear filtering support: ' + this.__supportsTextureFloatLinear);
+
+    //get vertex texture support
     if (!context.getParameter(context.MAX_VERTEX_TEXTURE_IMAGE_UNITS)) {
-        throw new Error('Vertex textures not supported on your graphics card');
+        var msg = 'Vertex textures not supported on your graphics card';
+        alert(msg);
+        throw new Error(msg);
     }
 };
 SKULPT.GpuSkulpt.prototype.__setupShaders = function () {
@@ -534,14 +582,6 @@ SKULPT.GpuSkulpt.prototype.__setupShaders = function () {
         },
         vertexShader: this.__shaders.vert['passUv'],
         fragmentShader: this.__shaders.frag['combineTextures']
-    });
-
-    this.__clearMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-            uColor: { type: 'v4', value: new THREE.Vector4() }
-        },
-        vertexShader: this.__shaders.vert['passUv'],
-        fragmentShader: this.__shaders.frag['setColor']
     });
 
     this.__rttEncodeFloatMaterial = new THREE.ShaderMaterial({
@@ -584,21 +624,42 @@ SKULPT.GpuSkulpt.prototype.__setupRttScene = function () {
     this.__rttQuadGeom = new THREE.PlaneGeometry(this.__size, this.__size);
     this.__rttQuadMesh = new THREE.Mesh(this.__rttQuadGeom, this.__skulptMaterial);
     this.__rttScene.add(this.__rttQuadMesh);
+};
+SKULPT.GpuSkulpt.prototype.__setupRttRenderTargets = function () {
 
     //create RTT render targets (we need two to do feedback)
-    this.__rttRenderTarget1 = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__linearFloatRgbParams);
+    if (this.__supportsTextureFloatLinear) {
+        this.__rttRenderTarget1 = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__linearFloatRgbParams);
+    } else {
+        this.__rttRenderTarget1 = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__nearestFloatRgbParams);
+    }
     this.__rttRenderTarget1.generateMipmaps = false;
+    this.__clearRenderTarget(this.__rttRenderTarget1, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
     this.__rttRenderTarget2 = this.__rttRenderTarget1.clone();
+    this.__clearRenderTarget(this.__rttRenderTarget2, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
 
     //create a RTT render target for storing the combine results of all layers
     this.__rttCombinedLayer = this.__rttRenderTarget1.clone();
+    this.__clearRenderTarget(this.__rttCombinedLayer, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
 
     //create RTT render target for storing proxy terrain data
-    this.__rttProxyRenderTarget = new THREE.WebGLRenderTarget(this.__proxyRes, this.__proxyRes, this.__linearFloatRgbParams);
+    if (this.__supportsTextureFloatLinear) {
+        this.__rttProxyRenderTarget = new THREE.WebGLRenderTarget(this.__proxyRes, this.__proxyRes, this.__linearFloatRgbParams);
+    } else {
+        this.__rttProxyRenderTarget = new THREE.WebGLRenderTarget(this.__proxyRes, this.__proxyRes, this.__nearestFloatRgbParams);
+    }
+    this.__rttProxyRenderTarget.generateMipmaps = false;
+    this.__clearRenderTarget(this.__rttProxyRenderTarget, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
 
     //create another RTT render target encoding float to 4-byte data
     this.__rttFloatEncoderRenderTarget = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__nearestFloatRgbaParams);
     this.__rttFloatEncoderRenderTarget.generateMipmaps = false;
+    this.__clearRenderTarget(this.__rttFloatEncoderRenderTarget, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
+};
+SKULPT.GpuSkulpt.prototype.__clearRenderTarget = function (renderTarget, r, g, b, a) {
+    this.__rttQuadMesh.material = this.__clearMaterial;
+    this.__clearMaterial.uniforms['uColor'].value.set(r, g, b, a);
+    this.__renderer.render(this.__rttScene, this.__rttCamera, renderTarget, false);
 };
 //Sets up the vertex-texture-fetch for the given mesh
 SKULPT.GpuSkulpt.prototype.__setupVtf = function () {
@@ -625,7 +686,7 @@ SKULPT.GpuSkulpt.prototype.__setupVtf = function () {
 };
 /**
  * Updates the skulpt<br/><strong>NOTE:  This needs to be called every frame, after renderer.clear() and before renderer.render(...)</strong>
- * @param {number} dt Elapsed time from previous frame
+ * @param {number} dt Elapsed time since previous frame
  */
 SKULPT.GpuSkulpt.prototype.update = function (dt) {
 
@@ -786,7 +847,7 @@ SKULPT.GpuSkulpt.prototype.hideCursor = function () {
  * Gets the sculpt texture that is used for displacement of mesh
  * @return {THREE.WebGLRenderTarget} Sculpt texture that is used for displacement of mesh
  */
-SKULPT.GpuSkulpt.prototype.getSculptTexture = function () {
+SKULPT.GpuSkulpt.prototype.getSculptDisplayTexture = function () {
     return this.__rttCombinedLayer;
 };
 //Returns the pixel unsigned byte data for the render target texture (readPixels() can only return unsigned byte data)

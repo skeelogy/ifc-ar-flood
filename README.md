@@ -1,34 +1,45 @@
-Augmented Reality Flood Simulator for Iowa Flood Center
-============
+HTML5 Augmented Reality Interactive Flood Simulation
+====================================================
 
-This is the github repository for my Google Summer of Code 2013 project with Iowa Flood Center.
+### Introduction
 
-### Project summary:
+This is my HTML5 augmented reality (AR) interactive flood simulation project for Iowa Flood Center.
 
-> The aim of this project is to create a web-based augmented reality application using HTML5 technologies for an interactive flood simulation. Users will place encoded paper markers on a board, each representing an object such as a house, car, bridge, levee, dam etc. A webcam is then used to detect and track these markers in real-time. 3D virtual objects will be overlaid on these markers on the screen. A height-map terrain can be loaded by the user to represent the actual terrain condition of a specific place and to provide more interesting structures for flooding to occur. Additional sculpting of the terrain is possible using special “sculpting markers” which can either bump or dent a terrain area. A rainfall event can then be initiated which will flood the area according to variables such as rainfall amount, drainage rate and evaporation rate. Other sources of water can be created by the user using markers which represent water sources, or by removing water-holding structures such as levees or dams. The flood simulation will interact with the 3D virtual objects in the scene.
+The main aims of this project:
 
+* **Augmented reality for the Web:** stream webcam video to a web browser, track encoded marker images and overlay 3D models on top of them
+* **Terrain:** load greyscale height maps onto a 3D terrain, and allow for further height manipulation via sculpting
+* **Flood:** water simulation reacts with objects in a 3D environment, accumulates behind terrain/objects for flooding to occur, flows from high to low regions, and allows for user interactions such as adding/removing of water
+* **Dual coupling:** water makes dynamic objects float while the dynamic objects cause ripples on the water after displacing it
+* **Interactivity for the Web**: all the above should run real-time in a web browser using HTML5 technologies
 
-### Running the demos in your web browser locally
+### Main Libraries Used
 
-You need to view the HTML files via a http server to prevent errors such as permission-denied error when using WebRTC and cross-origin error when loading textures.
-I recommend installing node.js and its http-server module to get a fast http server running.
-* Download and install node.js: http://nodejs.org/download/
-* Install the http-server module for node.js by typing this in the node.js command prompt:
- * npm install http-server -g
-* Run the http-server module for any directory of your choice (again, in the node.js command prompt):
- * http-server C:\path\to\directory
-* View the web page via the http server by using this URL in the browser:
- * http://localhost:8080/thePageYouWantToView.html
+* [WebRTC](http://www.webrtc.org/) - JavaScript API for real-time communications in web browsers
+* [three.js](http://threejs.org/) - JavaScript 3D library
+* [skarf.js](http://skeelogy.github.io/skarf.js/) - Three.js framework for JavaScript augmented reality libraries
+* [skulpt.js](http://skeelogy.github.io/skulpt.js/) - Three.js GPU height field terrain sculpting library
+* [skunami.js](http://skeelogy.github.io/skunami.js/) - Three.js GPU height field water libraries
+* [Physijs](http://chandlerprall.github.io/Physijs/) - Three.js rigid body dynamics system
 
-For more information, please refer to this execellent document from Three.js: https://github.com/mrdoob/three.js/wiki/How-to-run-things-locally
+### Videos
 
-### Browser support
+Main demo video:
 
-WebRTC, being a new web technology, has some differences between web browsers. There is a polyfill from Google that I'm using which should be able to handle the differences between Mozilla FireFox and Google Chrome. I have not tested other web browsers.
+[![ScreenShot](http://skeelogy.github.io/ifc-ar-flood/images/screenshot_mainDemoVideo.jpg)](http://www.youtube.com/watch?v=qEFH_r_X7kY)
 
-You can check if WebRTC's getUserMedia() is supported in your web browser using this web page: http://caniuse.com/#feat=stream
+### Demos
 
-If you are using Google Chrome, you will need to enable these in chrome://flags:
-* Enable screen capture support in getUserMedia()
+* [Main demo](http://skeelogy.github.io/ifc-ar-flood/demos/ifc_ar_flood_main.html)
 
-There could be other flags that needs to be enabled in your version of Google Chrome.
+### Useful Info
+
+Some useful information can be found in the [wiki pages](https://github.com/skeelogy/ifc-ar-flood/wiki/_pages), such as:
+
+* [Running The HTML Files Locally In Your Web Browser](https://github.com/skeelogy/ifc-ar-flood/wiki/Running-The-HTML-Files-Locally-In-Your-Web-Browser)
+* [Getting WebRTC `getUserMedia` To Work](https://github.com/skeelogy/ifc-ar-flood/wiki/Getting-WebRTC-getUserMedia-To-Work)
+
+### License
+
+Released under The MIT License (MIT)<br/>
+Copyright (c) 2013 Skeel Lee ([http://cg.skeelogy.com](http://cg.skeelogy.com)) @skeelogy, Iowa Flood Center

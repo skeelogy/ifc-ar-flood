@@ -21,7 +21,7 @@
 /**
  * @fileOverview Generic JavaScript augmented reality (AR) framework for handling different JavaScript AR libraries in Three.js
  * @author Skeel Lee <skeel@skeelogy.com>
- * @version 1.0.1
+ * @version 1.0.3
  *
  * @example
  *
@@ -55,7 +55,7 @@
 /**
  * @namespace
  */
-var SKARF = SKARF || { version: '1.0.1' };
+var SKARF = SKARF || { version: '1.0.3' };
 console.log('Using SKARF ' + SKARF.version);
 
 //===================================
@@ -68,7 +68,7 @@ console.log('Using SKARF ' + SKARF.version);
  */
 SKARF.GuiMarkerFactory = {
 
-    mappings: {},
+    __mappings: {},
 
     /**
      * Function to create a SKARF.GuiMarker instance
@@ -85,10 +85,10 @@ SKARF.GuiMarkerFactory = {
         if (!type) {
             throw new Error('SKARF.GuiMarker type not specified');
         }
-        if (!this.mappings.hasOwnProperty(type)) {
+        if (!this.__mappings.hasOwnProperty(type)) {
             throw new Error('SKARF.GuiMarker of this type has not been registered with SKARF.GuiMarkerFactory: ' + type);
         }
-        var guiMarker = new this.mappings[type](options);
+        var guiMarker = new this.__mappings[type](options);
         return guiMarker;
     },
 
@@ -98,10 +98,10 @@ SKARF.GuiMarkerFactory = {
      * @param {SKARF.GuiMarker} mappingClass GuiMarker class that will be created when the associated type is used
      */
     register: function (mappingName, mappingClass) {
-        if (this.mappings.hasOwnProperty(mappingName)) {
+        if (this.__mappings.hasOwnProperty(mappingName)) {
             throw new Error('Mapping name already exists: ' + mappingName);
         }
-        this.mappings[mappingName] = mappingClass;
+        this.__mappings[mappingName] = mappingClass;
     }
 };
 
@@ -323,7 +323,7 @@ SKARF.ButtonMarker.prototype.__processCallbacks = function () {
 SKARF.CheckBoxMarker = function (options) {
     SKARF.GuiMarker.call(this, options);
     this.__callbackObjs['toggled'] = {name: this.__key + '_toggled', fn: undefined};
-    this.checked = false;
+    this.__checked = false;
 };
 //inherit
 SKARF.CheckBoxMarker.prototype = Object.create(SKARF.GuiMarker.prototype);
@@ -333,8 +333,8 @@ SKARF.GuiMarkerFactory.register('checkbox', SKARF.CheckBoxMarker);
 //override
 SKARF.CheckBoxMarker.prototype.__processCallbacks = function () {
     if (this.__firstDetected) {
-        this.checked = !this.checked;
-        this.__invokeCallback('toggled', {guiMarker: this, checked: this.checked});
+        this.__checked = !this.__checked;
+        this.__invokeCallback('toggled', {guiMarker: this, checked: this.__checked});
     }
     SKARF.GuiMarker.prototype.__processCallbacks.call(this);
 };
@@ -347,7 +347,7 @@ SKARF.CheckBoxMarker.prototype.__processCallbacks = function () {
  */
 SKARF.SliderMarker = function (options) {
     SKARF.GuiMarker.call(this, options);
-    this.speed = options.params && options.params.speed ? options.params.speed : 1.0;
+    this.__speed = options.params && options.params.speed ? options.params.speed : 1.0;
     this.__callbackObjs['changed'] = {name: this.__key + '_changed', fn: undefined};
 };
 //inherit
@@ -359,7 +359,7 @@ SKARF.GuiMarkerFactory.register('slider', SKARF.SliderMarker);
 SKARF.SliderMarker.prototype.__processCallbacks = function () {
     var absDRot = Math.abs(this.__dRotation);
     if (!isNaN(this.__dRotation) && absDRot >= this.__rotThresholdLow && absDRot <= this.__rotThresholdHigh) {
-        this.__invokeCallback('changed', {guiMarker: this, delta: this.__dRotation * this.speed});
+        this.__invokeCallback('changed', {guiMarker: this, delta: this.__dRotation * this.__speed});
     }
     SKARF.GuiMarker.prototype.__processCallbacks.call(this);
 };
@@ -376,8 +376,8 @@ SKARF.ComboBoxMarker = function (options) {
     if (!(options.params && options.params.numChoices)) {
         throw new Error('numChoices not specified as a parameter');
     }
-    this.numChoices = options.params.numChoices;
-    this.currId = 0;
+    this.__numChoices = options.params.numChoices;
+    this.__currId = 0;
 };
 //inherit
 SKARF.ComboBoxMarker.prototype = Object.create(SKARF.GuiMarker.prototype);
@@ -386,10 +386,10 @@ SKARF.ComboBoxMarker.prototype.constructor = SKARF.ComboBoxMarker;
 SKARF.GuiMarkerFactory.register('combobox', SKARF.ComboBoxMarker);
 //override
 SKARF.ComboBoxMarker.prototype.__processCallbacks = function () {
-    var newId = Math.floor(this.__rotation / 360.0 * this.numChoices);
-    if (newId !== this.currId) {
+    var newId = Math.floor(this.__rotation / 360.0 * this.__numChoices);
+    if (newId !== this.__currId) {
         this.__invokeCallback('changed', {guiMarker: this, selectedId: newId, rotation: this.__rotation});
-        this.currId = newId;
+        this.__currId = newId;
     }
     SKARF.GuiMarker.prototype.__processCallbacks.call(this);
 };
@@ -403,9 +403,9 @@ SKARF.ComboBoxMarker.prototype.__processCallbacks = function () {
 SKARF.TimerMarker = function (options) {
     SKARF.GuiMarker.call(this, options);
     this.__callbackObjs['reached'] = {name: this.__key + '_reached', fn: undefined};
-    this.time = (options.params && options.params.time) || 2.0;
-    this.currTime = 0;
-    this.reached = false;
+    this.__time = (options.params && options.params.time) || 2.0;
+    this.__currTime = 0;
+    this.__reached = false;
 };
 //inherit
 SKARF.TimerMarker.prototype = Object.create(SKARF.GuiMarker.prototype);
@@ -415,22 +415,22 @@ SKARF.GuiMarkerFactory.register('timer', SKARF.TimerMarker);
 //override
 SKARF.TimerMarker.prototype.detected = function (dt, worldMatrix) {
     SKARF.GuiMarker.prototype.detected.call(this, dt, worldMatrix);
-    this.currTime += dt;
-    if (!this.reached && this.currTime >= this.time) {
-        this.reached = true;
+    this.__currTime += dt;
+    if (!this.__reached && this.__currTime >= this.__time) {
+        this.__reached = true;
         this.__invokeCallback('reached', {guiMarker: this});
     }
 };
 SKARF.TimerMarker.prototype.hidden = function () {
 
     //reset if marker disappears
-    this.currTime = 0;
-    this.reached = false;
+    this.__currTime = 0;
+    this.__reached = false;
 
     SKARF.GuiMarker.prototype.hidden.call(this);
 };
 SKARF.TimerMarker.prototype.resetTimer = function () {
-    this.currTime = 0;
+    this.__currTime = 0;
 };
 
 //===================================
@@ -443,7 +443,7 @@ SKARF.TimerMarker.prototype.resetTimer = function () {
  */
 SKARF.ModelLoaderFactory = {
 
-    mappings: {},
+    __mappings: {},
 
     /**
      * Function to create a SKARF.ModelLoader instance
@@ -453,10 +453,10 @@ SKARF.ModelLoaderFactory = {
         if (!type) {
             throw new Error('Model type not specified');
         }
-        if (!this.mappings.hasOwnProperty(type)) {
+        if (!this.__mappings.hasOwnProperty(type)) {
             throw new Error('SKARF.ModelLoader of this type has not been registered with SKARF.ModelLoaderFactory: ' + type);
         }
-        var loader = new this.mappings[type]();
+        var loader = new this.__mappings[type]();
         return loader;
     },
 
@@ -466,10 +466,10 @@ SKARF.ModelLoaderFactory = {
      * @param {SKARF.ModelLoader} mappingClass ModelLoader class that will be created when the associated type is used
      */
     register: function (mappingName, mappingClass) {
-        if (this.mappings.hasOwnProperty(mappingName)) {
+        if (this.__mappings.hasOwnProperty(mappingName)) {
             throw new Error('Mapping name already exists: ' + mappingName);
         }
-        this.mappings[mappingName] = mappingClass;
+        this.__mappings[mappingName] = mappingClass;
     }
 };
 
@@ -479,7 +479,7 @@ SKARF.ModelLoaderFactory = {
  * @abstract
  */
 SKARF.ModelLoader = function () {
-    this.loader = null;
+    this.__loader = null;
 };
 /**
  * Loads model for marker
@@ -502,11 +502,11 @@ SKARF.ModelLoader.prototype.loadForMarker = function (model, markerId, markerTra
  * @param {number} overallScale Overall scale
  * @param {SKARF.MarkerManager} markerManager Instance of MarkerManager
  */
-SKARF.ModelLoader.prototype.transformAndParent = function (model, object, markerTransform, overallScale, markerManager) {
+SKARF.ModelLoader.prototype.transformAndParent = function (model, obj, markerTransform, overallScale, markerManager) {
 
-    if (object) {
+    if (obj) {
 
-        object.traverse(function (object) {
+        obj.traverse(function (object) {
             if (object instanceof THREE.Mesh) {
 
                 //store the model data into the geometry
@@ -533,7 +533,7 @@ SKARF.ModelLoader.prototype.transformAndParent = function (model, object, marker
                 markerTransform.add(object);
 
                 //store the material in markerManager
-                markerManager.materials.push(object.material);
+                markerManager.__materials.push(object.material);
 
                 //compute bounding box
                 object.geometry.computeBoundingBox();
@@ -555,7 +555,7 @@ SKARF.ModelLoader.prototype.transformAndParent = function (model, object, marker
  */
 SKARF.EmptyModelLoader = function () {
     SKARF.ModelLoader.call(this);
-    this.loader = new THREE.JSONLoader();
+    this.__loader = new THREE.JSONLoader();
     console.log('Created a SKARF.EmptyModelLoader');
 };
 //inherit from SKARF.ModelLoader
@@ -590,7 +590,7 @@ SKARF.EmptyModelLoader.prototype.loadForMarker = function (model, markerId, mark
  */
 SKARF.JsonModelLoader = function () {
     SKARF.ModelLoader.call(this);
-    this.loader = new THREE.JSONLoader();
+    this.__loader = new THREE.JSONLoader();
     console.log('Created a SKARF.JsonModelLoader');
 };
 //inherit from SKARF.ModelLoader
@@ -612,7 +612,7 @@ SKARF.JsonModelLoader.prototype.loadForMarker = function (model, markerId, marke
     //TODO: time how long it takes to load
 
     var that = this;
-    this.loader.load(model.url, function (geometry, materials) {
+    this.__loader.load(model.url, function (geometry, materials) {
 
         //set wireframe visibility
         var i, len;
@@ -641,7 +641,7 @@ SKARF.JsonBinaryModelLoader = function () {
     if (typeof THREE.BinaryLoader === 'undefined') {
         throw new Error('THREE.BinaryLoader does not exist. Have you included BinaryLoader.js?');
     }
-    this.loader = new THREE.BinaryLoader();
+    this.__loader = new THREE.BinaryLoader();
     console.log('Created a SKARF.JsonBinaryModelLoader');
 };
 //inherit from SKARF.JsonModelLoader
@@ -663,12 +663,12 @@ SKARF.ObjModelLoader = function () {
     if (typeof THREE.OBJMTLLoader === 'undefined') {
         throw new Error('THREE.OBJMTLLoader does not exist. Have you included OBJMTLLoader.js and MTLLoader.js?');
     }
-    this.loader = new THREE.OBJMTLLoader();
+    this.__loader = new THREE.OBJMTLLoader();
     console.log('Created a SKARF.ObjModelLoader');
 
     //register an event listener
     var that = this;
-    this.loader.addEventListener('load', function (event) {
+    this.__loader.addEventListener('load', function (event) {
 
         var object = event.content;  //this ia a THREE.Object3D
 
@@ -680,15 +680,15 @@ SKARF.ObjModelLoader = function () {
             for (j = 0, lenj = child.children.length; j < lenj; j++) {
                 grandChild = child.children[j];
                 if (grandChild instanceof THREE.Mesh) {
-                    grandChild.material.wireframe = that.isWireframeVisible;
+                    grandChild.material.wireframe = that.__isWireframeVisible;
                 }
             }
         }
 
         //transform and parent
-        that.transformAndParent(that.model, object, that.markerTransform, that.overallScale, that.markerManager);
+        that.transformAndParent(that.__model, object, that.__markerTransform, that.__overallScale, that.__markerManager);
 
-        console.log('Loaded mesh ' + that.model.url + ' for marker id ' + that.markerId);
+        console.log('Loaded mesh ' + that.__model.url + ' for marker id ' + that.__markerId);
     });
 };
 //inherit from SKARF.ModelLoader
@@ -709,16 +709,16 @@ SKARF.ModelLoaderFactory.register('obj', SKARF.ObjModelLoader);
 SKARF.ObjModelLoader.prototype.loadForMarker = function (model, markerId, markerTransform, overallScale, isWireframeVisible, markerManager) {
 
     //store variables in the instance since there seems to be no way to pass to loader.load (TODO: verify this)
-    this.model = model;
-    this.markerId = markerId;
-    this.markerTransform = markerTransform;
-    this.overallScale = overallScale;
-    this.isWireframeVisible = isWireframeVisible;
-    this.markerManager = markerManager;
+    this.__model = model;
+    this.__markerId = markerId;
+    this.__markerTransform = markerTransform;
+    this.__overallScale = overallScale;
+    this.__isWireframeVisible = isWireframeVisible;
+    this.__markerManager = markerManager;
 
     //call load()
     var mtlFile = model.url.replace(/\.obj/g, '.mtl');  //assume mtl file has same base name as .obj
-    this.loader.load(model.url, mtlFile);
+    this.__loader.load(model.url, mtlFile);
 };
 
 //===================================
@@ -730,29 +730,29 @@ SKARF.ObjModelLoader.prototype.loadForMarker = function (model, markerId, marker
  * @constructor
  */
 SKARF.MarkerManager = function (markersJsonFile) {
-    this.markersJsonFile = markersJsonFile;
+    this.__markersJsonFile = markersJsonFile;
 
-    this.markerData = null;
-    this.modelLoaders = {};
+    this.__markerData = null;
+    this.__modelLoaders = {};
 
-    this.materials = [];
+    this.__materials = [];
 
     this.__load();
 };
 SKARF.MarkerManager.prototype.__load = function () {
-    console.log('Loading markers json file: ' + this.markersJsonFile);
+    console.log('Loading markers json file: ' + this.__markersJsonFile);
 
     //load the JSON file
     var that = this;
     $.ajax({
-        url: this.markersJsonFile,
+        url: this.__markersJsonFile,
         async: false
     }).done(function (data) {
-        that.markerData = data;
-        console.log('Loaded ' + that.markersJsonFile);
-        console.log('Main marker id: ' + that.markerData.mainMarkerId);
+        that.__markerData = data;
+        console.log('Loaded ' + that.__markersJsonFile);
+        console.log('Main marker id: ' + that.__markerData.mainMarkerId);
     }).error(function (xhr, textStatus, error) {
-        throw new Error('error loading ' + this.markersJsonFile + ': ' + error);
+        throw new Error('error loading ' + this.__markersJsonFile + ': ' + error);
     });
 };
 /**
@@ -768,20 +768,20 @@ SKARF.MarkerManager.prototype.loadForMarker = function (markerId, markerTransfor
 
     //two types of markers to load:
 
-    if (this.markerData.models && this.markerData.models[markerId]) {
+    if (this.__markerData.models && this.__markerData.models[markerId]) {
         //1) models
-        var model = this.markerData.models[markerId];
+        var model = this.__markerData.models[markerId];
         if (model) {
             var type = model.type;
-            if (!this.modelLoaders.hasOwnProperty(type)) {
+            if (!this.__modelLoaders.hasOwnProperty(type)) {
                 //create a loader using SKARF.ModelLoaderFactory
-                this.modelLoaders[type] = SKARF.ModelLoaderFactory.create(type);
+                this.__modelLoaders[type] = SKARF.ModelLoaderFactory.create(type);
             }
-            this.modelLoaders[type].loadForMarker(model, markerId, markerTransform, markerSize, isWireframeVisible, this);
+            this.__modelLoaders[type].loadForMarker(model, markerId, markerTransform, markerSize, isWireframeVisible, this);
         }
-    } else if (this.markerData.guiMarkers && this.markerData.guiMarkers[markerId]) {
+    } else if (this.__markerData.guiMarkers && this.__markerData.guiMarkers[markerId]) {
         //2) GUI markers
-        var guiMarker = this.markerData.guiMarkers[markerId];
+        var guiMarker = this.__markerData.guiMarkers[markerId];
         if (guiMarker) {
             var type = guiMarker.type;
             guiMarker = SKARF.GuiMarkerFactory.create(type, {
@@ -845,7 +845,7 @@ function copyMarkerMatrix(arMat, glMat) {
  */
 SKARF.ArLibFactory = {
 
-    mappings: {},
+    __mappings: {},
 
     /**
      * Function to create a SKARF.ArLib instance
@@ -862,10 +862,10 @@ SKARF.ArLibFactory = {
         if (!type) {
             throw new Error('SKARF.ArLib type not specified');
         }
-        if (!this.mappings.hasOwnProperty(type)) {
+        if (!this.__mappings.hasOwnProperty(type)) {
             throw new Error('SKARF.ArLib of this type has not been registered with SKARF.ArLibFactory: ' + type);
         }
-        var arLib = new this.mappings[type](options);
+        var arLib = new this.__mappings[type](options);
         return arLib;
     },
 
@@ -875,10 +875,10 @@ SKARF.ArLibFactory = {
      * @param {SKARF.ArLib} mappingClass ArLib class that will be created when the associated type is used
      */
     register: function (mappingName, mappingClass) {
-        if (this.mappings.hasOwnProperty(mappingName)) {
+        if (this.__mappings.hasOwnProperty(mappingName)) {
             throw new Error('Mapping name already exists: ' + mappingName);
         }
-        this.mappings[mappingName] = mappingClass;
+        this.__mappings[mappingName] = mappingClass;
     }
 };
 
@@ -892,34 +892,48 @@ SKARF.ArLib = function (options) {
     if (typeof options.trackingElem === 'undefined') {
         throw new Error('trackingElem not specified');
     }
-    this.trackingElem = options.trackingElem;
+    this.__trackingElem = options.trackingElem;
 
     if (typeof options.markerSize === 'undefined') {
         throw new Error('markerSize not specified');
     }
-    this.markerSize = options.markerSize;
+    this.__markerSize = options.markerSize;
 
-    this.verticalFov = options.verticalFov;
+    this.__verticalFov = options.verticalFov;
 
     if (typeof options.mainMarkerId === 'undefined') {
         throw new Error('mainMarkerId not specified');
     }
-    this.mainMarkerId = options.mainMarkerId;
+    this.__mainMarkerId = options.mainMarkerId;
 
-    this.debug = (typeof options.debug === 'undefined') ? false : options.debug;
+    this.__debug = (typeof options.debug === 'undefined') ? false : options.debug;
 
-    this.compensationMatrix = new THREE.Matrix4();
+    this.__compensationMatrix = new THREE.Matrix4();
 
-    this.mainMarkerHasEverBeenDetected = false;
+    this.__mainMarkerHasEverBeenDetected = false;
 
     //temp matrix for calculations later
-    this.tmpMat = new THREE.Matrix4();
+    this.__tmpMat = new THREE.Matrix4();
 
     //variables to be assigned by skarf
-    this.canvasElem = null;
-    this.renderer = null;
+    this.__canvasElem = null;
+    this.__renderer = null;
 
-    this.markers = {};  //this is just to keep track if a certain marker id has been seen
+    this.__markers = {};  //this is just to keep track if a certain marker id has been seen
+};
+/**
+ * Gets debug value
+ * @returns {boolean} Debug value
+ */
+SKARF.ArLib.prototype.getDebug = function () {
+    return this.__debug;
+};
+/**
+ * Sets debug value
+ * @param {boolean} value Debug value to set to
+ */
+SKARF.ArLib.prototype.setDebug = function (value) {
+    this.__debug = value;
 };
 /**
  * Initializes the instance
@@ -946,14 +960,14 @@ SKARF.ArLib.prototype.update = function (dt) {
 SKARF.JsArToolKitArLib = function (options) {
     SKARF.ArLib.call(this, options);
 
-    this.threshold = options.threshold || 128;
+    this.__threshold = options.threshold || 128;
 
-    this.compensationMatrix = new THREE.Matrix4().makeScale(1, 1, -1);  //scale in -z to swap from LH-coord to RH-coord
-    this.compensationMatrix.multiply(new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90)));  //rotate 90deg in X to get Y-up;
+    this.__compensationMatrix = new THREE.Matrix4().makeScale(1, 1, -1);  //scale in -z to swap from LH-coord to RH-coord
+    this.__compensationMatrix.multiply(new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90)));  //rotate 90deg in X to get Y-up;
 
     //store some temp variables
-    this.resultMat = new NyARTransMatResult();
-    this.tmp = {};
+    this.__resultMat = new NyARTransMatResult();
+    this.__tmp = {};
 };
 //inherit from SKARF.ArLib
 SKARF.JsArToolKitArLib.prototype = Object.create(SKARF.ArLib.prototype);
@@ -962,27 +976,41 @@ SKARF.JsArToolKitArLib.prototype.constructor = SKARF.JsArToolKitArLib;
 SKARF.ArLibFactory.register('jsartoolkit', SKARF.JsArToolKitArLib);
 //override methods
 /**
+ * Gets threshold value
+ * @returns {number} Threshold value
+ */
+SKARF.JsArToolKitArLib.prototype.getThreshold = function () {
+    return this.__threshold;
+};
+/**
+ * Sets threshold value
+ * @param {number} value Threshold value to set to
+ */
+SKARF.JsArToolKitArLib.prototype.setThreshold = function (value) {
+    this.__threshold = value;
+};
+/**
  * Initializes the instance
  */
 SKARF.JsArToolKitArLib.prototype.init = function () {
     //required by JSARToolKit to show the debug canvas
-    DEBUG = this.debug;
+    DEBUG = this.__debug;
 
     // Create a RGB raster object for the 2D canvas.
     // JSARToolKit uses raster objects to read image data.
     // Note that you need to set canvas.changed = true on every frame.
-    this.raster = new NyARRgbRaster_Canvas2D(this.canvasElem);
+    this.__raster = new NyARRgbRaster_Canvas2D(this.__canvasElem);
 
     // FLARParam is the thing used by FLARToolKit to set camera parameters.
-    this.flarParam = new FLARParam(this.canvasElem.width, this.canvasElem.height, this.verticalFov);
+    this.__flarParam = new FLARParam(this.__canvasElem.width, this.__canvasElem.height, this.__verticalFov);
 
     // The FLARMultiIdMarkerDetector is the actual detection engine for marker detection.
     // It detects multiple ID markers. ID markers are special markers that encode a number.
-    this.detector = new FLARMultiIdMarkerDetector(this.flarParam, this.markerSize);
+    this.__detector = new FLARMultiIdMarkerDetector(this.__flarParam, this.__markerSize);
 
     // For tracking video set continue mode to true. In continue mode, the detector
     // tracks markers across multiple frames.
-    this.detector.setContinueMode(true);
+    this.__detector.setContinueMode(true);
 
     //set the camera projection matrix in the renderer
     this.initCameraProjMatrix();
@@ -993,8 +1021,8 @@ SKARF.JsArToolKitArLib.prototype.init = function () {
  */
 SKARF.JsArToolKitArLib.prototype.initCameraProjMatrix = function () {
     var camProjMatrixArray = new Float32Array(16);
-    this.flarParam.copyCameraMatrix(camProjMatrixArray, 0.1, 10000);
-    this.renderer.initCameraProjMatrix(camProjMatrixArray);
+    this.__flarParam.copyCameraMatrix(camProjMatrixArray, 0.1, 10000);
+    this.__renderer.initCameraProjMatrix(camProjMatrixArray);
 };
 /**
  * Updates the instance
@@ -1002,13 +1030,13 @@ SKARF.JsArToolKitArLib.prototype.initCameraProjMatrix = function () {
  */
 SKARF.JsArToolKitArLib.prototype.update = function (dt) {
 
-    DEBUG = this.debug;
+    DEBUG = this.__debug;
 
     //set all markers detected to false first
-    var keys = Object.keys(this.markers);
+    var keys = Object.keys(this.__markers);
     var i, j;
     for (i = 0; i < keys.length; i++) {
-        this.renderer.__setMarkerDetected(keys[i], false);
+        this.__renderer.__setMarkerDetected(keys[i], false);
     }
 
     // Do marker detection by using the detector object on the raster object.
@@ -1017,7 +1045,7 @@ SKARF.JsArToolKitArLib.prototype.update = function (dt) {
     //
     //NOTE: THE CANVAS MUST BE THE SAME SIZE AS THE RASTER
     //OTHERWISE WILL GET AN "Uncaught #<Object>" ERROR
-    var markerCount = this.detector.detectMarkerLite(this.raster, this.threshold);
+    var markerCount = this.__detector.detectMarkerLite(this.__raster, this.__threshold);
 
     // Go through the detected markers and get their IDs and transformation matrices.
     var id, currId;
@@ -1026,7 +1054,7 @@ SKARF.JsArToolKitArLib.prototype.update = function (dt) {
         // Get the ID marker data for the current marker.
         // ID markers are special kind of markers that encode a number.
         // The bytes for the number are in the ID marker data.
-        id = this.detector.getIdMarkerData(i);
+        id = this.__detector.getIdMarkerData(i);
 
         // Read bytes from the id packet.
         currId = -1;
@@ -1039,36 +1067,36 @@ SKARF.JsArToolKitArLib.prototype.update = function (dt) {
         }
 
         // If this is a new id, let's start tracking it.
-        if (typeof this.markers[currId] === 'undefined') {
+        if (typeof this.__markers[currId] === 'undefined') {
 
             //create empty object for the marker
-            this.markers[currId] = {};
+            this.__markers[currId] = {};
 
             //create a transform for this marker
-            var transform = this.renderer.__createTransformForMarker(currId, this.markerSize);
+            var transform = this.__renderer.__createTransformForMarker(currId, this.__markerSize);
 
             //delay-load the model
-            this.renderer.loadForMarker(currId, transform, this.markerSize);
+            this.__renderer.loadForMarker(currId, transform, this.__markerSize);
 
             //if this is the main marker id, turn on flag
-            if (currId == this.mainMarkerId) {  //double equals for auto type conversion
-                this.mainMarkerHasEverBeenDetected = true;
+            if (currId == this.__mainMarkerId) {  //double equals for auto type conversion
+                this.__mainMarkerHasEverBeenDetected = true;
             }
         }
 
         try {
             // Get the transformation matrix for the detected marker.
-            this.detector.getTransformMatrix(i, this.resultMat);
+            this.__detector.getTransformMatrix(i, this.__resultMat);
 
             // Copy the marker matrix to the tmp matrix.
-            copyMarkerMatrix(this.resultMat, this.tmp);
+            copyMarkerMatrix(this.__resultMat, this.__tmp);
 
             //store the current solved matrix first
-            this.tmpMat.setFromArray(this.tmp);
-            this.renderer.__setCurrSolvedMatrixValues(currId, this.tmpMat);
+            this.__tmpMat.setFromArray(this.__tmp);
+            this.__renderer.__setCurrSolvedMatrixValues(currId, this.__tmpMat);
 
             //register that this marker has been detected
-            this.renderer.__setMarkerDetected(currId, true);
+            this.__renderer.__setMarkerDetected(currId, true);
         } catch (err) {
             //just print to console but let the error pass so that the program can continue
             console.log(err.message);
@@ -1076,7 +1104,7 @@ SKARF.JsArToolKitArLib.prototype.update = function (dt) {
     }
 
     //update the solved scene
-    this.renderer.__updateSolvedScene(dt, this.mainMarkerId);
+    this.__renderer.__updateSolvedScene(dt, this.__mainMarkerId);
 };
 
 /**
@@ -1098,23 +1126,23 @@ SKARF.ArLibFactory.register('jsaruco', SKARF.JsArucoArLib);
  * Initializes the instance
  */
 SKARF.JsArucoArLib.prototype.init = function () {
-    this.detector = new AR.Detector();
+    this.__detector = new AR.Detector();
 
     //NOTE: the second parameter is suppose to be canvasWidth (from the js-aruco example).
     //However, it cannot work when I change the aspect ratio of the tracking canvas.
     //It seems as though the tracking canvas must be 4:3, so I'm doing some compensation here to allow any aspect ratio.
-    this.posit = new POS.Posit(this.markerSize, this.canvasElem.height * 4.0 / 3.0);
+    this.__posit = new POS.Posit(this.__markerSize, this.__canvasElem.height * 4.0 / 3.0);
 
-    this.context = this.canvasElem.getContext('2d');
+    this.__context = this.__canvasElem.getContext('2d');
 };
 /**
  * Updates the instance
  * @param  {number} dt Elapsed time since previous frame
  */
 SKARF.JsArucoArLib.prototype.update = function (dt) {
-    var imageData = this.context.getImageData(0, 0, this.canvasElem.width, this.canvasElem.height);
-    var markers = this.detector.detect(imageData);
-    if (this.debug) {
+    var imageData = this.__context.getImageData(0, 0, this.__canvasElem.width, this.__canvasElem.height);
+    var markers = this.__detector.detect(imageData);
+    if (this.__debug) {
         this.__drawCorners(markers);
         this.__drawId(markers);
     }
@@ -1126,10 +1154,10 @@ SKARF.JsArucoArLib.prototype.__updateScenes = function (dt, markers) {
     var corners, corner, pose, markerId;
 
     //set all markers detected to false first
-    var keys = Object.keys(this.markers);
+    var keys = Object.keys(this.__markers);
     var i, j;
     for (i = 0; i < keys.length; i++) {
-        this.renderer.__setMarkerDetected(keys[i], false);
+        this.__renderer.__setMarkerDetected(keys[i], false);
     }
 
     for (i = 0; i < markers.length; i++) {
@@ -1137,22 +1165,22 @@ SKARF.JsArucoArLib.prototype.__updateScenes = function (dt, markers) {
         corners = markers[i].corners;
 
         // If this is a new id, let's start tracking it.
-        if (typeof this.markers[markerId] === 'undefined') {
+        if (typeof this.__markers[markerId] === 'undefined') {
 
             console.log('Creating new marker root for id ' + markerId);
 
             //create empty object for the marker
-            this.markers[markerId] = {};
+            this.__markers[markerId] = {};
 
             //create a transform for this marker
-            var transform = this.renderer.__createTransformForMarker(markerId, this.markerSize);
+            var transform = this.__renderer.__createTransformForMarker(markerId, this.__markerSize);
 
             //delay-load the model
-            this.renderer.loadForMarker(markerId, transform, this.markerSize);
+            this.__renderer.loadForMarker(markerId, transform, this.__markerSize);
 
             //if this is the main marker id, turn on flag
-            if (markerId == this.mainMarkerId) {  //double equals for auto type conversion
-                this.mainMarkerHasEverBeenDetected = true;
+            if (markerId == this.__mainMarkerId) {  //double equals for auto type conversion
+                this.__mainMarkerHasEverBeenDetected = true;
             }
         }
 
@@ -1161,21 +1189,21 @@ SKARF.JsArucoArLib.prototype.__updateScenes = function (dt, markers) {
             corner = corners[j];
             //NOTE: there seems to be some scale away from the center, so I have to scale everything down from the center.
             //The value of 0.97 is by trial-and-error, seems to work pretty well.
-            corner.x = 0.97 * (corner.x - (this.canvasElem.width / 2));
-            corner.y = 0.97 * ((this.canvasElem.height / 2) - corner.y);
+            corner.x = 0.97 * (corner.x - (this.__canvasElem.width / 2));
+            corner.y = 0.97 * ((this.__canvasElem.height / 2) - corner.y);
         }
 
         //estimate pose
         try {
-            pose = this.posit.pose(corners);
+            pose = this.__posit.pose(corners);
 
             //store the current solved matrix first
             this.__updateMatrix4FromRotAndTrans(pose.bestRotation, pose.bestTranslation);
-            this.tmpMat.multiply(new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90)));
-            this.renderer.__setCurrSolvedMatrixValues(markerId, this.tmpMat);
+            this.__tmpMat.multiply(new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90)));
+            this.__renderer.__setCurrSolvedMatrixValues(markerId, this.__tmpMat);
 
             //register that this marker has been detected
-            this.renderer.__setMarkerDetected(markerId, true);
+            this.__renderer.__setMarkerDetected(markerId, true);
 
         } catch (err) {
             //just print to console but let the error pass so that the program can continue
@@ -1184,10 +1212,10 @@ SKARF.JsArucoArLib.prototype.__updateScenes = function (dt, markers) {
     }
 
     //update the solved scene
-    this.renderer.__updateSolvedScene(dt, this.mainMarkerId);
+    this.__renderer.__updateSolvedScene(dt, this.__mainMarkerId);
 };
 SKARF.JsArucoArLib.prototype.__updateMatrix4FromRotAndTrans = function (rotationMat, translationVec) {
-    this.tmpMat.set(
+    this.__tmpMat.set(
         rotationMat[0][0], rotationMat[0][1], -rotationMat[0][2], translationVec[0],
         rotationMat[1][0], rotationMat[1][1], -rotationMat[1][2], translationVec[1],
         -rotationMat[2][0], -rotationMat[2][1], rotationMat[2][2], -translationVec[2],
@@ -1199,33 +1227,33 @@ SKARF.JsArucoArLib.prototype.__drawCorners = function (markers) {
     for (i = 0, leni = markers.length; i < leni; i++) {
         corners = markers[i].corners;
 
-        this.context.lineWidth = 2;
-        this.context.strokeStyle = "red";
-        this.context.beginPath();
+        this.__context.lineWidth = 2;
+        this.__context.strokeStyle = "red";
+        this.__context.beginPath();
 
         for (j = 0, lenj = corners.length; j < lenj; j++) {
             corner = corners[j];
-            this.context.moveTo(corner.x, corner.y);
+            this.__context.moveTo(corner.x, corner.y);
             corner = corners[(j + 1) % corners.length];
-            this.context.lineTo(corner.x, corner.y);
+            this.__context.lineTo(corner.x, corner.y);
         }
 
-        this.context.stroke();
-        this.context.closePath();
+        this.__context.stroke();
+        this.__context.closePath();
 
-        this.context.lineWidth = 3;
-        this.context.strokeStyle = "green";
-        this.context.strokeRect(corners[0].x - 2, corners[0].y - 2, 4, 4);
+        this.__context.lineWidth = 3;
+        this.__context.strokeStyle = "green";
+        this.__context.strokeRect(corners[0].x - 2, corners[0].y - 2, 4, 4);
     }
 };
 SKARF.JsArucoArLib.prototype.__drawId = function (markers) {
 
     var corners, corner, x, y, i, len;
 
-    this.context.font = '12pt Calibri';
-    this.context.fillStyle = "yellow";
-    // this.context.strokeStyle = "black";
-    // this.context.lineWidth = 1.0;
+    this.__context.font = '12pt Calibri';
+    this.__context.fillStyle = "yellow";
+    // this.__context.strokeStyle = "black";
+    // this.__context.lineWidth = 1.0;
 
     for (i = 0, len = markers.length; i < len; i++) {
         corners = markers[i].corners;
@@ -1233,8 +1261,8 @@ SKARF.JsArucoArLib.prototype.__drawId = function (markers) {
         x = corners[0].x;
         y = corners[0].y;
 
-        this.context.fillText(markers[i].id, x, y);
-        // this.context.strokeText(markers[i].id, x, y);
+        this.__context.fillText(markers[i].id, x, y);
+        // this.__context.strokeText(markers[i].id, x, y);
     }
 };
 
@@ -1249,7 +1277,7 @@ SKARF.JsArucoArLib.prototype.__drawId = function (markers) {
  */
 SKARF.RendererFactory = {
 
-    mappings: {},
+    __mappings: {},
 
     /**
      * Function to create a SKARF.Renderer instance
@@ -1264,10 +1292,10 @@ SKARF.RendererFactory = {
         if (!type) {
             throw new Error('SKARF.Renderer type not specified');
         }
-        if (!this.mappings.hasOwnProperty(type)) {
+        if (!this.__mappings.hasOwnProperty(type)) {
             throw new Error('SKARF.Renderer of this type has not been registered with SKARF.RendererFactory: ' + type);
         }
-        var renderer = new this.mappings[type](options);
+        var renderer = new this.__mappings[type](options);
         return renderer;
     },
 
@@ -1277,10 +1305,10 @@ SKARF.RendererFactory = {
      * @param {SKARF.Renderer} mappingClass Renderer class that will be created when the associated type is used
      */
     register: function (mappingName, mappingClass) {
-        if (this.mappings.hasOwnProperty(mappingName)) {
+        if (this.__mappings.hasOwnProperty(mappingName)) {
             throw new Error('Mapping name already exists: ' + mappingName);
         }
-        this.mappings[mappingName] = mappingClass;
+        this.__mappings[mappingName] = mappingClass;
     }
 };
 
@@ -1294,36 +1322,36 @@ SKARF.Renderer = function (options) {
     if (typeof options.renderer === 'undefined') {
         throw new Error('renderer not specified');
     }
-    this.renderer = options.renderer;
+    this.__renderer = options.renderer;
 
     if (typeof options.scene === 'undefined') {
         throw new Error('scene not specified');
     }
-    this.scene = options.scene;
+    this.__scene = options.scene;
 
     if (typeof options.camera === 'undefined') {
         throw new Error('camera not specified');
     }
-    this.camera = options.camera;
+    this.__camera = options.camera;
 
     if (typeof options.markersJsonFile === 'undefined') {
         throw new Error('markersJsonFile not specified');
     }
-    this.markersJsonFile = options.markersJsonFile;
+    this.__markersJsonFile = options.markersJsonFile;
 
-    this.isWireframeVisible = (typeof options.displayWireframe === 'undefined') ? false : options.displayWireframe;
-    this.isLocalAxisVisible = (typeof options.displayLocalAxis === 'undefined') ? false : options.displayLocalAxis;
+    this.__isWireframeVisible = (typeof options.displayWireframe === 'undefined') ? false : options.displayWireframe;
+    this.__isLocalAxisVisible = (typeof options.displayLocalAxis === 'undefined') ? false : options.displayLocalAxis;
 
-    this.markerManager = new SKARF.MarkerManager(this.markersJsonFile);
-    this.localAxes = [];
+    this.__markerManager = new SKARF.MarkerManager(this.__markersJsonFile);
+    this.__localAxes = [];
 
-    this.markerTransforms = {};
+    this.__markerTransforms = {};
 
-    this.callbacks = {};
+    this.__callbacks = {};
 
     //variables to be assigned by skarf
-    this.arLib = null;
-    this.backgroundCanvasElem = null;
+    this.__arLib = null;
+    this.__backgroundCanvasElem = null;
 };
 /**
  * Initializes the instance
@@ -1337,12 +1365,12 @@ SKARF.Renderer.prototype.init = function () {
  * @param {function} callbackFn Callback function to call
  */
 SKARF.Renderer.prototype.addCallback = function (type, callbackFn) {
-    if (!this.callbacks.hasOwnProperty(type)) {
-        this.callbacks[type] = [];
+    if (!this.__callbacks.hasOwnProperty(type)) {
+        this.__callbacks[type] = [];
     }
     if (callbackFn) {
         if (typeof callbackFn === 'function') {
-            this.callbacks[type].push(callbackFn);
+            this.__callbacks[type].push(callbackFn);
         } else {
             throw new Error('Specified callbackFn is not a function');
         }
@@ -1355,7 +1383,7 @@ SKARF.Renderer.prototype.addCallback = function (type, callbackFn) {
  * @return {number} main marker ID
  */
 SKARF.Renderer.prototype.getMainMarkerId = function () {
-    return this.markerManager.markerData.mainMarkerId;
+    return this.__markerManager.__markerData.mainMarkerId;
 };
 /**
  * Updates the renderer
@@ -1377,19 +1405,19 @@ SKARF.Renderer.prototype.__createTransformForMarker = function (markerId, marker
  * @param {boolean} visible Whether to show or hide the children
  */
 SKARF.Renderer.prototype.showChildrenOfMarker = function (markerId, visible) {
-    this.__showChildren(this.markerTransforms[markerId], visible);
+    this.__showChildren(this.__markerTransforms[markerId], visible);
 };
 SKARF.Renderer.prototype.__showChildren = function (object3d, visible) {
     throw new Error('Abstract method not implemented');
 };
 SKARF.Renderer.prototype.loadForMarker = function (markerId, markerTransform, markerSize) {
-    this.markerManager.loadForMarker(markerId, markerTransform, markerSize, this.isWireframeVisible);
+    this.__markerManager.loadForMarker(markerId, markerTransform, markerSize, this.__isWireframeVisible);
 };
 SKARF.Renderer.prototype.__setCurrSolvedMatrixValues = function (markerId, matrix) {
     throw new Error('Abstract method not implemented');
 };
 SKARF.Renderer.prototype.__setMarkerDetected = function (markerId, detected) {
-    this.markerTransforms[markerId].detected = detected;
+    this.__markerTransforms[markerId].detected = detected;
 };
 SKARF.Renderer.prototype.__updateSolvedScene = function (dt, mainMarkerId) {
     throw new Error('Abstract method not implemented');
@@ -1410,6 +1438,13 @@ SKARF.Renderer.prototype.setWireframeVisible = function (isVisible) {
 SKARF.Renderer.prototype.setLocalAxisVisible = function (isVisible) {
     throw new Error('Abstract method not implemented');
 };
+/**
+ * Hides all models that have been loaded
+ * @abstract
+ */
+SKARF.Renderer.prototype.hideAllModels = function () {
+    throw new Error('Abstract method not implemented');
+};
 
 /**
  * Renderer class for Three.js<br/>
@@ -1418,11 +1453,11 @@ SKARF.Renderer.prototype.setLocalAxisVisible = function (isVisible) {
  * @extends {SKARF.Renderer}
  */
 SKARF.ThreeJsRenderer = function (options) {
-    // this.markerTransforms = {};
+    // this.__markerTransforms = {};
     SKARF.Renderer.call(this, options);
 
     //temp matrix
-    this.mainMarkerRootSolvedMatrixInv = new THREE.Matrix4();
+    this.__mainMarkerRootSolvedMatrixInv = new THREE.Matrix4();
 };
 //inherit from SKARF.Renderer
 SKARF.ThreeJsRenderer.prototype = Object.create(SKARF.Renderer.prototype);
@@ -1437,15 +1472,15 @@ SKARF.RendererFactory.register('threejs', SKARF.ThreeJsRenderer);
 SKARF.ThreeJsRenderer.prototype.update = function (dt) {
 
     //mark texture for update
-    this.videoTex.needsUpdate = true;
+    this.__videoTex.needsUpdate = true;
 
     //clear renderer first
-    this.renderer.autoClear = false;
-    this.renderer.clear();
+    this.__renderer.autoClear = false;
+    this.__renderer.clear();
 
     //check for the callback of type 'render'
-    if (this.callbacks.hasOwnProperty('render')) {
-        var renderCallbacks = this.callbacks['render'];
+    if (this.__callbacks.hasOwnProperty('render')) {
+        var renderCallbacks = this.__callbacks['render'];
         var i, len;
         for (i = 0, len = renderCallbacks.length; i < len; i++) {
             renderCallbacks[i](dt);
@@ -1453,8 +1488,8 @@ SKARF.ThreeJsRenderer.prototype.update = function (dt) {
     }
 
     //finally, render actual scene
-    this.renderer.render(this.videoScene, this.videoCam);
-    this.renderer.render(this.scene, this.camera);
+    this.__renderer.render(this.__videoScene, this.__videoCam);
+    this.__renderer.render(this.__scene, this.__camera);
 };
 SKARF.ThreeJsRenderer.prototype.__showChildren = function (object3d, visible) {
     var children = object3d.children;
@@ -1468,25 +1503,25 @@ SKARF.ThreeJsRenderer.prototype.__showChildren = function (object3d, visible) {
             children[i].visible = visible;
             //if it is an axis, then check also whether it is suppose to be shown
             if (children[i] instanceof THREE.AxisHelper) {
-                children[i].visible = children[i].visible && this.isLocalAxisVisible;
+                children[i].visible = children[i].visible && this.__isLocalAxisVisible;
             }
         }
     }
 };
 SKARF.ThreeJsRenderer.prototype.__setupBackgroundVideo = function () {
     //NOTE: must use <canvas> as the texture, not <video>, otherwise there will be a 1-frame lag
-    this.videoTex = new THREE.Texture(this.backgroundCanvasElem);
-    this.videoPlane = new THREE.PlaneGeometry(2, 2);
-    this.videoMaterial = new THREE.MeshBasicMaterial({
-        map: this.videoTex,
+    this.__videoTex = new THREE.Texture(this.__backgroundCanvasElem);
+    this.__videoPlane = new THREE.PlaneGeometry(2, 2);
+    this.__videoMaterial = new THREE.MeshBasicMaterial({
+        map: this.__videoTex,
         depthTest: false,
         depthWrite: false
     });
-    var plane = new THREE.Mesh(this.videoPlane, this.videoMaterial);
-    this.videoScene = new THREE.Scene();
-    this.videoCam = new THREE.Camera();
-    this.videoScene.add(plane);
-    this.videoScene.add(this.videoCam);
+    var plane = new THREE.Mesh(this.__videoPlane, this.__videoMaterial);
+    this.__videoScene = new THREE.Scene();
+    this.__videoCam = new THREE.Camera();
+    this.__videoScene.add(plane);
+    this.__videoScene.add(this.__videoCam);
 };
 SKARF.ThreeJsRenderer.prototype.__createTransformForMarker = function (markerId, markerSize) {
     //FIXME: no need to create a transform if this markerId is not in the models JSON file
@@ -1495,21 +1530,21 @@ SKARF.ThreeJsRenderer.prototype.__createTransformForMarker = function (markerId,
     var markerTransform = new THREE.Object3D();
     markerTransform.matrixAutoUpdate = false;
     markerTransform.currSolvedMatrix = new THREE.Matrix4();
-    this.markerTransforms[markerId] = markerTransform;
+    this.__markerTransforms[markerId] = markerTransform;
 
     // Add the marker root to your scene.
-    this.scene.add(markerTransform);
+    this.__scene.add(markerTransform);
 
     //add a axis helper to see the local axis
     var localAxis = new THREE.AxisHelper(markerSize * 2);
-    localAxis.visible = this.isLocalAxisVisible;
-    this.localAxes.push(localAxis);
+    localAxis.visible = this.__isLocalAxisVisible;
+    this.__localAxes.push(localAxis);
     markerTransform.add(localAxis);
 
     return markerTransform;
 };
 SKARF.ThreeJsRenderer.prototype.__setCurrSolvedMatrixValues = function (markerId, matrix) {
-    this.markerTransforms[markerId].currSolvedMatrix.copy(matrix);
+    this.__markerTransforms[markerId].currSolvedMatrix.copy(matrix);
 };
 /**
  * Sets visibility of wireframe
@@ -1517,11 +1552,11 @@ SKARF.ThreeJsRenderer.prototype.__setCurrSolvedMatrixValues = function (markerId
  */
 SKARF.ThreeJsRenderer.prototype.setWireframeVisible = function (isVisible) {
 
-    this.isWireframeVisible = isVisible;
+    this.__isWireframeVisible = isVisible;
 
     var i, j, leni, lenj, m;
-    for (i = 0, leni = this.markerManager.materials.length; i < leni; i++) {
-        m = this.markerManager.materials[i];
+    for (i = 0, leni = this.__markerManager.__materials.length; i < leni; i++) {
+        m = this.__markerManager.__materials[i];
         if (m instanceof THREE.MeshFaceMaterial) {
             for (j = 0, lenj = m.materials.length; j < lenj; j++) {
                 m.materials[j].wireframe = isVisible;
@@ -1536,54 +1571,65 @@ SKARF.ThreeJsRenderer.prototype.setWireframeVisible = function (isVisible) {
  * @param {boolean} isVisible Visibility of local axis
  */
 SKARF.ThreeJsRenderer.prototype.setLocalAxisVisible = function (isVisible) {
-    this.isLocalAxisVisible = isVisible;
+    this.__isLocalAxisVisible = isVisible;
     var i, len;
-    for (i = 0, len = this.localAxes.length; i < len; i++) {
-        this.localAxes[i].visible = isVisible;
+    for (i = 0, len = this.__localAxes.length; i < len; i++) {
+        this.__localAxes[i].visible = isVisible;
     }
 };
 SKARF.ThreeJsRenderer.prototype.__updateSolvedScene = function (dt, mainMarkerId) {
 
-    var mainMarkerIdDetected = this.markerTransforms[mainMarkerId] && this.markerTransforms[mainMarkerId].detected;
+    var mainMarkerIdDetected = this.__markerTransforms[mainMarkerId] && this.__markerTransforms[mainMarkerId].detected;
     if (mainMarkerIdDetected) {
 
         //move the camera instead of the marker root
-        this.camera.matrix.copy(this.arLib.compensationMatrix);  //compensate coordinate system and up vector differences
-        this.camera.matrix.multiply(this.mainMarkerRootSolvedMatrixInv.getInverse(this.markerTransforms[mainMarkerId].currSolvedMatrix));  //multiply inverse of main marker's matrix will force main marker to be at origin and the camera to transform around this world space
-        this.camera.matrixWorldNeedsUpdate = true;
+        this.__camera.matrix.copy(this.__arLib.__compensationMatrix);  //compensate coordinate system and up vector differences
+        this.__camera.matrix.multiply(this.__mainMarkerRootSolvedMatrixInv.getInverse(this.__markerTransforms[mainMarkerId].currSolvedMatrix));  //multiply inverse of main marker's matrix will force main marker to be at origin and the camera to transform around this world space
+        this.__camera.matrixWorldNeedsUpdate = true;
     }
 
     //for each of the marker root detected, move into the space of the main marker root
     var that = this;
-    Object.keys(this.markerTransforms).forEach(function (key) {
-        if (that.markerTransforms[key].detected) {
+    Object.keys(this.__markerTransforms).forEach(function (key) {
+        if (that.__markerTransforms[key].detected) {
 
             //transform and compensate
-            that.markerTransforms[key].matrix.copy(that.camera.matrix);  //transform into new camera world space first
-            that.markerTransforms[key].matrix.multiply(that.markerTransforms[key].currSolvedMatrix);  //since currSolvedMatrix is relative to camera space, multiplying by it next will bring this object into world space
-            that.markerTransforms[key].matrix.multiply(that.arLib.compensationMatrix);  //compensate back into the right coordinate system, locally
-            that.markerTransforms[key].matrixWorldNeedsUpdate = true;
+            that.__markerTransforms[key].matrix.copy(that.__camera.matrix);  //transform into new camera world space first
+            that.__markerTransforms[key].matrix.multiply(that.__markerTransforms[key].currSolvedMatrix);  //since currSolvedMatrix is relative to camera space, multiplying by it next will bring this object into world space
+            that.__markerTransforms[key].matrix.multiply(that.__arLib.__compensationMatrix);  //compensate back into the right coordinate system, locally
+            that.__markerTransforms[key].matrixWorldNeedsUpdate = true;
 
             //show the object
-            that.__showChildren(that.markerTransforms[key], true);
+            that.__showChildren(that.__markerTransforms[key], true);
 
             //call detected() on the GUI markers
-            if (that.markerTransforms[key].guiMarker) {
-                that.markerTransforms[key].guiMarker.detected(dt, that.markerTransforms[key].matrix);
+            if (that.__markerTransforms[key].guiMarker) {
+                that.__markerTransforms[key].guiMarker.detected(dt, that.__markerTransforms[key].matrix);
             }
         } else {
 
             //no need to transform
 
             //hide the object
-            that.__showChildren(that.markerTransforms[key], false);
+            that.__showChildren(that.__markerTransforms[key], false);
 
             //call hidden() on the GUI markers
-            if (that.markerTransforms[key].guiMarker) {
-                that.markerTransforms[key].guiMarker.hidden();
+            if (that.__markerTransforms[key].guiMarker) {
+                that.__markerTransforms[key].guiMarker.hidden();
             }
         }
     });
+};
+/**
+ * Hides all models that have been loaded
+ */
+SKARF.ThreeJsRenderer.prototype.hideAllModels = function () {
+    var id;
+    for (id in this.__markerTransforms) {
+        if (this.__markerTransforms.hasOwnProperty(id)) {
+            this.__showChildren(this.__markerTransforms[id], false);
+        }
+    }
 };
 //methods
 /**
@@ -1591,7 +1637,7 @@ SKARF.ThreeJsRenderer.prototype.__updateSolvedScene = function (dt, mainMarkerId
  * @param  {Three.Matrix4} camProjMatrixArray Camera projection matrix
  */
 SKARF.ThreeJsRenderer.prototype.initCameraProjMatrix = function (camProjMatrixArray) {
-    this.camera.projectionMatrix.setFromArray(camProjMatrixArray);
+    this.__camera.projectionMatrix.setFromArray(camProjMatrixArray);
 };
 
 //===================================
@@ -1621,40 +1667,40 @@ SKARF.Skarf = function (options) {
     if (typeof options.arLibType === 'undefined') {
         throw new Error('arLibType not specified');
     }
-    this.arLibType = options.arLibType;
+    this.__arLibType = options.arLibType;
     if (typeof options.trackingElem === 'undefined') {
         throw new Error('trackingElem not specified');
     }
-    this.trackingElem = options.trackingElem;
+    this.__trackingElem = options.trackingElem;
     if (typeof options.markerSize === 'undefined') {
         throw new Error('markerSize not specified');
     }
-    this.markerSize = options.markerSize;
-    this.verticalFov = options.verticalFov;
-    this.threshold = options.threshold || 128;
-    this.debug = typeof options.debug === 'undefined' ? false : options.debug;
+    this.__markerSize = options.markerSize;
+    this.__verticalFov = options.verticalFov;
+    this.__threshold = options.threshold || 128;
+    this.__debug = typeof options.debug === 'undefined' ? false : options.debug;
 
     //canvas
-    this.canvasContainerElem = options.canvasContainerElem;
+    this.__canvasContainerElem = options.canvasContainerElem;
 
     //renderer parameters
-    this.rendererType = 'threejs';  //only create Three.js instances
+    this.__rendererType = 'threejs';  //only create Three.js instances
     if (typeof options.renderer === 'undefined') {
         throw new Error('renderer not specified');
     }
-    this.renderer = options.renderer;
+    this.__threejsRenderer = options.renderer;
     if (typeof options.scene === 'undefined') {
         throw new Error('scene not specified');
     }
-    this.scene = options.scene;
+    this.__scene = options.scene;
     if (typeof options.camera === 'undefined') {
         throw new Error('camera not specified');
     }
-    this.camera = options.camera;
+    this.__camera = options.camera;
     if (typeof options.markersJsonFile === 'undefined') {
         throw new Error('markersJsonFile not specified');
     }
-    this.markersJsonFile = options.markersJsonFile;
+    this.__markersJsonFile = options.markersJsonFile;
 
     //init
     this.__init();
@@ -1662,21 +1708,21 @@ SKARF.Skarf = function (options) {
 SKARF.Skarf.prototype.__create2dCanvas = function () {
 
     //create canvas
-    this.canvasElem = document.createElement('canvas');
+    this.__canvasElem = document.createElement('canvas');
 
     //canvas should be same width/height as the tracking element
-    this.canvasElem.width = this.trackingElem.width;
-    this.canvasElem.height = this.trackingElem.height;
+    this.__canvasElem.width = this.__trackingElem.width;
+    this.__canvasElem.height = this.__trackingElem.height;
 
     //attach to container if specified, otherwise attach to body
-    if (this.canvasContainerElem) {
-        this.canvasContainerElem.append(this.canvasElem);
+    if (this.__canvasContainerElem) {
+        this.__canvasContainerElem.append(this.__canvasElem);
     } else {
-        $('body').append(this.canvasElem);
+        $('body').append(this.__canvasElem);
     }
 
     //store the 2d context
-    this.context = this.canvasElem.getContext('2d');
+    this.__context = this.__canvasElem.getContext('2d');
 };
 SKARF.Skarf.prototype.__init = function () {
 
@@ -1684,51 +1730,68 @@ SKARF.Skarf.prototype.__init = function () {
     this.__create2dCanvas();
 
     //create renderer instance
-    this.renderer = SKARF.RendererFactory.create(this.rendererType, {
-        renderer: this.renderer,
-        scene: this.scene,
-        camera: this.camera,
-        markersJsonFile: this.markersJsonFile
+    this.__renderer = SKARF.RendererFactory.create(this.__rendererType, {
+        renderer: this.__threejsRenderer,
+        scene: this.__scene,
+        camera: this.__camera,
+        markersJsonFile: this.__markersJsonFile
     });
 
     //create AR lib instance
-    this.arLib = SKARF.ArLibFactory.create(this.arLibType, {
-        trackingElem: this.trackingElem,
-        markerSize: this.markerSize,
-        verticalFov: this.verticalFov,
-        mainMarkerId: this.renderer.getMainMarkerId(),
-        threshold: this.threshold,
-        debug: this.debug
+    this.__arLib = SKARF.ArLibFactory.create(this.__arLibType, {
+        trackingElem: this.__trackingElem,
+        markerSize: this.__markerSize,
+        verticalFov: this.__verticalFov,
+        mainMarkerId: this.__renderer.getMainMarkerId(),
+        threshold: this.__threshold,
+        debug: this.__debug
     });
 
     //assign necessary pointers of itself to each other
-    this.arLib.renderer = this.renderer;
-    this.renderer.arLib = this.arLib;
+    this.__arLib.__renderer = this.__renderer;
+    this.__renderer.__arLib = this.__arLib;
 
     //assign the canvas to arLib and renderer
-    this.arLib.canvasElem = this.canvasElem;
-    this.renderer.backgroundCanvasElem = this.canvasElem;
+    this.__arLib.__canvasElem = this.__canvasElem;
+    this.__renderer.__backgroundCanvasElem = this.__canvasElem;
 
     //finally call init of both
-    this.renderer.init();
-    this.arLib.init();
+    this.__renderer.init();
+    this.__arLib.init();
+};
+/**
+ * Returns the renderer associated with this instance
+ * @returns {SKARF.Renderer} Renderer
+ */
+SKARF.Skarf.prototype.getRenderer = function () {
+    return this.__renderer;
+};
+/**
+ * Returns the AR lib associated with this instance
+ * @returns {SKARF.ArLib} AR lib
+ */
+SKARF.Skarf.prototype.getArLib = function () {
+    return this.__arLib;
 };
 /**
  * Draws tracking data to canvas, and then updates both the AR lib and renderer
  * @param {number} dt Elapsed time since previous frame
  */
 SKARF.Skarf.prototype.update = function (dt) {
-    //draw the video/img to canvas
-    // if (this.videoElem.readyState === this.videoElem.HAVE_ENOUGH_DATA) {
 
-    this.context.drawImage(this.trackingElem, 0, 0, this.canvasElem.width, this.canvasElem.height);
-    this.canvasElem.changed = true;
+    //draw image from tracking element (video, img, canvas) to the actual canvas meant for tracking
+    try {
+        this.__context.drawImage(this.__trackingElem, 0, 0, this.__canvasElem.width, this.__canvasElem.height);
+        this.__canvasElem.changed = true;
+    } catch (err) {
+        if (err.name !== 'NS_ERROR_NOT_AVAILABLE') {
+            throw err;
+        }
+    }
 
     //call updates
-    this.arLib.update(dt);
-    this.renderer.update(dt);
-
-    // }
+    this.__arLib.update(dt);
+    this.__renderer.update(dt);
 };
 /**
  * Adds a callback function that will be called during specific events
@@ -1738,21 +1801,21 @@ SKARF.Skarf.prototype.update = function (dt) {
 SKARF.Skarf.prototype.addCallback = function (type, callbackFn) {
     //pass all callbacks to renderer for now
     //TODO: manage callbacks better
-    this.renderer.addCallback(type, callbackFn);
+    this.__renderer.addCallback(type, callbackFn);
 };
 /**
  * Returns true if the designated main marker has been detected
  * @return {bool} True if the designated main marker has been detected
  */
 SKARF.Skarf.prototype.mainMarkerDetected = function () {
-    return this.arLib.mainMarkerHasEverBeenDetected;
+    return this.__arLib.__mainMarkerHasEverBeenDetected;
 };
 /**
  * Inits camera projection matrix, used only for JSARToolKit.
  * This is called automatically during initialization. Call this function only if you need to re-initialize the camera projection matrix again.
  */
 SKARF.Skarf.prototype.initCameraProjMatrix = function () {
-    if (this.arLib instanceof SKARF.JsArToolKitArLib) {
-        this.arLib.initCameraProjMatrix();
+    if (this.__arLib instanceof SKARF.JsArToolKitArLib) {
+        this.__arLib.initCameraProjMatrix();
     }
 };

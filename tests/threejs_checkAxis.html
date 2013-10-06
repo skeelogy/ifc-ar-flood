@@ -16,7 +16,7 @@
     <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
     <script type="text/javascript" src="/js/lib/BinaryLoader.js"></script>
 
-    <script type="text/javascript" src="/js/skarf.js"></script>
+    <script type="text/javascript" src="/js/skarf.min.js"></script>
 
     <script>
 
@@ -68,7 +68,7 @@
 
         //load a model
         var modelsJsonFile = '/resources/models/models_jsartoolkit_checkAxis.json';
-        var markerManager = new MarkerManager(modelsJsonFile);
+        var markerManager = new SKARF.MarkerManager(modelsJsonFile);
         var transform = new THREE.Object3D();
         scene.add(transform);
         markerManager.loadForMarker('22', transform, 1.0);

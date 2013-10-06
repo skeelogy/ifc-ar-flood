@@ -81,7 +81,7 @@
 
         console.log('Document is ready.');
 
-        $('#thresholdInput').change(function () {
+        $('#thresholdInput').bind('input', function () {
             threshold = $(this).val();
             console.log('threshold = ' + threshold);
         });

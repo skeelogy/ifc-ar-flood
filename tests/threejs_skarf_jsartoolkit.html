@@ -180,13 +180,16 @@
     function setupGui() {
 
         gui = new dat.GUI();
-        gui.close();  //close GUI by default
+        // gui.close();  //close GUI by default
 
         //Tracking folder
         trackingFolder = gui.addFolder('Tracking');
+        trackingFolder.open();
+
         var control = trackingFolder.add(options, 'trackingThreshold', 0, 255).name('Threshold');
         function trackingThreshold_onChange(value) {
-            skarf.arLib.threshold = value;
+            var arLib = skarf.getArLib();
+            arLib.setThreshold(value);
         }
         control.onChange(trackingThreshold_onChange);
 
@@ -202,7 +205,8 @@
 
         control = displayFolder.add(options, 'displayWireframe').name('Wireframe');
         function toggleWireframe(value) {
-            skarf.renderer.setWireframeVisible(value);
+            var renderer = skarf.getRenderer();
+            renderer.setWireframeVisible(value);
             var i, len;
             for (i = 0, len = materials.length; i < len; i++) {
                 materials[i].wireframe = value;
@@ -213,7 +217,8 @@
 
         control = displayFolder.add(options, 'displayLocalAxis').name('Local Axis');
         function toggleLocalAxis(value) {
-            skarf.renderer.setLocalAxisVisible(value);
+            var renderer = skarf.getRenderer();
+            renderer.setLocalAxisVisible(value);
         }
         control.onChange(toggleLocalAxis);
         toggleLocalAxis(options.displayLocalAxis);

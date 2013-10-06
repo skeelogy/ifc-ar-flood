@@ -359,7 +359,7 @@
         //create a RTT visualization plane
         terrainVisGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);
         terrainVisGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-        terrainVisMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: gpuSkulpt.getSculptTexture() });
+        terrainVisMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: gpuSkulpt.getSculptDisplayTexture() });
         materials.push(terrainVisMaterial);
         terrainVisMesh = new THREE.Mesh(terrainVisGeom, terrainVisMaterial);
         terrainVisMesh.position.y = 2;
@@ -469,7 +469,7 @@
             res: WATER_RES,
             dampingFactor: 0.995,
             initialWaterHeight: 0.1,
-            terrainTexture: gpuSkulpt.getSculptTexture(),
+            terrainTexture: gpuSkulpt.getSculptDisplayTexture(),
             density: WATER_DENSITY
         });
 
@@ -557,7 +557,7 @@
     var raycaster = new THREE.Raycaster();
     var intersectPoint = new THREE.Vector3();
     var mousePosNorm = new THREE.Vector2();
-    function detectIntersection() {
+    function detectIntersection(event) {
 
         //get normalized [-1, 1] mouse position within the canvas
         mousePosNorm.x = (event.layerX / $threejsCanvasElem.width()) * 2 - 1;
@@ -582,10 +582,10 @@
         return null;
     }
 
-    function detectIntersectionAndShowSculptCursor() {
+    function detectIntersectionAndShowSculptCursor(event) {
 
         //detect intersection and show cursor
-        intersectPoint = detectIntersection();
+        intersectPoint = detectIntersection(event);
         if (intersectPoint) {
             //show cursor at intersection point
             gpuSkulpt.updateCursor(intersectPoint);
@@ -916,7 +916,7 @@
         }
 
         //update renderer size
-        skarf.renderer.renderer.setSize(width, height);
+        renderer.setSize(width, height);
 
         //centralize
         $threejsContainerElem.css({
@@ -988,12 +988,13 @@
     var isSculpting = false;
     var sculptUvPos = new THREE.Vector2();
     var isDisturbing = false;
+    var mouseDownButton = -1;  //firefox hack (unable to detect RMB during mousemove event)
     function window_onMouseDown(event) {
 
         if (event.ctrlKey) {
 
             //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
+            detectIntersectionAndShowSculptCursor(event);
             if (intersectPoint) {
 
                 //do actual sculpting if clicked
@@ -1004,6 +1005,7 @@
                     isSculpting = true;
                     sculptTerrain(SKULPT.REMOVE, intersectPoint, options.sculptAmount);
                 }
+                mouseDownButton = event.button;
             }
 
         } else if (event.altKey) {
@@ -1015,7 +1017,7 @@
             if (activateDisturb) {
 
                 //detect intersection
-                intersectPoint = detectIntersection();
+                intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
                     isDisturbing = true;
                     if (event.button === 0) {  //LMB
@@ -1026,6 +1028,7 @@
                         gpuWater.source(intersectPoint, -options.waterSinkAmount, options.waterSinkRadius);
                     }
                 }
+                mouseDownButton = event.button;
 
             }
 
@@ -1050,11 +1053,11 @@
         if (event.ctrlKey) {
 
             //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
+            detectIntersectionAndShowSculptCursor(event);
             if (intersectPoint && isSculpting) {
-                if (event.button === 0) {  //LMB
+                if (mouseDownButton === 0) {  //LMB
                     sculptTerrain(SKULPT.ADD, intersectPoint, options.sculptAmount);
-                } else if (event.button === 2) {  //RMB
+                } else if (mouseDownButton === 2) {  //RMB
                     sculptTerrain(SKULPT.REMOVE, intersectPoint, options.sculptAmount);
                 }
             }
@@ -1065,13 +1068,13 @@
             if (activateDisturb && isDisturbing) {
 
                 //detect intersection
-                intersectPoint = detectIntersection();
+                intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
-                    if (event.button === 0) {  //LMB
+                    if (mouseDownButton === 0) {  //LMB
                         gpuWater.source(intersectPoint, options.waterSourceAmount, options.waterSourceRadius);
-                    } else if (event.button === 1) {  //MMB
+                    } else if (mouseDownButton === 1) {  //MMB
                         gpuWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT, WATER_DISTURB_RADIUS);
-                    } else if (event.button === 2) {  //LMB
+                    } else if (mouseDownButton === 2) {  //LMB
                         gpuWater.source(intersectPoint, -options.waterSinkAmount, options.waterSinkRadius);
                     }
                 }
@@ -1089,7 +1092,7 @@
                     var rotation = (event.clientX - mouseRefX);
                     objectsAddObjectRotate(currTransform, rotation);
                 } else {
-                    intersectPoint = detectIntersection();
+                    intersectPoint = detectIntersection(event);
                     if (intersectPoint) {
                         objectsAddObjectProject(currTransform, intersectPoint);
                     }
@@ -1097,7 +1100,7 @@
 
             } else if (isRemovingObject) {
 
-                intersectPoint = detectIntersection();
+                intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
                     objectsRemoveObjectFind(intersectPoint);
                 }
@@ -1109,6 +1112,7 @@
     function window_onMouseUp(event) {
         isSculpting = false;
         isDisturbing = false;
+        mouseDownButton = -1;
     }
 
     function setupEvents() {
@@ -1166,7 +1170,10 @@
         if (ARLIB === 'jsartoolkit') {
             control = arFolder.add(options, 'arTrackingThreshold', 0, 255).name('Tracking Threshold');
             changeTrackingThreshold = function (value) {
-                skarf.arLib.threshold = value;
+                var arLib = skarf.getArLib();
+                if (arLib instanceof SKARF.JsArToolKitArLib) {
+                    arLib.setThreshold(value);
+                }
             };
             control.onChange(changeTrackingThreshold);
         }
@@ -1315,7 +1322,8 @@
 
         control = debugFolder.add(options, 'debugMarkerAxis').name('Marker Axis').listen();
         toggleDebugMarkerAxis = function (value) {
-            skarf.renderer.setLocalAxisVisible(value);
+            var renderer = skarf.getRenderer();
+            renderer.setLocalAxisVisible(value);
             options.debugMarkerAxis = value;
         };
         control.onChange(toggleDebugMarkerAxis);
@@ -1609,7 +1617,7 @@
             var dt = clock.getDelta();  //have to call this before getElapsedTime()
             var time = clock.getElapsedTime();
 
-            terrainVisMaterial.map = gpuSkulpt.getSculptTexture();
+            terrainVisMaterial.map = gpuSkulpt.getSculptDisplayTexture();
             waterVisMaterial.map = gpuWater.getWaterDisplayTexture();
 
             if (options.arOn) {

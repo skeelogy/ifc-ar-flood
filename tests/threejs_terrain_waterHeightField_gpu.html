@@ -344,6 +344,7 @@
         waterMesh = new THREE.Mesh(waterGeom, null);
         waterMesh.castShadow = true;
         waterMesh.receiveShadow = true;
+        // waterMesh.visible = false;
         globalTransform.add(waterMesh);
 
         //create the different water sims
@@ -356,7 +357,7 @@
             dampingFactor: 0.995,
             multisteps: 1,
             initialWaterHeight: 0.1,
-            terrainTexture: gpuSkulpt.getSculptTexture()
+            terrainTexture: gpuSkulpt.getSculptDisplayTexture()
         });
         gpuXWater = new SKUNAMI.GpuXWater({
             renderer: renderer,
@@ -465,7 +466,7 @@
     var raycaster = new THREE.Raycaster();
     var intersectPoint = new THREE.Vector3();
     var mousePosNorm = new THREE.Vector2();
-    function detectIntersection() {
+    function detectIntersection(event) {
 
         mousePosNorm.x = (event.clientX / window.innerWidth) * 2 - 1;
         mousePosNorm.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -484,10 +485,10 @@
         return null;
     }
 
-    function detectIntersectionAndShowSculptCursor() {
+    function detectIntersectionAndShowSculptCursor(event) {
 
         //detect intersection and show cursor
-        intersectPoint = detectIntersection();
+        intersectPoint = detectIntersection(event);
         if (intersectPoint) {
             //show cursor at intersection point
             gpuSkulpt.updateCursor(intersectPoint);
@@ -532,12 +533,13 @@
 
     var isSculpting = false;
     var isDisturbing = false;
+    var mouseDownButton = -1;  //firefox hack (unable to detect RMB during mousemove event)
     function window_onMouseDown(event) {
 
         if (event.ctrlKey) {
 
             //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
+            detectIntersectionAndShowSculptCursor(event);
             if (intersectPoint) {
 
                 //do actual sculpting if clicked
@@ -548,19 +550,20 @@
                     isSculpting = true;
                     gpuSkulpt.sculpt(SKULPT.REMOVE, intersectPoint, options.amount);
                 }
+                mouseDownButton = event.button;
             }
 
         } else if (event.shiftKey) {
 
             //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
-            if (intersectPoint) {
-                //do actual sculpting if clicked
-                if (event.button === 0) {  //LMB
+            // detectIntersectionAndShowSculptCursor(event);
+            // if (intersectPoint) {
+                // //do actual sculpting if clicked
+                // if (event.button === 0) {  //LMB
                     // isSculpting = true;
                     // sculptTerrain('flatten');
-                }
-            }
+                // }
+            // }
 
         } else {
 
@@ -568,7 +571,7 @@
             if (activateDisturb) {
 
                 //detect intersection
-                intersectPoint = detectIntersection();
+                intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
                     isDisturbing = true;
                     if (event.button === 0) {  //LMB
@@ -582,6 +585,7 @@
                             hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
                         }
                     }
+                    mouseDownButton = event.button;
                 }
 
             }
@@ -595,11 +599,11 @@
         if (event.ctrlKey) {
 
             //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
+            detectIntersectionAndShowSculptCursor(event);
             if (intersectPoint && isSculpting) {
-                if (event.button === 0) {  //LMB
+                if (mouseDownButton === 0) {  //LMB
                     gpuSkulpt.sculpt(SKULPT.ADD, intersectPoint, options.amount);
-                } else if (event.button === 2) {  //RMB
+                } else if (mouseDownButton === 2) {  //RMB
                     gpuSkulpt.sculpt(SKULPT.REMOVE, intersectPoint, options.amount);
                 }
             }
@@ -607,12 +611,12 @@
         } else if (event.shiftKey) {
 
             //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
-            if (intersectPoint && isSculpting) {
-                if (event.button === 0) {  //LMB
+            // detectIntersectionAndShowSculptCursor(event);
+            // if (intersectPoint && isSculpting) {
+                // if (event.button === 0) {  //LMB
                     // sculptTerrain('flatten');
-                }
-            }
+                // }
+            // }
 
         } else {
 
@@ -620,15 +624,15 @@
             if (activateDisturb && isDisturbing) {
 
                 //detect intersection
-                intersectPoint = detectIntersection();
+                intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
-                    if (event.button === 0) {  //LMB
+                    if (mouseDownButton === 0) {  //LMB
                         hfWater.disturb(intersectPoint, waterDisturbAmount, waterDisturbRadius);
-                    } else if (event.button === 1) {  //MMB
+                    } else if (mouseDownButton === 1) {  //MMB
                         if (hfWater instanceof SKUNAMI.GpuPipeModelWater) {  //only pipe model water can source
                             hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, WATER_SINK_RADIUS);
                         }
-                    } else if (event.button === 2) {  //LMB
+                    } else if (mouseDownButton === 2) {  //LMB
                         if (hfWater instanceof SKUNAMI.GpuPipeModelWater) {  //only pipe model water can source
                             hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, WATER_SOURCE_RADIUS);
                         }
@@ -642,6 +646,7 @@
     function window_onMouseUp(event) {
         isSculpting = false;
         isDisturbing = false;
+        mouseDownButton = -1;
     }
 
     function setupEvents() {
@@ -894,7 +899,7 @@
                 sphereMesh.position.y = 1.5 + 0.25 * Math.sin(time * 3 + 0.5);
             }
 
-            // visMaterial.map = gpuSkulpt.getSculptTexture();
+            // visMaterial.map = gpuSkulpt.getSculptDisplayTexture();
             visMaterial.map = hfWater.getWaterDisplayTexture();
 
             renderer.autoClear = false;

@@ -218,7 +218,7 @@
         //create a RTT visualization plane
         visGeom = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 1, 1);
         visGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-        visMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: gpuSkulpt.getSculptTexture() });
+        visMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: gpuSkulpt.getSculptDisplayTexture() });
         materials.push(visMaterial);
         visMesh = new THREE.Mesh(visGeom, visMaterial);
         visMesh.position.y = 3;
@@ -288,7 +288,7 @@
     var raycaster = new THREE.Raycaster();
     var intersectPoint = new THREE.Vector3();
     var mousePosNorm = new THREE.Vector2();
-    function detectIntersection() {
+    function detectIntersection(event) {
 
         mousePosNorm.x = (event.clientX / window.innerWidth) * 2 - 1;
         mousePosNorm.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -307,10 +307,10 @@
         return null;
     }
 
-    function detectIntersectionAndShowSculptCursor() {
+    function detectIntersectionAndShowSculptCursor(event) {
 
         //detect intersection and show cursor
-        intersectPoint = detectIntersection();
+        intersectPoint = detectIntersection(event);
         if (intersectPoint) {
             //show cursor at intersection point
             gpuSkulpt.updateCursor(intersectPoint);
@@ -339,12 +339,13 @@
 
     var isSculpting = false;
     var sculptUvPos = new THREE.Vector2();
+    var mouseDownButton = -1;  //firefox hack (unable to detect RMB during mousemove event)
     function window_onMouseDown(event) {
 
         if (event.ctrlKey) {
 
             //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
+            detectIntersectionAndShowSculptCursor(event);
             if (intersectPoint) {
 
                 //do actual sculpting if clicked
@@ -355,19 +356,20 @@
                     isSculpting = true;
                     gpuSkulpt.sculpt(SKULPT.REMOVE, intersectPoint, options.amount);
                 }
+                mouseDownButton = event.button;
             }
 
         } else if (event.shiftKey) {
 
             //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
-            if (intersectPoint) {
-                //do actual sculpting if clicked
-                if (event.button === 0) {  //LMB
+            // detectIntersectionAndShowSculptCursor(event);
+            // if (intersectPoint) {
+                // //do actual sculpting if clicked
+                // if (event.button === 0) {  //LMB
                     // isSculpting = true;
                     // sculptTerrain('flatten');
-                }
-            }
+                // }
+            // }
 
         }
     }
@@ -379,11 +381,11 @@
         if (event.ctrlKey) {
 
             //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
+            detectIntersectionAndShowSculptCursor(event);
             if (intersectPoint && isSculpting) {
-                if (event.button === 0) {  //LMB
+                if (mouseDownButton === 0) {  //LMB
                     gpuSkulpt.sculpt(SKULPT.ADD, intersectPoint, options.amount);
-                } else if (event.button === 2) {  //RMB
+                } else if (mouseDownButton === 2) {  //RMB
                     gpuSkulpt.sculpt(SKULPT.REMOVE, intersectPoint, options.amount);
                 }
             }
@@ -391,18 +393,19 @@
         } else if (event.shiftKey) {
 
             //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor();
-            if (intersectPoint && isSculpting) {
-                if (event.button === 0) {  //LMB
+            // detectIntersectionAndShowSculptCursor(event);
+            // if (intersectPoint && isSculpting) {
+                // if (event.button === 0) {  //LMB
                     // sculptTerrain('flatten');
-                }
-            }
+                // }
+            // }
 
         }
     }
 
     function window_onMouseUp(event) {
         isSculpting = false;
+        mouseDownButton = -1;
     }
 
     function setupEvents() {
@@ -570,7 +573,7 @@
                 sphereMesh.position.y = 1.5 + 0.25 * Math.sin(time * 3 + 0.5);
             }
 
-            visMaterial.map = gpuSkulpt.getSculptTexture();
+            visMaterial.map = gpuSkulpt.getSculptDisplayTexture();
 
             renderer.autoClear = false;
             renderer.clear();

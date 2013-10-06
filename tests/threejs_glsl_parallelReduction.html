@@ -78,7 +78,8 @@
         }
 
         //create a DataTexture to feed into the RTT system
-        dataTexture = new THREE.DataTexture(dataTextureData, RES, RES, THREE.RGBAFormat, THREE.FloatType);
+        dataTexture = new THREE.DataTexture(dataTextureData, RES, RES, THREE.RGBAFormat, THREE.FloatType, undefined, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.NearestFilter, THREE.NearestFilter);
+        dataTexture.generateMipmaps = false;
         dataTexture.needsUpdate = true;
 
         // console.log(dataTexture.image.data);

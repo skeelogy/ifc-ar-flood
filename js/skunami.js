@@ -1,7 +1,7 @@
 /**
  * @fileOverview GPU height field water simulations for Three.js flat planes
  * @author Skeel Lee <skeel@skeelogy.com>
- * @version 1.0.0
+ * @version 1.0.1
  *
  * @example
  * //How to setup a water sim:
@@ -62,7 +62,7 @@
 /**
  * @namespace
  */
-var SKUNAMI = SKUNAMI || { version: '1.0.0' };
+var SKUNAMI = SKUNAMI || { version: '1.0.1' };
 console.log('Using SKUNAMI ' + SKUNAMI.version);
 
 /**
@@ -141,11 +141,6 @@ SKUNAMI.GpuHeightFieldWater = function (options) {
 
     //create a boundary texture
     this.__boundaryData = new Float32Array(4 * this.__res * this.__res);
-    this.__boundaryTexture = new THREE.DataTexture(null, this.__res, this.__res, THREE.RGBAFormat, THREE.FloatType);
-
-    //create an empty texture because the default value of textures does not seem to be 0?
-    this.__emptyTexture = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__linearFloatRgbaParams);
-    this.__emptyTexture.generateMipmaps = false;
 
     //camera depth range (for obstacles)
     this.__rttObstaclesCameraRange = 50.0;
@@ -179,11 +174,43 @@ SKUNAMI.GpuHeightFieldWater.prototype.setShouldDisplaySimTexture = function (val
     this.__shouldDisplaySimTexture = value;
 };
 SKUNAMI.GpuHeightFieldWater.prototype.__init = function () {
+
     this.__checkExtensions();
-    this.__setupShaders();
     this.__setupRttScene();
-    this.__setupVtf();
+
+    //setup a reset material for clearing render targets
+    this.__resetMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uColor: { type: 'v4', value: new THREE.Vector4() }
+        },
+        vertexShader: this.__shaders.vert['passUv'],
+        fragmentShader: this.__shaders.frag['setColor']
+    });
+
+    //create an empty texture because the default value of textures does not seem to be 0?
+    if (this.__supportsTextureFloatLinear) {
+        this.__emptyTexture = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__linearFloatRgbaParams);
+    } else {
+        this.__emptyTexture = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__nearestFloatRgbaParams);
+    }
+    this.__emptyTexture.generateMipmaps = false;
+    this.__clearRenderTarget(this.__emptyTexture, 0.0, 0.0, 0.0, 0.0);
+
+    //create a DataTexture for the boundary, with filtering type based on whether linear filtering is available
+    if (this.__supportsTextureFloatLinear) {
+        //use linear with mipmapping
+        this.__boundaryTexture = new THREE.DataTexture(null, this.__res, this.__res, THREE.RGBAFormat, THREE.FloatType);
+        this.__boundaryTexture.generateMipmaps = true;
+    } else {
+        //resort to nearest filter only, without mipmapping
+        this.__boundaryTexture = new THREE.DataTexture(null, this.__res, this.__res, THREE.RGBAFormat, THREE.FloatType, undefined, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.NearestFilter, THREE.NearestFilter);
+        this.__boundaryTexture.generateMipmaps = false;
+    }
     this.__initDataAndTextures();
+
+    this.__setupRttRenderTargets();
+    this.__setupShaders();
+    this.__setupVtf();
 
     //init parallel reducer
     this.__pr = new SKPR.ParallelReducer(this.__renderer, this.__res, 1);
@@ -378,7 +405,7 @@ SKUNAMI.GpuHeightFieldWater.prototype.__shaders = {
                 "t.r += tDisturb.r;",
 
                 //add flood
-                "if (uIsFlooding == 1) {",
+                "if (uIsFlooding == 1) {",  //this is used for pipe model water only
                     "t.r += uFloodAmount;",
                 "}",
 
@@ -950,7 +977,7 @@ SKUNAMI.GpuHeightFieldWater.prototype.__shaders = {
             "vec4 encode_float(float val) {",
 
                 "if (val == 0.0) {",
-                    "return vec4(0, 0, 0, 0);",
+                    "return vec4(0.0, 0.0, 0.0, 0.0);",
                 "}",
 
                 "float sign = val > 0.0 ? 0.0 : 1.0;",
@@ -1226,7 +1253,9 @@ SKUNAMI.GpuHeightFieldWater.prototype.__setupShaders = function () {
             uIsSourcing: { type: 'i', value: 0 },
             uSourcePos: { type: 'v2', value: new THREE.Vector2(0.5, 0.5) },
             uSourceAmount: { type: 'f', value: this.__sourceAmount },
-            uSourceRadius: { type: 'f', value: this.__sourceRadius }
+            uSourceRadius: { type: 'f', value: this.__sourceRadius },
+            uIsFlooding: { type: 'i', value: 0 },  //for pipe model water only
+            uFloodAmount: { type: 'f', value: 0 }  //for pipe model water only
         },
         vertexShader: this.__shaders.vert['passUv'],
         fragmentShader: this.__shaders.frag['hfWater_disturb']
@@ -1243,14 +1272,6 @@ SKUNAMI.GpuHeightFieldWater.prototype.__setupShaders = function () {
         },
         vertexShader: this.__shaders.vert['passUv'],
         fragmentShader: this.__getWaterFragmentShaderContent()
-    });
-
-    this.__resetMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-            uColor: { type: 'v4', value: new THREE.Vector4() }
-        },
-        vertexShader: this.__shaders.vert['passUv'],
-        fragmentShader: this.__shaders.frag['setColor']
     });
 
     this.__resetMaskedMaterial = new THREE.ShaderMaterial({
@@ -1358,10 +1379,10 @@ SKUNAMI.GpuHeightFieldWater.prototype.__setupShaders = function () {
     });
 
     this.__channelVectors = {
-        'r': new THREE.Vector4(1, 0, 0, 0),
-        'g': new THREE.Vector4(0, 1, 0, 0),
-        'b': new THREE.Vector4(0, 0, 1, 0),
-        'a': new THREE.Vector4(0, 0, 0, 1)
+        'r': new THREE.Vector4(1.0, 0.0, 0.0, 0.0),
+        'g': new THREE.Vector4(0.0, 1.0, 0.0, 0.0),
+        'b': new THREE.Vector4(0.0, 0.0, 1.0, 0.0),
+        'a': new THREE.Vector4(0.0, 0.0, 0.0, 1.0)
     };
 };
 //Sets up the render-to-texture scene (2 render targets by default)
@@ -1379,25 +1400,42 @@ SKUNAMI.GpuHeightFieldWater.prototype.__setupRttScene = function () {
     this.__rttQuadGeom = new THREE.PlaneGeometry(this.__size, this.__size);
     this.__rttQuadMesh = new THREE.Mesh(this.__rttQuadGeom, this.__waterSimMaterial);
     this.__rttScene.add(this.__rttQuadMesh);
-
-    //create RTT render targets (we need two to do feedback)
-    this.__rttRenderTarget1 = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__linearFloatRgbaParams);
+};
+SKUNAMI.GpuHeightFieldWater.prototype.__setupRttRenderTargets = function () {
+    //create RTT render targets (need two for feedback)
+    if (this.__supportsTextureFloatLinear) {
+        this.__rttRenderTarget1 = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__linearFloatRgbaParams);
+    } else {
+        this.__rttRenderTarget1 = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__nearestFloatRgbaParams);
+    }
     this.__rttRenderTarget1.generateMipmaps = false;
+    this.__clearRenderTarget(this.__rttRenderTarget1, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
     this.__rttRenderTarget2 = this.__rttRenderTarget1.clone();
+    this.__clearRenderTarget(this.__rttRenderTarget2, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
 
     //create a render target purely for display purposes
     this.__rttDisplay = this.__rttRenderTarget1.clone();
+    this.__clearRenderTarget(this.__rttDisplay, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
 
     //create another RTT render target encoding float to 4-byte data
     this.__rttFloatEncoderRenderTarget = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__nearestFloatRgbaParams);
     this.__rttFloatEncoderRenderTarget.generateMipmaps = false;
+    this.__clearRenderTarget(this.__rttFloatEncoderRenderTarget, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
 
     //some render targets for blurred textures
     this.__rttCombinedHeightsBlurredRenderTarget = this.__rttRenderTarget1.clone();
+    this.__clearRenderTarget(this.__rttCombinedHeightsBlurredRenderTarget, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
     this.__rttDynObstaclesBlurredRenderTarget = this.__rttRenderTarget1.clone();
+    this.__clearRenderTarget(this.__rttDynObstaclesBlurredRenderTarget, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
 
     //create render target for storing the disturbed map (due to interaction with rigid bodes)
     this.__rttDisturbMapRenderTarget = this.__rttRenderTarget1.clone();
+    this.__clearRenderTarget(this.__rttDisturbMapRenderTarget, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
+};
+SKUNAMI.GpuHeightFieldWater.prototype.__clearRenderTarget = function (renderTarget, r, g, b, a) {
+    this.__rttQuadMesh.material = this.__resetMaterial;
+    this.__resetMaterial.uniforms['uColor'].value.set(r, g, b, a);
+    this.__renderer.render(this.__rttScene, this.__rttCamera, renderTarget, false);
 };
 //Sets up the vertex-texture-fetch for the given mesh
 SKUNAMI.GpuHeightFieldWater.prototype.__setupVtf = function () {
@@ -1421,11 +1459,26 @@ SKUNAMI.GpuHeightFieldWater.prototype.__setupVtf = function () {
 //Checks for WebGL extensions. Checks for OES_texture_float_linear and vertex texture fetch capability by default.
 SKUNAMI.GpuHeightFieldWater.prototype.__checkExtensions = function (renderer) {
     var context = this.__renderer.context;
-    if (!context.getExtension('OES_texture_float_linear')) {
-        throw new Error('Extension not available: OES_texture_float_linear');
+
+    //determine floating point texture support
+    //https://www.khronos.org/webgl/public-mailing-list/archives/1306/msg00002.html
+
+    //get floating point texture support
+    if (!context.getExtension('OES_texture_float')) {
+        var msg = 'No support for floating point textures. Extension not available: OES_texture_float';
+        alert(msg);
+        throw new Error(msg);
     }
+
+    //get floating point linear filtering support
+    this.__supportsTextureFloatLinear = context.getExtension('OES_texture_float_linear') !== null;
+    console.log('Texture float linear filtering support: ' + this.__supportsTextureFloatLinear);
+
+    //get vertex texture support
     if (!context.getParameter(context.MAX_VERTEX_TEXTURE_IMAGE_UNITS)) {
-        throw new Error('Vertex textures not supported on your graphics card');
+        var msg = 'Vertex textures not supported on your graphics card';
+        alert(msg);
+        throw new Error(msg);
     }
 };
 SKUNAMI.GpuHeightFieldWater.prototype.__initDataAndTextures = function () {
@@ -1522,9 +1575,7 @@ SKUNAMI.GpuHeightFieldWater.prototype.reset = function () {
 };
 SKUNAMI.GpuHeightFieldWater.prototype.__resetPass = function () {
     //reset height in main render target
-    this.__rttQuadMesh.material = this.__resetMaterial;
-    this.__resetMaterial.uniforms['uColor'].value.set(this.__meanHeight, 0, 0, this.__meanHeight);
-    this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttRenderTarget2, false);
+    this.__clearRenderTarget(this.__rttRenderTarget2, this.__meanHeight, 0, 0, this.__meanHeight);
     this.__swapRenderTargets();
 };
 /**
@@ -1549,16 +1600,23 @@ SKUNAMI.GpuHeightFieldWater.prototype.flood = function (volume) {
     throw new Error('Abstract method not implemented');
 };
 SKUNAMI.GpuHeightFieldWater.prototype.__disturbPass = function () {
-    if (this.__isDisturbing) {
-        this.__rttQuadMesh.material = this.__disturbAndSourceMaterial;
-        this.__disturbAndSourceMaterial.uniforms['uTexture'].value = this.__rttRenderTarget2;
-        this.__disturbAndSourceMaterial.uniforms['uStaticObstaclesTexture'].value = this.__rttStaticObstaclesRenderTarget;
+    var shouldRender = false;
+    if (this.__disturbMapHasUpdated) {
+        // this.__disturbAndSourceMaterial.uniforms['uStaticObstaclesTexture'].value = this.__rttDynObstaclesRenderTarget;
         this.__disturbAndSourceMaterial.uniforms['uDisturbTexture'].value = this.__rttDisturbMapRenderTarget;
+        shouldRender = true;
+    }
+    if (this.__isDisturbing && this.__disturbAmount !== 0.0) {
+        // this.__disturbAndSourceMaterial.uniforms['uStaticObstaclesTexture'].value = this.__rttStaticObstaclesRenderTarget;
         this.__disturbAndSourceMaterial.uniforms['uIsDisturbing'].value = this.__isDisturbing;
         this.__disturbAndSourceMaterial.uniforms['uDisturbPos'].value.copy(this.__disturbUvPos);
         this.__disturbAndSourceMaterial.uniforms['uDisturbAmount'].value = this.__disturbAmount;
         this.__disturbAndSourceMaterial.uniforms['uDisturbRadius'].value = this.__disturbRadius / this.__size;
-
+        shouldRender = true;
+    }
+    if (shouldRender) {
+        this.__rttQuadMesh.material = this.__disturbAndSourceMaterial;
+        this.__disturbAndSourceMaterial.uniforms['uTexture'].value = this.__rttRenderTarget2;
         this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttRenderTarget1, false);
         this.__swapRenderTargets();
 
@@ -1586,8 +1644,8 @@ SKUNAMI.GpuHeightFieldWater.prototype.__calculateSubsteps = function (dt) {
     return 1;
 };
 /**
- * Updates the water simulation
- * @param  {number} dt Elapsed time from previous frame
+ * Updates the water simulation<br/><strong>NOTE:  This needs to be called every frame, after renderer.clear() and before renderer.render(...)</strong>
+ * @param  {number} dt Elapsed time since previous frame
  */
 SKUNAMI.GpuHeightFieldWater.prototype.update = function (dt) {
 
@@ -1723,11 +1781,8 @@ SKUNAMI.GpuHeightFieldWater.prototype.__updateStaticObstacleTexture = function (
     //static obstacle map just needs the top height (like the terrain)
 
     //clear obstacle texture first
-    this.__rttQuadMesh.material = this.__resetMaterial;
-    this.__resetMaterial.uniforms['uColor'].value.set(0, 0, 0, 1);  //set unused alpha channel to 1 so that we can see the result
-    this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttStaticObstaclesRenderTarget, false);
-    this.__resetMaterial.uniforms['uColor'].value.set(0, 0, 0, 0);
-    this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttObstacleTopRenderTarget, false);
+    this.__clearRenderTarget(this.__rttStaticObstaclesRenderTarget, 0.0, 0.0, 0.0, 1.0);  //set unused alpha channel to 1 so that we can see the result
+    this.__clearRenderTarget(this.__rttObstacleTopRenderTarget, 0.0, 0.0, 0.0, 0.0);
 
     var that = this;
 
@@ -1780,8 +1835,8 @@ SKUNAMI.GpuHeightFieldWater.prototype.__updateDynObstacleTexture = function (dt)
     //clear obstacle textures
     this.__rttQuadMesh.material = this.__resetMaskedMaterial;
     this.__resetMaskedMaterial.uniforms['uTexture'].value = this.__rttDynObstaclesRenderTarget;
-    this.__resetMaskedMaterial.uniforms['uColor'].value.set(0, 0, 0, 0);
-    this.__resetMaskedMaterial.uniforms['uChannelMask'].value.set(1, 1, 0, 1);  //don't clear B channel which stores previous displaced vol
+    this.__resetMaskedMaterial.uniforms['uColor'].value.set(0.0, 0.0, 0.0, 0.0);
+    this.__resetMaskedMaterial.uniforms['uChannelMask'].value.set(1.0, 1.0, 0.0, 1.0);  //don't clear B channel which stores previous displaced vol
     this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttDynObstaclesRenderTarget, false);
 
     //combine water and terrain heights into one and then blur it
@@ -1817,10 +1872,8 @@ SKUNAMI.GpuHeightFieldWater.prototype.__updateDynObstacleTexture = function (dt)
             object.visible = true;
 
             //clear top and bottom render targets
-            that.__rttQuadMesh.material = that.__resetMaterial;
-            that.__resetMaterial.uniforms['uColor'].value.set(0, 0, 0, 0);
-            that.__renderer.render(that.__rttScene, that.__rttCamera, that.__rttObstacleTopRenderTarget, false);
-            that.__renderer.render(that.__rttScene, that.__rttCamera, that.__rttObstacleBottomRenderTarget, false);
+            that.__clearRenderTarget(that.__rttObstacleTopRenderTarget, 0.0, 0.0, 0.0, 0.0);
+            that.__clearRenderTarget(that.__rttObstacleBottomRenderTarget, 0.0, 0.0, 0.0, 0.0);
 
             //render top and bottom depth maps
             that.__renderer.render(that.__scene, that.__rttObstaclesTopCamera, that.__rttObstacleTopRenderTarget, false);
@@ -2489,7 +2542,7 @@ SKUNAMI.GpuTessendorfIWaveWater.prototype.__loadKernelTexture = function () {
 };
 
 /**
- * GPU height field water based on the hydrostatic pipe model
+ * GPU height field water based on the hydrostatic pipe model ("Fast Hydraulic Erosion Simulation and Visualization on GPU", Xing Mei, Philippe Decaudin and Bao-Gang Hu, Pacific Graphics 2007)
  * @constructor
  * @extends {SKUNAMI.GpuHeightFieldWater}
  * @param {object} options Options
@@ -2572,14 +2625,6 @@ SKUNAMI.GpuPipeModelWater.prototype.__setupShaders = function () {
         fragmentShader: this.__getWaterFragmentShaderContent()
     });
 
-    this.__clearMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-            uColor: { type: 'v4', value: new THREE.Vector4(this.__initialWaterHeight, this.__initialWaterHeight, this.__initialWaterHeight, this.__initialWaterHeight) }
-        },
-        vertexShader: this.__shaders.vert['passUv'],
-        fragmentShader: this.__shaders.frag['setColor']
-    });
-
     this.__calcFinalWaterHeightMaterial = new THREE.ShaderMaterial({
         uniforms: {
             uTerrainTexture: { type: 't', value: this.__emptyTexture },
@@ -2597,17 +2642,24 @@ SKUNAMI.GpuPipeModelWater.prototype.__setupShaders = function () {
     this.__disturbAndSourceMaterial.uniforms['uIsFlooding'] = { type: 'i', value: 0 };
     this.__disturbAndSourceMaterial.uniforms['uFloodAmount'] = { type: 'f', value: this.__floodAmount };
 };
-SKUNAMI.GpuPipeModelWater.prototype.__setupRttScene = function () {
+SKUNAMI.GpuPipeModelWater.prototype.__setupRttRenderTargets = function () {
 
-    SKUNAMI.GpuHeightFieldWater.prototype.__setupRttScene.call(this);
+    SKUNAMI.GpuHeightFieldWater.prototype.__setupRttRenderTargets.call(this);
 
     //create RTT render targets for flux (we need two to do feedback)
-    this.__rttRenderTargetFlux1 = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__linearFloatRgbaParams);
+    if (this.__supportsTextureFloatLinear) {
+        this.__rttRenderTargetFlux1 = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__linearFloatRgbaParams);
+    } else {
+        this.__rttRenderTargetFlux1 = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__nearestFloatRgbaParams);
+    }
     this.__rttRenderTargetFlux1.generateMipmaps = false;
+    this.__clearRenderTarget(this.__rttRenderTargetFlux1, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
     this.__rttRenderTargetFlux2 = this.__rttRenderTargetFlux1.clone();
+    this.__clearRenderTarget(this.__rttRenderTargetFlux2, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
 
     //create another RTT render target for storing the combined terrain + water heights
     this.__rttCombinedHeight = this.__rttRenderTarget1.clone();
+    this.__clearRenderTarget(this.__rttCombinedHeight, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
 };
 /**
  * Sources water into the simulation and causes water level to rise.
@@ -2635,38 +2687,32 @@ SKUNAMI.GpuPipeModelWater.prototype.flood = function (volume) {
 SKUNAMI.GpuPipeModelWater.prototype.__disturbPass = function () {
     var shouldRender = false;
     if (this.__disturbMapHasUpdated) {
-        this.__rttQuadMesh.material = this.__disturbAndSourceMaterial;
-        this.__disturbAndSourceMaterial.uniforms['uTexture'].value = this.__rttRenderTarget2;
         // this.__disturbAndSourceMaterial.uniforms['uStaticObstaclesTexture'].value = this.__rttDynObstaclesRenderTarget;
         this.__disturbAndSourceMaterial.uniforms['uDisturbTexture'].value = this.__rttDisturbMapRenderTarget;
         shouldRender = true;
     }
-    if (this.__isDisturbing) {
-        this.__rttQuadMesh.material = this.__disturbAndSourceMaterial;
-        this.__disturbAndSourceMaterial.uniforms['uTexture'].value = this.__rttRenderTarget2;
+    if (this.__isDisturbing && this.__disturbAmount !== 0.0) {
         this.__disturbAndSourceMaterial.uniforms['uIsDisturbing'].value = this.__isDisturbing;
         this.__disturbAndSourceMaterial.uniforms['uDisturbPos'].value.copy(this.__disturbUvPos);
         this.__disturbAndSourceMaterial.uniforms['uDisturbAmount'].value = this.__disturbAmount;
         this.__disturbAndSourceMaterial.uniforms['uDisturbRadius'].value = this.__disturbRadius / this.__size;
         shouldRender = true;
     }
-    if (this.__isSourcing) {
-        this.__rttQuadMesh.material = this.__disturbAndSourceMaterial;
-        this.__disturbAndSourceMaterial.uniforms['uTexture'].value = this.__rttRenderTarget2;
+    if (this.__isSourcing && this.__sourceAmount !== 0.0) {
         this.__disturbAndSourceMaterial.uniforms['uIsSourcing'].value = this.__isSourcing;
         this.__disturbAndSourceMaterial.uniforms['uSourcePos'].value.copy(this.__sourceUvPos);
         this.__disturbAndSourceMaterial.uniforms['uSourceAmount'].value = this.__sourceAmount;
         this.__disturbAndSourceMaterial.uniforms['uSourceRadius'].value = this.__sourceRadius / this.__size;
         shouldRender = true;
     }
-    if (this.__isFlooding) {
-        this.__rttQuadMesh.material = this.__disturbAndSourceMaterial;
-        this.__disturbAndSourceMaterial.uniforms['uTexture'].value = this.__rttRenderTarget2;
+    if (this.__isFlooding && this.__floodAmount !== 0.0) {
         this.__disturbAndSourceMaterial.uniforms['uIsFlooding'].value = this.__isFlooding;
         this.__disturbAndSourceMaterial.uniforms['uFloodAmount'].value = this.__floodAmount;
         shouldRender = true;
     }
     if (shouldRender) {
+        this.__rttQuadMesh.material = this.__disturbAndSourceMaterial;
+        this.__disturbAndSourceMaterial.uniforms['uTexture'].value = this.__rttRenderTarget2;
         this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttRenderTarget1, false);
         this.__swapRenderTargets();
 
@@ -2685,13 +2731,10 @@ SKUNAMI.GpuPipeModelWater.prototype.__calculateSubsteps = function (dt) {
 };
 SKUNAMI.GpuPipeModelWater.prototype.__resetPass = function () {
     //init rttRenderTarget2 to initial height value
-    this.__rttQuadMesh.material = this.__clearMaterial;
-    this.__clearMaterial.uniforms['uColor'].value.set(this.__initialWaterHeight, this.__initialWaterHeight, this.__initialWaterHeight, this.__initialWaterHeight);
-    this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttRenderTarget2, false);
+    this.__clearRenderTarget(this.__rttRenderTarget2, this.__initialWaterHeight, this.__initialWaterHeight, this.__initialWaterHeight, this.__initialWaterHeight);
 
     //init all channels of flux texture to 0.0
-    this.__clearMaterial.uniforms['uColor'].value.set(0.0, 0.0, 0.0, 0.0);
-    this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttRenderTargetFlux2, false);
+    this.__clearRenderTarget(this.__rttRenderTargetFlux2, 0.0, 0.0, 0.0, 0.0);
 };
 SKUNAMI.GpuPipeModelWater.prototype.__waterSimPass = function (substepDt) {
 

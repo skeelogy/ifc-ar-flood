@@ -488,7 +488,7 @@
     var mousePosNorm = new THREE.Vector2();
     var projector = new THREE.Projector();
     var raycaster = new THREE.Raycaster();
-    function detectIntersection() {
+    function detectIntersection(event) {
 
         mousePosNorm.x = (event.clientX / window.innerWidth) * 2 - 1;
         mousePosNorm.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -505,7 +505,7 @@
         }
     }
 
-    function detectIntersectionDynObjects() {
+    function detectIntersectionDynObjects(event) {
 
         mousePosNorm.x = (event.clientX / window.innerWidth) * 2 - 1;
         mousePosNorm.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -545,15 +545,17 @@
     }
 
     var isDisturbing = false;
+    var mouseDownButton = -1;  //firefox hack (unable to detect RMB during mousemove event)
     var intersectObj;
     function window_onMouseDown(event) {
         if (event.shiftKey) {
             if (event.button === 0) {  //LMB
-                intersectObj = detectIntersectionDynObjects();
+                intersectObj = detectIntersectionDynObjects(event);
                 if (intersectObj) {
                     intersectObj.applyCentralImpulse(new THREE.Vector3(Math.random(), Math.random(), Math.random()).sub(intersectObj.position).multiplyScalar(5 * intersectObj.mass));
                 }
             }
+            mouseDownButton = event.button;
         } else {
             if (activateDisturb) {
                 if (event.button === 0) {  //LMB
@@ -561,7 +563,7 @@
                     isDisturbing = true;
 
                     //detect intersection
-                    intersectPoint = detectIntersection();
+                    intersectPoint = detectIntersection(event);
                     if (intersectPoint) {
                         hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
                     }
@@ -571,7 +573,7 @@
                     isDisturbing = true;
 
                     //detect intersection
-                    intersectPoint = detectIntersection();
+                    intersectPoint = detectIntersection(event);
                     if (intersectPoint) {
                         hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
                     }
@@ -581,12 +583,13 @@
                     isDisturbing = true;
 
                     //detect intersection
-                    intersectPoint = detectIntersection();
+                    intersectPoint = detectIntersection(event);
                     if (intersectPoint) {
                         hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
                     }
 
                 }
+                mouseDownButton = event.button;
             }
         }
     }
@@ -596,21 +599,21 @@
         event.preventDefault();
 
         if (activateDisturb && isDisturbing) {
-            if (event.button === 0) {  //LMB
+            if (mouseDownButton === 0) {  //LMB
                 //detect intersection
-                intersectPoint = detectIntersection();
+                intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
                     hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
                 }
-            } else if (event.button === 1) {  //MMB
+            } else if (mouseDownButton === 1) {  //MMB
                 //detect intersection
-                intersectPoint = detectIntersection();
+                intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
                     hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
                 }
-            } else if (event.button === 2) {  //LMB
+            } else if (mouseDownButton === 2) {  //LMB
                 //detect intersection
-                intersectPoint = detectIntersection();
+                intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
                     hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
                 }
@@ -620,6 +623,7 @@
 
     function window_onMouseUp(event) {
         isDisturbing = false;
+        mouseDownButton = -1;
     }
 
     function setupEvents() {
