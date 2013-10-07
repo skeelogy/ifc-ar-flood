@@ -26,18 +26,17 @@ The main aims of this project:
 
 Main demo video:
 
-[![ScreenShot](http://skeelogy.github.io/ifc-ar-flood/images/screenshot_mainDemoVideo.jpg)](http://www.youtube.com/watch?v=qEFH_r_X7kY)
+[![ScreenShot](http://skeelogy.github.io/ifc-ar-flood/screenshots/video_main.jpg)](http://www.youtube.com/watch?v=qEFH_r_X7kY)
 
 ### Demos
 
-* [Main demo](http://skeelogy.github.io/ifc-ar-flood/demos/ifc_ar_flood_main.html)
+* [Main demo](http://skeelogy.github.io/ifc-ar-flood/demo.html)
 
 ### Useful Info
 
-Some useful information can be found in the [wiki pages](https://github.com/skeelogy/ifc-ar-flood/wiki/_pages), such as:
-
 * [Running The HTML Files Locally In Your Web Browser](https://github.com/skeelogy/ifc-ar-flood/wiki/Running-The-HTML-Files-Locally-In-Your-Web-Browser)
 * [Getting WebRTC `getUserMedia` To Work](https://github.com/skeelogy/ifc-ar-flood/wiki/Getting-WebRTC-getUserMedia-To-Work)
+* [Items Needed For The Demo](https://github.com/skeelogy/ifc-ar-flood/wiki/Items-Needed-For-The-Demo)
 
 ### License
 
