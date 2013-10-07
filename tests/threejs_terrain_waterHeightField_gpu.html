@@ -4,26 +4,26 @@
     <title>IFC - GPU Terrain and Height Field Water</title>
     <meta charset="UTF-8"/>
 
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="../css/style.css">
 
     <!--load helper libraries-->
-    <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-    <script type="text/javascript" src="/js/lib/seedrandom.js"></script>
-    <script type="text/javascript" src="/js/lib/StackBlur.js"></script>
-    <script type="text/javascript" src="/js/skparallelreduce.min.js"></script>
+    <script type="text/javascript" src="../js/lib/jquery-2.0.2.min.js"></script>
+    <script type="text/javascript" src="../js/lib/seedrandom.js"></script>
+    <script type="text/javascript" src="../js/lib/StackBlur.js"></script>
+    <script type="text/javascript" src="../js/skparallelreduce.min.js"></script>
 
     <!--load AR and 3D libraries-->
-    <script type="text/javascript" src="/js/lib/three.min.js"></script>
-    <script type="text/javascript" src="/js/lib/Detector.js"></script>
-    <script type="text/javascript" src="/js/lib/stats.min.js"></script>
-    <script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
-    <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
+    <script type="text/javascript" src="../js/lib/three.min.js"></script>
+    <script type="text/javascript" src="../js/lib/Detector.js"></script>
+    <script type="text/javascript" src="../js/lib/stats.min.js"></script>
+    <script type="text/javascript" src="../js/lib/dat.gui.min.js"></script>
+    <script type="text/javascript" src="../js/lib/OrbitControls.js"></script>
 
     <!--load terrain libraries-->
-    <script type="text/javascript" src="/js/skulpt.min.js"></script>
+    <script type="text/javascript" src="../js/skulpt.min.js"></script>
 
     <!--load water libraries-->
-    <script type="text/javascript" src="/js/skunami.min.js"></script>
+    <script type="text/javascript" src="../js/skunami.min.js"></script>
 
     <script>
 
@@ -63,20 +63,20 @@
     var gpuSkulpt;
 
     var terrainImages = {
-        'IGMS1': '/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg',
-        'IGMS2': '/resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg',
-        'IGMS3': '/resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg',
-        'IGMS4': '/resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg',
-        'IGMS5': '/resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg',
-        'Clouds': '/resources/images/terrain/clouds_256.png'
+        'IGMS1': '../resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg',
+        'IGMS2': '../resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg',
+        'IGMS3': '../resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg',
+        'IGMS4': '../resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg',
+        'IGMS5': '../resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg',
+        'Clouds': '../resources/images/terrain/clouds_256.png'
     };
     var terrainImageSettings = {
-        '/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg': { 'preblur': 5, 'height': 1.5, 'midGreyIsLowest': true },
-        '/resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg': { 'preblur': 1, 'height': 0.3, 'midGreyIsLowest': true },
-        '/resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg': { 'preblur': 3, 'height': 0.3, 'midGreyIsLowest': true },
-        '/resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg': { 'preblur': 2, 'height': 0.3, 'midGreyIsLowest': true },
-        '/resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg': { 'preblur': 3, 'height': 0.3, 'midGreyIsLowest': true },
-        '/resources/images/terrain/clouds_256.png': { 'preblur': 0, 'height': 2, 'midGreyIsLowest': false }
+        '../resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg': { 'preblur': 5, 'height': 1.5, 'midGreyIsLowest': true },
+        '../resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg': { 'preblur': 1, 'height': 0.3, 'midGreyIsLowest': true },
+        '../resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg': { 'preblur': 3, 'height': 0.3, 'midGreyIsLowest': true },
+        '../resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg': { 'preblur': 2, 'height': 0.3, 'midGreyIsLowest': true },
+        '../resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg': { 'preblur': 3, 'height': 0.3, 'midGreyIsLowest': true },
+        '../resources/images/terrain/clouds_256.png': { 'preblur': 0, 'height': 2, 'midGreyIsLowest': false }
     };
     var waterSimTypes = {
         'Pipe Model': 'gpuPipeModelWater',

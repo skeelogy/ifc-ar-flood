@@ -5,7 +5,7 @@
     <meta charset="UTF-8"/>
 
     <link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="css/style.css">
     <style type="text/css">
         #info-container {
             margin:0px 0px 0;
@@ -23,49 +23,44 @@
     </style>
 
     <!--load helper libraries-->
-    <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-    <script type="text/javascript" src="/js/lib/StackBlur.js"></script>
-    <script type="text/javascript" src="/js/skparallelreduce.min.js"></script>
+    <script type="text/javascript" src="js/lib/jquery-2.0.2.min.js"></script>
+    <script type="text/javascript" src="js/lib/StackBlur.js"></script>
+    <script type="text/javascript" src="js/skparallelreduce.min.js"></script>
 
     <!--load 3D libraries-->
-    <script type="text/javascript" src="/js/lib/three.min.js"></script>
-    <script type="text/javascript" src="/js/lib/Detector.js"></script>
-    <script type="text/javascript" src="/js/lib/stats.min.js"></script>
-    <script type="text/javascript" src="/js/lib/threex.rendererstats.js"></script>
-    <script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
-    <script type="text/javascript" src="/js/lib/OBJMTLLoader.js"></script>
-    <script type="text/javascript" src="/js/lib/MTLLoader.js"></script>
-    <script type="text/javascript" src="/js/lib/BinaryLoader.js"></script>
-    <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
+    <script type="text/javascript" src="js/lib/three.min.js"></script>
+    <script type="text/javascript" src="js/lib/Detector.js"></script>
+    <script type="text/javascript" src="js/lib/stats.min.js"></script>
+    <script type="text/javascript" src="js/lib/threex.rendererstats.js"></script>
+    <script type="text/javascript" src="js/lib/dat.gui.min.js"></script>
+    <script type="text/javascript" src="js/lib/OBJMTLLoader.js"></script>
+    <script type="text/javascript" src="js/lib/MTLLoader.js"></script>
+    <script type="text/javascript" src="js/lib/OrbitControls.js"></script>
 
     <!--load AR libraries-->
-    <script type="text/javascript" src="/js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/svd.js"></script>
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/posit1.js"></script>
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/cv.js"></script>
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/aruco.js"></script>
-    <script type="text/javascript" src="/js/skarf.min.js"></script>
+    <script type="text/javascript" src="js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
+    <script type="text/javascript" src="js/skarf.min.js"></script>
 
     <!--load webcam streaming libraries-->
-    <script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
-    <script type="text/javascript" src="/js/streamvideo.js"></script>
+    <script type="text/javascript" src="js/lib/webrtc_adapter.js"></script>
+    <script type="text/javascript" src="js/streamvideo.js"></script>
 
     <!--load terrain libraries-->
-    <script type="text/javascript" src="/js/skulpt.min.js"></script>
+    <script type="text/javascript" src="js/skulpt.min.js"></script>
 
     <!--load RBD libraries-->
-    <script type="text/javascript" src="/js/lib/physics/physi.js"></script>
+    <script type="text/javascript" src="js/lib/physics/physi.js"></script>
 
     <!--load water libraries-->
-    <script type="text/javascript" src="/js/skunami.min.js"></script>
+    <script type="text/javascript" src="js/skunami.min.js"></script>
 
     <script>
 
     var ARLIB = 'jsartoolkit';
     // var ARLIB = 'jsaruco';
     var CAM_VERTICAL_FOV = 40;  //estimate for your camera
-    var JSARTOOLKIT_MARKERS_JSON = '/resources/models/models_jsartoolkit_main.json';
-    var JSARUCO_MARKERS_JSON = '/resources/models/models_jsaruco_main.json';
+    var JSARTOOLKIT_MARKERS_JSON = 'resources/models/models_jsartoolkit_main.json';
+    var JSARUCO_MARKERS_JSON = 'resources/models/models_jsaruco_main.json';
 
     var SHADOW_MAP_RES = 1024;
 
@@ -101,20 +96,20 @@
     var isAddingObject = false;
 
     var terrainImages = {
-        'IGMS1': '/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg',
-        'IGMS2': '/resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg',
-        'IGMS3': '/resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg',
-        'IGMS4': '/resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg',
-        'IGMS5': '/resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg',
-        'Clouds': '/resources/images/terrain/clouds_256.png'
+        'IGMS1': 'resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg',
+        'IGMS2': 'resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg',
+        'IGMS3': 'resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg',
+        'IGMS4': 'resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg',
+        'IGMS5': 'resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg',
+        'Clouds': 'resources/images/terrain/clouds_256.png'
     };
     var terrainImageSettings = {
-        '/resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg': { 'preblur': 2, 'height': 0.3, 'midGreyIsLowest': true },
-        '/resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg': { 'preblur': 1, 'height': 0.3, 'midGreyIsLowest': true },
-        '/resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg': { 'preblur': 3, 'height': 0.3, 'midGreyIsLowest': true },
-        '/resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg': { 'preblur': 2, 'height': 0.3, 'midGreyIsLowest': true },
-        '/resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg': { 'preblur': 3, 'height': 0.3, 'midGreyIsLowest': true },
-        '/resources/images/terrain/clouds_256.png': { 'preblur': 0, 'height': 2, 'midGreyIsLowest': false }
+        'resources/images/terrain/IGMS/igms_693432,4598934,694456,4599958_512.jpg': { 'preblur': 2, 'height': 0.3, 'midGreyIsLowest': true },
+        'resources/images/terrain/IGMS/igms_617851,4595749,620411,4598309_512.jpg': { 'preblur': 1, 'height': 0.3, 'midGreyIsLowest': true },
+        'resources/images/terrain/IGMS/igms_640934,4596481,643494,4599041_512.jpg': { 'preblur': 3, 'height': 0.3, 'midGreyIsLowest': true },
+        'resources/images/terrain/IGMS/igms_678336,4595147,680896,4597707_512.jpg': { 'preblur': 2, 'height': 0.3, 'midGreyIsLowest': true },
+        'resources/images/terrain/IGMS/igms_679104,4595950,680128,4596974_512.jpg': { 'preblur': 3, 'height': 0.3, 'midGreyIsLowest': true },
+        'resources/images/terrain/clouds_256.png': { 'preblur': 0, 'height': 2, 'midGreyIsLowest': false }
     };
     var staticObjects = {
         'Crate': 1001,
@@ -161,8 +156,8 @@
     var clock = new THREE.Clock();
 
     //config Physijs
-    Physijs.scripts.worker = '/js/lib/physics/physijs_worker.js';
-    Physijs.scripts.ammo = '/js/lib/physics/ammo.js';
+    Physijs.scripts.worker = 'js/lib/physics/physijs_worker.js';
+    Physijs.scripts.ammo = 'ammo.js';
 
     function checkWebGl() {
         if (!Detector.webgl) {

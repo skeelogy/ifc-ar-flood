@@ -5,30 +5,30 @@
     <meta charset="UTF-8"/>
 
     <link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="../css/style.css">
 
     <!--load helper libraries-->
-    <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+    <script type="text/javascript" src="../js/lib/jquery-2.0.2.min.js"></script>
 
     <!--load 3D libraries-->
-    <script type="text/javascript" src="/js/lib/three.min.js"></script>
-    <script type="text/javascript" src="/js/lib/Detector.js"></script>
-    <script type="text/javascript" src="/js/lib/stats.min.js"></script>
-    <script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
-    <script type="text/javascript" src="/js/lib/OBJMTLLoader.js"></script>
-    <script type="text/javascript" src="/js/lib/MTLLoader.js"></script>
-    <script type="text/javascript" src="/js/lib/BinaryLoader.js"></script>
+    <script type="text/javascript" src="../js/lib/three.min.js"></script>
+    <script type="text/javascript" src="../js/lib/Detector.js"></script>
+    <script type="text/javascript" src="../js/lib/stats.min.js"></script>
+    <script type="text/javascript" src="../js/lib/dat.gui.min.js"></script>
+    <script type="text/javascript" src="../js/lib/OBJMTLLoader.js"></script>
+    <script type="text/javascript" src="../js/lib/MTLLoader.js"></script>
+    <script type="text/javascript" src="../js/lib/BinaryLoader.js"></script>
 
     <!--load AR libraries-->
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/svd.js"></script>
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/posit1.js"></script>
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/cv.js"></script>
-    <script type="text/javascript" src="/js/lib/ar/js-aruco/aruco.js"></script>
-    <script type="text/javascript" src="/js/skarf.min.js"></script>
+    <script type="text/javascript" src="../js/lib/ar/js-aruco/svd.js"></script>
+    <script type="text/javascript" src="../js/lib/ar/js-aruco/posit1.js"></script>
+    <script type="text/javascript" src="../js/lib/ar/js-aruco/cv.js"></script>
+    <script type="text/javascript" src="../js/lib/ar/js-aruco/aruco.js"></script>
+    <script type="text/javascript" src="../js/skarf.min.js"></script>
 
     <!--load webcam streaming libraries-->
-    <script type="text/javascript" src="/js/lib/webrtc_adapter.js"></script>
-    <script type="text/javascript" src="/js/streamvideo.js"></script>
+    <script type="text/javascript" src="../js/lib/webrtc_adapter.js"></script>
+    <script type="text/javascript" src="../js/streamvideo.js"></script>
 
     <script>
 
@@ -63,7 +63,7 @@
             img = $('#mainImage')[0];
             var videoId = 0;
             if (videoId === 0) {
-                img.src = '/resources/markers/js-aruco/persp_1001_446.png';
+                img.src = '../resources/markers/js-aruco/persp_1001_446.png';
                 source = img;
             }
         }
@@ -153,7 +153,7 @@
             renderer: renderer,
             scene: scene,
             camera: camera,
-            markersJsonFile: '/resources/models/models_jsaruco.json'
+            markersJsonFile: '../resources/models/models_jsaruco.json'
 
         });
     }

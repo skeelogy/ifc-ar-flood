@@ -4,31 +4,31 @@
     <title>IFC - Two-Way Coupling Test</title>
     <meta charset="UTF-8"/>
 
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="../css/style.css">
 
     <!--load helper libraries-->
-    <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-    <script type="text/javascript" src="/js/lib/seedrandom.js"></script>
+    <script type="text/javascript" src="../js/lib/jquery-2.0.2.min.js"></script>
+    <script type="text/javascript" src="../js/lib/seedrandom.js"></script>
 
     <!--load 3D libraries-->
-    <script type="text/javascript" src="/js/lib/three.min.js"></script>
-    <script type="text/javascript" src="/js/lib/Detector.js"></script>
-    <script type="text/javascript" src="/js/lib/stats.min.js"></script>
-    <script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
-    <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
+    <script type="text/javascript" src="../js/lib/three.min.js"></script>
+    <script type="text/javascript" src="../js/lib/Detector.js"></script>
+    <script type="text/javascript" src="../js/lib/stats.min.js"></script>
+    <script type="text/javascript" src="../js/lib/dat.gui.min.js"></script>
+    <script type="text/javascript" src="../js/lib/OrbitControls.js"></script>
 
     <!--load water libraries-->
-    <script type="text/javascript" src="/js/skunami-cpu.min.js"></script>
-    <script type="text/javascript" src="/js/skvoxelizer-cpu.min.js"></script>
+    <script type="text/javascript" src="../js/skunami-cpu.min.js"></script>
+    <script type="text/javascript" src="../js/skvoxelizer-cpu.min.js"></script>
 
     <!--load Physijs library-->
-    <script type="text/javascript" src="/js/lib/physics/physi.js"></script>
+    <script type="text/javascript" src="../js/lib/physics/physi.js"></script>
 
     <script>
 
     //config Physijs
-    Physijs.scripts.worker = '/js/lib/physics/physijs_worker.js';
-    Physijs.scripts.ammo = '/js/lib/physics/ammo.js';
+    Physijs.scripts.worker = '../js/lib/physics/physijs_worker.js';
+    Physijs.scripts.ammo = 'ammo.js';
 
     var WATER_SIZE = 10;
     var WATER_RES = 40;

@@ -5,14 +5,14 @@
     <meta charset="UTF-8"/>
 
     <link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="../css/style.css">
 
     <!--load helper libraries-->
-    <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
-    <script type="text/javascript" src="/js/lib/requestanimationframe.js"></script>
+    <script type="text/javascript" src="../js/lib/jquery-2.0.2.min.js"></script>
+    <script type="text/javascript" src="../js/lib/requestanimationframe.js"></script>
 
     <!--load AR library-->
-    <script type="text/javascript" src="/js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
+    <script type="text/javascript" src="../js/lib/ar/jsartoolkit/JSARToolKit.min.js"></script>
 
     <script>
 
@@ -43,13 +43,13 @@
         var source;
         var sourceId = 0;
         if (sourceId === 0) {
-            video.src = '/resources/markers/jsartoolkit/output_4.ogg';
+            video.src = '../resources/markers/jsartoolkit/output_4.ogg';
             source = video;
         } else if (sourceId === 1) {
-            video.src = '/resources/markers/jsartoolkit/swap_loop.ogg';
+            video.src = '../resources/markers/jsartoolkit/swap_loop.ogg';
             source = video;
         } else if (sourceId === 2) {
-            img.src = '/resources/markers/jsartoolkit/chalk_multi.jpg';
+            img.src = '../resources/markers/jsartoolkit/chalk_multi.jpg';
             source = img;
         }
 

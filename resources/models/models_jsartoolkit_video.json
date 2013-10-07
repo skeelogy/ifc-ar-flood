@@ -3,7 +3,7 @@
     "models": {
         "22": {
             "name": "us_police_car",
-            "url": "/resources/models/us_police_car/us_police_car_bin.js",
+            "url": "../resources/models/us_police_car/us_police_car_bin.js",
             "type": "json_bin",
             "translate": [0, 0, 0],
             "rotate": [0, 90, 0],
@@ -12,7 +12,7 @@
         },
         "64": {
             "name": "park_bench",
-            "url": "/resources/models/park_bench/park_bench.js",
+            "url": "../resources/models/park_bench/park_bench.js",
             "type": "json",
             "translate": [0, 0, 0],
             "rotate": [0, 0, 0],

@@ -5,18 +5,18 @@
     <meta charset="UTF-8"/>
 
     <link href='http://fonts.googleapis.com/css?family=Fauna+One' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="../css/style.css">
 
     <!--load helper libraries-->
-    <script type="text/javascript" src="/js/lib/jquery-2.0.2.min.js"></script>
+    <script type="text/javascript" src="../js/lib/jquery-2.0.2.min.js"></script>
 
     <!--load 3D libraries-->
-    <script type="text/javascript" src="/js/lib/three.min.js"></script>
-    <script type="text/javascript" src="/js/lib/Detector.js"></script>
-    <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
-    <script type="text/javascript" src="/js/lib/BinaryLoader.js"></script>
+    <script type="text/javascript" src="../js/lib/three.min.js"></script>
+    <script type="text/javascript" src="../js/lib/Detector.js"></script>
+    <script type="text/javascript" src="../js/lib/OrbitControls.js"></script>
+    <script type="text/javascript" src="../js/lib/BinaryLoader.js"></script>
 
-    <script type="text/javascript" src="/js/skarf.min.js"></script>
+    <script type="text/javascript" src="../js/skarf.min.js"></script>
 
     <script>
 
@@ -67,7 +67,7 @@
         scene.add(light);
 
         //load a model
-        var modelsJsonFile = '/resources/models/models_jsartoolkit_checkAxis.json';
+        var modelsJsonFile = '../resources/models/models_jsartoolkit_checkAxis.json';
         var markerManager = new SKARF.MarkerManager(modelsJsonFile);
         var transform = new THREE.Object3D();
         scene.add(transform);
