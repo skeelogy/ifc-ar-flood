@@ -9,4 +9,4 @@ Ks 0.165000 0.165000 0.165000
 Ni 1.000000
 d 1.000000
 illum 2
-map_Kd _11_-_Default1noCulling.JPG
+map_Kd texture.jpg
