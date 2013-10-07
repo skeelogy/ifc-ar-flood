@@ -214,11 +214,6 @@
             "name": "Show Water Texture",
             "key": "waterShowTextureCheckbox",
             "type": "checkbox"
-        },
-        "77": {
-            "name": "Show GL Stats",
-            "key": "statsShowGlCheckbox",
-            "type": "checkbox"
         }
     }
 }

@@ -20,6 +20,10 @@
             font-size: 12px;
             color: white;
         }
+        .info-header {
+            color: #ccffcc;
+            font-weight: bold;
+        }
     </style>
 
     <!--load helper libraries-->
@@ -31,7 +35,6 @@
     <script type="text/javascript" src="js/lib/three.min.js"></script>
     <script type="text/javascript" src="js/lib/Detector.js"></script>
     <script type="text/javascript" src="js/lib/stats.min.js"></script>
-    <script type="text/javascript" src="js/lib/threex.rendererstats.js"></script>
     <script type="text/javascript" src="js/lib/dat.gui.min.js"></script>
     <script type="text/javascript" src="js/lib/OBJMTLLoader.js"></script>
     <script type="text/javascript" src="js/lib/MTLLoader.js"></script>
@@ -91,7 +94,7 @@
     var gpuSkulpt;
     var renderer, scene, camera;
     var $canvasContainerElem, $threejsContainerElem, $threejsCanvasElem;
-    var renderStats, physijsStats, glStats;
+    var renderStats, physijsStats;
     var markerManager;
     var isAddingObject = false;
 
@@ -661,6 +664,7 @@
             var indicatorGeom = new THREE.SphereGeometry(0.05);
             var indicatorMaterial = new THREE.MeshLambertMaterial({color: '#00ff00'});
             indicatorMesh = new THREE.Mesh(indicatorGeom, indicatorMaterial);
+            indicatorMesh.visible = false;
             scene.add(indicatorMesh);
         }
 
@@ -1138,13 +1142,6 @@
         physijsStats.domElement.style.position = 'absolute';
         physijsStats.domElement.style.left = '0px';
         physijsStats.domElement.style.top = '50px';
-
-        //create a stats monitor for more details
-        glStats = new THREEx.RendererStats();
-        $('body').append(glStats.domElement);
-        glStats.domElement.style.position = 'absolute';
-        glStats.domElement.style.left = '0px';
-        glStats.domElement.style.top = '100px';
     }
 
     var gui;
@@ -1355,7 +1352,7 @@
         control = debugFolder.add(options, 'debugObstaclesTexture').name('Obstacles Texture').listen();
         toggleDebugObstaclesTexture = function (value) {
             obstaclesVisMesh.visible = value;
-            gpuWater.setShouldDisplaySimTexture(value);
+            gpuWater.setShouldDisplayObstaclesTexture(value);
             options.debugObstaclesTexture = value;
         };
         control.onChange(toggleDebugObstaclesTexture);
@@ -1364,23 +1361,11 @@
         control = debugFolder.add(options, 'debugWaterTexture').name('Water Texture').listen();
         toggleDebugWaterTexture = function (value) {
             waterVisMesh.visible = value;
-            gpuWater.setShouldDisplaySimTexture(value);
+            gpuWater.setShouldDisplayWaterTexture(value);
             options.debugWaterTexture = value;
         };
         control.onChange(toggleDebugWaterTexture);
         toggleDebugWaterTexture(options.debugWaterTexture);
-
-        control = debugFolder.add(options, 'debugGlStats').name('GL Stats').listen();
-        toggleDebugGlStats = function (value) {
-            if (value) {
-                glStats.domElement.style.display = 'block';
-            } else {
-                glStats.domElement.style.display = 'none';
-            }
-            options.debugGlStats = value;
-        };
-        control.onChange(toggleDebugGlStats);
-        toggleDebugGlStats(options.debugGlStats);
     }
 
     var terrainImageComboBox_changed, terrainMidGreyLowestCheckbox_toggled, terrainPreBlurImageSlider_changed, terrainImageHeightSlider_changed;
@@ -1554,9 +1539,6 @@
         waterShowTextureCheckbox_toggled = function (params) {
             toggleDebugWaterTexture(params.checked);
         };
-        statsShowGlCheckbox_toggled = function (params) {
-            toggleDebugGlStats(params.checked);
-        };
     }
 
     var arJustOn = true;
@@ -1612,9 +1594,6 @@
             var dt = clock.getDelta();  //have to call this before getElapsedTime()
             var time = clock.getElapsedTime();
 
-            terrainVisMaterial.map = gpuSkulpt.getSculptDisplayTexture();
-            waterVisMaterial.map = gpuWater.getWaterDisplayTexture();
-
             if (options.arOn) {
 
                 //if user is using AR:
@@ -1663,7 +1642,6 @@
             }
 
             renderStats.update();
-            glStats.update(renderer);
 
             //change water height based on flood levels
             dWaterVol = options.waterFloodVolRate * dt;
@@ -1686,7 +1664,7 @@
     <div id="threejs-container"></div>
     <div id="info-container">
         <div>
-            <p>mouse &amp; keyboard controls:</p>
+            <p class="info-header">- MOUSE &amp; KEYBOARD -</p>
             <p>
                 [ camera ]<br/>
                 alt + LMB: rotate<br/>
@@ -1706,11 +1684,17 @@
             </p>
             <p>
                 [ while adding objects ]<br/>
-                hold R + mouse drag: rotate<br/>
+                hold R + move mouse: rotate<br/>
             </p>
             <p>
-                [ move first dyn object ]<br/>
-                W, A, S, D<br/>
+                [ first dynamic object ]<br/>
+                W, A, S, D: push<br/>
+            </p>
+        </div>
+        <div>
+            <p class="info-header">- AUGMENTED REALITY -</p>
+            <p>
+                You will need <a href="https://github.com/skeelogy/ifc-ar-flood/wiki/Items-Needed-For-The-Demo" target="_blank">printed AR markers and a good webcam</a> if you wish to try out augmented reality controls
             </p>
         </div>
     </div>

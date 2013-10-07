@@ -1,3 +1,16 @@
+a:link {
+    color: #66ccff;
+}
+a:visited {
+    color: #66ccff;
+}
+a:hover {
+    color: #66cc33;
+}
+a:active {
+    color: #66ff66;
+}
+
 body {
     background: #F7F7F7;
     margin: 0;

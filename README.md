@@ -10,7 +10,7 @@ The main aims of this project:
 * **Augmented reality for the Web:** stream webcam video to a web browser, track encoded marker images and overlay 3D models on top of them
 * **Terrain:** load greyscale height maps onto a 3D terrain, and allow for further height manipulation via sculpting
 * **Flood:** water simulation reacts with objects in a 3D environment, accumulates behind terrain/objects for flooding to occur, flows from high to low regions, and allows for user interactions such as adding/removing of water
-* **Dual coupling:** water makes dynamic objects float while the dynamic objects cause ripples on the water after displacing it
+* **Two-way coupling:** water makes dynamic objects float while the dynamic objects cause ripples on the water after displacing it
 * **Interactivity for the Web**: all the above should run real-time in a web browser using HTML5 technologies
 
 ### Main Libraries Used
@@ -22,15 +22,11 @@ The main aims of this project:
 * [skunami.js](http://skeelogy.github.io/skunami.js/) - Three.js GPU height field water libraries
 * [Physijs](http://chandlerprall.github.io/Physijs/) - Three.js rigid body dynamics system
 
-### Videos
+### Demo
 
-Main demo video:
+HTML5 Augmented Reality Interactive Flood Simulation [[Demo](http://skeelogy.github.io/ifc-ar-flood/demo.html)]
 
-[![ScreenShot](http://skeelogy.github.io/ifc-ar-flood/screenshots/video_main.jpg)](http://www.youtube.com/watch?v=qEFH_r_X7kY)
-
-### Demos
-
-* [Main demo](http://skeelogy.github.io/ifc-ar-flood/demo.html)
+[![ScreenShot](http://skeelogy.github.io/ifc-ar-flood/screenshots/video_ifcArFlood_main.jpg)](http://www.youtube.com/watch?v=qEFH_r_X7kY)
 
 ### Useful Info
 

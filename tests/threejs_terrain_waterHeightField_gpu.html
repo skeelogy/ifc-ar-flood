@@ -685,7 +685,7 @@
 
             //reset sim and restore some prev sim values
             hfWater.reset();
-            hfWater.setShouldDisplaySimTexture(prevHfWater.getShouldDisplaySimTexture());
+            hfWater.setShouldDisplayWaterTexture(prevHfWater.getShouldDisplayWaterTexture());
             var prevMeanHeight = 0;
             if (prevHfWater instanceof SKUNAMI.GpuHeightFieldSurfaceWater) {
                 prevMeanHeight = prevHfWater.getMeanHeight();
@@ -826,7 +826,7 @@
 
         control = displayFolder.add(options, 'displaySimTexture').name('Sim Texture');
         function toggleSimTexture(value) {
-            hfWater.setShouldDisplaySimTexture(value);
+            hfWater.setShouldDisplayWaterTexture(value);
             visMesh.visible = value;
         }
         control.onChange(toggleSimTexture);
