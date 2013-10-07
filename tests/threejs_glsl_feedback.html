@@ -16,8 +16,6 @@
     <script type="text/javascript" src="/js/lib/dat.gui.min.js"></script>
     <script type="text/javascript" src="/js/lib/OrbitControls.js"></script>
 
-    <script type="text/javascript" src="/js/ShaderManager.js"></script>
-
     <script>
 
     var PLANE_SIZE = 10;
@@ -30,6 +28,146 @@
         displayFeedbackTexture: false
     };
 
+    var shaders = {
+
+        vert: {
+
+            passUv: [
+
+                //Pass-through vertex shader for passing interpolated UVs to fragment shader
+
+                "varying vec2 vUv;",
+
+                "void main() {",
+                    "vUv = vec2(uv.x, uv.y);",
+                    "gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);",
+                "}"
+
+            ].join('\n'),
+
+            heightMap: [
+
+                //Vertex shader that displaces vertices in local Y based on a texture
+
+                "uniform sampler2D uTexture;",
+                "uniform vec2 uTexelSize;",
+                "uniform vec2 uTexelWorldSize;",
+                "uniform float uHeightMultiplier;",
+
+                "varying vec3 vViewPos;",
+                "varying vec3 vViewNormal;",
+                "varying vec2 vUv;",
+
+                "void main() {",
+
+                    "vUv = uv;",
+
+                    //displace y based on texel value
+                    "vec4 t = texture2D(uTexture, vUv) * uHeightMultiplier;",
+                    "vec3 displacedPos = vec3(position.x, t.r, position.z);",
+
+                    //find normal
+                    "vec2 du = vec2(uTexelSize.r, 0.0);",
+                    "vec2 dv = vec2(0.0, uTexelSize.g);",
+                    "vec3 vecPosU = vec3(displacedPos.x + uTexelWorldSize.r,",
+                                        "texture2D(uTexture, vUv + du).r * uHeightMultiplier,",
+                                        "displacedPos.z) - displacedPos;",
+                    "vec3 vecNegU = vec3(displacedPos.x - uTexelWorldSize.r,",
+                                        "texture2D(uTexture, vUv - du).r * uHeightMultiplier,",
+                                        "displacedPos.z) - displacedPos;",
+                    "vec3 vecPosV = vec3(displacedPos.x,",
+                                        "texture2D(uTexture, vUv + dv).r * uHeightMultiplier,",
+                                        "displacedPos.z - uTexelWorldSize.g) - displacedPos;",
+                    "vec3 vecNegV = vec3(displacedPos.x,",
+                                        "texture2D(uTexture, vUv - dv).r * uHeightMultiplier,",
+                                        "displacedPos.z + uTexelWorldSize.g) - displacedPos;",
+                    "vViewNormal = normalize(normalMatrix * 0.25 * (cross(vecPosU, vecPosV) + cross(vecPosV, vecNegU) + cross(vecNegU, vecNegV) + cross(vecNegV, vecPosU)));",
+
+                    "vec4 worldPosition = modelMatrix * vec4(displacedPos, 1.0);",
+                    "vec4 viewPos = modelViewMatrix * vec4(displacedPos, 1.0);",
+                    "vViewPos = viewPos.rgb;",
+
+                    "gl_Position = projectionMatrix * viewPos;",
+
+                "}"
+
+            ].join('\n')
+
+        },
+
+        frag: {
+
+            addBump: [
+
+                //Fragment shader for adding a small bump
+
+                "uniform sampler2D uTexture;",
+                "uniform float uBumpAmount;",
+                "uniform float uBumpRadius;",
+                "uniform vec2 uBumpPos;",
+
+                "varying vec2 vUv;",
+
+                "void main() {",
+
+                    //r channel: height
+
+                    //read texture from previous step
+                    "vec4 t = texture2D(uTexture, vUv);",
+
+                    //add bump
+                    "float len = length(vUv - vec2(uBumpPos.x, 1.0 - uBumpPos.y));",
+                    "t.r += uBumpAmount * smoothstep(uBumpRadius, 0.0, len);",
+
+                    //write out to texture for next step
+                    "gl_FragColor = t;",
+                "}"
+
+            ].join('\n'),
+
+            lambert: [
+
+                //Fragment shader that does basic lambert shading
+
+                //assume max 3-point lighting for now
+                "#define MAX_LIGHTS 3",
+
+                "uniform vec3 uBaseColor;",
+                "uniform vec3 uAmbientLightColor;",
+                "uniform float uAmbientLightIntensity;",
+                "uniform vec3 uPointLightWorldPos[MAX_LIGHTS];",
+                "uniform vec3 uPointLightColor[MAX_LIGHTS];",
+                "uniform float uPointLightIntensity[MAX_LIGHTS];",
+                "uniform float uPointLightFalloffStart[MAX_LIGHTS];",
+                "uniform float uPointLightFalloffEnd[MAX_LIGHTS];",
+
+                "varying vec3 vViewPos;",
+                "varying vec3 vViewNormal;",
+                "varying vec2 vUv;",
+
+                "void main() {",
+
+                    //ambient component
+                    "vec3 ambient = uAmbientLightColor * uAmbientLightIntensity;",
+
+                    //diffuse component
+                    "vec3 diffuse;",
+                    "for (int i = 0; i < MAX_LIGHTS; i++) {",
+                        "vec3 viewPosToViewLightVector = (viewMatrix * vec4(uPointLightWorldPos[i], 1.0)).rgb - vViewPos;",
+                        "float normalModulator = dot(normalize(vViewNormal), normalize(viewPosToViewLightVector));",
+                        "float distanceModulator = 1.0 - smoothstep(uPointLightFalloffStart[i], uPointLightFalloffEnd[i], length(viewPosToViewLightVector));",
+                        "diffuse = diffuse + (distanceModulator * normalModulator * uPointLightColor[i] * uPointLightIntensity[i]);",
+                    "}",
+
+                    "gl_FragColor = vec4(uBaseColor * (ambient + diffuse), 1.0);",
+                "}"
+
+            ].join('\n')
+
+        }
+
+    };
+
     var clock = new THREE.Clock();
 
     function checkWebGl() {
@@ -40,13 +178,29 @@
         }
     }
 
+    var supportsTextureFloatLinear;
     function checkExtensions(renderer) {
         var context = renderer.context;
-        if (!context.getExtension('OES_texture_float_linear')) {
-            throw new Error('Extension not available: OES_texture_float_linear');
+
+        //determine floating point texture support
+        //https://www.khronos.org/webgl/public-mailing-list/archives/1306/msg00002.html
+
+        //get floating point texture support
+        if (!context.getExtension('OES_texture_float')) {
+            var msg = 'No support for floating point textures. Extension not available: OES_texture_float';
+            alert(msg);
+            throw new Error(msg);
         }
+
+        //get floating point linear filtering support
+        supportsTextureFloatLinear = context.getExtension('OES_texture_float_linear') !== null;
+        console.log('Texture float linear filtering support: ' + supportsTextureFloatLinear);
+
+        //get vertex texture support
         if (!context.getParameter(context.MAX_VERTEX_TEXTURE_IMAGE_UNITS)) {
-            throw new Error('Vertex textures not supported on your graphics card');
+            var msg = 'Vertex textures not supported on your graphics card';
+            alert(msg);
+            throw new Error(msg);
         }
     }
 
@@ -64,8 +218,6 @@
         rttCamera = new THREE.OrthographicCamera(-halfSize, halfSize, halfSize, -halfSize, near, far);
 
         //create a quad which we will use to invoke the shaders
-        THREE.ShaderManager.addShader('/glsl/passUv.vert');
-        THREE.ShaderManager.addShader('/glsl/addBump.frag');
         rttQuadGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE);
         rttQuadMaterial = new THREE.ShaderMaterial({
             uniforms: {
@@ -74,13 +226,12 @@
                 uBumpAmount: { type: 'f', value: 0.0 },
                 uBumpRadius: { type: 'f', value: 0.0 }
             },
-            vertexShader: THREE.ShaderManager.getShaderContents('/glsl/passUv.vert'),
-            fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/addBump.frag')
+            vertexShader: shaders.vert['passUv'],
+            fragmentShader: shaders.frag['addBump']
         });
         rttQuadMesh = new THREE.Mesh(rttQuadGeom, rttQuadMaterial);
         rttScene.add(rttQuadMesh);
 
-        //create RTT render targets (we need two to do feedback)
         var linearFloatRgbParams = {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter,
@@ -91,7 +242,24 @@
             depthBuffer: false,
             type: THREE.FloatType
         };
-        rttRenderTarget1 = new THREE.WebGLRenderTarget(PLANE_RES, PLANE_RES, linearFloatRgbParams);
+
+        var nearestFloatRgbParams = {
+            minFilter: THREE.NearestFilter,
+            magFilter: THREE.NearestFilter,
+            wrapS: THREE.ClampToEdgeWrapping,
+            wrapT: THREE.ClampToEdgeWrapping,
+            format: THREE.RGBFormat,
+            stencilBuffer: false,
+            depthBuffer: false,
+            type: THREE.FloatType
+        };
+
+        //create RTT render targets (we need two to do feedback)
+        if (supportsTextureFloatLinear) {
+            rttRenderTarget1 = new THREE.WebGLRenderTarget(PLANE_RES, PLANE_RES, linearFloatRgbParams);
+        } else {
+            rttRenderTarget1 = new THREE.WebGLRenderTarget(PLANE_RES, PLANE_RES, nearestFloatRgbParams);
+        }
         rttRenderTarget1.generateMipmaps = false;
         rttRenderTarget2 = rttRenderTarget1.clone();
     }
@@ -129,8 +297,6 @@
         controls.modifierKey = 'alt';
 
         //create a plane for the actual height displacement
-        THREE.ShaderManager.addShader('/glsl/heightMap.vert');
-        THREE.ShaderManager.addShader('/glsl/lambert.frag');
         planeGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, PLANE_RES - 1, PLANE_RES - 1);
         planeGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
         planeMaterial = new THREE.ShaderMaterial({
@@ -148,8 +314,8 @@
                 uPointLightFalloffStart: { type: 'fv1', value: [ 1.0, 1.0 ] },
                 uPointLightFalloffEnd: { type: 'fv1', value: [ 10.0, 10.0 ] }
             },
-            vertexShader: THREE.ShaderManager.getShaderContents('/glsl/heightMap.vert'),
-            fragmentShader: THREE.ShaderManager.getShaderContents('/glsl/lambert.frag')
+            vertexShader: shaders.vert['heightMap'],
+            fragmentShader: shaders.frag['lambert']
         });
         materials.push(planeMaterial);
         planeMesh = new THREE.Mesh(planeGeom, planeMaterial);
