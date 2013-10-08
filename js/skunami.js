@@ -1,7 +1,7 @@
 /**
  * @fileOverview GPU height field water simulations for Three.js flat planes
  * @author Skeel Lee <skeel@skeelogy.com>
- * @version 1.0.1
+ * @version 1.0.2
  *
  * @example
  * //How to setup a water sim:
@@ -62,7 +62,7 @@
 /**
  * @namespace
  */
-var SKUNAMI = SKUNAMI || { version: '1.0.1' };
+var SKUNAMI = SKUNAMI || { version: '1.0.2' };
 console.log('Using SKUNAMI ' + SKUNAMI.version);
 
 /**
@@ -101,7 +101,8 @@ SKUNAMI.GpuHeightFieldWater = function (options) {
     //this is different from substeps which are reduces dt per step for stability.
     this.__multisteps = options.multisteps || 1;
 
-    this.__shouldDisplaySimTexture = false;
+    this.__shouldDisplayWaterTexture = false;
+    this.__shouldDisplayObstaclesTexture = false;
 
     this.__gravity = 9.81;
     this.__density = options.density || 1000;  //default to 1000 kg per cubic metres
@@ -160,18 +161,32 @@ SKUNAMI.GpuHeightFieldWater = function (options) {
     this.__setupObstaclesScene();
 };
 /**
- * Gets whether the sim texture should be displayed
- * @returns {boolean} Whether the sim texture should be displayed
+ * Gets whether the water texture should be displayed
+ * @returns {boolean} Whether the water texture should be displayed
  */
-SKUNAMI.GpuHeightFieldWater.prototype.getShouldDisplaySimTexture = function () {
-    return this.__shouldDisplaySimTexture;
+SKUNAMI.GpuHeightFieldWater.prototype.getShouldDisplayWaterTexture = function () {
+    return this.__shouldDisplayWaterTexture;
 };
 /**
- * Sets whether the sim texture should be displayed
- * @param {boolean} value Whether the sim texture should be displayed
+ * Sets whether the water texture should be displayed
+ * @param {boolean} value Whether the water texture should be displayed
  */
-SKUNAMI.GpuHeightFieldWater.prototype.setShouldDisplaySimTexture = function (value) {
-    this.__shouldDisplaySimTexture = value;
+SKUNAMI.GpuHeightFieldWater.prototype.setShouldDisplayWaterTexture = function (value) {
+    this.__shouldDisplayWaterTexture = value;
+};
+/**
+ * Gets whether the obstacles texture should be displayed
+ * @returns {boolean} Whether the obstacles texture should be displayed
+ */
+SKUNAMI.GpuHeightFieldWater.prototype.getShouldDisplayObstaclesTexture = function () {
+    return this.__shouldDisplayObstaclesTexture;
+};
+/**
+ * Sets whether the obstacles texture should be displayed
+ * @param {boolean} value Whether the obstacles texture should be displayed
+ */
+SKUNAMI.GpuHeightFieldWater.prototype.setShouldDisplayObstaclesTexture = function (value) {
+    this.__shouldDisplayObstaclesTexture = value;
 };
 SKUNAMI.GpuHeightFieldWater.prototype.__init = function () {
 
@@ -1413,9 +1428,11 @@ SKUNAMI.GpuHeightFieldWater.prototype.__setupRttRenderTargets = function () {
     this.__rttRenderTarget2 = this.__rttRenderTarget1.clone();
     this.__clearRenderTarget(this.__rttRenderTarget2, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
 
-    //create a render target purely for display purposes
-    this.__rttDisplay = this.__rttRenderTarget1.clone();
-    this.__clearRenderTarget(this.__rttDisplay, 0.0, 0.0, 0.0, 0.0);  //clear render target (necessary for FireFox)
+    //create render targets purely for display purposes
+    this.__rttWaterDisplay = this.__rttRenderTarget1.clone();
+    this.__clearRenderTarget(this.__rttWaterDisplay, 0.0, 0.0, 0.0, 1.0);  //clear render target (necessary for FireFox)
+    this.__rttObstaclesDisplay = this.__rttRenderTarget1.clone();
+    this.__clearRenderTarget(this.__rttObstaclesDisplay, 0.0, 0.0, 0.0, 1.0);  //clear render target (necessary for FireFox)
 
     //create another RTT render target encoding float to 4-byte data
     this.__rttFloatEncoderRenderTarget = new THREE.WebGLRenderTarget(this.__res, this.__res, this.__nearestFloatRgbaParams);
@@ -1633,10 +1650,16 @@ SKUNAMI.GpuHeightFieldWater.prototype.__waterSimPass = function (substepDt) {
     this.__swapRenderTargets();
 };
 SKUNAMI.GpuHeightFieldWater.prototype.__displayPass = function () {
-    if (this.__shouldDisplaySimTexture) {
+    if (this.__shouldDisplayWaterTexture) {
         this.__rttQuadMesh.material = this.__setSolidAlphaMaterial;
         this.__setSolidAlphaMaterial.uniforms['uTexture'].value = this.__rttRenderTarget2;
-        this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttDisplay, false);
+        this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttWaterDisplay, false);
+        this.__swapRenderTargets();
+    }
+    if (this.__shouldDisplayObstaclesTexture) {
+        this.__rttQuadMesh.material = this.__setSolidAlphaMaterial;
+        this.__setSolidAlphaMaterial.uniforms['uTexture'].value = this.__rttDynObstaclesBlurredRenderTarget;
+        this.__renderer.render(this.__rttScene, this.__rttCamera, this.__rttObstaclesDisplay, false);
         this.__swapRenderTargets();
     }
 };
@@ -1717,12 +1740,12 @@ SKUNAMI.GpuHeightFieldWater.prototype.addStaticObstacle = function (mesh) {
         throw new Error('mesh must be of type THREE.Mesh');
     }
 
-    if (!mesh.__skhfwater) {
-        mesh.__skhfwater = {};
+    if (!mesh.__skunami) {
+        mesh.__skunami = {};
     }
-    mesh.__skhfwater.isObstacle = true;
-    mesh.__skhfwater.isDynamic = false;
-    mesh.__skhfwater.mass = 0;
+    mesh.__skunami.isObstacle = true;
+    mesh.__skunami.isDynamic = false;
+    mesh.__skunami.mass = 0;
     this.__staticObstacles.push(mesh);
 
     //set a flag to indicate that we want to update static obstacle texture during update() call
@@ -1740,12 +1763,12 @@ SKUNAMI.GpuHeightFieldWater.prototype.addDynamicObstacle = function (mesh, mass)
     if (typeof mass === 'undefined') {
         throw new Error('mass not specified');
     }
-    if (!mesh.__skhfwater) {
-        mesh.__skhfwater = {};
+    if (!mesh.__skunami) {
+        mesh.__skunami = {};
     }
-    mesh.__skhfwater.isObstacle = true;
-    mesh.__skhfwater.isDynamic = true;
-    mesh.__skhfwater.mass = mass;
+    mesh.__skunami.isObstacle = true;
+    mesh.__skunami.isDynamic = true;
+    mesh.__skunami.mass = mass;
     this.__dynObstacles.push(mesh);
 };
 /**
@@ -1866,7 +1889,7 @@ SKUNAMI.GpuHeightFieldWater.prototype.__updateDynObstacleTexture = function (dt)
 
     //render top & bottom of each obstacle and compare to current water texture
     this.__scene.traverse(function (object) {
-        if (object instanceof THREE.Mesh && object.__skhfwater && object.__skhfwater.isObstacle && object.__skhfwater.isDynamic) {
+        if (object instanceof THREE.Mesh && object.__skunami && object.__skunami.isObstacle && object.__skunami.isDynamic) {
 
             //show current mesh
             object.visible = true;
@@ -1889,13 +1912,13 @@ SKUNAMI.GpuHeightFieldWater.prototype.__updateDynObstacleTexture = function (dt)
             that.__renderer.render(that.__rttScene, that.__rttCamera, that.__rttDynObstaclesRenderTarget, false);
 
             //if object is dynamic, store additional info
-            // if (object.__skhfwater.isDynamic) {
+            // if (object.__skunami.isDynamic) {
 
             //TODO: reduce the number of texture reads to speed up (getPixels() is very expensive)
 
             //find total water volume displaced by this object (from A channel data)
             that.__pr.reduce(that.__rttDynObstaclesRenderTarget, 'sum', 'a');
-            object.__skhfwater.totalDisplacedVol = that.__pr.getPixelFloatData('a')[0] * that.__segmentSizeSquared;  //cubic metres
+            object.__skunami.totalDisplacedVol = that.__pr.getPixelFloatData('a')[0] * that.__segmentSizeSquared;  //cubic metres
 
             //mask out velocity field using object's alpha
             that.__rttQuadMesh.material = that.__maskWaterMaterial;
@@ -1905,34 +1928,34 @@ SKUNAMI.GpuHeightFieldWater.prototype.__updateDynObstacleTexture = function (dt)
 
             //find total horizontal velocities affecting this object
             that.__pr.reduce(that.__rttMaskedWaterRenderTarget, 'sum', 'g');
-            object.__skhfwater.totalVelocityX = that.__pr.getPixelFloatData('g')[0];
+            object.__skunami.totalVelocityX = that.__pr.getPixelFloatData('g')[0];
             that.__pr.reduce(that.__rttMaskedWaterRenderTarget, 'sum', 'b');
-            object.__skhfwater.totalVelocityZ = that.__pr.getPixelFloatData('b')[0];
+            object.__skunami.totalVelocityZ = that.__pr.getPixelFloatData('b')[0];
 
             //calculate total area covered by this object
             that.__pr.reduce(that.__rttObstacleTopRenderTarget, 'sum', 'a');
-            object.__skhfwater.totalArea = that.__pr.getPixelFloatData('a')[0];
+            object.__skunami.totalArea = that.__pr.getPixelFloatData('a')[0];
 
             //calculate average velocities affecting this object
-            if (object.__skhfwater.totalArea === 0.0) {
-                object.__skhfwater.averageVelocityX = 0;
-                object.__skhfwater.averageVelocityZ = 0;
+            if (object.__skunami.totalArea === 0.0) {
+                object.__skunami.averageVelocityX = 0;
+                object.__skunami.averageVelocityZ = 0;
             } else {
-                object.__skhfwater.averageVelocityX = object.__skhfwater.totalVelocityX / object.__skhfwater.totalArea;
-                object.__skhfwater.averageVelocityZ = object.__skhfwater.totalVelocityZ / object.__skhfwater.totalArea;
+                object.__skunami.averageVelocityX = object.__skunami.totalVelocityX / object.__skunami.totalArea;
+                object.__skunami.averageVelocityZ = object.__skunami.totalVelocityZ / object.__skunami.totalArea;
             }
 
             //calculate forces that should be exerted on this object
-            object.__skhfwater.forceX = object.__skhfwater.averageVelocityX / dt * object.__skhfwater.mass;
-            object.__skhfwater.forceY = object.__skhfwater.totalDisplacedVol * that.__density * that.__gravity;
-            object.__skhfwater.forceZ = object.__skhfwater.averageVelocityZ / dt * object.__skhfwater.mass;
+            object.__skunami.forceX = object.__skunami.averageVelocityX / dt * object.__skunami.mass;
+            object.__skunami.forceY = object.__skunami.totalDisplacedVol * that.__density * that.__gravity;
+            object.__skunami.forceZ = object.__skunami.averageVelocityZ / dt * object.__skunami.mass;
 
             //call exertForce callbacks
             if (that.__callbacks.hasOwnProperty('exertForce')) {
                 var renderCallbacks = that.__callbacks['exertForce'];
                 var i, len;
                 for (i = 0, len = renderCallbacks.length; i < len; i++) {
-                    renderCallbacks[i](object, new THREE.Vector3(object.__skhfwater.forceX, object.__skhfwater.forceY, object.__skhfwater.forceZ));
+                    renderCallbacks[i](object, new THREE.Vector3(object.__skunami.forceX, object.__skunami.forceY, object.__skunami.forceZ));
                 }
             }
 
@@ -2040,14 +2063,14 @@ SKUNAMI.GpuHeightFieldWater.prototype.addCallback = function (type, callbackFn) 
  * @return {THREE.WebGLRenderTarget} Water texture that is used for displacement of mesh
  */
 SKUNAMI.GpuHeightFieldWater.prototype.getWaterDisplayTexture = function () {
-    return this.__rttDisplay;
+    return this.__rttWaterDisplay;
 };
 /**
  * Gets the obstacle texture
- * @return {THREE.WebGLRenderTarget} Water texture that is used for displacement of mesh
+ * @return {THREE.WebGLRenderTarget} Obstacles texture
  */
 SKUNAMI.GpuHeightFieldWater.prototype.getObstaclesDisplayTexture = function () {
-    return this.__rttDynObstaclesBlurredRenderTarget;
+    return this.__rttObstaclesDisplay;
 };
 
 /**
