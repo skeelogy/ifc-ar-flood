@@ -50,9 +50,7 @@
         camera.lookAt(new THREE.Vector3(0, 0, 0));
         controls = new THREE.OrbitControls(camera);
         controls.modifierKey = 'alt';
-        controls.userPanSpeed = 0.04;
-        controls.pan(new THREE.Vector3(0, 1, 0));
-        controls.pan(new THREE.Vector3(0, 1, 0));
+        controls.pan(new THREE.Vector3(0, 200, 0));
         scene.add(camera);
 
         //setup lights

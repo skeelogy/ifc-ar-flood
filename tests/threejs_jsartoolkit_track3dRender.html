@@ -246,9 +246,6 @@
         trackSceneCamera.lookAt(new THREE.Vector3(0, 0, 0));
         var controls = new THREE.OrbitControls(trackSceneCamera);
         controls.modifierKey = 'alt';
-        controls.userPanSpeed = 0.04;
-        controls.pan(new THREE.Vector3(0, 1, 0));
-        controls.pan(new THREE.Vector3(0, 1, 0));
 
         //plane
         trackScenePlaneMesh = new THREE.Mesh(
