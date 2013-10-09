@@ -1,5 +1,6 @@
-marker contact sheets: jsartoolkit-markers-contactsheet-*.jpg
-credits: Skeel Lee
+marker contact sheets: jsartoolkit-markers-contactsheet-*.png
+credits: skarf.js
+https://github.com/skeelogy/skarf.js/blob/master/markers/jsartoolkit
 
 marker files: 22.jpg, 63.jpg, 64.jpg, 81.jpg
 credits: JSARToolkit

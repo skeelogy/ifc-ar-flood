@@ -1,2 +1,3 @@
 marker files: 446.png, 923.png, 1001.png, persp_1001_446.png
-credits: Skeel Lee
+credits: skarf.js
+https://github.com/skeelogy/skarf.js/blob/master/markers/js-aruco
