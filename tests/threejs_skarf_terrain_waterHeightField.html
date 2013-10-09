@@ -89,6 +89,9 @@
         trackingThreshold: TRACKING_THRESHOLD,
         waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
         waterSimFloodRate: 0.01,
+        waterSimResetFloodRate: function () {
+            options.waterSimFloodRate = 0.0;
+        },
         terrainImage: terrainImages[Object.keys(terrainImages)[0]],
         terrainShowImage: false,
         terrainMidGreyIsLowest: true,
@@ -559,7 +562,7 @@
         } else {
 
             //for water
-            if (activateDisturb && event.button === 0) {  //LMB
+            if (activateDisturb && event.button === 1) {  //MMB
 
                 isDisturbing = true;
 
@@ -610,7 +613,7 @@
         } else {
 
             //for water
-            if (activateDisturb && isDisturbing) {  //LMB
+            if (activateDisturb && isDisturbing) {
                 //detect intersection
                 intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
@@ -682,7 +685,15 @@
         control.onChange(changeWaterSimType);
         changeWaterSimType(options.waterSimType);
 
-        control = waterSimFolder.add(options, 'waterSimFloodRate', -0.1, 0.1).step(0.01).name('Flood Rate');
+        waterFloodVolRateControl = waterSimFolder.add(options, 'waterSimFloodRate', -0.1, 0.1).step(0.01).name('Flood Rate').listen();
+        changeWaterFloodRate = function (value) {
+            value = THREE.Math.clamp(value, waterFloodVolRateControl.__min, waterFloodVolRateControl.__max);
+            options.waterFloodVolRate = value;
+        };
+        waterFloodVolRateControl.onChange(changeWaterFloodRate);
+        changeWaterFloodRate(options.waterFloodVolRate);
+
+        control = waterSimFolder.add(options, 'waterSimResetFloodRate').name('Reset Flood Rate');
 
         //Terrain folder
         terrainFolder = gui.addFolder('Terrain');
@@ -751,7 +762,7 @@
         control.onChange(changeSculptSize);
         changeSculptSize(options.sculptSize);
 
-        control = sculptFolder.add(options, 'sculptAmount', 0.01, 1.0).name('Amount');
+        control = sculptFolder.add(options, 'sculptAmount', 0.01, 0.5).name('Amount');
         function changeSculptAmount(value) {
             skulpt.setBrushAmount(value);
         }
@@ -906,7 +917,7 @@
     <div id="threejs-container"></div>
     <div class="translucent" id="info-container">
         <div>Sculpt: [ Ctrl+LMB: add ] [ Ctrl+RMB: remove ]</div>
-        <div>Water Sim: [ Space+LMB: disturb water ]</div>
+        <div>Water Sim: [ Space+MMB: disturb water ]</div>
     </div>
 </body>
 </html>

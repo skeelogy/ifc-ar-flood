@@ -30,17 +30,6 @@
     var TERRAIN_SCULPT_SIZE = 1.5;
     var TERRAIN_SCULPT_AMOUNT = 0.04;
 
-    var GLOBAL_POS = new THREE.Vector3(0.5, 1, 1);
-    var GLOBAL_ROT = new THREE.Vector3(THREE.Math.degToRad(10), -THREE.Math.degToRad(10), THREE.Math.degToRad(10));
-    var GLOBAL_SCALE = new THREE.Vector3(1.25, 1.25, 1.25);
-
-    var GLOBAL_MAT = new THREE.Matrix4();
-    // GLOBAL_MAT.multiply(new THREE.Matrix4().makeTranslation(GLOBAL_POS.x, GLOBAL_POS.y, GLOBAL_POS.z));
-    // GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationX(GLOBAL_ROT.x));
-    // GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationY(GLOBAL_ROT.y));
-    // GLOBAL_MAT.multiply(new THREE.Matrix4().makeRotationZ(GLOBAL_ROT.z));
-    // GLOBAL_MAT.multiply(new THREE.Matrix4().makeScale(GLOBAL_SCALE.x, GLOBAL_SCALE.y, GLOBAL_SCALE.z));
-
     var clock = new THREE.Clock();
 
     var gpuSkulpt;
@@ -85,7 +74,7 @@
         }
     }
 
-    var renderer, scene, camera, globalTransform;
+    var renderer, scene, camera;
     var keyLight, fillLight;
     var controls;
     var materials = [];
@@ -108,13 +97,6 @@
         //create scene
         scene = new THREE.Scene();
 
-        //create an overall transformation to hold the global transform
-        globalTransform = new THREE.Object3D();
-        globalTransform.matrixAutoUpdate = false;
-        globalTransform.matrix.multiply(GLOBAL_MAT);
-        globalTransform.matrixWorldNeedsUpdate = true;
-        scene.add(globalTransform);
-
         //create camera
         camera = new THREE.PerspectiveCamera(25, renderer.domElement.width / renderer.domElement.height, 0.1, 1000);
         camera.position.set(8, 8, 15);
@@ -133,7 +115,7 @@
         groundPlaneMesh.castShadow = true;
         groundPlaneMesh.receiveShadow = true;
         groundPlaneMesh.visible = false;
-        globalTransform.add(groundPlaneMesh);
+        scene.add(groundPlaneMesh);
 
         //create some shadow caster meshes
         var torusKnotGeom = new THREE.TorusKnotGeometry(0.35, 0.1, 50, 8);
@@ -145,7 +127,7 @@
         torusKnotMesh.position.y = 1;
         torusKnotMesh.castShadow = true;
         torusKnotMesh.receiveShadow = false;
-        globalTransform.add(torusKnotMesh);
+        scene.add(torusKnotMesh);
 
         var boxGeom = new THREE.CubeGeometry(1, 1, 1);
         var boxMaterial = new THREE.MeshPhongMaterial({color: '#ff4444'});
@@ -154,7 +136,7 @@
         boxMesh.position.y = 1;
         boxMesh.castShadow = true;
         boxMesh.receiveShadow = false;
-        globalTransform.add(boxMesh);
+        scene.add(boxMesh);
 
         var sphereGeom = new THREE.SphereGeometry(0.65, 10, 10);
         var sphereMaterial = new THREE.MeshPhongMaterial({color: '#ff4444'});
@@ -165,10 +147,10 @@
         sphereMesh.position.y = 1;
         sphereMesh.castShadow = true;
         sphereMesh.receiveShadow = false;
-        globalTransform.add(sphereMesh);
+        scene.add(sphereMesh);
 
         //setup lights
-        globalTransform.add(new THREE.AmbientLight(0x111111));
+        scene.add(new THREE.AmbientLight(0x111111));
 
         keyLight = new THREE.DirectionalLight(0xFFBBBB, 0.75);
         keyLight.position.set(5, 15, -15);
@@ -185,12 +167,12 @@
         keyLight.shadowDarkness = 0.5;
         keyLight.shadowMapWidth = SHADOW_MAP_RES;
         keyLight.shadowMapHeight = SHADOW_MAP_RES;
-        globalTransform.add(keyLight);
+        scene.add(keyLight);
 
         fillLight = new THREE.DirectionalLight(0x33DDFF, 0.4);
         fillLight.position.set(5, 2, 15);
         fillLight.target.position.set(0, 0, 0);
-        globalTransform.add(fillLight);
+        scene.add(fillLight);
     }
 
     var terrainGeom, terrainMaterial, terrainMesh, skulptTerrainMesh;
@@ -203,7 +185,7 @@
         terrainMesh = new THREE.Mesh(terrainGeom, null);
         terrainMesh.castShadow = true;
         terrainMesh.receiveShadow = true;
-        globalTransform.add(terrainMesh);
+        scene.add(terrainMesh);
 
         //create a GpuSkulpt
         gpuSkulpt = new SKULPT.GpuSkulpt({
@@ -329,8 +311,8 @@
     }
 
     function window_onKeyUp(event) {
-        if (event.keyCode === 16 || event.keyCode === 17) {  //shift or ctrl
-            //hide cursor when shift or ctrl key is up
+        if (event.keyCode === 17) {  //ctrl
+            //hide cursor when ctrl key is up
             gpuSkulpt.hideCursor();
         }
     }
@@ -357,18 +339,6 @@
                 mouseDownButton = event.button;
             }
 
-        } else if (event.shiftKey) {
-
-            //detect intersection and show cursor
-            // detectIntersectionAndShowSculptCursor(event);
-            // if (intersectPoint) {
-                // //do actual sculpting if clicked
-                // if (event.button === 0) {  //LMB
-                    // isSculpting = true;
-                    // sculptTerrain('flatten');
-                // }
-            // }
-
         }
     }
 
@@ -387,16 +357,6 @@
                     gpuSkulpt.sculpt(SKULPT.REMOVE, intersectPoint, options.amount);
                 }
             }
-
-        } else if (event.shiftKey) {
-
-            //detect intersection and show cursor
-            // detectIntersectionAndShowSculptCursor(event);
-            // if (intersectPoint && isSculpting) {
-                // if (event.button === 0) {  //LMB
-                    // sculptTerrain('flatten');
-                // }
-            // }
 
         }
     }
@@ -487,7 +447,7 @@
         control.onChange(changeSculptSize);
         changeSculptSize(options.sculptSize);
 
-        control = sculptFolder.add(options, 'sculptAmount', 0.01, 1.0).name('Amount');
+        control = sculptFolder.add(options, 'sculptAmount', 0.01, 0.2).step(0.01).name('Amount');
         function changeSculptAmount(value) {
             gpuSkulpt.setBrushAmount(value);
         }

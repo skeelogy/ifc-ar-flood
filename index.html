@@ -130,7 +130,7 @@
         terrainPreBlur: terrainImageSettings[Object.keys(terrainImageSettings)[0]].preblur,
         terrainHeight: terrainImageSettings[Object.keys(terrainImageSettings)[0]].height,
         sculptSize: 1.0,
-        sculptAmount: 0.1,
+        sculptAmount: 0.08,
         sculptClearSculpts: function () {
             gpuSkulpt.clear();
         },
@@ -1228,7 +1228,7 @@
         sculptSizeControl.onChange(changeSculptSize);
         changeSculptSize(options.sculptSize);
 
-        sculptAmountControl = sculptFolder.add(options, 'sculptAmount', 0.01, 0.5).name('Amount').listen();
+        sculptAmountControl = sculptFolder.add(options, 'sculptAmount', 0.01, 0.2).step(0.01).name('Amount').listen();
         changeSculptAmount = function (value) {
             value = THREE.Math.clamp(value, sculptAmountControl.__min, sculptAmountControl.__max);
             gpuSkulpt.setBrushAmount(value);

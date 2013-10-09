@@ -349,23 +349,15 @@
             if (event.button === 0) {  //LMB
                 isSculpting = true;
                 sculptTerrain('add');
+            } else if (event.button === 1) {  //RMB
+                isSculpting = true;
+                sculptTerrain('flatten');
             } else if (event.button === 2) {  //RMB
                 isSculpting = true;
                 sculptTerrain('remove');
             }
             mouseDownButton = event.button;
 
-        } else if (event.shiftKey) {
-
-            //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor(event);
-
-            //do actual sculpting if clicked
-            if (event.button === 0) {  //LMB
-                isSculpting = true;
-                sculptTerrain('flatten');
-            }
-            mouseDownButton = event.button;
         }
     }
 
@@ -384,24 +376,15 @@
             if (isSculpting) {
                 if (mouseDownButton === 0) {  //LMB
                     sculptTerrain('add');
+                } else if (mouseDownButton === 1) {  //MMB
+                    sculptTerrain('flatten');
                 } else if (mouseDownButton === 2) {  //RMB
                     sculptTerrain('remove');
                 }
             }
 
-        } else if (event.shiftKey) {
-
-            //detect intersection and show cursor
-            detectIntersectionAndShowSculptCursor(event);
-
-            //do actual sculpting if necessary
-            if (isSculpting) {
-                if (mouseDownButton === 0) {  //LMB
-                    sculptTerrain('flatten');
-                }
-            }
-
         }
+
     }
 
     function window_onMouseUp(event) {
@@ -491,7 +474,7 @@
         control.onChange(changeSculptSize);
         changeSculptSize(options.sculptSize);
 
-        control = sculptFolder.add(options, 'sculptAmount', 0.01, 1.0).name('Amount');
+        control = sculptFolder.add(options, 'sculptAmount', 0.01, 0.35).name('Amount');
         function changeSculptAmount(value) {
             skulpt.setBrushAmount(value);
         }
@@ -602,7 +585,7 @@
     <div id="threejs-container"></div>
     <div class="translucent" id="info-container">
         <div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
-        <div>Sculpt: [ Ctrl+LMB: add ] [ Ctrl+RMB: remove ] [ Shift+LMB: flatten ]</div>
+        <div>Sculpt: [ Ctrl+LMB: add ] [ Ctrl+MMB: flatten ] [ Ctrl+RMB: remove ]</div>
     </div>
 </body>
 </html>

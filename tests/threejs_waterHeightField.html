@@ -63,6 +63,9 @@
     var options = {
         waterSimType: waterSimTypes[Object.keys(waterSimTypes)[0]],
         waterSimFloodRate: WATER_FLOOD_RATE,
+        waterSimResetFloodRate: function () {
+            options.waterSimFloodRate = 0.0;
+        },
         obstaclesActive: true,
         obstaclesSeed: 1,
         obstaclesShowObstacles: true,
@@ -342,7 +345,7 @@
                 //detect intersection
                 intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
-                    hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
+                    hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
                 }
 
             } else if (event.button === 1) {  //MMB
@@ -352,7 +355,7 @@
                 //detect intersection
                 intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
-                    hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
+                    hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
                 }
 
             } else if (event.button === 2) {  //RMB
@@ -362,7 +365,7 @@
                 //detect intersection
                 intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
-                    hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
+                    hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
                 }
 
             }
@@ -379,19 +382,19 @@
                 //detect intersection
                 intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
-                    hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
+                    hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
                 }
             } else if (mouseDownButton === 1) {  //MMB
                 //detect intersection
                 intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
-                    hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
+                    hfWater.disturb(intersectPoint, WATER_DISTURB_AMOUNT);
                 }
             } else if (mouseDownButton === 2) {  //LMB
                 //detect intersection
                 intersectPoint = detectIntersection(event);
                 if (intersectPoint) {
-                    hfWater.source(intersectPoint, WATER_SOURCE_AMOUNT, 0.5);
+                    hfWater.source(intersectPoint, -WATER_SINK_AMOUNT, 0.5);
                 }
             }
         }
@@ -451,7 +454,15 @@
         control.onChange(changeWaterSimType);
         changeWaterSimType(options.waterSimType);
 
-        control = waterSimFolder.add(options, 'waterSimFloodRate', -200, 200).step(0.01).name('Flood Rate');
+        waterFloodVolRateControl = waterSimFolder.add(options, 'waterSimFloodRate', -200, 200).step(0.01).name('Flood Rate').listen();
+        changeWaterFloodRate = function (value) {
+            value = THREE.Math.clamp(value, waterFloodVolRateControl.__min, waterFloodVolRateControl.__max);
+            options.waterFloodVolRate = value;
+        };
+        waterFloodVolRateControl.onChange(changeWaterFloodRate);
+        changeWaterFloodRate(options.waterFloodVolRate);
+
+        control = waterSimFolder.add(options, 'waterSimResetFloodRate').name('Reset Flood Rate');
 
         //Obstacles folder
         obstaclesFolder = gui.addFolder('Obstacles');
@@ -601,7 +612,7 @@
     <div id="threejs-container"></div>
     <div class="translucent" id="info-container">
         <div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
-        <div>Water: [ Spc+LMB: disturb ] [ Spc+RMB: source ] [ Spc+MMB: sink ]</div>
+        <div>Water: [ Spc+LMB: source ] [ Spc+MMB: disturb ] [ Spc+RMB: sink ]</div>
     </div>
 </body>
 </html>
