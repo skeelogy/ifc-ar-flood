@@ -1,9 +1,9 @@
-HTML5 Augmented Reality Interactive Flood Simulation
+Interactive HTML5 Augmented Reality Flood Simulation
 ====================================================
 
 ### Introduction
 
-This is my HTML5 augmented reality (AR) interactive flood simulation project for Iowa Flood Center.
+This is my interactive HTML5 augmented reality (AR) flood simulation project for Iowa Flood Center.
 
 The main aims of this project:
 
@@ -17,14 +17,14 @@ The main aims of this project:
 
 * [WebRTC](http://www.webrtc.org/) - JavaScript API for real-time communications in web browsers
 * [three.js](http://threejs.org/) - JavaScript 3D library
-* [skarf.js](http://skeelogy.github.io/skarf.js/) - Three.js framework for JavaScript augmented reality libraries
-* [skulpt.js](http://skeelogy.github.io/skulpt.js/) - Three.js GPU height field terrain sculpting library
-* [skunami.js](http://skeelogy.github.io/skunami.js/) - Three.js GPU height field water libraries
+* [skarf.js](http://cg.skeelogy.com/skarfjs/) - Three.js framework for JavaScript augmented reality libraries
+* [skulpt.js](http://cg.skeelogy.com/skulptjs/) - Three.js GPU height field terrain sculpting library
+* [skunami.js](http://cg.skeelogy.com/skunamijs/) - Three.js GPU height field water libraries
 * [Physijs](http://chandlerprall.github.io/Physijs/) - Three.js rigid body dynamics system
 
-### Demo
+### Demos
 
-HTML5 Augmented Reality Interactive Flood Simulation [[Demo](http://skeelogy.github.io/ifc-ar-flood/demo.html)]
+Interactive HTML5 Augmented Reality Flood Simulation [[Demo](http://skeelogy.github.io/ifc-ar-flood/demo.html)]
 
 [![ScreenShot](http://skeelogy.github.io/ifc-ar-flood/screenshots/video_ifcArFlood_main.jpg)](http://www.youtube.com/watch?v=qEFH_r_X7kY)
 
@@ -37,4 +37,4 @@ HTML5 Augmented Reality Interactive Flood Simulation [[Demo](http://skeelogy.git
 ### License
 
 Released under The MIT License (MIT)<br/>
-Copyright (c) 2013 Skeel Lee ([http://cg.skeelogy.com](http://cg.skeelogy.com)) @skeelogy, Iowa Flood Center
+Copyright (c) 2013 Skeel Lee ([http://cg.skeelogy.com](http://cg.skeelogy.com)), Iowa Flood Center
