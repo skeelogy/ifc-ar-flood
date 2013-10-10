@@ -22,11 +22,20 @@ The main aims of this project:
 * [skunami.js](http://cg.skeelogy.com/skunamijs/) - Three.js GPU height field water libraries
 * [Physijs](http://chandlerprall.github.io/Physijs/) - Three.js rigid body dynamics system
 
-### Demos
+### Demo
 
 Interactive HTML5 Augmented Reality Flood Simulation [[Demo](http://skeelogy.github.io/ifc-ar-flood/demo.html)]
 
 [![ScreenShot](http://skeelogy.github.io/ifc-ar-flood/screenshots/video_ifcArFlood_main.jpg)](http://www.youtube.com/watch?v=qEFH_r_X7kY)
+
+### Related Examples
+
+Rigid Body Collision With Terrain And Two-Way Coupling With Water (Using Mouse Controls Only) [[Demo](http://skeelogy.github.io/skunami.js/examples/skunami_twoWayCoupling.html)]
+
+&nbsp;&nbsp;&nbsp;[![ScreenShot](http://skeelogy.github.io/skunami.js/screenshots/video_skunami_twoWayCoupling.jpg)](http://www.youtube.com/watch?v=f_6aTwP2lMg)
+
+* Dynamic objects (and terrain) cause ripples on water after displacing it
+* Water makes the dynamic objects float
 
 ### Useful Info
 
