@@ -21,7 +21,7 @@
 /**
  * @fileOverview Generic JavaScript augmented reality (AR) framework for handling different JavaScript AR libraries in Three.js
  * @author Skeel Lee <skeel@skeelogy.com>
- * @version 1.0.3
+ * @version 1.0.4
  *
  * @example
  * //How to setup Skarf
@@ -76,7 +76,7 @@
 /**
  * @namespace
  */
-var SKARF = SKARF || { version: '1.0.3' };
+var SKARF = SKARF || { version: '1.0.4' };
 console.log('Using SKARF ' + SKARF.version);
 
 //===================================
@@ -1130,6 +1130,7 @@ SKARF.MarkerManager.prototype.__load = function () {
     var that = this;
     $.ajax({
         url: this.__markersJsonFile,
+        dataType: 'JSON',
         async: false
     }).done(function (data) {
         that.__markerData = data;
