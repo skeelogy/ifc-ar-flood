@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IFC - GLSL Shader Feedback Test</title>
+    <meta charset="UTF-8"/>
+
+    <link rel="stylesheet" href="../css/style.css">
+
+    <!--load helper libraries-->
+    <script type="text/javascript" src="../js/lib/jquery-2.0.2.min.js"></script>
+
+    <!--load 3D libraries-->
+    <script type="text/javascript" src="../js/lib/three.min.js"></script>
+    <script type="text/javascript" src="../js/lib/Detector.js"></script>
+    <script type="text/javascript" src="../js/lib/stats.min.js"></script>
+    <script type="text/javascript" src="../js/lib/dat.gui.min.js"></script>
+    <script type="text/javascript" src="../js/lib/OrbitControls.js"></script>
+
+    <script>
+
+    var PLANE_SIZE = 10;
+    var PLANE_RES = 256;
+    var PLANE_GRID_SIZE = PLANE_SIZE / PLANE_RES;
+
+    var SHADOW_MAP_RES = 1024;
+
+    var options = {
+        displayFeedbackTexture: false
+    };
+
+    var shaders = {
+
+        vert: {
+
+            passUv: [
+
+                //Pass-through vertex shader for passing interpolated UVs to fragment shader
+
+                "varying vec2 vUv;",
+
+                "void main() {",
+                    "vUv = vec2(uv.x, uv.y);",
+                    "gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);",
+                "}"
+
+            ].join('\n'),
+
+            heightMap: [
+
+                //Vertex shader that displaces vertices in local Y based on a texture
+
+                "uniform sampler2D uTexture;",
+                "uniform vec2 uTexelSize;",
+                "uniform vec2 uTexelWorldSize;",
+                "uniform float uHeightMultiplier;",
+
+                "varying vec3 vViewPos;",
+                "varying vec3 vViewNormal;",
+                "varying vec2 vUv;",
+
+                "void main() {",
+
+                    "vUv = uv;",
+
+                    //displace y based on texel value
+                    "vec4 t = texture2D(uTexture, vUv) * uHeightMultiplier;",
+                    "vec3 displacedPos = vec3(position.x, t.r, position.z);",
+
+                    //find normal
+                    "vec2 du = vec2(uTexelSize.r, 0.0);",
+                    "vec2 dv = vec2(0.0, uTexelSize.g);",
+                    "vec3 vecPosU = vec3(displacedPos.x + uTexelWorldSize.r,",
+                                        "texture2D(uTexture, vUv + du).r * uHeightMultiplier,",
+                                        "displacedPos.z) - displacedPos;",
+                    "vec3 vecNegU = vec3(displacedPos.x - uTexelWorldSize.r,",
+                                        "texture2D(uTexture, vUv - du).r * uHeightMultiplier,",
+                                        "displacedPos.z) - displacedPos;",
+                    "vec3 vecPosV = vec3(displacedPos.x,",
+                                        "texture2D(uTexture, vUv + dv).r * uHeightMultiplier,",
+                                        "displacedPos.z - uTexelWorldSize.g) - displacedPos;",
+                    "vec3 vecNegV = vec3(displacedPos.x,",
+                                        "texture2D(uTexture, vUv - dv).r * uHeightMultiplier,",
+                                        "displacedPos.z + uTexelWorldSize.g) - displacedPos;",
+                    "vViewNormal = normalize(normalMatrix * 0.25 * (cross(vecPosU, vecPosV) + cross(vecPosV, vecNegU) + cross(vecNegU, vecNegV) + cross(vecNegV, vecPosU)));",
+
+                    "vec4 worldPosition = modelMatrix * vec4(displacedPos, 1.0);",
+                    "vec4 viewPos = modelViewMatrix * vec4(displacedPos, 1.0);",
+                    "vViewPos = viewPos.rgb;",
+
+                    "gl_Position = projectionMatrix * viewPos;",
+
+                "}"
+
+            ].join('\n')
+
+        },
+
+        frag: {
+
+            addBump: [
+
+                //Fragment shader for adding a small bump
+
+                "uniform sampler2D uTexture;",
+                "uniform float uBumpAmount;",
+                "uniform float uBumpRadius;",
+                "uniform vec2 uBumpPos;",
+
+                "varying vec2 vUv;",
+
+                "void main() {",
+
+                    //r channel: height
+
+                    //read texture from previous step
+                    "vec4 t = texture2D(uTexture, vUv);",
+
+                    //add bump
+                    "float len = length(vUv - vec2(uBumpPos.x, 1.0 - uBumpPos.y));",
+                    "t.r += uBumpAmount * smoothstep(uBumpRadius, 0.0, len);",
+
+                    //write out to texture for next step
+                    "gl_FragColor = t;",
+                "}"
+
+            ].join('\n'),
+
+            lambert: [
+
+                //Fragment shader that does basic lambert shading
+
+                //assume max 3-point lighting for now
+                "#define MAX_LIGHTS 3",
+
+                "uniform vec3 uBaseColor;",
+                "uniform vec3 uAmbientLightColor;",
+                "uniform float uAmbientLightIntensity;",
+                "uniform vec3 uPointLightWorldPos[MAX_LIGHTS];",
+                "uniform vec3 uPointLightColor[MAX_LIGHTS];",
+                "uniform float uPointLightIntensity[MAX_LIGHTS];",
+                "uniform float uPointLightFalloffStart[MAX_LIGHTS];",
+                "uniform float uPointLightFalloffEnd[MAX_LIGHTS];",
+
+                "varying vec3 vViewPos;",
+                "varying vec3 vViewNormal;",
+                "varying vec2 vUv;",
+
+                "void main() {",
+
+                    //ambient component
+                    "vec3 ambient = uAmbientLightColor * uAmbientLightIntensity;",
+
+                    //diffuse component
+                    "vec3 diffuse;",
+                    "for (int i = 0; i < MAX_LIGHTS; i++) {",
+                        "vec3 viewPosToViewLightVector = (viewMatrix * vec4(uPointLightWorldPos[i], 1.0)).rgb - vViewPos;",
+                        "float normalModulator = dot(normalize(vViewNormal), normalize(viewPosToViewLightVector));",
+                        "float distanceModulator = 1.0 - smoothstep(uPointLightFalloffStart[i], uPointLightFalloffEnd[i], length(viewPosToViewLightVector));",
+                        "diffuse = diffuse + (distanceModulator * normalModulator * uPointLightColor[i] * uPointLightIntensity[i]);",
+                    "}",
+
+                    "gl_FragColor = vec4(uBaseColor * (ambient + diffuse), 1.0);",
+                "}"
+
+            ].join('\n')
+
+        }
+
+    };
+
+    var clock = new THREE.Clock();
+
+    function checkWebGl() {
+        if (!Detector.webgl) {
+            $('div').remove();
+            Detector.addGetWebGLMessage();
+            throw new Error('Your browser does not seem to support WebGL');
+        }
+    }
+
+    var supportsTextureFloatLinear;
+    function checkExtensions(renderer) {
+        var context = renderer.context;
+
+        //determine floating point texture support
+        //https://www.khronos.org/webgl/public-mailing-list/archives/1306/msg00002.html
+
+        //get floating point texture support
+        if (!context.getExtension('OES_texture_float')) {
+            var msg = 'No support for floating point textures. Extension not available: OES_texture_float';
+            alert(msg);
+            throw new Error(msg);
+        }
+
+        //get floating point linear filtering support
+        supportsTextureFloatLinear = context.getExtension('OES_texture_float_linear') !== null;
+        console.log('Texture float linear filtering support: ' + supportsTextureFloatLinear);
+
+        //get vertex texture support
+        if (!context.getParameter(context.MAX_VERTEX_TEXTURE_IMAGE_UNITS)) {
+            var msg = 'Vertex textures not supported on your graphics card';
+            alert(msg);
+            throw new Error(msg);
+        }
+    }
+
+    var rttScene, rttCamera, rttRenderTarget1, rttRenderTarget2;
+    var rttQuadGeom, rttQuadMaterial, rttQuadMesh;
+    function setupRttScene() {
+
+        //create a RTT scene
+        rttScene = new THREE.Scene();
+
+        //create an orthographic RTT camera
+        var halfSize = PLANE_SIZE / 2.0;
+        var far = 10000;
+        var near = -far;
+        rttCamera = new THREE.OrthographicCamera(-halfSize, halfSize, halfSize, -halfSize, near, far);
+
+        //create a quad which we will use to invoke the shaders
+        rttQuadGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE);
+        rttQuadMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uTexture: { type: 't', value: null },
+                uBumpPos: { type: 'v2', value: new THREE.Vector2() },
+                uBumpAmount: { type: 'f', value: 0.0 },
+                uBumpRadius: { type: 'f', value: 0.0 }
+            },
+            vertexShader: shaders.vert['passUv'],
+            fragmentShader: shaders.frag['addBump']
+        });
+        rttQuadMesh = new THREE.Mesh(rttQuadGeom, rttQuadMaterial);
+        rttScene.add(rttQuadMesh);
+
+        var linearFloatRgbParams = {
+            minFilter: THREE.LinearFilter,
+            magFilter: THREE.LinearFilter,
+            wrapS: THREE.ClampToEdgeWrapping,
+            wrapT: THREE.ClampToEdgeWrapping,
+            format: THREE.RGBFormat,
+            stencilBuffer: false,
+            depthBuffer: false,
+            type: THREE.FloatType
+        };
+
+        var nearestFloatRgbParams = {
+            minFilter: THREE.NearestFilter,
+            magFilter: THREE.NearestFilter,
+            wrapS: THREE.ClampToEdgeWrapping,
+            wrapT: THREE.ClampToEdgeWrapping,
+            format: THREE.RGBFormat,
+            stencilBuffer: false,
+            depthBuffer: false,
+            type: THREE.FloatType
+        };
+
+        //create RTT render targets (we need two to do feedback)
+        if (supportsTextureFloatLinear) {
+            rttRenderTarget1 = new THREE.WebGLRenderTarget(PLANE_RES, PLANE_RES, linearFloatRgbParams);
+        } else {
+            rttRenderTarget1 = new THREE.WebGLRenderTarget(PLANE_RES, PLANE_RES, nearestFloatRgbParams);
+        }
+        rttRenderTarget1.generateMipmaps = false;
+        rttRenderTarget2 = rttRenderTarget1.clone();
+    }
+
+    var renderer, scene, camera, controls;
+    var materials = [];
+    var planeGeom, planeMaterial, planeMesh;
+    var groundGeom, groundMaterial, groundMesh;
+    var visGeom, visMaterial, visMesh;
+    var lightGeom, lightMaterial, lightMesh;
+    function setupThreejsScene() {
+
+        //create renderer
+        renderer = new THREE.WebGLRenderer({
+            antialias : true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight - 5);
+        renderer.setClearColor('#111111', 1);
+        checkExtensions(renderer);
+        var $container = $('#threejs-container');
+        $container.append(renderer.domElement);
+
+        //create scene
+        scene = new THREE.Scene();
+
+        //create camera
+        camera = new THREE.PerspectiveCamera(25, renderer.domElement.width / renderer.domElement.height, 0.1, 1000);
+        camera.position.set(8, 8, 15);
+        camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+        //create controls for camera
+        controls = new THREE.OrbitControls(camera);
+        controls.modifierKey = 'alt';
+
+        //create a plane for the actual height displacement
+        planeGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, PLANE_RES - 1, PLANE_RES - 1);
+        planeGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+        planeMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uTexture: { type: 't', value: rttRenderTarget1 },
+                uTexelSize: { type: 'v2', value: new THREE.Vector2(1.0 / PLANE_RES, 1.0 / PLANE_RES) },
+                uTexelWorldSize: { type: 'v2', value: new THREE.Vector2(PLANE_GRID_SIZE, PLANE_GRID_SIZE) },
+                uHeightMultiplier: { type: 'f', value: 1.0 },
+                uBaseColor: { type: 'v3', value: new THREE.Vector3(0.2, 1, 1) },
+                uAmbientLightColor: { type: 'v3', value: new THREE.Vector3(1, 1, 1) },
+                uAmbientLightIntensity: { type: 'f', value: 0.1 },
+                uPointLightWorldPos: { type: 'v3v', value: [ new THREE.Vector3(2, 0.2, 2), new THREE.Vector3(0, 2, 0) ] },
+                uPointLightColor: { type: 'v3v', value: [ new THREE.Vector3(1, 0, 0), new THREE.Vector3(1, 1, 1) ] },
+                uPointLightIntensity: { type: 'fv1', value: [ 3.0, 0.2 ] },
+                uPointLightFalloffStart: { type: 'fv1', value: [ 1.0, 1.0 ] },
+                uPointLightFalloffEnd: { type: 'fv1', value: [ 10.0, 10.0 ] }
+            },
+            vertexShader: shaders.vert['heightMap'],
+            fragmentShader: shaders.frag['lambert']
+        });
+        materials.push(planeMaterial);
+        planeMesh = new THREE.Mesh(planeGeom, planeMaterial);
+        scene.add(planeMesh);
+
+        //create a RTT visualization plane
+        visGeom = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, 1, 1);
+        visGeom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+        visMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: rttRenderTarget1 });
+        materials.push(visMaterial);
+        visMesh = new THREE.Mesh(visGeom, visMaterial);
+        visMesh.position.y = 3;
+        visMesh.castShadow = true;
+        visMesh.receiveShadow = true;
+        scene.add(visMesh);
+
+        //create a sphere that represents the point light
+        lightGeom = new THREE.SphereGeometry(0.1, 8, 8);
+        lightMaterial = new THREE.MeshBasicMaterial({color: 0xff0000});
+        materials.push(lightMaterial);
+        lightMesh = new THREE.Mesh(lightGeom, lightMaterial);
+        scene.add(lightMesh);
+    }
+
+    function swapRenderTargets() {
+        var temp = rttRenderTarget1;
+        rttRenderTarget1 = rttRenderTarget2;
+        rttRenderTarget2 = temp;
+        rttQuadMaterial.uniforms['uTexture'].value = rttRenderTarget2;  //feed current texture as the input for the next step
+    }
+
+    function window_onResize(event) {
+
+        //update camera projection
+        camera.aspect = window.innerWidth / (window.innerHeight - 5);
+        camera.updateProjectionMatrix();
+
+        //update renderer size
+        renderer.setSize(window.innerWidth, window.innerHeight - 5);
+    }
+
+    function setupEvents() {
+        window.addEventListener('resize', window_onResize, false);
+    }
+
+    var stats;
+    function setupStats() {
+        stats = new Stats();
+        $('body').append(stats.domElement);
+    }
+
+    var gui;
+    var displayFolder;
+    function setupGui() {
+
+        gui = new dat.GUI();
+        // gui.close();  //close GUI by default
+
+        //Display folder
+        displayFolder = gui.addFolder('Display');
+        displayFolder.open();
+
+        var control = displayFolder.add(options, 'displayFeedbackTexture').name('Feedback Texture');
+        function toggleFeedbackTexture(value) {
+            visMesh.visible = value;
+        }
+        control.onChange(toggleFeedbackTexture);
+        toggleFeedbackTexture(options.displayFeedbackTexture);
+    }
+
+    var radius = 0.2;
+    var x, z;
+    $(document).ready(function () {
+        //check for WebGL
+        checkWebGl();
+
+        console.log('Document is ready.');
+
+        //setup RTT scene
+        setupRttScene();
+
+        //setup scene
+        setupThreejsScene();
+
+        //setup events
+        setupEvents();
+
+        //setup stats monitor
+        setupStats();
+
+        //setup GUI
+        setupGui();
+
+        //main loop
+        function loop() {
+
+            var dt = clock.getDelta();  //have to call this before getElapsedTime()
+            var time = clock.getElapsedTime();
+
+            radius += 0.1 * dt;
+            x = radius * Math.sin(3 * time);
+            z = radius * Math.cos(3 * time);
+
+            //update RTT uniforms
+            rttQuadMaterial.uniforms['uBumpAmount'].value = 0.08;
+            rttQuadMaterial.uniforms['uBumpRadius'].value = 0.01;
+            rttQuadMaterial.uniforms['uBumpPos'].value.set((x + PLANE_SIZE / 2.0) / PLANE_SIZE, (z + PLANE_SIZE / 2.0) / PLANE_SIZE);
+
+            //update light uniforms
+            planeMaterial.uniforms['uPointLightWorldPos'].value[0].x = x;
+            planeMaterial.uniforms['uPointLightWorldPos'].value[0].z = z;
+            lightMesh.position.copy(planeMaterial.uniforms['uPointLightWorldPos'].value[0]);
+
+            controls.update();
+
+            renderer.autoClear = false;
+            renderer.clear();
+
+            //do render-to-target
+            renderer.render(rttScene, rttCamera, rttRenderTarget1, false);
+            swapRenderTargets();  //swap render targets so that output of current frame is the input of the next
+
+            renderer.render(scene, camera);
+
+            stats.update();
+
+            requestAnimationFrame(loop);
+        }
+        loop();
+    });
+    </script>
+</head>
+<body>
+    <div id="threejs-container"></div>
+    <div class="translucent" id="info-container">
+        <div>Camera: [ Alt+LMB: rotate ] [ Alt+MMB: pan ] [ Alt+RMB: zoom ]</div>
+    </div>
+
+    <!-- Start of StatCounter Code for Default Guide -->
+    <script type="text/javascript">
+    var sc_project=9309891;
+    var sc_invisible=1;
+    var sc_security="8c612bcf";
+    var scJsHost = (("https:" == document.location.protocol) ?
+    "https://secure." : "http://www.");
+    document.write("<sc"+"ript type='text/javascript' src='" +
+    scJsHost+
+    "statcounter.com/counter/counter.js'></"+"script>");
+    </script>
+    <noscript><div class="statcounter"><a title="web statistics"
+    href="http://statcounter.com/free-web-stats/"
+    target="_blank"><img class="statcounter"
+    src="http://c.statcounter.com/9309891/0/8c612bcf/1/"
+    alt="web statistics"></a></div></noscript>
+    <!-- End of StatCounter Code for Default Guide -->
+
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-8462726-8', 'skeelogy.github.io');
+      ga('send', 'pageview');
+
+    </script>
+</body>
+</html>
