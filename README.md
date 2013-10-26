@@ -39,7 +39,7 @@ Rigid Body Collision With Terrain And Two-Way Coupling With Water (Using Mouse C
 
 ### Browser Support
 
-Works only in Google Chrome (recommended) and Mozilla FireFox
+Tested only in Google Chrome (recommended) and Mozilla FireFox
 
 ### Useful Info
 
