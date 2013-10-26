@@ -37,6 +37,10 @@ Rigid Body Collision With Terrain And Two-Way Coupling With Water (Using Mouse C
 * Dynamic objects (and terrain) cause ripples on water after displacing it
 * Water makes the dynamic objects float
 
+### Browser Support
+
+Works only in Google Chrome (recommended) and Mozilla FireFox
+
 ### Useful Info
 
 * [Running The HTML Files Locally In Your Web Browser](https://github.com/skeelogy/ifc-ar-flood/wiki/Running-The-HTML-Files-Locally-In-Your-Web-Browser)
